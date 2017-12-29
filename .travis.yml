@@ -1,0 +1,17 @@
+os:
+  - linux
+  - osx
+
+sudo: false
+env:
+  global:
+    - MAKE="make -j 2"
+
+language: ruby
+rvm:
+  - 2.4.2
+  - 2.5.0
+  - ruby-head
+
+script:
+  - ./test/tests.rb

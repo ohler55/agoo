@@ -1,2 +1,61 @@
-# hayai
-An HTTP Server for Ruby
+# agoo
+
+[![Build Status](https://img.shields.io/travis/ohler55/agoo/master.svg)](http://travis-ci.org/ohler55/agoo?branch=master)
+
+A High Performance HTTP Server for Ruby
+
+## Usage
+
+```ruby
+require 'agoo'
+
+server = Agoo::Server.new(6464, 'root')
+
+class MyHandler
+  def initialize
+  end
+
+  def call(req)
+    [ 200, { }, [ "hello world" ] ]
+  end
+end
+
+handler = TellMeHandler.new
+server.handle(:GET, "/hello", handler)
+server.start()
+```
+
+## Installation
+```
+gem install agoo
+```
+
+## What Is This?
+
+Agoo is Japanese for a type of flying fish. This gem flies. It is a high
+performance HTTP server that serves static resource at hundreds of thousands
+of fetchs per second. A a simple hello world Ruby handler at over 100,000
+requests per second on a desktop computer. That places Agoo at about 80 times
+faster than Sinatra and 1000 times faster than Rails. In both cases the
+latency was an order of magnitude lower or more. Checkout the benchmarks on <a
+href="http://opo.technology/benchmarks.html#web_benchmarks">OpO
+benchmarks</a>. Note that the benchmarks had to use a C program called _hose_
+from the <a href="http://opo.technology/index.html">OpO</a> downloads to hit
+the Agoo limits. Ruby benchmarks driver could not push Agoo hard enough.
+
+Agoo supports the [Ruby rack API](https://rack.github.io) which allows for the
+use of rack compatible gems.
+
+## Releases
+
+See [{file:CHANGELOG.md}](CHANGELOG.md)
+
+## Links
+
+ - *Documentation*: http://rubydoc.info/gems/agoo
+
+ - *GitHub* *repo*: https://github.com/ohler55/agoo
+
+ - *RubyGems* *repo*: https://rubygems.org/gems/agoo
+
+Follow [@peterohler on Twitter](http://twitter.com/#!/peterohler) for announcements and news about the Agoo gem.

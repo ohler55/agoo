@@ -1,0 +1,23 @@
+;; -*- mode: outline; outline-regexp: " *[-\+]"; indent-tabs-mode: nil; fill-column: 120 -*-
+
+- refs
+  - http://www.rubydoc.info/github/rack/rack/master/file/SPEC
+
+- todo
+
+ - wabur
+  - add call(env)
+
+ - opo benchmarks on big
+ - test on mac
+ - open source it
+ - if travis is ok then merge to master
+ - new on opo
+ 
+handler
+  is_a?(WAB::Controller)
+   or create, read, update, and delete
+
+
+- hijacking - is it needed?
+ - before and afters for call, pipeline
