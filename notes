@@ -5,14 +5,9 @@
 
 - todo
 
- - wabur
-  - add call(env)
-
- - opo benchmarks on big
- - test on mac
- - open source it
  - if travis is ok then merge to master
- - new on opo
+ - opo benchmarks on big
+ - update news on opo
  
 handler
   is_a?(WAB::Controller)
