@@ -249,6 +249,7 @@ listen_loop(void *x) {
 	return NULL;
     }
     listen(pa->fd, 1000);
+    server->ready = true;
     pa->events = POLLIN;
     pa->revents = 0;
 
@@ -317,7 +318,7 @@ rescue_error(VALUE x) {
     if ((int)(sizeof(buf) - sizeof(bad500) + 7) <= len) {
 	len = sizeof(buf) - sizeof(bad500) + 7;
     }
-    cnt = snprintf(buf, sizeof(buf), "HTTP/1.1 500 Internal Error\r\nConnection: Close\r\nContent-Length: %d\r\n\r\n%s: %s", len, classname, ms);
+    cnt = snprintf(buf, sizeof(buf), "%s%d\r\n\r\n%s: %s", bad500, len, classname, ms);
     message = text_create(buf, cnt);
 
     req->res->close = true;
@@ -421,7 +422,7 @@ handle_rack_inner(void *x) {
     }
     if (T_ARRAY != rb_type(bv)) {
 	int	i;
-	int	bcnt = RARRAY_LEN(bv);
+	int	bcnt = (int)RARRAY_LEN(bv);
 	
 	for (i = 0; i < bcnt; i++) {
 	    bsize += (int)RSTRING_LEN(rb_ary_entry(bv, i));
@@ -437,10 +438,11 @@ handle_rack_inner(void *x) {
     case 205:
     case 304:
 	// TBD Content-Type and Content-Length can not be present
-	t->len = sprintf(t->text, "HTTP/1.1 %d %s\r\n", code, status_msg);
+	t->len = snprintf(t->text, 1024, "HTTP/1.1 %d %s\r\n", code, status_msg);
 	break;
     default:
-	t->len = sprintf(t->text, "HTTP/1.1 %d %s\r\nContent-Length: %d\r\n", code, status_msg, bsize);
+	// Note that using simply sprintf causes an abort with travis OSX tests.
+	t->len = snprintf(t->text, 1024, "HTTP/1.1 %d %s\r\nContent-Length: %d\r\n", code, status_msg, bsize);
 	break;
     }
     if (T_HASH == rb_type(hv)) {
@@ -453,7 +455,7 @@ handle_rack_inner(void *x) {
 	if (T_ARRAY == rb_type(bv)) {
 	    VALUE	v;
 	    int		i;
-	    int		bcnt = RARRAY_LEN(bv);
+	    int		bcnt = (int)RARRAY_LEN(bv);
 
 	    for (i = 0; i < bcnt; i++) {
 		v = rb_ary_entry(bv, i);
@@ -561,11 +563,24 @@ start(VALUE self) {
     Server	server = (Server)DATA_PTR(self);
     VALUE	*vp;
     int		i;
+    double	giveup;
     
     server->active = true;
+    server->ready = false;
 
     pthread_create(&server->listen_thread, NULL, listen_loop, server);
     pthread_create(&server->con_thread, NULL, con_loop, server);
+    
+    giveup = dtime() + 1.0;
+    while (dtime() < giveup) {
+	if (server->ready) {
+	    break;
+	}
+	dsleep(0.001);
+    }
+    signal(SIGINT, sig_handler);
+    signal(SIGTERM, sig_handler);
+    signal(SIGPIPE, SIG_IGN);
 
     if (0 >= server->thread_cnt) {
 	Req		req;
@@ -884,8 +899,4 @@ server_init(VALUE mod) {
     put_sym = ID2SYM(rb_intern("PUT"));		rb_gc_register_address(&put_sym);
 
     http_init();
-
-    signal(SIGINT, sig_handler);
-    signal(SIGTERM, sig_handler);
-    signal(SIGPIPE, SIG_IGN);
 }

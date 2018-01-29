@@ -1,17 +1,32 @@
-os:
-  - linux
-  - osx
 
 sudo: false
-env:
-  global:
-    - MAKE="make -j 2"
 
 language: ruby
 rvm:
-  - 2.4.2
+  #- 2.4.2
   - 2.5.0
-  - ruby-head
+
+matrix:
+  include:
+    - os: linux
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - g++-6
+      env:
+        - MATRIX_EVAL="CC=gcc-6 && CXX=g++-6"
+    - os: osx
+
+before_script:
+  - eval "${MATRIX_EVAL}"
+  - gem build agoo.gemspec
+  - gem install oj
+  - gem install agoo-*
+  - cd ext/agoo
+  - ruby extconf.rb && make clean all
+  - cd ../..
 
 script:
-  - ./test/tests.rb
+  - cd test && ./tests.rb -v

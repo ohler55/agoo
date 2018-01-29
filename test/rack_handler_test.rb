@@ -42,7 +42,7 @@ class RackHandlerTest < Minitest::Test
 
   def test_rack
     begin
-      server = Agoo::Server.new(6465, 'root',
+      server = Agoo::Server.new(6467, 'root',
 				pedantic: false,
 				log_dir: '',
 				thread_count: 1,
@@ -63,6 +63,7 @@ class RackHandlerTest < Minitest::Test
       server.handle(:GET, "/tellme", handler)
       server.handle(:POST, "/makeme", handler)
       server.handle(:PUT, "/makeme", handler)
+
       server.start()
 
       eval_test
@@ -74,7 +75,7 @@ class RackHandlerTest < Minitest::Test
   end
   
   def eval_test
-    uri = URI('http://localhost:6465/tellme?a=1')
+    uri = URI('http://localhost:6467/tellme?a=1')
     req = Net::HTTP::Get.new(uri)
     # Set the headers the way we want them.
     req['Accept-Encoding'] = '*'
@@ -96,7 +97,7 @@ class RackHandlerTest < Minitest::Test
       "REQUEST_METHOD" => "GET",
       "SCRIPT_NAME" => "/tellme",
       "SERVER_NAME" => "localhost",
-      "SERVER_PORT" => "6465",
+      "SERVER_PORT" => "6467",
       "rack.errors" => nil,
       "rack.input" => nil,
       "rack.multiprocess" => false,
@@ -115,7 +116,7 @@ class RackHandlerTest < Minitest::Test
   end
 
   def post_test
-    uri = URI('http://localhost:6465/makeme')
+    uri = URI('http://localhost:6467/makeme')
     req = Net::HTTP::Post.new(uri)
     # Set the headers the way we want them.
     req['Accept-Encoding'] = '*'
@@ -129,7 +130,7 @@ class RackHandlerTest < Minitest::Test
   end
   
   def put_test
-    uri = URI('http://localhost:6465/makeme')
+    uri = URI('http://localhost:6467/makeme')
     req = Net::HTTP::Put.new(uri)
     # Set the headers the way we want them.
     req['Accept-Encoding'] = '*'

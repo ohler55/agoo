@@ -184,7 +184,7 @@ page_destroy(Page p) {
 static bool
 update_contents(Page p) {
     const char	*mime = NULL;
-    int		plen = strlen(p->path);
+    int		plen = (int)strlen(p->path);
     const char	*suffix = p->path + plen - 1;
     FILE	*f;
     long	size;
@@ -284,7 +284,7 @@ update_contents(Page p) {
 	text_release(p->resp);
 	p->resp = NULL;
     }
-    p->resp = text_create(msg, msize);
+    p->resp = text_create(msg, (int)msize);
     text_ref(p->resp);
     p->last_check = dtime();
 

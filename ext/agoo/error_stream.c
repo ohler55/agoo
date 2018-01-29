@@ -39,7 +39,7 @@ static VALUE
 es_puts(VALUE self, VALUE str) {
     ErrorStream	es = (ErrorStream)DATA_PTR(self);
 
-    es->text = text_append(es->text, StringValuePtr(str), RSTRING_LEN(str));
+    es->text = text_append(es->text, StringValuePtr(str), (int)RSTRING_LEN(str));
     es->text = text_append(es->text, "\n", 1);
 
     return Qnil;
@@ -54,7 +54,7 @@ es_puts(VALUE self, VALUE str) {
 static VALUE
 es_write(VALUE self, VALUE str) {
     ErrorStream	es = (ErrorStream)DATA_PTR(self);
-    int		cnt = RSTRING_LEN(str);
+    int		cnt = (int)RSTRING_LEN(str);
     
     es->text = text_append(es->text, StringValuePtr(str), cnt);
 

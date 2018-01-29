@@ -47,7 +47,7 @@ text_release(Text t) {
 Text
 text_append(Text t, const char *s, int len) {
     if (0 >= len) {
-	len = strlen(s);
+	len = (int)strlen(s);
     }
     if (t->alen <= t->len + len) {
 	long	new_len = t->alen + t->alen / 2;

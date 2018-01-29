@@ -464,7 +464,7 @@ get_bucketp(uint64_t h) {
 
 static void
 key_set(const char *key) {
-    int		len = strlen(key);
+    int		len = (int)strlen(key);
     int64_t	h = calc_hash(key, &len);
     Slot	*bucket = get_bucketp(h);
     Slot	s;
