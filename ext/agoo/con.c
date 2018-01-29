@@ -52,7 +52,7 @@ con_header_value(const char *header, int hlen, const char *key, int *vlen) {
     const char	*h = header;
     const char	*hend = header + hlen;
     const char	*value;
-    int		klen = strlen(key);
+    int		klen = (int)strlen(key);
     
     while (h < hend) {
 	if (0 == strncmp(key, h, klen) && ':' == h[klen]) {
@@ -62,7 +62,7 @@ con_header_value(const char *header, int hlen, const char *key, int *vlen) {
 	    value = h;
 	    for (; '\r' != *h && '\0' != *h; h++) {
 	    }
-	    *vlen = h - value;
+	    *vlen = (int)(h - value);
 
 	    return value;
 	}
@@ -161,7 +161,7 @@ con_header_read(Con c) {
 	} else {
 	    return bad_request(c, 400, __LINE__);
 	}
-	if (NULL == (v = con_header_value(c->buf, hend - c->buf, "Content-Length", &vlen))) {
+	if (NULL == (v = con_header_value(c->buf, (int)(hend - c->buf), "Content-Length", &vlen))) {
 	    return bad_request(c, 411, __LINE__);
 	}
 	clen = (size_t)strtoul(v, &vend, 10);
@@ -225,7 +225,7 @@ con_header_read(Con c) {
     if (NULL == (hook = hook_find(server->hooks, method, path, pend))) {
 	if (GET == method) {
 	    struct _Err	err = ERR_INIT;
-	    Page	p = page_get(&err, &server->pages, server->root, path, pend - path);
+	    Page	p = page_get(&err, &server->pages, server->root, path, (int)(pend - path));
 	    Res		res;
 
 	    if (NULL == p) {
@@ -242,7 +242,7 @@ con_header_read(Con c) {
 	    c->res_tail = res;
 
 	    b = strstr(c->buf, "\r\n");
-	    res->close = should_close(b, hend - b);
+	    res->close = should_close(b, (int)(hend - b));
 
 	    text_ref(p->resp);
 	    res_set_message(res, p->resp);
@@ -262,15 +262,15 @@ con_header_read(Con c) {
     c->req->server = server;
     c->req->method = method;
     c->req->path.start = c->req->msg + (path - c->buf);
-    c->req->path.len = pend - path;
+    c->req->path.len = (int)(pend - path);
     c->req->query.start = c->req->msg + (query - c->buf);
-    c->req->query.len = qend - query;
+    c->req->query.len = (int)(qend - query);
     c->req->mlen = mlen;
     c->req->body.start = c->req->msg + (hend - c->buf + 4);
-    c->req->body.len = clen;
+    c->req->body.len = (unsigned int)clen;
     b = strstr(b, "\r\n");
     c->req->header.start = c->req->msg + (b + 2 - c->buf);
-    c->req->header.len = hend - b - 2;
+    c->req->header.len = (unsigned int)(hend - b - 2);
     c->req->res = NULL;
     if (NULL != hook) {
 	c->req->handler = hook->handler;
@@ -441,7 +441,7 @@ con_loop(void *x) {
 	    i--;
 	    pp++;
 	}
-	if (0 > (i = poll(pa, pp - pa, 100))) {
+	if (0 > (i = poll(pa, (nfds_t)(pp - pa), 100))) {
 	    if (EAGAIN == errno) {
 		continue;
 	    }

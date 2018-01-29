@@ -354,7 +354,7 @@ fill_headers(Req r, VALUE hash) {
     char		*h = r->header.start;
     char		*end = h + r->header.len;
     char		*key = h;
-    char		*kend;
+    char		*kend = key;
     char		*val = NULL;
     char		*vend;
     
@@ -382,7 +382,7 @@ fill_headers(Req r, VALUE hash) {
 	    if ('\n' == *(h + 1)) {
 		h++;
 	    }
-	    add_header_value(hash, key, kend - key, val, vend - val);
+	    add_header_value(hash, key, (int)(kend - key), val, (int)(vend - val));
 	    key = h + 1;
 	    kend = NULL;
 	    val = NULL;

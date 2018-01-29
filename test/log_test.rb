@@ -116,6 +116,7 @@ class LogClassicTest < Minitest::Test
   def error_test(server)
     server.error('my message')
     server.log_flush(1.0)
+    sleep(0.01) # seems to be needed to assure writes actually happened even though flush was called.
     content = IO.read('log/agoo.log')
     assert_match(/ERROR: my message/, content)
   end
@@ -123,6 +124,7 @@ class LogClassicTest < Minitest::Test
   def warn_test(server)
     server.warn('my message')
     server.log_flush(1.0)
+    sleep(0.01)
     content = IO.read('log/agoo.log')
     assert_match(/WARN: my message/, content)
   end
@@ -130,6 +132,7 @@ class LogClassicTest < Minitest::Test
   def info_test(server)
     server.info('my message')
     server.log_flush(1.0)
+    sleep(0.01)
     content = IO.read('log/agoo.log')
     assert_match(/INFO: my message/, content)
   end
@@ -137,6 +140,7 @@ class LogClassicTest < Minitest::Test
   def debug_test(server)
     server.debug('my message')
     server.log_flush(1.0)
+    sleep(0.01)
     content = IO.read('log/agoo.log')
     assert_match(/DEBUG: my message/, content)
   end
@@ -144,6 +148,7 @@ class LogClassicTest < Minitest::Test
   def log_eval_test(server)
     server.log_eval('my message')
     server.log_flush(1.0)
+    sleep(0.01)
     content = IO.read('log/agoo.log')
     assert_match(/eval: my message/, content)
   end
@@ -180,6 +185,7 @@ class LogJsonTest < Minitest::Test
   def error_test(server)
     server.error('my message')
     server.log_flush(1.0)
+    sleep(0.01)
     content = IO.read('log/agoo.log.1')
     assert_match(/"where":"ERROR"/, content)
     assert_match(/"level":1/, content)
@@ -189,6 +195,7 @@ class LogJsonTest < Minitest::Test
   def warn_test(server)
     server.warn('my message')
     server.log_flush(1.0)
+    sleep(0.01)
     content = IO.read('log/agoo.log.1')
     assert_match(/"where":"WARN"/, content)
     assert_match(/"level":2/, content)
@@ -198,6 +205,7 @@ class LogJsonTest < Minitest::Test
   def info_test(server)
     server.info('my message')
     server.log_flush(1.0)
+    sleep(0.01)
     content = IO.read('log/agoo.log.1')
     assert_match(/"where":"INFO"/, content)
     assert_match(/"level":3/, content)
@@ -207,6 +215,7 @@ class LogJsonTest < Minitest::Test
   def debug_test(server)
     server.debug('my message')
     server.log_flush(1.0)
+    sleep(0.01)
     content = IO.read('log/agoo.log.1')
     assert_match(/"where":"DEBUG"/, content)
     assert_match(/"level":4/, content)
@@ -216,6 +225,7 @@ class LogJsonTest < Minitest::Test
   def eval_test(server)
     server.log_eval('my message')
     server.log_flush(1.0)
+    sleep(0.01)
     content = IO.read('log/agoo.log.1')
     assert_match(/"where":"eval"/, content)
     assert_match(/"level":3/, content)
@@ -245,6 +255,7 @@ class LogRollTest < Minitest::Test
 	@server.info("my #{i} message")
       }
       @server.log_flush(1.0)
+      sleep(0.01)
       content = IO.read('log/agoo.log')
       assert_match(/INFO: my 9 message/, content)
 

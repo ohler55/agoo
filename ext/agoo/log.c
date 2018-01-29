@@ -121,7 +121,7 @@ classic_write(Log log, LogEntry e, FILE *file) {
     t += log->zone;
     if (log->day_start <= t && t < log->day_end) {
 	t -= log->day_start;
-	hour = t / 3600;
+	hour = (int)(t / 3600);
 	min = t % 3600 / 60;
 	sec = t % 60;
     } else {
@@ -346,7 +346,7 @@ log_init(Err err, Log log, VALUE cfg) {
     log->console = true;
     log->classic = true;
     log->colorize = true;
-    log->zone = (int64_t)(timegm(tm) - t);
+    log->zone = (int)(timegm(tm) - t);
     log->day_start = 0;
     log->day_end = 0;
     *log->day_buf = '\0';

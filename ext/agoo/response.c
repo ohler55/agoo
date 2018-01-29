@@ -125,7 +125,7 @@ body_set(VALUE self, VALUE val) {
 
     if (T_STRING == rb_type(val)) {
 	res->body = strdup(StringValuePtr(val));
-	res->blen = RSTRING_LEN(val);
+	res->blen = (int)RSTRING_LEN(val);
     } else {
 	// TBD use Oj
     }
@@ -172,7 +172,7 @@ head_get(VALUE self, VALUE key) {
     Response	res = (Response)DATA_PTR(self);
     Header	h;
     const char	*ks = StringValuePtr(key);
-    int		klen = RSTRING_LEN(key);
+    int		klen = (int)RSTRING_LEN(key);
     
     for (h = res->headers; NULL != h; h = h->next) {
 	if (0 == strncasecmp(h->text, ks, klen) && klen + 1 < h->len && ':' == h->text[klen]) {
@@ -195,7 +195,7 @@ head_set(VALUE self, VALUE key, VALUE val) {
     Header	prev = NULL;
     const char	*ks = StringValuePtr(key);
     const char	*vs;
-    int		klen = RSTRING_LEN(key);
+    int		klen = (int)RSTRING_LEN(key);
     int		vlen;
     int		hlen;
 
@@ -215,7 +215,7 @@ head_set(VALUE self, VALUE key, VALUE val) {
 	val = rb_funcall(val, rb_intern("to_s"), 0);
     }
     vs = StringValuePtr(val);
-    vlen = RSTRING_LEN(val);
+    vlen = (int)RSTRING_LEN(val);
 
     if (res->server->pedantic) {
 	http_header_ok(ks, klen, vs, vlen);

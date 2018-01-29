@@ -16,6 +16,7 @@
 
 typedef struct _Server {
     volatile bool	active;
+    volatile bool	ready;
     int			thread_cnt;
     int			port;
     bool		pedantic;

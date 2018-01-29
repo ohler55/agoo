@@ -184,7 +184,7 @@ queue_release(Queue q) {
 
 int
 queue_count(Queue q) {
-    int	size = q->end - q->q;
+    int	size = (int)(q->end - q->q);
     
     return (q->tail - q->head + size) % size;
 }
