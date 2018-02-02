@@ -36,9 +36,9 @@ gem install agoo
 Agoo is Japanese for a type of flying fish. This gem flies. It is a high
 performance HTTP server that serves static resource at hundreds of thousands
 of fetchs per second. A a simple hello world Ruby handler at over 100,000
-requests per second on a desktop computer. That places Agoo at about 80 times
+requests per second on a desktop computer. That places Agoo at about 85 times
 faster than Sinatra and 1000 times faster than Rails. In both cases the
-latency was an order of magnitude lower or more. Checkout the benchmarks on <a
+latency was two orders of magnitude lower or more. Checkout the benchmarks on <a
 href="http://opo.technology/benchmarks.html#web_benchmarks">OpO
 benchmarks</a>. Note that the benchmarks had to use a C program called _hose_
 from the <a href="http://opo.technology/index.html">OpO</a> downloads to hit
