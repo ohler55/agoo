@@ -104,7 +104,7 @@ class RackHandlerTest < Minitest::Test
       "rack.multithread" => false,
       "rack.run_once" => false,
       "rack.url_scheme" => "http",
-      "rack.version" => "2.0.3",
+      "rack.version" => "1.3",
     }
     expect.each_pair { |k,v|
       if v.nil?
