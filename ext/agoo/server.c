@@ -851,7 +851,27 @@ handle(VALUE self, VALUE method, VALUE pattern, VALUE handler) {
 	} else {
 	    server->hooks = hook;
 	}
+	rb_gc_register_address(&hook->handler);
     }
+    return Qnil;
+}
+
+/* Document-method: handle_not_found
+ *
+ * call-seq: not_found_handle(handler)
+ *
+ * Registers a handler to be called when no other hook is found and no static
+ * file is found.
+ */
+static VALUE
+handle_not_found(VALUE self, VALUE handler) {
+    Server	server = (Server)DATA_PTR(self);
+
+    if (NULL == (server->hook404 = hook_create(GET, "/", handler))) {
+	rb_raise(rb_eStandardError, "out of memory.");
+    }
+    rb_gc_register_address(&server->hook404->handler);
+    
     return Qnil;
 }
 
@@ -884,6 +904,7 @@ server_init(VALUE mod) {
     rb_define_method(server_class, "log_flush", server_log_flush, 1);
 
     rb_define_method(server_class, "handle", handle, 3);
+    rb_define_method(server_class, "handle_not_found", handle_not_found, 1);
 
     call_id = rb_intern("call");
     each_id = rb_intern("each");

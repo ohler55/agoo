@@ -38,6 +38,7 @@ typedef struct _Server {
     struct _Cache	pages;
 
     Hook		hooks;
+    Hook		hook404;
     struct _Queue	eval_queue;
 
     VALUE		*eval_threads; // Qnil terminated

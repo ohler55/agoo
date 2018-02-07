@@ -4,10 +4,17 @@
   - http://www.rubydoc.info/github/rack/rack/master/file/SPEC
 
 - todo
-
- - if travis is ok then merge to master
- - opo benchmarks on big
- - update news on opo
+ - add mime type
+ 
+ - add support for rack.logger
+   info(message, &block)
+   debug(message, &block)
+   warn(message, &block)
+   error(message, &block)
+   fatal(message, &block)
+ - chain() or use()
+  - add module/class/object in chain before call()
+  - same as Rack::Builder#use
  
 handler
   is_a?(WAB::Controller)

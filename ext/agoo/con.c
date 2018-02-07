@@ -229,6 +229,12 @@ con_header_read(Con c) {
 	    Res		res;
 
 	    if (NULL == p) {
+		if (NULL != server->hook404) {
+		    // There would be too many parameters to pass to a
+		    // separate function so just goto the hook processing.
+		    hook = server->hook404;
+		    goto HOOKED;
+		}
 		return bad_request(c, 404, __LINE__);
 	    }
     	    if (NULL == (res = res_create())) {
@@ -250,6 +256,7 @@ con_header_read(Con c) {
 	    return true;
 	}
     }
+HOOKED:
     // Create request and populate.
     mlen = hend - c->buf + 4 + clen;
     if (NULL == (c->req = (Req)malloc(mlen + sizeof(struct _Req) - 8 + 1))) {

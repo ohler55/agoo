@@ -39,7 +39,9 @@ response_fill(Response res, char *buf) {
     *buf++ = '\n';
     if (NULL != res->body) {
 	memcpy(buf, res->body, res->blen);
+	buf += res->blen;
     }
+    *buf = '\0';
 }
 
 static void
