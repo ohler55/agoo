@@ -2,6 +2,7 @@
 
 [![Build Status](https://img.shields.io/travis/ohler55/agoo/master.svg)](http://travis-ci.org/ohler55/agoo?branch=master)
 [![Gem Version](https://badge.fury.io/rb/agoo.svg)](https://badge.fury.io/rb/agoo)
+![Gem](https://img.shields.io/gem/dt/agoo.svg)
 
 A High Performance HTTP Server for Ruby
 

@@ -57,7 +57,6 @@ class RackHandlerTest < Minitest::Test
 				  response: false,
 				  eval: true,
 				})
-      #sleep(100)
 
       handler = TellMeHandler.new
       server.handle(:GET, "/tellme", handler)
