@@ -875,6 +875,20 @@ handle_not_found(VALUE self, VALUE handler) {
     return Qnil;
 }
 
+/* Document-method: handle_not_found
+ *
+ * call-seq: not_found_handle(handler)
+ *
+ * Registers a handler to be called when no other hook is found and no static
+ * file is found.
+ */
+static VALUE
+add_mime(VALUE self, VALUE suffix, VALUE type) {
+    mime_set(&((Server)DATA_PTR(self))->pages, StringValuePtr(suffix), StringValuePtr(type));
+
+    return Qnil;
+}
+
 /* Document-class: Agoo::Server
  *
  * An HTTP server that support the rack API as well as some other optimized
@@ -905,6 +919,7 @@ server_init(VALUE mod) {
 
     rb_define_method(server_class, "handle", handle, 3);
     rb_define_method(server_class, "handle_not_found", handle_not_found, 1);
+    rb_define_method(server_class, "add_mime", add_mime, 2);
 
     call_id = rb_intern("call");
     each_id = rb_intern("each");

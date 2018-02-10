@@ -5,6 +5,8 @@
 #include <stdlib.h>
 #include <sys/stat.h>
 
+#include <ruby.h>
+
 #include "dtime.h"
 #include "page.h"
 
@@ -16,25 +18,51 @@ typedef struct _Mime {
     const char	*type;
 } *Mime;
 
+// These are used for the initial load.
 static struct _Mime	mime_map[] = {
+    { "asc", "text/plain" },
+    { "avi", "video/x-msvideo" },
+    { "bin", "application/octet-stream" },
+    { "bmp", "image/bmp" },
+    { "cer", "application/pkix-cert" },
+    { "crl", "application/pkix-crl" },
+    { "crt", "application/x-x509-ca-cert" },
     { "css", "text/css" },
+    { "doc", "application/msword" },
     { "eot", "application/vnd.ms-fontobject" },
+    { "eps", "application/postscript" },
     { "es5", "application/javascript" },
     { "es6", "application/javascript" },
     { "gif", "image/gif" },
+    { "htm", "text/html" },
     { "html", "text/html" },
     { "ico", "image/x-icon" },
     { "jpeg", "image/jpeg" },
     { "jpg", "image/jpeg" },
     { "js", "application/javascript" },
     { "json", "application/json" },
+    { "mov", "video/quicktime" },
+    { "mpe", "video/mpeg" },
+    { "mpeg", "video/mpeg" },
+    { "mpg", "video/mpeg" },
+    { "pdf", "application/pdf" },
     { "png", "image/png" },
+    { "ppt", "application/vnd.ms-powerpoint" },
+    { "ps", "application/postscript" },
+    { "qt", "video/quicktime" },
+    { "rb", "text/plain" },
+    { "rtf", "application/rtf" },
     { "sse", "text/plain" },
     { "svg", "image/svg+xml" },
+    { "tif", "image/tiff" },
+    { "tiff", "image/tiff" },
     { "ttf", "application/font-sfnt" },
     { "txt", "text/plain" },
     { "woff", "application/font-woff" },
     { "woff2", "font/woff2" },
+    { "xls", "application/vnd.ms-excel" },
+    { "xml", "application/xml" },
+    { "zip", "application/zip" },
     { NULL, NULL }
 };
 
@@ -72,25 +100,28 @@ get_bucketp(Cache cache, uint64_t h) {
     return cache->buckets + (PAGE_BUCKET_MASK & (h ^ (h << 5) ^ (h >> 7)));
 }
 
-void
-cache_init(Cache cache) {
-    memset(cache, 0, sizeof(struct _Cache));
+static MimeSlot*
+get_mime_bucketp(Cache cache, uint64_t h) {
+    return cache->muckets + (MIME_BUCKET_MASK & (h ^ (h << 5) ^ (h >> 7)));
 }
 
-void
-cache_destroy(Cache cache) {
-    Slot	*sp = cache->buckets;
-    Slot	s;
-    Slot	n;
+const char*
+mime_get(Cache cache, const char *key) {
+    int		klen = (int)strlen(key);
+    int		len = klen;
+    int64_t	h = calc_hash(key, &len);
+    MimeSlot	*bucket = get_mime_bucketp(cache, h);
+    MimeSlot	s;
+    const char	*v = NULL;
 
-    for (int i = PAGE_BUCKET_SIZE; 0 < i; i--, sp++) {
-	for (s = *sp; NULL != s; s = n) {
-	    n = s->next;
-	    free(s);
+    for (s = *bucket; NULL != s; s = s->next) {
+	if (h == (int64_t)s->hash && len == (int)s->klen &&
+	    ((0 <= len && len <= MAX_KEY_UNIQ) || 0 == strncmp(s->key, key, klen))) {
+	    v = s->value;
+	    break;
 	}
-	*sp = NULL;
     }
-    free(cache);
+    return v;
 }
 
 Page
@@ -111,7 +142,44 @@ cache_get(Cache cache, const char *key, int klen) {
     return v;
 }
 
-Page
+void
+mime_set(Cache cache, const char *key, const char *value) {
+    int		klen = (int)strlen(key);
+    int		len = klen;
+    int64_t	h = calc_hash(key, &len);
+    MimeSlot	*bucket = get_mime_bucketp(cache, h);
+    MimeSlot	s;
+    
+    if (MAX_MIME_KEY_LEN < len) {
+	rb_raise(rb_eArgError, "%s is too long for a file extension. Maximum is %d", key, MAX_MIME_KEY_LEN);
+    }
+    for (s = *bucket; NULL != s; s = s->next) {
+	if (h == (int64_t)s->hash && len == s->klen &&
+	    ((0 <= len && len <= MAX_KEY_UNIQ) || 0 == strcmp(s->key, key))) {
+	    if (h == (int64_t)s->hash && len == s->klen &&
+		((0 <= len && len <= MAX_KEY_UNIQ) || 0 == strcmp(s->key, key))) {
+		free(s->value);
+		s->value = strdup(value);
+		return;
+	    }
+	}
+    }
+    if (NULL == (s = (MimeSlot)malloc(sizeof(struct _MimeSlot)))) {
+	rb_raise(rb_eArgError, "out of memory adding %s", key);
+    }
+    s->hash = h;
+    s->klen = len;
+    if (NULL == key) {
+	*s->key = '\0';
+    } else {
+	strcpy(s->key, key);
+    }
+    s->value = strdup(value);
+    s->next = *bucket;
+    *bucket = s;
+}
+
+static Page
 cache_set(Cache cache, const char *key, int klen, Page value) {
     int		len = klen;
     int64_t	h = calc_hash(key, &len);
@@ -152,6 +220,44 @@ cache_set(Cache cache, const char *key, int klen, Page value) {
     return old;
 }
 
+void
+cache_init(Cache cache) {
+    Mime	m;
+
+    memset(cache, 0, sizeof(struct _Cache));
+    for (m = mime_map; NULL != m->suffix; m++) {
+	mime_set(cache, m->suffix, m->type);
+    }
+}
+
+void
+cache_destroy(Cache cache) {
+    Slot	*sp = cache->buckets;
+    Slot	s;
+    Slot	n;
+    MimeSlot	*mp = cache->muckets;
+    MimeSlot	sm;
+    MimeSlot	m;
+    int		i;
+
+    for (i = PAGE_BUCKET_SIZE; 0 < i; i--, sp++) {
+	for (s = *sp; NULL != s; s = n) {
+	    n = s->next;
+	    free(s);
+	}
+	*sp = NULL;
+    }
+
+    for (i = MIME_BUCKET_SIZE; 0 < i; i--, mp++) {
+	for (sm = *mp; NULL != sm; sm = m) {
+	    m = sm->next;
+	    free(sm);
+	}
+	*mp = NULL;
+    }
+    free(cache);
+}
+
 // The page resp contents point to the page resp msg to save memory and reduce
 // allocations.
 Page
@@ -182,7 +288,7 @@ page_destroy(Page p) {
 }
 
 static bool
-update_contents(Page p) {
+update_contents(Cache cache, Page p) {
     const char	*mime = NULL;
     int		plen = (int)strlen(p->path);
     const char	*suffix = p->path + plen - 1;
@@ -201,18 +307,9 @@ update_contents(Page p) {
 	}
     }
     if (NULL != suffix) {
-	Mime	m;
-
 	suffix++;
-	for (m = mime_map; NULL != m->suffix; m++) {
-	    if (0 == strcasecmp(m->suffix, suffix)) {
-		break;
-	    }
-	}
-	if (NULL == m) {
+	if (NULL == (mime = mime_get(cache, suffix))) {
 	    mime = "text/plain";
-	} else {
-	    mime = m->type;
 	}
     } else {
 	mime = "text/plain";
@@ -313,7 +410,7 @@ page_get(Err err, Cache cache, const char *dir, const char *path, int plen) {
 	    err_set(err, ERR_MEMORY, "Failed to allocate memory for Page.");
 	    return NULL;
 	}
-	if (!update_contents(page) || NULL == page->resp) {
+	if (!update_contents(cache, page) || NULL == page->resp) {
 	    page_destroy(page);
 	    err_set(err, ERR_NOT_FOUND, "not found.");
 	    return NULL;
@@ -328,7 +425,7 @@ page_get(Err err, Cache cache, const char *dir, const char *path, int plen) {
 	    struct stat	fattr;
 
 	    if (0 == stat(page->path, &fattr) && page->mtime != fattr.st_mtime) {
-		update_contents(page);
+		update_contents(cache, page);
 		if (NULL == page->resp) {
 		    page_destroy(page);
 		    err_set(err, ERR_NOT_FOUND, "not found.");

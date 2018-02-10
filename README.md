@@ -50,7 +50,10 @@ use of rack compatible gems.
 
 ## Releases
 
-See [{file:CHANGELOG.md}](CHANGELOG.md)
+See [file:CHANGELOG.md](CHANGELOG.md)
+
+Releases are made from the master branch. The default branch for checkout is
+the develop branch. Pull requests should be made against the develop branch.
 
 ## Links
 
@@ -59,5 +62,7 @@ See [{file:CHANGELOG.md}](CHANGELOG.md)
  - *GitHub* *repo*: https://github.com/ohler55/agoo
 
  - *RubyGems* *repo*: https://rubygems.org/gems/agoo
+
+ - *WABuR* *repo*: https://github.com/ohler55/wabur has an option to use Agoo
 
 Follow [@peterohler on Twitter](http://twitter.com/#!/peterohler) for announcements and news about the Agoo gem.

@@ -30,8 +30,10 @@ class StaticTest < Minitest::Test
 				  response: false,
 				  eval: true,
 				})
+      server.add_mime('odd', 'text/odd')
       server.start()
       fetch_index_test
+      mime_test
       fetch_auto_index_test
       fetch_nested_test
       fetch_not_found_test
@@ -43,7 +45,12 @@ class StaticTest < Minitest::Test
 
   def fetch_index_test
     uri = URI('http://localhost:6466/index.html')
-    content = Net::HTTP.get(uri)
+    req = Net::HTTP::Get.new(uri)
+    res = Net::HTTP.start(uri.hostname, uri.port) { |h|
+      h.request(req)
+    }
+    content = res.body
+    assert_equal('text/html', res['Content-Type'])
     expect = %|<!DOCTYPE html>
 <html>
   <head><title>Agoo Test</title></head>
@@ -51,6 +58,15 @@ class StaticTest < Minitest::Test
 </html>
 |
     assert_equal(expect, content)
+  end
+
+  def mime_test
+    uri = URI('http://localhost:6466/odd.odd')
+    req = Net::HTTP::Get.new(uri)
+    res = Net::HTTP.start(uri.hostname, uri.port) { |h|
+      h.request(req)
+    }
+    assert_equal('text/odd', res['Content-Type'])
   end
 
   def fetch_auto_index_test
