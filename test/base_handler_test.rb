@@ -109,6 +109,7 @@ class BaseHandlerTest < Minitest::Test
       "rack.run_once" => false,
       "rack.url_scheme" => "http",
       "rack.version" => "1.3",
+      "rack.logger" => nil,
     }
     expect.each_pair { |k,v|
       if v.nil?

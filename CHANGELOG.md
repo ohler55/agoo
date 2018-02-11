@@ -3,7 +3,7 @@
 ### 1.1.0 - 2018-02-11
 
 - New mime types can now be added
-- TBD Added support for rack.logger
+- Added support for rack.logger
 
 ### 1.0.0 - 2018-02-06
 

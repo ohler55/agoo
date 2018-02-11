@@ -20,7 +20,7 @@ Gem::Specification.new do |s|
 
   s.has_rdoc = true
   s.extra_rdoc_files = ['README.md'] + Dir["pages/*.md"]
-  s.rdoc_options = ['-t', 'Agoo', '-m', 'README.md', '-x', 'test/*']
+  s.rdoc_options = ['-t', 'Agoo', '-m', 'README.md', '-x', '"test/*"', '-x', 'extconf.rb']
 
   s.rubyforge_project = 'agoo'
 

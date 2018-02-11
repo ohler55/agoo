@@ -875,12 +875,12 @@ handle_not_found(VALUE self, VALUE handler) {
     return Qnil;
 }
 
-/* Document-method: handle_not_found
+/* Document-method: add_mime
  *
- * call-seq: not_found_handle(handler)
+ * call-seq: add_mime(suffix, type)
  *
- * Registers a handler to be called when no other hook is found and no static
- * file is found.
+ * Adds a mime type by associating a type string with a suffix. This is used
+ * for static files.
  */
 static VALUE
 add_mime(VALUE self, VALUE suffix, VALUE type) {

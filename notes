@@ -3,23 +3,14 @@
 - refs
   - http://www.rubydoc.info/github/rack/rack/master/file/SPEC
 
+rdoc -t Agoo -m README.md -x "test/*" -x extconf.rb
+
 - todo
- - add mime type
- 
- - add support for rack.logger
-   info(message, &block)
-   debug(message, &block)
-   warn(message, &block)
-   error(message, &block)
-   fatal(message, &block)
+
  - chain() or use()
   - add module/class/object in chain before call()
   - same as Rack::Builder#use
  
-handler
-  is_a?(WAB::Controller)
-   or create, read, update, and delete
-
 
 - hijacking - is it needed?
  - before and afters for call, pipeline

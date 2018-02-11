@@ -4,6 +4,7 @@
 
 #include "con.h"
 #include "error_stream.h"
+#include "rack_logger.h"
 #include "request.h"
 
 static VALUE	req_class = Qundef;
@@ -23,6 +24,7 @@ static VALUE	put_val = Qundef;
 static VALUE	query_string_val = Qundef;
 static VALUE	rack_errors_val = Qundef;
 static VALUE	rack_input_val = Qundef;
+static VALUE	rack_logger_val = Qundef;
 static VALUE	rack_multiprocess_val = Qundef;
 static VALUE	rack_multithread_val = Qundef;
 static VALUE	rack_run_once_val = Qundef;
@@ -434,6 +436,25 @@ body(VALUE self) {
     return rb_str_new(r->body.start, r->body.len);
 }
 
+static VALUE
+req_rack_logger(Req req) {
+    return rack_logger_new(req->server);
+}
+
+/* Document-method: rack_logger
+ *
+ * call-seq: rack_logger()
+ *
+ * Returns a RackLogger that can be used to log messages with the server
+ * logger. The methods supported are debug(), info(), warn(), error(), and
+ * fatal(). The signature is the same as the standard Ruby Logger of
+ * info(message, &block).
+ */
+static VALUE
+rack_logger(VALUE self) {
+    return req_rack_logger((Req)DATA_PTR(self));
+}
+
 /* Document-class: Agoo::Request
  *
  * A Request is passes to handler that respond to the _on_request_ method. The
@@ -461,6 +482,7 @@ request_env(Req req) {
     rb_hash_aset(env, rack_multithread_val, req_rack_multithread(req));
     rb_hash_aset(env, rack_multiprocess_val, Qfalse);
     rb_hash_aset(env, rack_run_once_val, Qfalse);
+    rb_hash_aset(env, rack_logger_val, req_rack_logger(req));
 
     return env;
 }
@@ -529,6 +551,7 @@ request_init(VALUE mod) {
     rb_define_method(req_class, "rack_run_once", rack_run_once, 0);
     rb_define_method(req_class, "headers", headers, 0);
     rb_define_method(req_class, "body", body, 0);
+    rb_define_method(req_class, "rack_logger", rack_logger, 0);
 
     new_id = rb_intern("new");
     
@@ -549,6 +572,7 @@ request_init(VALUE mod) {
     query_string_val = rb_str_new_cstr("QUERY_STRING");		rb_gc_register_address(&query_string_val);
     rack_errors_val = rb_str_new_cstr("rack.errors");		rb_gc_register_address(&rack_errors_val);
     rack_input_val = rb_str_new_cstr("rack.input");		rb_gc_register_address(&rack_input_val);
+    rack_logger_val = rb_str_new_cstr("rack.logger");		rb_gc_register_address(&rack_logger_val);
     rack_multiprocess_val = rb_str_new_cstr("rack.multiprocess");rb_gc_register_address(&rack_multiprocess_val);
     rack_multithread_val = rb_str_new_cstr("rack.multithread");rb_gc_register_address(&rack_multithread_val);
     rack_run_once_val = rb_str_new_cstr("rack.run_once");	rb_gc_register_address(&rack_run_once_val);
