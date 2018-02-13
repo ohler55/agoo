@@ -23,9 +23,4 @@ Gem::Specification.new do |s|
   s.rdoc_options = ['-t', 'Agoo', '-m', 'README.md', '-x', '"test/*"', '-x', 'extconf.rb']
 
   s.rubyforge_project = 'agoo'
-
-  s.add_development_dependency 'rake-compiler', '>= 0.9', '< 2.0'
-  s.add_development_dependency 'minitest', '~> 5'
-  s.add_development_dependency 'test-unit', '~> 3.0'
-  s.add_development_dependency 'wwtd', '~> 0'
 end
