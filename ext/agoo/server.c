@@ -50,6 +50,7 @@ shutdown_server(Server server) {
     if (NULL != server && server->active) {
 	the_server = NULL;
 
+	log_cat(&server->info_cat, "Agoo shutting down.");
 	server->active = false;
 	if (0 != server->listen_thread) {
 	    pthread_join(server->listen_thread, NULL);
@@ -404,7 +405,12 @@ handle_rack_inner(void *x) {
     if (3 != RARRAY_LEN(res)) {
 	rb_raise(rb_eArgError, "a rack call() response must be an array of 3 members.");
     }
-    code = NUM2INT(rb_funcall(rb_ary_entry(res, 0), to_i_id, 0));
+    hv = rb_ary_entry(res, 0);
+    if (RUBY_T_FIXNUM == rb_type(hv)) {
+	code = NUM2INT(hv);
+    } else {
+	code = NUM2INT(rb_funcall(hv, to_i_id, 0));
+    }
     status_msg = http_code_message(code);
     if ('\0' == *status_msg) {
 	rb_raise(rb_eArgError, "invalid rack call() response status code (%d).", code);
@@ -428,7 +434,7 @@ handle_rack_inner(void *x) {
 	    bsize += (int)RSTRING_LEN(rb_ary_entry(bv, i));
 	}
     } else {
-	rb_iterate (rb_each, bv, body_len_cb, (VALUE)&bsize);
+	rb_iterate(rb_each, bv, body_len_cb, (VALUE)&bsize);
     }
     switch (code) {
     case 100:
@@ -462,7 +468,7 @@ handle_rack_inner(void *x) {
 		t = text_append(t, StringValuePtr(v), (int)RSTRING_LEN(v));
 	    }
 	} else {
-	    rb_iterate (rb_each, bv, body_append_cb, (VALUE)&t);
+	    rb_iterate(rb_each, bv, body_append_cb, (VALUE)&t);
 	}
     }
     res_set_message(req->res, t);
@@ -582,9 +588,15 @@ start(VALUE self) {
     signal(SIGTERM, sig_handler);
     signal(SIGPIPE, SIG_IGN);
 
+    if (server->info_cat.on) {
+	VALUE	agoo = rb_const_get_at(rb_cObject, rb_intern("Agoo"));
+	VALUE	v = rb_const_get_at(agoo, rb_intern("VERSION"));
+					       
+	log_cat(&server->info_cat, "Agoo %s listening on port %d.", StringValuePtr(v), server->port);
+    }
     if (0 >= server->thread_cnt) {
 	Req		req;
-    
+
 	while (server->active) {
 	    if (NULL != (req = (Req)queue_pop(&server->eval_queue, 0.1))) {
 		switch (req->handler_type) {

@@ -1,5 +1,9 @@
 # CHANGELOG
 
+### 1.1.0 - 2018-02-23
+
+- An `agoo` binary was added to run an Agoo server from the command line.
+
 ### 1.1.0 - 2018-02-11
 
 - New mime types can now be added
