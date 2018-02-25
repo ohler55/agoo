@@ -44,7 +44,7 @@ class BaseHandlerTest < Minitest::Test
 
   def test_base_handler
     begin
-      server = Agoo::Server.new(6464, 'root',
+      server = Agoo::Server.new(6470, 'root',
 				pedantic: false,
 				log_dir: '',
 				thread_count: 1,
@@ -79,7 +79,7 @@ class BaseHandlerTest < Minitest::Test
   end
   
   def eval_test
-    uri = URI('http://localhost:6464/tellme?a=1')
+    uri = URI('http://localhost:6470/tellme?a=1')
     req = Net::HTTP::Get.new(uri)
     # Set the headers the way we want them.
     req['Accept-Encoding'] = '*'
@@ -101,7 +101,7 @@ class BaseHandlerTest < Minitest::Test
       "REQUEST_METHOD" => "GET",
       "SCRIPT_NAME" => "/tellme",
       "SERVER_NAME" => "localhost",
-      "SERVER_PORT" => "6464",
+      "SERVER_PORT" => "6470",
       "rack.errors" => nil,
       "rack.input" => nil,
       "rack.multiprocess" => false,
@@ -121,7 +121,7 @@ class BaseHandlerTest < Minitest::Test
   end
 
   def post_test
-    uri = URI('http://localhost:6464/makeme')
+    uri = URI('http://localhost:6470/makeme')
     req = Net::HTTP::Post.new(uri)
     # Set the headers the way we want them.
     req['Accept-Encoding'] = '*'
@@ -135,7 +135,7 @@ class BaseHandlerTest < Minitest::Test
   end
   
   def put_test
-    uri = URI('http://localhost:6464/makeme')
+    uri = URI('http://localhost:6470/makeme')
     req = Net::HTTP::Put.new(uri)
     # Set the headers the way we want them.
     req['Accept-Encoding'] = '*'
@@ -151,7 +151,7 @@ class BaseHandlerTest < Minitest::Test
   end
 
   def wild_one_test
-    uri = URI('http://localhost:6464/wild/abc/one')
+    uri = URI('http://localhost:6470/wild/abc/one')
     req = Net::HTTP::Get.new(uri)
     res = Net::HTTP.start(uri.hostname, uri.port) { |h|
       h.request(req)
@@ -160,7 +160,7 @@ class BaseHandlerTest < Minitest::Test
   end
 
   def wild_all_test
-    uri = URI('http://localhost:6464/wild/all/x/y')
+    uri = URI('http://localhost:6470/wild/all/x/y')
     req = Net::HTTP::Get.new(uri)
     res = Net::HTTP.start(uri.hostname, uri.port) { |h|
       h.request(req)

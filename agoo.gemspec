@@ -29,4 +29,7 @@ Gem::Specification.new do |s|
   s.requirements << 'Linux or macOS'
 
   s.rubyforge_project = 'agoo'
+
+  s.add_development_dependency 'oj', '>= 3.4.0'
+  
 end

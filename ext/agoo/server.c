@@ -598,7 +598,7 @@ start(VALUE self) {
 	Req		req;
 
 	while (server->active) {
-	    if (NULL != (req = (Req)queue_pop(&server->eval_queue, 1.0))) { // 0.1
+	    if (NULL != (req = (Req)queue_pop(&server->eval_queue, 0.1))) {
 		switch (req->handler_type) {
 		case BASE_HOOK:
 		    handle_base(req);
