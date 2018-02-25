@@ -76,7 +76,7 @@ con_header_value(const char *header, int hlen, const char *key, int *vlen) {
     return NULL;
 }
 
-static bool
+static long
 bad_request(Con c, int status, int line) {
     Res		res;
     const char *msg = http_code_message(status);
@@ -97,7 +97,7 @@ bad_request(Con c, int status, int line) {
 	res->close = true;
 	res_set_message(res, message);
     }
-    return true;
+    return -1;
 }
 
 static bool
@@ -111,8 +111,12 @@ should_close(const char *header, int hlen) {
     return false;
 }
 
-// Returns true if request has handled.
-static bool
+// Returns:
+//  0 - when header has not been read
+//  message length - when length can be determined
+//  -1 on a bad request
+//  negative of message length - when message is handled here.
+static long
 con_header_read(Con c) {
     Server	server = c->server;
     char	*hend = strstr(c->buf, "\r\n\r\n");
@@ -123,14 +127,14 @@ con_header_read(Con c) {
     char	*qend;
     char	*b;
     size_t	clen = 0;
-    size_t	mlen;
+    long	mlen;
     Hook	hook = NULL;
 
     if (NULL == hend) {
 	if (sizeof(c->buf) - 1 <= c->bcnt) {
 	    return bad_request(c, 431, __LINE__);
 	}
-	return false;
+	return 0;
     }
     if (server->req_cat.on) {
 	*hend = '\0';
@@ -222,6 +226,7 @@ con_header_read(Con c) {
     } else {
 	qend = b;
     }
+    mlen = hend - c->buf + 4 + clen;
     if (NULL == (hook = hook_find(server->hooks, method, path, pend))) {
 	if (GET == method) {
 	    struct _Err	err = ERR_INIT;
@@ -253,19 +258,23 @@ con_header_read(Con c) {
 	    text_ref(p->resp);
 	    res_set_message(res, p->resp);
 
-	    return true;
+	    return -mlen;
 	}
     }
 HOOKED:
     // Create request and populate.
-    mlen = hend - c->buf + 4 + clen;
     if (NULL == (c->req = (Req)malloc(mlen + sizeof(struct _Req) - 8 + 1))) {
 	return bad_request(c, 413, __LINE__);
     }
-    memcpy(c->req->msg, c->buf, c->bcnt);
-    if (c->bcnt < mlen) {
-	memset(c->req->msg + c->bcnt, 0, mlen - c->bcnt);
+    if ((long)c->bcnt <= mlen) {
+	memcpy(c->req->msg, c->buf, c->bcnt);
+	if ((long)c->bcnt < mlen) {
+	    memset(c->req->msg + c->bcnt, 0, mlen - c->bcnt);
+	}
+    } else {
+	memcpy(c->req->msg, c->buf, mlen);
     }
+    c->req->msg[mlen] = '\0';
     c->req->server = server;
     c->req->method = method;
     c->req->path.start = c->req->msg + (path - c->buf);
@@ -286,14 +295,14 @@ HOOKED:
 	c->req->handler = Qnil;
 	c->req->handler_type = NO_HOOK;
     }
-    return false;
+    return mlen;
 }
 
 // return true to remove/close connection
 static bool
 con_read(Con c) {
     ssize_t	cnt;
-
+    
     if (NULL != c->req) {
 	cnt = recv(c->sock, c->req->msg + c->bcnt, c->req->mlen - c->bcnt, 0);
     } else {
@@ -312,47 +321,61 @@ con_read(Con c) {
 	return true;
     }
     c->bcnt += cnt;
-    // Terminate with \0 for debug and strstr() check
-    if (NULL == c->req) {
-	c->buf[c->bcnt] = '\0';
-	if (con_header_read(c)) { // already handled
-	    c->bcnt = 0;
-	    *c->buf = '\0';
-	    // TBD handle extra data in buf
-
-	    return false;
-	}
-    }
-    if (NULL != c->req) {
-	c->req->msg[c->bcnt] = '\0';
-	if (c->req->mlen <= c->bcnt) {
-	    Res	res;
-
-	    if (c->server->debug_cat.on && NULL != c->req && NULL != c->req->body.start) {
-		log_cat(&c->server->debug_cat, "request on %llu: %s", c->iid, c->req->body.start);
-	    }
-	    if (NULL == (res = res_create())) {
-		c->req = NULL;
-		log_cat(&c->server->error_cat, "memory allocation of response failed on connection %llu.", c->iid);
-		return bad_request(c, 500, __LINE__);
-	    } else {
-		if (NULL == c->res_tail) {
-		    c->res_head = res;
+    while (true) {
+	if (NULL == c->req) {
+	    long	mlen;
+	    
+	    // Terminate with \0 for debug and strstr() check
+	    c->buf[c->bcnt] = '\0';
+	    if (0 > (mlen = con_header_read(c))) {
+		if (-mlen < (long)c->bcnt) {
+		    mlen = -mlen;
+		    memmove(c->buf, c->buf + mlen, c->bcnt - mlen);
+		    c->bcnt -= mlen;
 		} else {
-		    c->res_tail->next = res;
+		    c->bcnt = 0;
+		    *c->buf = '\0';
+		    return false;
 		}
-		c->res_tail = res;
-		res->close = should_close(c->req->header.start, c->req->header.len);
+		continue;
 	    }
-	    c->req->res = res;
-	    queue_push(&c->server->eval_queue, (void*)c->req);
-	    c->req = NULL;
-	    c->bcnt = 0;
-	    *c->buf = '\0';
-	    // TBD handle extra data in buf
-
-	    return false;
 	}
+	if (NULL != c->req) {
+	    if (c->req->mlen <= c->bcnt) {
+		Res	res;
+
+		if (c->server->debug_cat.on && NULL != c->req && NULL != c->req->body.start) {
+		    log_cat(&c->server->debug_cat, "request on %llu: %s", c->iid, c->req->body.start);
+		}
+		if (NULL == (res = res_create())) {
+		    c->req = NULL;
+		    log_cat(&c->server->error_cat, "memory allocation of response failed on connection %llu.", c->iid);
+		    return bad_request(c, 500, __LINE__);
+		} else {
+		    if (NULL == c->res_tail) {
+			c->res_head = res;
+		    } else {
+			c->res_tail->next = res;
+		    }
+		    c->res_tail = res;
+		    res->close = should_close(c->req->header.start, c->req->header.len);
+		}
+		c->req->res = res;
+		queue_push(&c->server->eval_queue, (void*)c->req);
+		if (c->req->mlen < c->bcnt) {
+		    memmove(c->buf, c->buf + c->req->mlen, c->bcnt - c->req->mlen);
+		    c->bcnt -= c->req->mlen;
+		} else {
+		    c->bcnt = 0;
+		    *c->buf = '\0';
+		    c->req = NULL;
+		    break;
+		}
+		c->req = NULL;
+		continue;
+	    }
+	}
+	break;
     }
     return false;
 }

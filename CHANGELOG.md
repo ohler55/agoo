@@ -1,6 +1,10 @@
 # CHANGELOG
 
-### 1.1.0 - 2018-02-23
+### 1.1.2 - 2018-02-25
+
+- Fixed pipelining to handle extreme rates.
+
+### 1.1.1 - 2018-02-23
 
 - An `agoo` binary was added to run an Agoo server from the command line.
 

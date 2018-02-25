@@ -22,9 +22,7 @@ typedef struct _Con {
     char		buf[MAX_HEADER_SIZE];
     size_t		bcnt;
 
-    ssize_t		msize; // size of complete message
     ssize_t		mcnt;  // how much has been read so far
-
     ssize_t		wcnt;  // how much has been written
 
     Server		server;

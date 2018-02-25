@@ -208,6 +208,7 @@ server_new(int argc, VALUE *argv, VALUE self) {
     }
     queue_multi_init(&s->con_queue, 256, false, false);
     queue_multi_init(&s->eval_queue, 1024, false, true);
+
     cache_init(&s->pages);
     the_server = s;
     
@@ -512,7 +513,6 @@ handle_wab(void *x) {
 }
 static void
 handle_protected(Req req) {
-    
     switch (req->handler_type) {
     case BASE_HOOK:
 	rb_thread_call_with_gvl(handle_base, req);
@@ -598,7 +598,7 @@ start(VALUE self) {
 	Req		req;
 
 	while (server->active) {
-	    if (NULL != (req = (Req)queue_pop(&server->eval_queue, 0.1))) {
+	    if (NULL != (req = (Req)queue_pop(&server->eval_queue, 1.0))) { // 0.1
 		switch (req->handler_type) {
 		case BASE_HOOK:
 		    handle_base(req);
