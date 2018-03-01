@@ -1,5 +1,9 @@
 # CHANGELOG
 
+### 1.2.0 - 2018-03-01
+
+- Added Rack::Handler::Agoo for a rackup like use of Agoo.
+
 ### 1.1.2 - 2018-02-25
 
 - Fixed pipelining to handle extreme rates.

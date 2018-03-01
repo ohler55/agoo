@@ -30,6 +30,6 @@ Gem::Specification.new do |s|
 
   s.rubyforge_project = 'agoo'
 
-  s.add_development_dependency 'oj', '>= 3.4.0'
+  s.add_development_dependency 'oj', '~> 3.4', '>= 3.4.0'
   
 end
