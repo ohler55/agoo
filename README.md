@@ -22,9 +22,11 @@ class MyHandler
   end
 end
 
-handler = TellMeHandler.new
+handler = MyHandler.new
 server.handle(:GET, "/hello", handler)
 server.start()
+# To run this example type the following then go to a browser and enter a URL of localhost:6464.
+# ruby hello.rb
 ```
 
 ## Installation

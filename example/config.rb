@@ -29,3 +29,5 @@ Rack::Handler::Agoo.run(FlyHandler.new,
 			  response: false,
 			  eval: true,
 			})
+# To run this example type the following then go to a browser and enter a URL of localhost:9292.
+# ruby config.rb

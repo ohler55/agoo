@@ -4,6 +4,10 @@
 
 - Added Rack::Handler::Agoo for a rackup like use of Agoo.
 
+- Examples provided.
+
+- Default thread count set to zero.
+
 ### 1.1.2 - 2018-02-25
 
 - Fixed pipelining to handle extreme rates.

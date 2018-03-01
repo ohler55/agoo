@@ -112,7 +112,7 @@ static int
 configure(Err err, Server s, int port, const char *root, VALUE options) {
     s->port = port;
     s->root = strdup(root);
-    s->thread_cnt = 1;
+    s->thread_cnt = 0;
     s->running = 0;
     s->listen_thread = 0;
     s->con_thread = 0;
@@ -165,7 +165,6 @@ configure(Err err, Server s, int port, const char *root, VALUE options) {
  *
  *   - *:log_dir* [_String_] directory to place log files in. If nil or empty then no log files are written.
  *
- 
  *   - *:log_console* [_true_|_false_] if true log entry are display on the console.
  *
  *   - *:log_classic* [_true_|_false_] if true log entry follow a classic format. If false log entries are JSON.

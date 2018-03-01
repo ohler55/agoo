@@ -18,6 +18,7 @@ class StaticTest < Minitest::Test
   def test_static
     begin
       server = Agoo::Server.new(6466, 'root',
+				thread_count: 1,
 				log_dir: '',
 				log_console: true,
 				log_classic: true,
