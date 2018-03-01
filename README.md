@@ -14,9 +14,6 @@ require 'agoo'
 server = Agoo::Server.new(6464, 'root')
 
 class MyHandler
-  def initialize
-  end
-
   def call(req)
     [ 200, { }, [ "hello world" ] ]
   end

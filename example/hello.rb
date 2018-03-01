@@ -6,9 +6,6 @@ require 'agoo'
 server = Agoo::Server.new(6464, 'root', thread_count: 0)
 
 class MyHandler
-  def initialize
-  end
-
   def call(req)
     [ 200, { }, [ "hello world" ] ]
   end
@@ -20,5 +17,5 @@ server.handle(:GET, "/hello", handler)
 
 server.start()
 
-# To run this example type the following then go to a browser and enter a URL of localhost:6464.
+# To run this example type the following then go to a browser and enter a URL of localhost:6464/hello.
 # ruby hello.rb
