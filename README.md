@@ -22,7 +22,7 @@ end
 handler = MyHandler.new
 server.handle(:GET, "/hello", handler)
 server.start()
-# To run this example type the following then go to a browser and enter a URL of localhost:6464.
+# To run this example type the following then go to a browser and enter a URL of localhost:6464/hello.
 # ruby hello.rb
 ```
 
