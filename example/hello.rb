@@ -1,3 +1,4 @@
+
 require 'agoo'
 
 # Setting the thread count to 0 causes the server to use the current
