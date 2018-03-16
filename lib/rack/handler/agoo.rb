@@ -38,8 +38,7 @@ module Rack
 	  server.handle(nil, path, handler)
 	}
 	unless default_handler.nil?
-	  server.handle(nil, '/', default_handler) 
-	  server.handle(nil, '/**', default_handler)
+	  server.handle(nil, '**', default_handler)
 	end
 	server.handle_not_found(not_found_handler) unless not_found_handler.nil?
 	server.start

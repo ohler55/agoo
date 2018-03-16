@@ -144,6 +144,33 @@ configure(Err err, Server s, int port, const char *root, VALUE options) {
 	if (Qnil != (v = rb_hash_lookup(options, ID2SYM(rb_intern("pedantic"))))) {
 	    s->pedantic = (Qtrue == v);
 	}
+	if (Qnil != (v = rb_hash_lookup(options, ID2SYM(rb_intern("Port"))))) {
+	    if (rb_cInteger == rb_obj_class(v)) {
+		s->port = NUM2INT(v);
+	    } else {
+		switch (rb_type(v)) {
+		case T_STRING:
+		    s->port = atoi(StringValuePtr(v));
+		    break;
+		case T_FIXNUM:
+		    s->port = NUM2INT(v);
+		    break;
+		default:
+		    break;
+		}
+	    }
+	}
+	if (Qnil != (v = rb_hash_lookup(options, ID2SYM(rb_intern("debug"))))) {
+	    if (Qtrue == v) {
+		s->info_cat.on = true;
+		s->warn_cat.on = true;
+		s->debug_cat.on = true;
+		s->con_cat.on = true;
+		s->req_cat.on = true;
+		s->resp_cat.on = true;
+		s->eval_cat.on = true;
+	    }
+	}
     }
     return ERR_OK;
 }
@@ -400,7 +427,7 @@ handle_rack_inner(void *x) {
     int			code;
     const char		*status_msg;
     int			bsize = 0;
-    
+
     rb_check_type(res, T_ARRAY);
     if (3 != RARRAY_LEN(res)) {
 	rb_raise(rb_eArgError, "a rack call() response must be an array of 3 members.");
@@ -426,15 +453,39 @@ handle_rack_inner(void *x) {
     if (NULL == (t = text_allocate(1024))) {
 	rb_raise(rb_eArgError, "failed to allocate response.");
     }
-    if (T_ARRAY != rb_type(bv)) {
+    if (T_ARRAY == rb_type(bv)) {
 	int	i;
 	int	bcnt = (int)RARRAY_LEN(bv);
-	
+
 	for (i = 0; i < bcnt; i++) {
 	    bsize += (int)RSTRING_LEN(rb_ary_entry(bv, i));
 	}
     } else {
-	rb_iterate(rb_each, bv, body_len_cb, (VALUE)&bsize);
+	if (HEAD == req->method) {
+	    // Rack wraps the response in two layers, Rack::Lint and
+	    // Rack::BodyProxy. It each is called on either with the HEAD
+	    // method an exception is raised so the length can not be
+	    // determined. This digs down to get the actual response so the
+	    // length can be calculated. A very special case.
+	    if (0 == strcmp("Rack::BodyProxy", rb_obj_classname(bv))) {
+		volatile VALUE	body = rb_ivar_get(bv, rb_intern("@body"));
+
+		if (Qnil != body) {
+		    body = rb_ivar_get(body, rb_intern("@body"));
+		}
+		if (Qnil != body) {
+		    body = rb_ivar_get(body, rb_intern("@body"));
+		}
+		if (rb_respond_to(body, rb_intern("each"))) {
+		    rb_iterate(rb_each, body, body_len_cb, (VALUE)&bsize);
+		}
+	    } else {
+		rb_iterate(rb_each, bv, body_len_cb, (VALUE)&bsize);
+	    }
+	} else {
+	    rb_funcall(rb_cObject, rb_intern("puts"), 1, bv);
+	    rb_iterate(rb_each, bv, body_len_cb, (VALUE)&bsize);
+	}
     }
     switch (code) {
     case 100:
@@ -443,7 +494,7 @@ handle_rack_inner(void *x) {
     case 204:
     case 205:
     case 304:
-	// TBD Content-Type and Content-Length can not be present
+	// Content-Type and Content-Length can not be present
 	t->len = snprintf(t->text, 1024, "HTTP/1.1 %d %s\r\n", code, status_msg);
 	break;
     default:
@@ -451,10 +502,14 @@ handle_rack_inner(void *x) {
 	t->len = snprintf(t->text, 1024, "HTTP/1.1 %d %s\r\nContent-Length: %d\r\n", code, status_msg, bsize);
 	break;
     }
-    if (T_HASH == rb_type(hv)) {
-	rb_hash_foreach(hv, header_cb, (VALUE)&t);
+    if (HEAD == req->method) {
+	bsize = 0;
     } else {
-	rb_iterate (rb_each, hv, header_each_cb, (VALUE)&t);
+	if (T_HASH == rb_type(hv)) {
+	    rb_hash_foreach(hv, header_cb, (VALUE)&t);
+	} else {
+	    rb_iterate (rb_each, hv, header_each_cb, (VALUE)&t);
+	}
     }
     t = text_append(t, "\r\n", 2);
     if (0 < bsize) {

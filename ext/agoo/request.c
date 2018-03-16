@@ -555,6 +555,11 @@ request_init(VALUE mod) {
 
     new_id = rb_intern("new");
     
+    rack_version_val_val = rb_ary_new();
+    rb_ary_push(rack_version_val_val, INT2NUM(1));
+    rb_ary_push(rack_version_val_val, INT2NUM(3));
+    rb_gc_register_address(&rack_version_val_val);
+    
     stringio_class = rb_const_get(rb_cObject, rb_intern("StringIO"));
 
     connect_val = rb_str_new_cstr("CONNECT");			rb_gc_register_address(&connect_val);
@@ -578,7 +583,6 @@ request_init(VALUE mod) {
     rack_run_once_val = rb_str_new_cstr("rack.run_once");	rb_gc_register_address(&rack_run_once_val);
     rack_url_scheme_val = rb_str_new_cstr("rack.url_scheme");	rb_gc_register_address(&rack_url_scheme_val);
     rack_version_val = rb_str_new_cstr("rack.version");		rb_gc_register_address(&rack_version_val);
-    rack_version_val_val = rb_str_new_cstr("1.3");		rb_gc_register_address(&rack_version_val_val);
     request_method_val = rb_str_new_cstr("REQUEST_METHOD");	rb_gc_register_address(&request_method_val);
     script_name_val = rb_str_new_cstr("SCRIPT_NAME");		rb_gc_register_address(&script_name_val);
     server_name_val = rb_str_new_cstr("SERVER_NAME");		rb_gc_register_address(&server_name_val);
