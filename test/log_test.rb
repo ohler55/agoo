@@ -44,9 +44,10 @@ class LogStateTest < Minitest::Test
   end
 
   def info_state_test(server)
+    assert(server.info?)
+    server.set_log_state('INFO', false)
     refute(server.info?)
     server.set_log_state('INFO', true)
-    assert(server.info?)
   end
 
   def debug_state_test(server)

@@ -119,7 +119,7 @@ configure(Err err, Server s, int port, const char *root, VALUE options) {
     s->log.cats = NULL;
     log_cat_reg(&s->log, &s->error_cat, "ERROR",    ERROR, RED, true);
     log_cat_reg(&s->log, &s->warn_cat,  "WARN",     WARN,  YELLOW, true);
-    log_cat_reg(&s->log, &s->info_cat,  "INFO",     INFO,  GREEN, false);
+    log_cat_reg(&s->log, &s->info_cat,  "INFO",     INFO,  GREEN, true);
     log_cat_reg(&s->log, &s->debug_cat, "DEBUG",    DEBUG, GRAY, false);
     log_cat_reg(&s->log, &s->con_cat,   "connect",  INFO,  GREEN, false);
     log_cat_reg(&s->log, &s->req_cat,   "request",  INFO,  CYAN, false);
@@ -160,10 +160,16 @@ configure(Err err, Server s, int port, const char *root, VALUE options) {
 		}
 	    }
 	}
+	if (Qnil != (v = rb_hash_lookup(options, ID2SYM(rb_intern("quiet"))))) {
+	    if (Qtrue == v) {
+		s->info_cat.on = false;
+	    }
+	}
 	if (Qnil != (v = rb_hash_lookup(options, ID2SYM(rb_intern("debug"))))) {
 	    if (Qtrue == v) {
-		s->info_cat.on = true;
+		s->error_cat.on = true;
 		s->warn_cat.on = true;
+		s->info_cat.on = true;
 		s->debug_cat.on = true;
 		s->con_cat.on = true;
 		s->req_cat.on = true;
@@ -483,7 +489,6 @@ handle_rack_inner(void *x) {
 		rb_iterate(rb_each, bv, body_len_cb, (VALUE)&bsize);
 	    }
 	} else {
-	    rb_funcall(rb_cObject, rb_intern("puts"), 1, bv);
 	    rb_iterate(rb_each, bv, body_len_cb, (VALUE)&bsize);
 	}
     }

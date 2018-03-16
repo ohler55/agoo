@@ -33,12 +33,10 @@ class StaticTest < Minitest::Test
 				})
       server.add_mime('odd', 'text/odd')
       server.start()
-=begin
       fetch_index_test
       mime_test
       fetch_auto_index_test
       fetch_nested_test
-=end
       fetch_not_found_test
     ensure
       server.shutdown
