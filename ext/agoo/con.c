@@ -328,7 +328,11 @@ con_read(Con c) {
 	    // Terminate with \0 for debug and strstr() check
 	    c->buf[c->bcnt] = '\0';
 	    if (0 > (mlen = con_header_read(c))) {
-		if (-mlen < (long)c->bcnt) {
+		if (-1 == mlen) {
+		    c->bcnt = 0;
+		    *c->buf = '\0';
+		    return false;
+		} else if (-mlen < (long)c->bcnt) {
 		    mlen = -mlen;
 		    memmove(c->buf, c->buf + mlen, c->bcnt - mlen);
 		    c->bcnt -= mlen;

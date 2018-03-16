@@ -22,7 +22,7 @@ Rack::Handler::Agoo.run(FlyHandler.new,
 			log_classic: true,
 			log_colorize: true,
 			log_states: {
-			  INFO: false,
+			  INFO: true,
 			  DEBUG: false,
 			  connect: false,
 			  request: false,

@@ -1,5 +1,11 @@
 # CHANGELOG
 
+### 1.2.1 - 2018-03-16
+
+- Improved Rack handling. Rack version is an array as it was
+  supposed to be. Hacked around Rack's handling of HEAD requests so
+  that the content length can be returned more easily by the app.
+
 ### 1.2.0 - 2018-03-01
 
 - Added Rack::Handler::Agoo for a rackup like use of Agoo.
