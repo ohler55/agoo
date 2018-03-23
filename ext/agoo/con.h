@@ -17,7 +17,6 @@
 typedef struct _Con {
     int			sock;
     struct pollfd	*pp;
-    //char		id[32];
     uint64_t		iid;
     char		buf[MAX_HEADER_SIZE];
     size_t		bcnt;
