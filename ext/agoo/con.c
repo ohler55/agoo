@@ -27,7 +27,6 @@ con_create(Err err, Server server, int sock, uint64_t id) {
 	memset(c, 0, sizeof(struct _Con));
 	c->sock = sock;
 	c->iid = id;
-	sprintf(c->id, "%llu", (unsigned long long)id);
 	c->server = server;
     }
     return c;
@@ -63,7 +62,7 @@ con_header_value(const char *header, int hlen, const char *key, int *vlen) {
 	    for (; '\r' != *h && '\0' != *h; h++) {
 	    }
 	    *vlen = (int)(h - value);
-
+ 
 	    return value;
 	}
 	for (; h < hend; h++) {
@@ -313,7 +312,7 @@ con_read(Con c) {
 	// If nothing read then no need to complain. Just close.
 	if (0 < c->bcnt) {
 	    if (0 == cnt) {
-		log_cat(&c->server->warn_cat, "Nothing to read. Client closed socket %s.", c->id);
+		log_cat(&c->server->warn_cat, "Nothing to read. Client closed socket on connection %llu.", c->iid);
 	    } else {
 		log_cat(&c->server->warn_cat, "Failed to read request. %s.", strerror(errno));
 	    }
