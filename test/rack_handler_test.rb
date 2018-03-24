@@ -42,34 +42,33 @@ class RackHandlerTest < Minitest::Test
 
   def test_rack
     begin
-      server = Agoo::Server.new(6467, 'root',
-				pedantic: false,
-				log_dir: '',
-				thread_count: 1,
-				log_console: true,
-				log_classic: true,
-				log_colorize: true,
-				log_states: {
-				  INFO: false,
-				  DEBUG: false,
-				  connect: false,
-				  request: false,
-				  response: false,
-				  eval: true,
-				})
+      Agoo::Log.configure(dir: '',
+			  console: true,
+			  classic: true,
+			  colorize: true,
+			  states: {
+			    INFO: false,
+			    DEBUG: false,
+			    connect: false,
+			    request: false,
+			    response: false,
+			    eval: true,
+			  })
+
+      Agoo::Server.init(6467, 'root', thread_count: 1)
 
       handler = TellMeHandler.new
-      server.handle(:GET, "/tellme", handler)
-      server.handle(:POST, "/makeme", handler)
-      server.handle(:PUT, "/makeme", handler)
+      Agoo::Server.handle(:GET, "/tellme", handler)
+      Agoo::Server.handle(:POST, "/makeme", handler)
+      Agoo::Server.handle(:PUT, "/makeme", handler)
 
-      server.start()
+      Agoo::Server.start()
 
       eval_test
       post_test
       put_test
     ensure
-      server.shutdown
+      Agoo.shutdown
     end
   end
   

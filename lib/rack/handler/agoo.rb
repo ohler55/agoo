@@ -1,7 +1,10 @@
 
 require 'agoo'
 
+# Grand parent for the Agoo rack handler.
 module Rack
+
+  # Parent for the Agoo rack handler.
   module Handler
 
     # The Rack::Handler::Agoo module is a handler for common rack config.rb files.
@@ -18,7 +21,7 @@ module Rack
 
 	default_handler = handler unless handler.nil?
 	options.each { |k,v|
-	  if :port == k
+	  if :port == k || :p == k
 	    port = v.to_i
 	    options.delete(k)
 	  elsif :root == k
@@ -33,17 +36,28 @@ module Rack
 	  end
 	}
 	options[:thread_count] = 0
-	server = ::Agoo::Server.new(port, root, options)
+	::Agoo::Server.init(port, root, options)
 	path_map.each { |path,handler|
-	  server.handle(nil, path, handler)
+			::Agoo::Server.handle(nil, path, handler)
 	}
 	unless default_handler.nil?
-	  server.handle(nil, '**', default_handler)
+	  ::Agoo::Server.handle(nil, '**', default_handler)
 	end
-	server.handle_not_found(not_found_handler) unless not_found_handler.nil?
-	server.start
+	::Agoo::Server.handle_not_found(not_found_handler) unless not_found_handler.nil?
+	::Agoo::Server.start
       end
-      
+
+      def self.shutdown
+	::Agoo::shutdown
+      end
+
     end
   end
+end
+
+begin
+  ::Rack::Handler.register('agoo', 'Rack::Handler::Agoo')
+  ::Rack::Handler.register('Agoo', 'Rack::Handler::Agoo')
+rescue Exception
+  # Rack or Rack::Handler.register has not been required.
 end

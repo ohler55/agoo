@@ -8,6 +8,6 @@
 #include "server.h"
 
 extern void	rack_logger_init(VALUE mod);
-extern VALUE	rack_logger_new(Server server);
+extern VALUE	rack_logger_new();
 
 #endif // __AGOO_RACK_LOGGER_H__

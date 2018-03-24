@@ -49,7 +49,6 @@ typedef struct _Log	*Log;
 
 typedef struct _LogCat {
     struct _LogCat	*next;
-    Log			log;
     char		label[32];
     Color		color;
     int			level;
@@ -91,13 +90,27 @@ struct _Log {
     int			wsock;
 };
 
-extern int	log_init(Err err, Log log, VALUE cfg);
-extern void	log_close(Log log);
-extern bool	log_flush(Log log, double timeout);
+extern struct _Log	the_log;
+extern struct _LogCat	fatal_cat;
+extern struct _LogCat	error_cat;
+extern struct _LogCat	warn_cat;
+extern struct _LogCat	info_cat;
+extern struct _LogCat	debug_cat;
+extern struct _LogCat	con_cat;
+extern struct _LogCat	req_cat;
+extern struct _LogCat	resp_cat;
+extern struct _LogCat	eval_cat;
+extern struct _LogCat	push_cat;
 
-extern void	log_cat_reg(Log log, LogCat cat, const char *label, LogLevel level, const char *color, bool on);
-extern void	log_cat_on(Log log, const char *label, bool on);
-extern LogCat	log_cat_find(Log log, const char *label);
+extern void	log_init(VALUE mod);
+
+extern void	log_close();
+extern bool	log_flush(double timeout);
+extern void	log_rotate();
+
+extern void	log_cat_reg(LogCat cat, const char *label, LogLevel level, const char *color, bool on);
+extern void	log_cat_on(const char *label, bool on);
+extern LogCat	log_cat_find(const char *label);
 
 // Function to call to make a log entry.
 extern void	log_cat(LogCat cat, const char *fmt, ...);

@@ -2,6 +2,7 @@
 
 #include <stdlib.h>
 
+#include "debug.h"
 #include "res.h"
 
 Res
@@ -9,9 +10,13 @@ res_create() {
     Res	res = (Res)malloc(sizeof(struct _Res));
 
     if (NULL != res) {
+	DEBUG_ALLOC(mem_res, res)
 	res->next = NULL;
 	atomic_init(&res->message, NULL);
+	res->con_kind = CON_HTTP;
 	res->close = false;
+	res->ping = false;
+	res->pong = false;
     }
     return res;
 }
@@ -24,6 +29,7 @@ res_destroy(Res res) {
 	if (NULL != message) {
 	    text_release(message);
 	}
+	DEBUG_FREE(mem_res, res)
 	free(res);
     }
 }

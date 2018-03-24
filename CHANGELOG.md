@@ -1,5 +1,18 @@
 # CHANGELOG
 
+### 2.0.0 - 2018-04-30
+
+- WebSocket and SSE support added.
+
+- The API moved to a global server approach to support extended
+  handlers for WebSocket and SSE connections.
+
+### 1.2.2 - 2018-03-26
+
+- rackup option -s now works with 'agoo' as well as with 'Agoo'.
+
+- Fixed a memory leak.
+
 ### 1.2.1 - 2018-03-16
 
 - Improved Rack handling. Rack version is an array as it was
