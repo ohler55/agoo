@@ -3,46 +3,48 @@
 require "rack"
 require 'agoo'
 
-$ticking = true
-# Note that the sender can become invalid at any time if the connection is
-# closed. It will raise an exception on send if that occurs.
-$publish_thread = Thread.new {
-  while $ticking do
-    now = Time.now
-    Agoo.publish channel: :time, message: ("%02d:%02d:%02d" % [now.hour, now.min, now.sec])
-    sleep(1)
-  end
-}
-
-
 class TickTock
+  # Only needed for the non-extended approach.
+  attr_accessor: sender
+
   def initialize(env)
-    @env = env
   end
 
+  # 1) Discuss using extend or passin in a sender object.
   def on_open(sender = nil)
     # for iodine compatibility, as iodine doen't provide a sender object
     @sender = sender ? sender : self
+    # 2) subscriber options. If extended then this works.
     subscribe channel: :time
+    # using the same extended approach this would also work. Argument could be
+    # a channel or a subject.
+    subscribe('time')
+    # If not using the extended approach then something like this. Of course
+    # 'sender' is not the right name if the object is both a sender and a
+    # handle to the server.
+    sender.subscribe(self, :time)
+
+    # PCO - I don't like using extend as it modifies an object owned by
+    # another package. It comes across as magic. I can see how extend makes
+    # the API cleaner though. I'd like to explore other options if there are
+    # any. Just some more thought.
   end
 
   def on_close
-    # Shutdown the time publisher.
-    @ticking = false
+    puts "closing"
   end
 
-  # This method is optional as not all endpoints need to receive from the
-  # browser.
+  # If an SSE connection this would never be called.
   def on_message(data)
     puts "received #{data}"
     write("echo: #{data}")
   end
 
-  # This is only needed for Iodine compatibility but can be used in any case.
+  # If the non-extended approach is used then this would provide the same
+  # functionality as the entended.
   def write(data)
-    # iodine code
     return super if defined?(super)
-    # Agoo code
+    # non-extended only
     @sender.write(data)
   end
 
@@ -50,14 +52,17 @@ end
 
 class FlyHandler
 
-  attr_accessor: sender
-  
-  # Normal HTTP request handler.
   def call(env)
-    # This part is only needed for Iodine.
-    if env['upgrade.websocket?'.freeze]
-      env['upgrade.websocket'.freeze] = TickTock.new(env)
-      return [0, {}, []]
+    # 3) These are not the best terms. Lets figure out something reasonable
+    # that is not tied to WebSockets but allows SSE or WebSockets and use a
+    # env[`upgrade.type'] if the developer cares which type of connection they
+    # are getting.
+    if env['upgrade.push?'.freeze]
+      env['upgrade.push'.freeze] = TickTock.new(env)
+      # This threw me off before and it's why I asked about how middleare was
+      # going to deny a connection. I think this needs to be a valid HTTP
+      # status code in all case. Maybe 101?
+      return [101, {}, []]
     end
     [ 200, { }, [ "flying fish clock" ] ]
   end
@@ -66,9 +71,23 @@ end
 
 run FlyHandler.new
 
-# close the publishing thread gracefully
-$ticking = false
-$publish_thread.join
+loop do
+  now = Time.now
+  # The Redis approach.
+  Rack.publish(channel: :time,
+	       message: "%02d:%02d:%02d" % [now.hour, now.min, now.sec])
+  # For publishing channel and subject would appear the same. Maybe even alias
+  # channel and subject.
+  Rack.publish(subject: 'time',
+	       message: "%02d:%02d:%02d" % [now.hour, now.min, now.sec])
+  # Or publish with two args. First argument could be a channel ID or a
+  # subject. Publish is always done without wild cards so my.cool.time would
+  # be a valid subject or channel ID.
+  Rack.publish('time', "%02d:%02d:%02d" % [now.hour, now.min, now.sec])
+  
+  sleep(1)
+end
+
 
 # A minimal startup of the Agoo rack handle using rackup and expecting a
 # WebSockets or SSE connection. Note this does not allow for loading any
