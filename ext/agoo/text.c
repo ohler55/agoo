@@ -1,8 +1,10 @@
 // Copyright 2016, 2018 by Peter Ohler, All Rights Reserved
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
+#include "debug.h"
 #include "text.h"
 
 Text
@@ -10,6 +12,7 @@ text_create(const char *str, int len) {
     Text	t = (Text)malloc(sizeof(struct _Text) - TEXT_MIN_SIZE + len + 1);
 
     if (NULL != t) {
+	DEBUG_ALLOC(mem_text)
 	t->len = len;
 	t->alen = len;
 	atomic_init(&t->ref_cnt, 0);
@@ -24,6 +27,7 @@ text_allocate(int len) {
     Text	t = (Text)malloc(sizeof(struct _Text) - TEXT_MIN_SIZE + len + 1);
 
     if (NULL != t) {
+	DEBUG_ALLOC(mem_text)
 	t->len = 0;
 	t->alen = len;
 	atomic_init(&t->ref_cnt, 0);
@@ -40,6 +44,7 @@ text_ref(Text t) {
 void
 text_release(Text t) {
     if (1 >= atomic_fetch_sub(&t->ref_cnt, 1)) {
+	DEBUG_FREE(mem_text)
 	free(t);
     }
 }
@@ -56,6 +61,7 @@ text_append(Text t, const char *s, int len) {
 	if (NULL == (t = (Text)realloc(t, size))) {
 	    return NULL;
 	}
+	DEBUG_ALLOC(mem_text)
 	t->alen = new_len;
     }
     memcpy(t->text + t->len, s, len);

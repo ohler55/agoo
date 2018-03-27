@@ -2,6 +2,7 @@
 
 #include <stdio.h>
 
+#include "debug.h"
 #include "con.h"
 #include "error_stream.h"
 #include "rack_logger.h"
@@ -517,8 +518,15 @@ to_s(VALUE self) {
     return rb_funcall(h, rb_intern("to_s"), 0);
 }
 
+void
+request_destroy(Req req) {
+    DEBUG_FREE(mem_req)
+    free(req);
+}
+
 VALUE
 request_wrap(Req req) {
+    // freed from the C side of things
     return Data_Wrap_Struct(req_class, NULL, NULL, req);
 }
 

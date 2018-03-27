@@ -2,6 +2,7 @@
 
 #include <stdlib.h>
 
+#include "debug.h"
 #include "http.h"
 #include "response.h"
 #include "text.h"
@@ -51,8 +52,11 @@ response_free(void *ptr) {
 
     while (NULL != (h = res->headers)) {
 	res->headers = h->next;
+	DEBUG_FREE(mem_header)
 	xfree(h);
     }
+    DEBUG_FREE(mem_res_body);
+    DEBUG_FREE(mem_response);
     free(res->body); // allocated with strdup
     xfree(ptr);
 }
@@ -61,6 +65,7 @@ VALUE
 response_new(Server server ) {
     Response	res = ALLOC(struct _Response);
 
+    DEBUG_ALLOC(mem_response)
     memset(res, 0, sizeof(struct _Response));
     res->code = 200;
     res->server = server;
@@ -80,6 +85,7 @@ to_s(VALUE self) {
     int		len = response_len(res);
     char	*s = ALLOC_N(char, len + 1);
 
+    DEBUG_ALLOC(mem_to_s)
     response_fill(res, s);
     
     return rb_str_new(s, len);
@@ -127,6 +133,7 @@ body_set(VALUE self, VALUE val) {
 
     if (T_STRING == rb_type(val)) {
 	res->body = strdup(StringValuePtr(val));
+	DEBUG_ALLOC(mem_res_body)
 	res->blen = (int)RSTRING_LEN(val);
     } else {
 	// TBD use Oj
@@ -208,6 +215,7 @@ head_set(VALUE self, VALUE key, VALUE val) {
 	    } else {
 		prev->next = h->next;
 	    }
+	    DEBUG_FREE(mem_header)
 	    xfree(h);
 	    break;
 	}
@@ -224,6 +232,8 @@ head_set(VALUE self, VALUE key, VALUE val) {
     }
     hlen = klen + vlen + 4;
     h = (Header)ALLOC_N(char, sizeof(struct _Header) - 8 + hlen + 1);
+    DEBUG_ALLOC(mem_header)
+
     h->next = NULL;
     h->len = hlen;
     strncpy(h->text, ks, klen);

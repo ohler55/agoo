@@ -8,6 +8,7 @@
 #include <sys/types.h>
 #include <time.h>
 
+#include "debug.h"
 #include "dtime.h"
 #include "log.h"
 
@@ -231,6 +232,7 @@ loop(void *ctx) {
 	    }
 	    if (NULL != e->whatp) {
 		free(e->whatp);
+		DEBUG_FREE(mem_log_what)
 	    }
 	    e->ready = false;
 	}
@@ -364,6 +366,8 @@ log_init(Err err, Log log, VALUE cfg) {
 	}
     }
     log->q = (LogEntry)malloc(sizeof(struct _LogEntry) * qsize);
+    DEBUG_ALLOC(mem_log_entry)
+
     log->end = log->q + qsize;
 
     memset(log->q, 0, sizeof(struct _LogEntry) * qsize);
@@ -393,6 +397,7 @@ log_close(Log log) {
 	fclose(log->file);
 	log->file = NULL;
     }
+    DEBUG_FREE(mem_log_entry)
     free(log->q);
     log->q = NULL;
     log->end = NULL;
@@ -468,6 +473,8 @@ log_catv(LogCat cat, const char *fmt, va_list ap) {
 	if ((int)sizeof(e->what) <= (cnt = vsnprintf(e->what, sizeof(e->what), fmt, ap))) {
 	    e->whatp = (char*)malloc(cnt + 1);
 
+	    DEBUG_ALLOC(mem_log_what)
+    
 	    if (NULL != e->whatp) {
 		vsnprintf(e->whatp, cnt + 1, fmt, ap2);
 	    }

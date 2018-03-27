@@ -4,6 +4,7 @@
 #include <string.h>
 
 #include "con.h"
+#include "debug.h"
 #include "dtime.h"
 #include "hook.h"
 #include "http.h"
@@ -24,6 +25,7 @@ con_create(Err err, Server server, int sock, uint64_t id) {
     if (NULL == (c = (Con)malloc(sizeof(struct _Con)))) {
 	err_set(err, ERR_MEMORY, "Failed to allocate memory for a connection.");
     } else {
+	DEBUG_ALLOC(mem_con)
 	memset(c, 0, sizeof(struct _Con));
 	c->sock = sock;
 	c->iid = id;
@@ -40,7 +42,9 @@ con_destroy(Con c) {
     }
     if (NULL != c->req) {
 	free(c->req);
+	DEBUG_FREE(mem_req)
     }
+    DEBUG_FREE(mem_con)
     free(c);
 }
 
@@ -87,6 +91,7 @@ bad_request(Con c, int status, int line) {
 	int	cnt = snprintf(buf, sizeof(buf), "HTTP/1.1 %d %s\r\nConnection: Close\r\nContent-Length: 0\r\n\r\n", status, msg);
 	Text	message = text_create(buf, cnt);
 	
+	DEBUG_ALLOC(mem_res)
 	if (NULL == c->res_tail) {
 	    c->res_head = res;
 	} else {
@@ -265,6 +270,7 @@ HOOKED:
     if (NULL == (c->req = (Req)malloc(mlen + sizeof(struct _Req) - 8 + 1))) {
 	return bad_request(c, 413, __LINE__);
     }
+    DEBUG_ALLOC(mem_req)
     if ((long)c->bcnt <= mlen) {
 	memcpy(c->req->msg, c->buf, c->bcnt);
 	if ((long)c->bcnt < mlen) {

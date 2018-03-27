@@ -18,7 +18,7 @@ module Rack
 
 	default_handler = handler unless handler.nil?
 	options.each { |k,v|
-	  if :port == k
+	  if :port == k || :p == k
 	    port = v.to_i
 	    options.delete(k)
 	  elsif :root == k
@@ -46,4 +46,11 @@ module Rack
       
     end
   end
+end
+
+begin
+  ::Rack::Handler.register('agoo', 'Rack::Handler::Agoo')
+  ::Rack::Handler.register('Agoo', 'Rack::Handler::Agoo')
+rescue Exception
+  # Rack or Rack::Handler.register has not been required.
 end

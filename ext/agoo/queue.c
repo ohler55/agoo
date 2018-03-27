@@ -8,6 +8,7 @@
 #include <unistd.h>
 #include <pthread.h>
 
+#include "debug.h"
 #include "dtime.h"
 #include "queue.h"
 
@@ -34,6 +35,7 @@ queue_multi_init(Queue q, size_t qsize, bool multi_push, bool multi_pop) {
 	qsize = 4;
     }
     q->q = (QItem*)malloc(sizeof(QItem) * qsize);
+    DEBUG_ALLOC(mem_qitem)
     q->end = q->q + qsize;
 
     memset(q->q, 0, sizeof(QItem) * qsize);
@@ -51,6 +53,7 @@ queue_multi_init(Queue q, size_t qsize, bool multi_push, bool multi_pop) {
 
 void
 queue_cleanup(Queue q) {
+    DEBUG_FREE(mem_qitem)
     free(q->q);
     q->q = NULL;
     q->end = NULL;

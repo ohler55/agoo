@@ -7,6 +7,7 @@
 
 #include <ruby.h>
 
+#include "debug.h"
 #include "dtime.h"
 #include "page.h"
 
@@ -158,6 +159,7 @@ mime_set(Cache cache, const char *key, const char *value) {
 	    ((0 <= len && len <= MAX_KEY_UNIQ) || 0 == strcmp(s->key, key))) {
 	    if (h == (int64_t)s->hash && len == s->klen &&
 		((0 <= len && len <= MAX_KEY_UNIQ) || 0 == strcmp(s->key, key))) {
+		DEBUG_FREE(mem_mime_slot)
 		free(s->value);
 		s->value = strdup(value);
 		return;
@@ -167,6 +169,7 @@ mime_set(Cache cache, const char *key, const char *value) {
     if (NULL == (s = (MimeSlot)malloc(sizeof(struct _MimeSlot)))) {
 	rb_raise(rb_eArgError, "out of memory adding %s", key);
     }
+    DEBUG_ALLOC(mem_mime_slot)
     s->hash = h;
     s->klen = len;
     if (NULL == key) {
@@ -206,6 +209,7 @@ cache_set(Cache cache, const char *key, int klen, Page value) {
     if (NULL == (s = (Slot)malloc(sizeof(struct _Slot)))) {
 	return value;
     }
+    DEBUG_ALLOC(mem_page_slot)
     s->hash = h;
     s->klen = len;
     if (NULL == key) {
@@ -243,6 +247,7 @@ cache_destroy(Cache cache) {
     for (i = PAGE_BUCKET_SIZE; 0 < i; i--, sp++) {
 	for (s = *sp; NULL != s; s = n) {
 	    n = s->next;
+	    DEBUG_FREE(mem_page_slot)
 	    free(s);
 	}
 	*sp = NULL;
@@ -251,10 +256,12 @@ cache_destroy(Cache cache) {
     for (i = MIME_BUCKET_SIZE; 0 < i; i--, mp++) {
 	for (sm = *mp; NULL != sm; sm = m) {
 	    m = sm->next;
+	    DEBUG_FREE(mem_page_slot)
 	    free(sm);
 	}
 	*mp = NULL;
     }
+    //DEBUG_FREE(mem_cache)
     free(cache);
 }
 
@@ -265,11 +272,13 @@ page_create(const char *path) {
     Page	p = (Page)malloc(sizeof(struct _Page));
 
     if (NULL != p) {
+	DEBUG_ALLOC(mem_page)
 	p->resp = NULL;
 	if (NULL == path) {
 	    p->path = NULL;
 	} else {
 	    p->path = strdup(path);
+	    DEBUG_ALLOC(mem_page_path)
 	}
 	p->mtime = 0;
 	p->last_check = 0.0;
@@ -283,6 +292,8 @@ page_destroy(Page p) {
 	text_release(p->resp);
 	p->resp = NULL;
     }
+    DEBUG_FREE(mem_page_path)
+    DEBUG_FREE(mem_page)
     free(p->path);
     free(p);
 }
@@ -362,11 +373,13 @@ update_contents(Cache cache, Page p) {
     if (NULL == (msg = (char*)malloc(msize))) {
 	return false;
     }
+    DEBUG_ALLOC(mem_page_msg)
     cnt = sprintf(msg, page_fmt, mime, size);
 
     msize = cnt + size;
     if (size != (long)fread(msg + cnt, 1, size, f)) {
 	fclose(f);
+	DEBUG_FREE(mem_page_msg)
 	free(msg);
 	return false;
     }

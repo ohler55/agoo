@@ -1,6 +1,7 @@
 // Copyright (c) 2018, Peter Ohler, All rights reserved.
 
 #include "error_stream.h"
+#include "debug.h"
 #include "text.h"
 
 static VALUE	es_class = Qundef;
@@ -14,6 +15,8 @@ static void
 es_free(void *ptr) {
     ErrorStream	es = (ErrorStream)ptr;
 
+    DEBUG_FREE(mem_err_stream)
+    DEBUG_FREE(mem_text)
     free(es->text); // allocated with malloc
     xfree(ptr);
 }
@@ -22,6 +25,7 @@ VALUE
 error_stream_new(Server server) {
     ErrorStream	es = ALLOC(struct _ErrorStream);
 
+    DEBUG_ALLOC(mem_err_stream)
     es->text = text_allocate(1024);
     es->server = server;
     
