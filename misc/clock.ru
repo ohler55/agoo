@@ -10,24 +10,17 @@ class TickTock
   def initialize(env)
   end
 
-  # 1) Discuss using extend or passin in a sender object.
+  # I could not come up with any other nice alternatives. Lets go with
+  # extended.
   def on_open(sender = nil)
-    # for iodine compatibility, as iodine doen't provide a sender object
-    @sender = sender ? sender : self
-    # 2) subscriber options. If extended then this works.
+    # 1) All that is needed for a subscribe is a channel, subject, or
+    # filter. Filter is going to be very implemenation specific so I suggest
+    # channel/subject where channel is a subset of a subject or rather a
+    # subject without wildcards. I don't think there is a need for a
+    # key/value. A simple single argument should be fine.
     subscribe channel: :time
-    # using the same extended approach this would also work. Argument could be
-    # a channel or a subject.
+    # vs
     subscribe('time')
-    # If not using the extended approach then something like this. Of course
-    # 'sender' is not the right name if the object is both a sender and a
-    # handle to the server.
-    sender.subscribe(self, :time)
-
-    # PCO - I don't like using extend as it modifies an object owned by
-    # another package. It comes across as magic. I can see how extend makes
-    # the API cleaner though. I'd like to explore other options if there are
-    # any. Just some more thought.
   end
 
   def on_close
@@ -53,7 +46,7 @@ end
 class FlyHandler
 
   def call(env)
-    # 3) These are not the best terms. Lets figure out something reasonable
+    # 2) These are not the best terms. Lets figure out something reasonable
     # that is not tied to WebSockets but allows SSE or WebSockets and use a
     # env[`upgrade.type'] if the developer cares which type of connection they
     # are getting.
@@ -73,6 +66,10 @@ run FlyHandler.new
 
 loop do
   now = Time.now
+
+  # 3) Similar to subscribe. I prefer a just 2 arguments, a subject/channel
+  # and the data to publish.
+
   # The Redis approach.
   Rack.publish(channel: :time,
 	       message: "%02d:%02d:%02d" % [now.hour, now.min, now.sec])
