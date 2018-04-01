@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "debug.h"
 #include "hook.h"
 
 Hook
@@ -10,6 +11,7 @@ hook_create(Method method, const char *pattern, VALUE handler) {
     Hook	hook = (Hook)malloc(sizeof(struct _Hook));
 
     if (NULL != hook) {
+	DEBUG_ALLOC(mem_hook)
 	if (NULL == pattern) {
 	    pattern = "";
 	}
@@ -17,6 +19,7 @@ hook_create(Method method, const char *pattern, VALUE handler) {
 	hook->handler = handler;
 	rb_gc_register_address(&handler);
 	hook->pattern = strdup(pattern);
+	DEBUG_ALLOC(mem_hook_pattern)
 	hook->method = method;
 	if (rb_respond_to(handler, rb_intern("on_request"))) {
 	    hook->type = BASE_HOOK;
@@ -36,6 +39,8 @@ hook_create(Method method, const char *pattern, VALUE handler) {
 
 void
 hook_destroy(Hook hook) {
+    DEBUG_FREE(mem_hook_pattern)
+    DEBUG_FREE(mem_hook)
     free(hook->pattern);
     free(hook);
 }

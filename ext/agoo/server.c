@@ -21,6 +21,7 @@
 #include <ruby/thread.h>
 
 #include "con.h"
+#include "debug.h"
 #include "dtime.h"
 #include "err.h"
 #include "http.h"
@@ -74,6 +75,7 @@ shutdown_server(Server server) {
 		}
 		dsleep(0.02);
 	    }
+	    DEBUG_FREE(mem_eval_threads)
 	    xfree(server->eval_threads);
 	    server->eval_threads = NULL;
 	}
@@ -85,6 +87,7 @@ shutdown_server(Server server) {
 	}
 	queue_cleanup(&server->eval_queue);
 	log_close(&server->log);
+	debug_print_stats();    
     }
 }
 
@@ -105,6 +108,7 @@ server_free(void *ptr) {
     //to be pointing at it even though they have exited so live with a memory
     //leak that only shows up when the program exits.
     //xfree(ptr);
+    DEBUG_FREE(mem_server)
     the_server = NULL;
 }
 
@@ -193,7 +197,6 @@ configure(Err err, Server s, int port, const char *root, VALUE options) {
  *
  *   - *:pedantic* [_true_|_false_] if true response header and status codes are check and an exception raised if they violate the rack spec at https://github.com/rack/rack/blob/master/SPEC, https://tools.ietf.org/html/rfc3875#section-4.1.18, or https://tools.ietf.org/html/rfc7230.
  *
- *
  *   - *:thread_count* [_Integer_] number of ruby worker threads. Defaults to one. If zero then the _start_ function will not return but instead will proess using the thread that called _start_. Usually the default is best unless the workers are making IO calls.
  *
  *   - *:log_dir* [_String_] directory to place log files in. If nil or empty then no log files are written.
@@ -232,9 +235,11 @@ server_new(int argc, VALUE *argv, VALUE self) {
 	options = argv[2];
     }
     s = ALLOC(struct _Server);
+    DEBUG_ALLOC(mem_server)
     memset(s, 0, sizeof(struct _Server));
     if (ERR_OK != configure(&err, s, port, root, options)) {
 	xfree(s);
+	DEBUG_FREE(mem_server)
 	// TBD raise Agoo specific exception
 	rb_raise(rb_eArgError, "%s", err.msg);
     }
@@ -548,9 +553,10 @@ handle_rack(void *x) {
     // Disable GC. The handle_rack function or rather the env seems to get
     // collected even though it is volatile so for now turn off GC
     // temporarily.
-    rb_gc_disable();
+    //rb_gc_disable();
     rb_rescue2(handle_rack_inner, (VALUE)x, rescue_error, (VALUE)x, rb_eException, 0);
-    rb_gc_enable();
+    //rb_gc_enable();
+    //rb_gc();
 
     return NULL;
 }
@@ -610,6 +616,8 @@ process_loop(void *ptr) {
     while (server->active) {
 	if (NULL != (req = (Req)queue_pop(&server->eval_queue, 0.1))) {
 	    handle_protected(req);
+	    free(req);
+	    DEBUG_FREE(mem_req)
 	}
     }
     atomic_fetch_sub(&server->running, 1);
@@ -685,10 +693,14 @@ start(VALUE self) {
 		    break;
 		}
 		}
+		free(req);
+		DEBUG_FREE(mem_req)
 	    }
 	}
     } else {
 	server->eval_threads = ALLOC_N(VALUE, server->thread_cnt + 1);
+	DEBUG_ALLOC(mem_eval_threads)
+
 	for (i = server->thread_cnt, vp = server->eval_threads; 0 < i; i--, vp++) {
 	    *vp = rb_thread_create(wrap_process_loop, server);
 	}

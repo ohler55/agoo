@@ -6,6 +6,7 @@
 
 #include <ruby.h>
 
+#include "debug.h"
 #include "http.h"
 
 #define BUCKET_SIZE	1024
@@ -470,6 +471,7 @@ key_set(const char *key) {
     Slot	s;
     
     if (NULL != (s = (Slot)malloc(sizeof(struct _Slot)))) {
+	DEBUG_ALLOC(mem_http_slot)
 	s->hash = h;
 	s->klen = len;
 	s->key = key;
@@ -497,6 +499,7 @@ http_cleanup() {
     for (int i = BUCKET_SIZE; 0 < i; i--, sp++) {
 	for (s = *sp; NULL != s; s = n) {
 	    n = s->next;
+	    DEBUG_FREE(mem_http_slot)
 	    free(s);
 	}
 	*sp = NULL;

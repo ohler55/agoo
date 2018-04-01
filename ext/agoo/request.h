@@ -33,5 +33,6 @@ typedef struct _Req {
 extern void	request_init(VALUE mod);
 extern VALUE	request_wrap(Req req);
 extern VALUE	request_env(Req req);
+extern void	request_destroy(Req req);
 
 #endif // __AGOO_REQUEST_H__
