@@ -28,6 +28,7 @@ con_create(Err err, Server server, int sock, uint64_t id) {
 	c->sock = sock;
 	c->iid = id;
 	c->server = server;
+	c->kind = CON_HTTP;
     }
     return c;
 }
@@ -274,7 +275,7 @@ HOOKED:
 	memcpy(c->req->msg, c->buf, mlen);
     }
     c->req->msg[mlen] = '\0';
-    c->req->server = server;
+    c->req->con = c;
     c->req->method = method;
     c->req->path.start = c->req->msg + (path - c->buf);
     c->req->path.len = (int)(pend - path);
@@ -297,9 +298,8 @@ HOOKED:
     return mlen;
 }
 
-// return true to remove/close connection
 static bool
-con_read(Con c) {
+con_http_read(Con c) {
     ssize_t	cnt;
     
     if (NULL != c->req) {
@@ -381,6 +381,34 @@ con_read(Con c) {
 	break;
     }
     return false;
+}
+
+static bool
+con_ws_read(Con c) {
+    // TBD
+    return false;
+}
+
+static bool
+con_sse_read(Con c) {
+    // TBD
+    return false;
+}
+
+// return true to remove/close connection
+static bool
+con_read(Con c) {
+    switch (c->kind) {
+    case CON_HTTP:
+	return con_http_read(c);
+    case CON_WS:
+	return con_ws_read(c);
+    case CON_SSE:
+	return con_sse_read(c);
+    default:
+	break;
+    }
+    return true;
 }
 
 // return true to remove/close connection

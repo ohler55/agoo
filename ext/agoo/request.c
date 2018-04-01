@@ -270,7 +270,7 @@ rack_input(VALUE self) {
 
 static VALUE
 req_rack_errors(Req r) {
-    return error_stream_new(r->server);
+    return error_stream_new(r->con->server);
 }
 
 /* Document-method: rack_errors
@@ -290,7 +290,7 @@ req_rack_multithread(Req r) {
     if (NULL == r) {
 	rb_raise(rb_eArgError, "Request is no longer valid.");
     }
-    if (NULL != r->server && 1 < r->server->thread_cnt) {
+    if (NULL != r->con->server && 1 < r->con->server->thread_cnt) {
 	return Qtrue;
     }
     return Qfalse;
@@ -353,13 +353,13 @@ add_header_value(VALUE hh, const char *key, int klen, const char *val, int vlen)
 
 static void
 fill_headers(Req r, VALUE hash) {
-    char		*h = r->header.start;
-    char		*end = h + r->header.len;
-    char		*key = h;
-    char		*kend = key;
-    char		*val = NULL;
-    char		*vend;
-    
+    char	*h = r->header.start;
+    char	*end = h + r->header.len + 1; // +1 for last \r
+    char	*key = h;
+    char	*kend = key;
+    char	*val = NULL;
+    char	*vend;
+
     if (NULL == r) {
 	rb_raise(rb_eArgError, "Request is no longer valid.");
     }
@@ -369,17 +369,15 @@ fill_headers(Req r, VALUE hash) {
 	    kend = h;
 	    val = h + 1;
 	    break;
-	case ' ':
-	    if (NULL != val) {
-		val++;
-	    } else {
-		// TBD handle trailing spaces as well
-		key++;
-	    }
-	    break;
 	case '\r':
 	    if (NULL != val) {
+		for (; ' ' == *val; val++) {
+		}
 		vend = h;
+	    }
+	    if (NULL != key) {
+		for (; ' ' == *key; key++) {
+		}
 	    }
 	    if ('\n' == *(h + 1)) {
 		h++;
@@ -438,7 +436,7 @@ body(VALUE self) {
 
 static VALUE
 req_rack_logger(Req req) {
-    return rack_logger_new(req->server);
+    return rack_logger_new(req->con->server);
 }
 
 /* Document-method: rack_logger

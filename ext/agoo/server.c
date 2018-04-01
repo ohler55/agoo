@@ -357,7 +357,7 @@ rescue_error(VALUE x) {
 
     req->res->close = true;
     res_set_message(req->res, message);
-    queue_wakeup(&req->server->con_queue);
+    queue_wakeup(&req->con->server->con_queue);
 
     return Qfalse;
 }
@@ -366,13 +366,13 @@ static VALUE
 handle_base_inner(void *x) {
     Req			req = (Req)x;
     volatile VALUE	rr = request_wrap(req);
-    volatile VALUE	rres = response_new(req->server);
+    volatile VALUE	rres = response_new(req->con->server);
     
     rb_funcall(req->handler, on_request_id, 2, rr, rres);
     DATA_PTR(rr) = NULL;
 
     res_set_message(req->res, response_text(rres));
-    queue_wakeup(&req->server->con_queue);
+    queue_wakeup(&req->con->server->con_queue);
 
     return Qfalse;
 }
@@ -494,13 +494,19 @@ handle_rack_inner(void *x) {
     }
     switch (code) {
     case 100:
-    case 101:
     case 102:
     case 204:
     case 205:
     case 304:
 	// Content-Type and Content-Length can not be present
 	t->len = snprintf(t->text, 1024, "HTTP/1.1 %d %s\r\n", code, status_msg);
+	break;
+    case 101:
+	// TBD websocket upgrade?
+	printf("*** protocol change\n");
+	// TBD get push handler
+	//  set req hndler and hook type
+	
 	break;
     default:
 	// Note that using simply sprintf causes an abort with travis OSX tests.
@@ -532,7 +538,7 @@ handle_rack_inner(void *x) {
 	}
     }
     res_set_message(req->res, t);
-    queue_wakeup(&req->server->con_queue);
+    queue_wakeup(&req->con->server->con_queue);
 
     return Qfalse;
 }
@@ -553,13 +559,13 @@ static VALUE
 handle_wab_inner(void *x) {
     Req			req = (Req)x;
     volatile VALUE	rr = request_wrap(req);
-    volatile VALUE	rres = response_new(req->server);
+    volatile VALUE	rres = response_new(req->con->server);
     
     rb_funcall(req->handler, on_request_id, 2, rr, rres);
     DATA_PTR(rr) = NULL;
 
     res_set_message(req->res, response_text(rres));
-    queue_wakeup(&req->server->con_queue);
+    queue_wakeup(&req->con->server->con_queue);
 
     return Qfalse;
 }
@@ -589,7 +595,7 @@ handle_protected(Req req) {
 	
 	req->res->close = true;
 	res_set_message(req->res, message);
-	queue_wakeup(&req->server->con_queue);
+	queue_wakeup(&req->con->server->con_queue);
 	break;
     }
     }
@@ -675,7 +681,7 @@ start(VALUE self) {
 	
 		    req->res->close = true;
 		    res_set_message(req->res, message);
-		    queue_wakeup(&req->server->con_queue);
+		    queue_wakeup(&req->con->server->con_queue);
 		    break;
 		}
 		}

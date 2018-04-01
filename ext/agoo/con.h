@@ -14,8 +14,15 @@
 
 #define MAX_HEADER_SIZE	8192
 
+typedef enum {
+    CON_HTTP	= 'H',
+    CON_WS	= 'W',
+    CON_SSE	= 'S',
+} ConKind;
+
 typedef struct _Con {
     int			sock;
+    ConKind		kind;
     struct pollfd	*pp;
     uint64_t		iid;
     char		buf[MAX_HEADER_SIZE];
@@ -30,8 +37,6 @@ typedef struct _Con {
     Req			req;
     Res			res_head;
     Res			res_tail;
-
-    //FEval		eval;
 } *Con;
 
 extern Con		con_create(Err err, Server server, int sock, uint64_t id);

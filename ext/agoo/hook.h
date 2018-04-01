@@ -14,6 +14,7 @@ typedef enum {
     RACK_HOOK	= 'R',
     BASE_HOOK	= 'B',
     WAB_HOOK	= 'W',
+    PUSH_HOOK	= 'P',
 } HookType;
 
 typedef struct _Hook {

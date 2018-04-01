@@ -7,8 +7,9 @@
 
 #include "hook.h"
 #include "res.h"
-#include "server.h"
 #include "types.h"
+
+struct _Con;
 
 typedef struct _Str {
     char		*start;
@@ -16,7 +17,7 @@ typedef struct _Str {
 } *Str;
 
 typedef struct _Req {
-    Server	server;
+    struct _Con	*con;
     Method	method;
     struct _Str	path;
     struct _Str	query;

@@ -86,3 +86,10 @@ run FlyHandler.new
 # Make requests on port 9292 to received responses.
 ```
 
+
+## Why not Hijack
+
+- no callback mechanism
+- round peg in a square hole
+ - assumes raw IO
+ - convoluted multi-step to makes something even partially workable
