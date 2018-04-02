@@ -37,12 +37,15 @@ static VALUE	get_sym;
 static VALUE	head_sym;
 static VALUE	options_sym;
 static VALUE	post_sym;
+static VALUE	push_env_key;
 static VALUE	put_sym;
 
 static ID	call_id;
 static ID	each_id;
 static ID	on_request_id;
 static ID	to_i_id;
+
+static const char	err500[] = "HTTP/1.1 500 Internal Server Error\r\n";
 
 static Server	the_server = NULL;
 
@@ -428,6 +431,23 @@ body_append_cb(VALUE v, Text *tp) {
 }
 
 static VALUE
+setup_push_handler(void *x) {
+    Req	req = (Req)x;
+
+    if (Qnil == req->wrap) {
+	request_wrap(req);
+    }
+    rb_ivar_set(req->handler, rb_intern("@_req"), req->wrap);
+
+    // TBD
+    // extend req->handler, write and subscribe
+
+    rb_funcall(req->handler, rb_intern("on_open"), 0);
+
+    return Qnil;
+}
+
+static VALUE
 handle_rack_inner(void *x) {
     Req			req = (Req)x;
     Text		t;
@@ -507,11 +527,37 @@ handle_rack_inner(void *x) {
 	t->len = snprintf(t->text, 1024, "HTTP/1.1 %d %s\r\n", code, status_msg);
 	break;
     case 101:
-	// TBD websocket upgrade?
-	printf("*** protocol change\n");
-	// TBD get push handler
-	//  set req hndler and hook type
-	
+	printf("*** protocol change  %d\n", bsize);
+	switch (req->upgrade) {
+	case UP_WS:
+	    req->con->kind = CON_WS;
+	    if (Qnil == (req->handler = rb_hash_lookup(env, push_env_key))) {
+		strcpy(t->text, err500);
+		t->len = sizeof(err500) - 1;
+		break;
+	    }
+	    req->handler_type = PUSH_HOOK;
+	    rb_rescue2(setup_push_handler, (VALUE)x, rescue_error, (VALUE)x, rb_eException, 0);
+	    t->len = snprintf(t->text, 1024, "HTTP/1.1 %d %s\r\n", code, status_msg);
+	    break;
+	case UP_SSE:
+	    req->con->kind = CON_SSE;
+	    if (Qnil == (req->handler = rb_hash_lookup(env, push_env_key))) {
+		strcpy(t->text, err500);
+		t->len = sizeof(err500) - 1;
+		break;
+	    }
+	    req->handler_type = PUSH_HOOK;
+	    rb_rescue2(setup_push_handler, (VALUE)x, rescue_error, (VALUE)x, rb_eException, 0);
+	    t->len = snprintf(t->text, 1024, "HTTP/1.1 %d %s\r\n", code, status_msg);
+	    break;
+	default:
+	    // An error on the app's part as a protocol upgrade must include a
+	    // supported handler.
+	    strcpy(t->text, err500);
+	    t->len = sizeof(err500) - 1;
+	    break;
+	}
 	break;
     default:
 	// Note that using simply sprintf causes an abort with travis OSX tests.
@@ -524,7 +570,7 @@ handle_rack_inner(void *x) {
 	if (T_HASH == rb_type(hv)) {
 	    rb_hash_foreach(hv, header_cb, (VALUE)&t);
 	} else {
-	    rb_iterate (rb_each, hv, header_each_cb, (VALUE)&t);
+	    rb_iterate(rb_each, hv, header_each_cb, (VALUE)&t);
 	}
     }
     t = text_append(t, "\r\n", 2);
@@ -582,6 +628,23 @@ handle_wab(void *x) {
 
     return NULL;
 }
+
+static VALUE
+handle_push_inner(void *x) {
+    //Req			req = (Req)x;
+
+    // TBD call on_message
+
+    return Qfalse;
+}
+
+static void*
+handle_push(void *x) {
+    rb_rescue2(handle_push_inner, (VALUE)x, rescue_error, (VALUE)x, rb_eException, 0);
+
+    return NULL;
+}
+
 static void
 handle_protected(Req req) {
     switch (req->handler_type) {
@@ -681,6 +744,9 @@ start(VALUE self) {
 		    break;
 		case WAB_HOOK:
 		    handle_wab(req);
+		    break;
+		case PUSH_HOOK:
+		    handle_push(req);
 		    break;
 		default: {
 		    char	buf[256];
@@ -1022,6 +1088,8 @@ server_init(VALUE mod) {
     options_sym = ID2SYM(rb_intern("OPTIONS"));	rb_gc_register_address(&options_sym);
     post_sym = ID2SYM(rb_intern("POST"));	rb_gc_register_address(&post_sym);
     put_sym = ID2SYM(rb_intern("PUT"));		rb_gc_register_address(&put_sym);
+
+    push_env_key = rb_str_new_cstr("push.handler"); rb_gc_register_address(&push_env_key);
 
     http_init();
 }

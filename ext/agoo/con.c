@@ -281,8 +281,10 @@ HOOKED:
 	memcpy(c->req->msg, c->buf, mlen);
     }
     c->req->msg[mlen] = '\0';
+    c->req->wrap = Qnil;
     c->req->con = c;
     c->req->method = method;
+    c->req->upgrade = UP_NONE;
     c->req->path.start = c->req->msg + (path - c->buf);
     c->req->path.len = (int)(pend - path);
     c->req->query.start = c->req->msg + (query - c->buf);
@@ -432,7 +434,11 @@ con_write(Con c) {
 	    if (NULL == hend) {
 		hend = message->text + message->len;
 	    }
+	    if ((long)sizeof(buf) <= hend - message->text) {
+		hend = message->text + sizeof(buf) - 1;
+	    }
 	    memcpy(buf, message->text, hend - message->text);
+	    buf[hend - message->text] = '\0';
 	    log_cat(&c->server->resp_cat, "%llu: %s", c->iid, buf);
 	}
 	if (c->server->debug_cat.on) {

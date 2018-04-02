@@ -44,6 +44,11 @@ static ID	new_id;
 
 static const char	content_type[] = "Content-Type";
 static const char	content_length[] = "Content-Length";
+static const char	connection_key[] = "Connection";
+static const char	upgrade_key[] = "Upgrade";
+static const char	websocket_val[] = "websocket";
+static const char	accept_key[] = "Accept";
+static const char	event_stream_val[] = "text/event-stream";
 
 static VALUE
 req_method(Req r) {
@@ -360,6 +365,9 @@ fill_headers(Req r, VALUE hash) {
     char	*kend = key;
     char	*val = NULL;
     char	*vend;
+    int		klen;
+    bool	upgrade = false;
+    bool	ws = false;
 
     if (NULL == r) {
 	rb_raise(rb_eArgError, "Request is no longer valid.");
@@ -383,7 +391,27 @@ fill_headers(Req r, VALUE hash) {
 	    if ('\n' == *(h + 1)) {
 		h++;
 	    }
-	    add_header_value(hash, key, (int)(kend - key), val, (int)(vend - val));
+	    klen = (int)(kend - key);
+	    add_header_value(hash, key, klen, val, (int)(vend - val));
+	    if (sizeof(upgrade_key) - 1 == klen && 0 == strncasecmp(key, upgrade_key, sizeof(upgrade_key) - 1)) {
+		if (sizeof(websocket_val) - 1 == vend - val &&
+		    0 == strncasecmp(val, websocket_val, sizeof(websocket_val) - 1)) {
+		    ws = true;
+		}
+	    } else if (sizeof(connection_key) - 1 == klen && 0 == strncasecmp(key, connection_key, sizeof(connection_key) - 1)) {
+		char	buf[1024];
+
+		strncpy(buf, val, vend - val);
+		buf[sizeof(buf)-1] = '\0';
+		if (NULL != strstr(buf, upgrade_key)) {
+		    upgrade = true;
+		}
+	    } else if (sizeof(accept_key) - 1 == klen && 0 == strncasecmp(key, accept_key, sizeof(accept_key) - 1)) {
+		if (sizeof(event_stream_val) - 1 == vend - val &&
+		    0 == strncasecmp(val, event_stream_val, sizeof(event_stream_val) - 1)) {
+		    r->upgrade = UP_SSE;
+		}
+	    }
 	    key = h + 1;
 	    kend = NULL;
 	    val = NULL;
@@ -392,6 +420,9 @@ fill_headers(Req r, VALUE hash) {
 	default:
 	    break;
 	}
+    }
+    if (upgrade && ws) {
+	r->upgrade = UP_WS;
     }
 }
 
@@ -516,8 +547,23 @@ to_s(VALUE self) {
     return rb_funcall(h, rb_intern("to_s"), 0);
 }
 
+static void
+request_mark(void *ptr) {
+    if (NULL != ptr) {
+	Req	r = (Req)ptr;
+
+	if (Qnil != r->wrap) {
+	    rb_gc_mark(r->wrap);
+	}
+    }
+}
+
 void
 request_destroy(Req req) {
+    if (Qnil != req->wrap) {
+	DATA_PTR(req->wrap) = NULL;
+    }
+    req->wrap = Qnil;
     DEBUG_FREE(mem_req)
     free(req);
 }
@@ -525,7 +571,8 @@ request_destroy(Req req) {
 VALUE
 request_wrap(Req req) {
     // freed from the C side of things
-    return Data_Wrap_Struct(req_class, NULL, NULL, req);
+    req->wrap = Data_Wrap_Struct(req_class, request_mark, NULL, req);
+    return req->wrap;
 }
 
 /* Document-class: Agoo::Request

@@ -11,6 +11,12 @@
 
 struct _Con;
 
+typedef enum {
+    UP_NONE	= '\0',
+    UP_WS	= 'W',
+    UP_SSE	= 'S',
+} Upgrade;
+
 typedef struct _Str {
     char		*start;
     unsigned int	len;
@@ -18,7 +24,9 @@ typedef struct _Str {
 
 typedef struct _Req {
     struct _Con	*con;
+    VALUE	wrap;
     Method	method;
+    Upgrade	upgrade;
     struct _Str	path;
     struct _Str	query;
     struct _Str	header;
