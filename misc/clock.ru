@@ -17,10 +17,23 @@ class TickTock
     # filter. Filter is going to be very implemenation specific so I suggest
     # channel/subject where channel is a subset of a subject or rather a
     # subject without wildcards. I don't think there is a need for a
-    # key/value. A simple single argument should be fine.
+    # 
+    # [Are you suggesting 'subject' as an alternative to 'pattern'? I think 'pattern' is clearer...]
+    # [...or do you mean that 'subject' forces a server to test the string and decide?]
+    # 
+    # 2) Some servers might choose to implement optional extended features.
+    # For example, some servers might support WebSocket encoding semantics
+    # (i.e., text vs. binary op-codes, data compression / encoding) or even
+    # SSE variations (i.e, Base64 encoding for binary data support).
+    # 
+    # To allow for these further extensions, I believe a Hash (or "named arguments")
+    # scheme is probably preferable.
     subscribe channel: :time
+    # It allows for something like:
+    subscribe channel: :time, as: :text
     # vs
-    subscribe('time')
+    ## Removed(?):
+    # subscribe('time')
   end
 
   def on_close
@@ -71,16 +84,34 @@ loop do
   # and the data to publish.
 
   # The Redis approach.
+  # 
+  # I have a preference for this one just because that's what I did in the past,
+  # (I used 'channel' and 'pattern' as the two names)...
+  # ...but we can surely use the 'subject' name if you feel it's better. I just
+  # think it might be a bit confusing where pattern matching is concerned.
   Rack.publish(channel: :time,
 	       message: "%02d:%02d:%02d" % [now.hour, now.min, now.sec])
   # For publishing channel and subject would appear the same. Maybe even alias
   # channel and subject.
+  # 
+  # I prefer deciding on a name rather than aliasing. Creating an alias is a
+  # good tool for backwards compatibility, but isn't super clear for a new spec.
+  # 
+  # The only naming preference I ask for is that it is consistent with naming
+  # for 'subscribe'	
   Rack.publish(subject: 'time',
-	       message: "%02d:%02d:%02d" % [now.hour, now.min, now.sec])
+               message: "%02d:%02d:%02d" % [now.hour, now.min, now.sec])
+	
   # Or publish with two args. First argument could be a channel ID or a
   # subject. Publish is always done without wild cards so my.cool.time would
   # be a valid subject or channel ID.
-  Rack.publish('time', "%02d:%02d:%02d" % [now.hour, now.min, now.sec])
+  # 
+  # I can't think of any possible extensions to 'publish', but I think it would be
+  # better to leave it as a possibility.
+  # 
+  # Besides, I think it's better to use a Hash so the API is similar to 'subscribe'.
+  ## Removed:
+  # Rack.publish('time', "%02d:%02d:%02d" % [now.hour, now.min, now.sec])
   
   sleep(1)
 end
