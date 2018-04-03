@@ -31,6 +31,8 @@ class TickTock
     subscribe channel: :time
     # It allows for something like:
     subscribe channel: :time, as: :text
+    # Or:
+    subscribe pattern: "t*", as: :binary
     # vs
     ## Removed(?):
     # subscribe('time')
