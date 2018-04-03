@@ -276,7 +276,7 @@ rack_input(VALUE self) {
 
 static VALUE
 req_rack_errors(Req r) {
-    return error_stream_new(r->con->server);
+    return error_stream_new(r->server);
 }
 
 /* Document-method: rack_errors
@@ -296,7 +296,7 @@ req_rack_multithread(Req r) {
     if (NULL == r) {
 	rb_raise(rb_eArgError, "Request is no longer valid.");
     }
-    if (NULL != r->con->server && 1 < r->con->server->thread_cnt) {
+    if (NULL != r->server && 1 < r->server->thread_cnt) {
 	return Qtrue;
     }
     return Qfalse;
@@ -468,7 +468,7 @@ body(VALUE self) {
 
 static VALUE
 req_rack_logger(Req req) {
-    return rack_logger_new(req->con->server);
+    return rack_logger_new(req->server);
 }
 
 /* Document-method: rack_logger
@@ -547,23 +547,8 @@ to_s(VALUE self) {
     return rb_funcall(h, rb_intern("to_s"), 0);
 }
 
-static void
-request_mark(void *ptr) {
-    if (NULL != ptr) {
-	Req	r = (Req)ptr;
-
-	if (Qnil != r->wrap) {
-	    rb_gc_mark(r->wrap);
-	}
-    }
-}
-
 void
 request_destroy(Req req) {
-    if (Qnil != req->wrap) {
-	DATA_PTR(req->wrap) = NULL;
-    }
-    req->wrap = Qnil;
     DEBUG_FREE(mem_req)
     free(req);
 }
@@ -571,8 +556,7 @@ request_destroy(Req req) {
 VALUE
 request_wrap(Req req) {
     // freed from the C side of things
-    req->wrap = Data_Wrap_Struct(req_class, request_mark, NULL, req);
-    return req->wrap;
+    return Data_Wrap_Struct(req_class, NULL, NULL, req);
 }
 
 /* Document-class: Agoo::Request

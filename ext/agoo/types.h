@@ -13,6 +13,8 @@ typedef enum {
     PUT		= 'U',
     ALL		= 'A',
     NONE	= '\0',
+    ON_MSG	= 'M', // use for on_message callback
+    ON_CLOSE	= 'X', // use for on_close callback
 } Method;
 
 #endif // __AGOO_TYPES_H__

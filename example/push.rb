@@ -47,6 +47,7 @@ class TickTock
   def initialize(env)
     puts "*** ticktock initialize"
     @req = nil
+    #subscribe("time")
   end
 
   def on_open()
@@ -54,6 +55,8 @@ class TickTock
   end
 
   def on_close
+    #unsubscribe()
+    # optional arg of subject previously subscribed to
     puts "*** closing"
   end
 

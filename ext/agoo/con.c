@@ -281,8 +281,7 @@ HOOKED:
 	memcpy(c->req->msg, c->buf, mlen);
     }
     c->req->msg[mlen] = '\0';
-    c->req->wrap = Qnil;
-    c->req->con = c;
+    c->req->server = c->server;
     c->req->method = method;
     c->req->upgrade = UP_NONE;
     c->req->path.start = c->req->msg + (path - c->buf);

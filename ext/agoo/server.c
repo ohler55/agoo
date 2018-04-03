@@ -89,6 +89,7 @@ shutdown_server(Server server) {
 	    hook_destroy(h);
 	}
 	queue_cleanup(&server->eval_queue);
+	pusher_cleanup(&server->pusher);
 	log_close(&server->log);
 	debug_print_stats();    
     }
@@ -250,6 +251,8 @@ server_new(int argc, VALUE *argv, VALUE self) {
     queue_multi_init(&s->eval_queue, 1024, false, true);
 
     cache_init(&s->pages);
+    pusher_init(&s->pusher);
+
     the_server = s;
     
     return Data_Wrap_Struct(server_class, NULL, server_free, s);
@@ -365,7 +368,7 @@ rescue_error(VALUE x) {
 
     req->res->close = true;
     res_set_message(req->res, message);
-    queue_wakeup(&req->con->server->con_queue);
+    queue_wakeup(&req->server->con_queue);
 
     return Qfalse;
 }
@@ -374,13 +377,13 @@ static VALUE
 handle_base_inner(void *x) {
     Req			req = (Req)x;
     volatile VALUE	rr = request_wrap(req);
-    volatile VALUE	rres = response_new(req->con->server);
+    volatile VALUE	rres = response_new(req->server);
     
     rb_funcall(req->handler, on_request_id, 2, rr, rres);
     DATA_PTR(rr) = NULL;
 
     res_set_message(req->res, response_text(rres));
-    queue_wakeup(&req->con->server->con_queue);
+    queue_wakeup(&req->server->con_queue);
 
     return Qfalse;
 }
@@ -430,22 +433,21 @@ body_append_cb(VALUE v, Text *tp) {
     return Qnil;
 }
 
+#if 0
 static VALUE
 setup_push_handler(void *x) {
-    Req	req = (Req)x;
+    //Req	req = (Req)x;
 
-    if (Qnil == req->wrap) {
-	request_wrap(req);
-    }
-    rb_ivar_set(req->handler, rb_intern("@_req"), req->wrap);
+    //rb_ivar_set(req->handler, rb_intern("@_req"), req->wrap);
 
     // TBD
     // extend req->handler, write and subscribe
 
-    rb_funcall(req->handler, rb_intern("on_open"), 0);
+    //rb_funcall(req->handler, rb_intern("on_open"), 0);
 
     return Qnil;
 }
+#endif
 
 static VALUE
 handle_rack_inner(void *x) {
@@ -530,6 +532,7 @@ handle_rack_inner(void *x) {
 	printf("*** protocol change  %d\n", bsize);
 	switch (req->upgrade) {
 	case UP_WS:
+	    /*
 	    req->con->kind = CON_WS;
 	    if (Qnil == (req->handler = rb_hash_lookup(env, push_env_key))) {
 		strcpy(t->text, err500);
@@ -539,8 +542,10 @@ handle_rack_inner(void *x) {
 	    req->handler_type = PUSH_HOOK;
 	    rb_rescue2(setup_push_handler, (VALUE)x, rescue_error, (VALUE)x, rb_eException, 0);
 	    t->len = snprintf(t->text, 1024, "HTTP/1.1 %d %s\r\n", code, status_msg);
+	    */
 	    break;
 	case UP_SSE:
+	    /*
 	    req->con->kind = CON_SSE;
 	    if (Qnil == (req->handler = rb_hash_lookup(env, push_env_key))) {
 		strcpy(t->text, err500);
@@ -550,6 +555,7 @@ handle_rack_inner(void *x) {
 	    req->handler_type = PUSH_HOOK;
 	    rb_rescue2(setup_push_handler, (VALUE)x, rescue_error, (VALUE)x, rb_eException, 0);
 	    t->len = snprintf(t->text, 1024, "HTTP/1.1 %d %s\r\n", code, status_msg);
+	    */
 	    break;
 	default:
 	    // An error on the app's part as a protocol upgrade must include a
@@ -589,7 +595,7 @@ handle_rack_inner(void *x) {
 	}
     }
     res_set_message(req->res, t);
-    queue_wakeup(&req->con->server->con_queue);
+    queue_wakeup(&req->server->con_queue);
 
     return Qfalse;
 }
@@ -611,13 +617,13 @@ static VALUE
 handle_wab_inner(void *x) {
     Req			req = (Req)x;
     volatile VALUE	rr = request_wrap(req);
-    volatile VALUE	rres = response_new(req->con->server);
+    volatile VALUE	rres = response_new(req->server);
     
     rb_funcall(req->handler, on_request_id, 2, rr, rres);
     DATA_PTR(rr) = NULL;
 
     res_set_message(req->res, response_text(rres));
-    queue_wakeup(&req->con->server->con_queue);
+    queue_wakeup(&req->server->con_queue);
 
     return Qfalse;
 }
@@ -631,9 +637,19 @@ handle_wab(void *x) {
 
 static VALUE
 handle_push_inner(void *x) {
-    //Req			req = (Req)x;
+    //Req		req = (Req)x;
 
-    // TBD call on_message
+    // TBD
+    // could be on_close or on_message
+    // lookup in push_cache
+    // if not found then ignore
+    // if found
+    //   if close remove first then call on_close
+    //   else on_message
+
+    // pub_cache
+    //  on server
+    //  pointer to wrap
 
     return Qfalse;
 }
@@ -641,7 +657,6 @@ handle_push_inner(void *x) {
 static void*
 handle_push(void *x) {
     rb_rescue2(handle_push_inner, (VALUE)x, rescue_error, (VALUE)x, rb_eException, 0);
-
     return NULL;
 }
 
@@ -657,6 +672,9 @@ handle_protected(Req req) {
     case WAB_HOOK:
 	rb_thread_call_with_gvl(handle_wab, req);
 	break;
+    case PUSH_HOOK:
+	handle_push(req);
+	break;
     default: {
 	char	buf[256];
 	int	cnt = snprintf(buf, sizeof(buf), "HTTP/1.1 500 Internal Error\r\nConnection: Close\r\nContent-Length: 0\r\n\r\n");
@@ -664,7 +682,7 @@ handle_protected(Req req) {
 	
 	req->res->close = true;
 	res_set_message(req->res, message);
-	queue_wakeup(&req->con->server->con_queue);
+	queue_wakeup(&req->server->con_queue);
 	break;
     }
     }
@@ -735,30 +753,7 @@ start(VALUE self) {
 
 	while (server->active) {
 	    if (NULL != (req = (Req)queue_pop(&server->eval_queue, 0.1))) {
-		switch (req->handler_type) {
-		case BASE_HOOK:
-		    handle_base(req);
-		    break;
-		case RACK_HOOK:
-		    handle_rack(req);
-		    break;
-		case WAB_HOOK:
-		    handle_wab(req);
-		    break;
-		case PUSH_HOOK:
-		    handle_push(req);
-		    break;
-		default: {
-		    char	buf[256];
-		    int		cnt = snprintf(buf, sizeof(buf), "HTTP/1.1 500 Internal Error\r\nConnection: Close\r\nContent-Length: 0\r\n\r\n");
-		    Text	message = text_create(buf, cnt);
-	
-		    req->res->close = true;
-		    res_set_message(req->res, message);
-		    queue_wakeup(&req->con->server->con_queue);
-		    break;
-		}
-		}
+		handle_protected(req);
 		free(req);
 		DEBUG_FREE(mem_req)
 	    }

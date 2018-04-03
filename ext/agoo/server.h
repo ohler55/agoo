@@ -12,6 +12,7 @@
 #include "hook.h"
 #include "log.h"
 #include "page.h"
+#include "pusher.h"
 #include "queue.h"
 
 typedef struct _Server {
@@ -36,6 +37,7 @@ typedef struct _Server {
     
     struct _Queue	con_queue;
     struct _Cache	pages;
+    struct _Pusher	pusher;
 
     Hook		hooks;
     Hook		hook404;

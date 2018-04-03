@@ -9,7 +9,7 @@
 #include "res.h"
 #include "types.h"
 
-struct _Con;
+struct _Server;
 
 typedef enum {
     UP_NONE	= '\0',
@@ -23,19 +23,18 @@ typedef struct _Str {
 } *Str;
 
 typedef struct _Req {
-    struct _Con	*con;
-    VALUE	wrap;
-    Method	method;
-    Upgrade	upgrade;
-    struct _Str	path;
-    struct _Str	query;
-    struct _Str	header;
-    struct _Str	body;
-    VALUE	handler;
-    HookType	handler_type;
-    Res		res;
-    size_t	mlen;   // allocated msg length
-    char	msg[8]; // expanded to be full message
+    struct _Server	*server;
+    Method		method;
+    Upgrade		upgrade;
+    struct _Str		path;
+    struct _Str		query;
+    struct _Str		header;
+    struct _Str		body;
+    VALUE		handler;
+    HookType		handler_type;
+    Res			res;
+    size_t		mlen;   // allocated msg length
+    char		msg[8]; // expanded to be full message
 } *Req;
 
 extern void	request_init(VALUE mod);
