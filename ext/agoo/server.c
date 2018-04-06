@@ -28,6 +28,8 @@
 #include "response.h"
 #include "request.h"
 #include "server.h"
+#include "sub.h"
+#include "upgraded.h"
 
 static VALUE	server_class = Qundef;
 
@@ -47,7 +49,7 @@ static ID	to_i_id;
 
 static const char	err500[] = "HTTP/1.1 500 Internal Server Error\r\n";
 
-static Server	the_server = NULL;
+Server	the_server = NULL;
 
 static void
 shutdown_server(Server server) {
@@ -65,6 +67,8 @@ shutdown_server(Server server) {
 	    server->con_thread = 0;
 	}
 	queue_cleanup(&server->con_queue);
+	queue_cleanup(&server->pub_queue);
+	sub_cleanup(&server->sub_cache);
 	// The preferred method to of waiting for the ruby threads would be
 	// either a join or even a kill but since we don't have the gvi here
 	// that would cause a segfault. Instead we set a timeout and wait for
@@ -248,10 +252,12 @@ server_new(int argc, VALUE *argv, VALUE self) {
 	rb_raise(rb_eArgError, "%s", err.msg);
     }
     queue_multi_init(&s->con_queue, 256, false, false);
+    queue_multi_init(&s->pub_queue, 256, false, false);
     queue_multi_init(&s->eval_queue, 1024, false, true);
 
     cache_init(&s->pages);
     pusher_init(&s->pusher);
+    sub_init(&s->sub_cache);
 
     the_server = s;
     
@@ -433,22 +439,6 @@ body_append_cb(VALUE v, Text *tp) {
     return Qnil;
 }
 
-#if 0
-static VALUE
-setup_push_handler(void *x) {
-    //Req	req = (Req)x;
-
-    //rb_ivar_set(req->handler, rb_intern("@_req"), req->wrap);
-
-    // TBD
-    // extend req->handler, write and subscribe
-
-    //rb_funcall(req->handler, rb_intern("on_open"), 0);
-
-    return Qnil;
-}
-#endif
-
 static VALUE
 handle_rack_inner(void *x) {
     Req			req = (Req)x;
@@ -532,6 +522,14 @@ handle_rack_inner(void *x) {
 	printf("*** protocol change  %d\n", bsize);
 	switch (req->upgrade) {
 	case UP_WS:
+	    if (Qnil == (req->handler = rb_hash_lookup(env, push_env_key))) {
+		strcpy(t->text, err500);
+		t->len = sizeof(err500) - 1;
+		break;
+	    }
+	    req->handler_type = PUSH_HOOK;
+	    upgraded_extend(req->cid, req->handler);
+	    t->len = snprintf(t->text, 1024, "HTTP/1.1 %d %s\r\n", code, status_msg);
 	    /*
 	    req->con->kind = CON_WS;
 	    if (Qnil == (req->handler = rb_hash_lookup(env, push_env_key))) {
@@ -639,6 +637,7 @@ static VALUE
 handle_push_inner(void *x) {
     //Req		req = (Req)x;
 
+    printf("*** handle_push\n");
     // TBD
     // could be on_close or on_message
     // lookup in push_cache
@@ -661,16 +660,28 @@ handle_push(void *x) {
 }
 
 static void
-handle_protected(Req req) {
+handle_protected(Req req, bool gvi) {
     switch (req->handler_type) {
     case BASE_HOOK:
-	rb_thread_call_with_gvl(handle_base, req);
+	if (gvi) {
+	    rb_thread_call_with_gvl(handle_base, req);
+	} else {
+	    handle_base(req);
+	}
 	break;
     case RACK_HOOK:
-	rb_thread_call_with_gvl(handle_rack, req);
+	if (gvi) {
+	    rb_thread_call_with_gvl(handle_rack, req);
+	} else {
+	    handle_rack(req);
+	}
 	break;
     case WAB_HOOK:
-	rb_thread_call_with_gvl(handle_wab, req);
+	if (gvi) {
+	    rb_thread_call_with_gvl(handle_wab, req);
+	} else {
+	    handle_wab(req);
+	}
 	break;
     case PUSH_HOOK:
 	handle_push(req);
@@ -696,7 +707,7 @@ process_loop(void *ptr) {
     atomic_fetch_add(&server->running, 1);
     while (server->active) {
 	if (NULL != (req = (Req)queue_pop(&server->eval_queue, 0.1))) {
-	    handle_protected(req);
+	    handle_protected(req, true);
 	    free(req);
 	    DEBUG_FREE(mem_req)
 	}
@@ -753,7 +764,7 @@ start(VALUE self) {
 
 	while (server->active) {
 	    if (NULL != (req = (Req)queue_pop(&server->eval_queue, 0.1))) {
-		handle_protected(req);
+		handle_protected(req, false);
 		free(req);
 		DEBUG_FREE(mem_req)
 	    }

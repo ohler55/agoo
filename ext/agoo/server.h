@@ -14,6 +14,7 @@
 #include "page.h"
 #include "pusher.h"
 #include "queue.h"
+#include "sub.h"
 
 typedef struct _Server {
     volatile bool	active;
@@ -36,8 +37,10 @@ typedef struct _Server {
     struct _LogCat	eval_cat;
     
     struct _Queue	con_queue;
+    struct _Queue	pub_queue;
     struct _Cache	pages;
     struct _Pusher	pusher;
+    struct _SubCache	sub_cache;
 
     Hook		hooks;
     Hook		hook404;
@@ -45,6 +48,8 @@ typedef struct _Server {
 
     VALUE		*eval_threads; // Qnil terminated
 } *Server;
+
+extern Server	the_server;
 
 extern void	server_init(VALUE mod);
 

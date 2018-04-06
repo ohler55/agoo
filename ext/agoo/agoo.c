@@ -8,6 +8,8 @@
 #include "request.h"
 #include "response.h"
 #include "server.h"
+#include "subscription.h"
+#include "upgraded.h"
 
 /* Document-module: Agoo
  *
@@ -23,4 +25,6 @@ Init_agoo() {
     request_init(mod);
     response_init(mod);
     server_init(mod);
+    subscription_init(mod);
+    upgraded_init(mod);
 }

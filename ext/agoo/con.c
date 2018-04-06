@@ -284,6 +284,7 @@ HOOKED:
     c->req->server = c->server;
     c->req->method = method;
     c->req->upgrade = UP_NONE;
+    c->req->cid = c->iid;
     c->req->path.start = c->req->msg + (path - c->buf);
     c->req->path.len = (int)(pend - path);
     c->req->query.start = c->req->msg + (query - c->buf);

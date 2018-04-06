@@ -3,6 +3,8 @@
 #ifndef __AGOO_REQUEST_H__
 #define __AGOO_REQUEST_H__
 
+#include <stdint.h>
+
 #include <ruby.h>
 
 #include "hook.h"
@@ -26,6 +28,7 @@ typedef struct _Req {
     struct _Server	*server;
     Method		method;
     Upgrade		upgrade;
+    uint64_t		cid;
     struct _Str		path;
     struct _Str		query;
     struct _Str		header;

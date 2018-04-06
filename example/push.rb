@@ -46,12 +46,11 @@ end
 class TickTock
   def initialize(env)
     puts "*** ticktock initialize"
-    @req = nil
-    #subscribe("time")
   end
 
   def on_open()
-    puts "*** on_open with #{@_req.class}"
+    puts "*** on_open with #{@_cid}"
+    subscribe("time")
   end
 
   def on_close
