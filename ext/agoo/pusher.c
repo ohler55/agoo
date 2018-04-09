@@ -7,7 +7,7 @@ pusher_mark(void *ptr) {
     if (NULL != ptr) {
 	Pusher		p = (Pusher)ptr;
 	PusherSlot	ps;
-	PusherSlot	*psp;
+	PusherSlot	*psp = p->buckets;
 	PusherSlot	*end = psp + PUSHER_BUCKET_SIZE;
 
 	if (Qnil != p->wrap) {

@@ -9,10 +9,12 @@
 #define SUB_BUCKET_SIZE	1024
 #define SUB_BUCKET_MASK	1023
 
+struct _Con;
 
 typedef struct _Sub {
     struct _Sub	*next;
-    uint64_t	cid;
+    uint64_t	cid; // TBD remove
+    struct _Con	*con;
     uint64_t	id;
     uint64_t	key;
     char	subject[8];

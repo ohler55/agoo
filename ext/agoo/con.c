@@ -8,6 +8,7 @@
 #include "dtime.h"
 #include "hook.h"
 #include "http.h"
+#include "pub.h"
 #include "res.h"
 #include "server.h"
 
@@ -45,6 +46,7 @@ con_destroy(Con c) {
 	free(c->req);
 	DEBUG_FREE(mem_req)
     }
+    // TBD remove from con_cache if kind is SSE or WS
     DEBUG_FREE(mem_con)
     free(c);
 }
@@ -372,6 +374,9 @@ con_http_read(Con c) {
 		    res->close = should_close(c->req->header.start, c->req->header.len);
 		}
 		c->req->res = res;
+
+		// TBD put upgrade res on res_tail, add kind to res
+
 		queue_push(&c->server->eval_queue, (void*)c->req);
 		if (c->req->mlen < c->bcnt) {
 		    memmove(c->buf, c->buf + c->req->mlen, c->bcnt - c->req->mlen);
@@ -397,12 +402,6 @@ con_ws_read(Con c) {
     return false;
 }
 
-static bool
-con_sse_read(Con c) {
-    // TBD
-    return false;
-}
-
 // return true to remove/close connection
 static bool
 con_read(Con c) {
@@ -411,8 +410,6 @@ con_read(Con c) {
 	return con_http_read(c);
     case CON_WS:
 	return con_ws_read(c);
-    case CON_SSE:
-	return con_sse_read(c);
     default:
 	break;
     }
@@ -421,7 +418,7 @@ con_read(Con c) {
 
 // return true to remove/close connection
 static bool
-con_write(Con c) {
+con_http_write(Con c) {
     Text	message = res_message(c->res_head);
     ssize_t	cnt;
 
@@ -470,12 +467,97 @@ con_write(Con c) {
     return false;
 }
 
+static bool
+con_ws_write(Con c) {
+    // TBD
+    return false;
+}
+
+static bool
+con_sse_write(Con c) {
+    // TBD
+    return false;
+}
+
+static bool
+con_write(Con c) {
+    switch (c->kind) {
+    case CON_HTTP:
+	return con_http_write(c);
+    case CON_WS:
+	return con_ws_write(c);
+    case CON_SSE:
+	return con_sse_write(c);
+    default:
+	break;
+    }
+    return true;
+}
+
+static void
+update_pub_con(Server server, Pub pub) {
+    printf("*** update pub con\n");
+    // TBD
+    // find the con in sub_cache and ???
+    // put a res on the con res_tail
+}
+
+static struct pollfd*
+poll_setup(Server server, Con *ca, int ccnt, struct pollfd *pp) {
+    Con		*cp;
+    Con		*end = ca + MAX_SOCK;
+    Con		c;
+    int		i;
+    
+    // The first two pollfd are for the con_queue and the pub_queue in that
+    // order.
+    pp->fd = queue_listen(&server->con_queue);
+    pp->events = POLLIN;
+    pp->revents = 0;
+    pp++;
+    pp->fd = queue_listen(&server->pub_queue);
+    pp->events = POLLIN;
+    pp->revents = 0;
+    pp++;
+    for (i = ccnt, cp = ca; 0 < i && cp < end; cp++) {
+	if (NULL == *cp) {
+	    continue;
+	}
+	c = *cp;
+	c->pp = pp;
+	pp->fd = c->sock;
+	pp->events = 0;
+	switch (c->kind) {
+	case CON_HTTP:
+	case CON_WS:
+	    if (NULL != c->res_head && NULL != res_message(c->res_head)) {
+		pp->events = POLLIN | POLLOUT;
+	    } else {
+		pp->events = POLLIN;
+	    }
+	    break;
+	case CON_SSE:
+	    if (NULL != c->res_head && NULL != res_message(c->res_head)) {
+		pp->events = POLLOUT;
+	    }
+	    break;
+	default:
+	    continue; // should never get here
+	    break;
+	}
+	pp->revents = 0;
+	i--;
+	pp++;
+    }
+    return pp;
+}
+
 void*
 con_loop(void *x) {
     Server		server = (Server)x;
     Con			c;
-    Con			ca[MAX_SOCK];
-    struct pollfd	pa[MAX_SOCK];
+    Con			ca[MAX_SOCK + 2];
+    struct pollfd	pa[MAX_SOCK + 2];
     struct pollfd	*pp;
     Con			*end = ca + MAX_SOCK;
     Con			*cp;
@@ -483,6 +565,7 @@ con_loop(void *x) {
     int			i;
     long		mcnt = 0;
     double		now;
+    Pub			pub;
     
     atomic_fetch_add(&server->running, 1);
     memset(ca, 0, sizeof(ca));
@@ -493,27 +576,10 @@ con_loop(void *x) {
 	    ca[c->sock] = c;
 	    ccnt++;
 	}
-	pp = pa;
-	pp->fd = queue_listen(&server->con_queue);
-	pp->events = POLLIN;
-	pp->revents = 0;
-	pp++;
-	for (i = ccnt, cp = ca; 0 < i && cp < end; cp++) {
-	    if (NULL == *cp) {
-		continue;
-	    }
-	    c = *cp;
-	    c->pp = pp;
-	    pp->fd = c->sock;
-	    if (NULL != c->res_head && NULL != res_message(c->res_head)) {
-		pp->events = POLLIN | POLLOUT;
-	    } else {
-		pp->events = POLLIN;
-	    }
-	    pp->revents = 0;
-	    i--;
-	    pp++;
+	while (NULL != (pub = (Pub)queue_pop(&server->pub_queue, 0.0))) {
+	    update_pub_con(server, pub);
 	}
+	pp = poll_setup(server, ca, ccnt, pa);
 	if (0 > (i = poll(pa, (nfds_t)(pp - pa), 100))) {
 	    if (EAGAIN == errno) {
 		continue;
@@ -528,12 +594,20 @@ con_loop(void *x) {
 	    // TBD check for cons to close
 	    continue;
 	}
+	// Check con_queue if an event is waiting.
 	if (0 != (pa->revents & POLLIN)) {
 	    queue_release(&server->con_queue);
 	    while (NULL != (c = (Con)queue_pop(&server->con_queue, 0.0))) {
 		mcnt++;
 		ca[c->sock] = c;
 		ccnt++;
+	    }
+	}
+	// Check pub_queue if an event is waiting.
+	if (0 != (pa[1].revents & POLLIN)) {
+	    queue_release(&server->pub_queue);
+	    while (NULL != (pub = (Pub)queue_pop(&server->pub_queue, 0.0))) {
+		update_pub_con(server, pub);
 	    }
 	}
 	for (i = ccnt, cp = ca; 0 < i && cp < end; cp++) {

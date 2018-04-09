@@ -6,7 +6,7 @@ require 'agoo'
 # current thread can be used for other tasks as long as it does not exit.
 #server = Agoo::Server.new(6464, '.', thread_count: 0)
 server = Agoo::Server.new(6464, '.',
-			  thread_count: 0,
+			  thread_count: 1,
 			  log_states: {
 			    INFO: true,
 			    DEBUG: true,
@@ -43,9 +43,12 @@ class Listen
   end
 end
 
+$tt = nil
+
 class TickTock
   def initialize(env)
     puts "*** ticktock initialize"
+    $tt = self
   end
 
   def on_open()
@@ -74,5 +77,13 @@ server.handle(:GET, "/sse", Listen.new)
 
 server.start()
 
-# To run this example type the following then go to a browser and enter a URL of localhost:6464/hello.
-# ruby hello.rb
+loop do
+  now = Time.now
+
+  #Rack::Rack.publish('time', "%02d:%02d:%02d" % [now.hour, now.min, now.sec])
+
+  # TBD remove, just for testing
+  $tt.write("%02d:%02d:%02d" % [now.hour, now.min, now.sec]) unless $tt.nil?
+  
+  sleep(1)
+end

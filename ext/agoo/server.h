@@ -41,6 +41,7 @@ typedef struct _Server {
     struct _Cache	pages;
     struct _Pusher	pusher;
     struct _SubCache	sub_cache;
+    // TBD ConCache	con_cache; // Only WebSocket and SSE connections
 
     Hook		hooks;
     Hook		hook404;
