@@ -14,6 +14,7 @@ res_create() {
 	res->next = NULL;
 	atomic_init(&res->message, NULL);
 	res->close = false;
+	res->con_kind = CON_HTTP;
     }
     return res;
 }

@@ -308,6 +308,49 @@ HOOKED:
     return mlen;
 }
 
+static void
+check_upgrade(Con c) {
+    const char	*v;
+    int		vlen = 0;
+    
+    if (NULL == c->req) {
+	return;
+    }
+    if (NULL != (v = con_header_value(c->req->header.start, c->req->header.len, "Connection", &vlen))) {
+	if (NULL != strstr(v, "Upgrade")) {
+	    if (NULL != (v = con_header_value(c->req->header.start, c->req->header.len, "Upgrade", &vlen))) {
+		if (0 == strncasecmp("WebSocket", v, vlen)) {
+
+		    Res	res = res_create();
+		    if (NULL == res) {
+			// TBD log error
+			return;
+		    }
+		    res->close = false;
+		    res->con_kind = CON_WS;
+		    if (NULL == c->res_tail) {
+			c->res_head = res;
+		    } else {
+			c->res_tail->next = res;
+		    }
+		    c->res_tail = res;
+		    
+		    printf("*** upgrade websocket\n");
+		    // TBD create ws res for open
+		    // should also put on_open on eval queue for 
+		    return;
+		}
+	    }
+	}
+    }
+    if (NULL != (v = con_header_value(c->req->header.start, c->req->header.len, "Accept", &vlen))) {
+	if (0 == strncasecmp("text/event-stream", v, vlen)) {
+	    printf("*** upgrade SSE\n");
+	    return;
+	}
+    }
+}
+
 static bool
 con_http_read(Con c) {
     ssize_t	cnt;
@@ -374,10 +417,8 @@ con_http_read(Con c) {
 		    res->close = should_close(c->req->header.start, c->req->header.len);
 		}
 		c->req->res = res;
-
-		// TBD put upgrade res on res_tail, add kind to res
-
 		queue_push(&c->server->eval_queue, (void*)c->req);
+		check_upgrade(c); // TBD not needed
 		if (c->req->mlen < c->bcnt) {
 		    memmove(c->buf, c->buf + c->req->mlen, c->bcnt - c->req->mlen);
 		    c->bcnt -= c->req->mlen;
@@ -469,6 +510,18 @@ con_http_write(Con c) {
 
 static bool
 con_ws_write(Con c) {
+    Res	res = c->res_head;
+    
+    printf("*** ws write\n");
+    
+    c->res_head = res->next;
+    if (res == c->res_tail) {
+	c->res_tail = NULL;
+    }
+    res_destroy(res);
+
+    // TBD if open then put on_open callback on eval queue
+
     // TBD
     return false;
 }
@@ -481,6 +534,10 @@ con_sse_write(Con c) {
 
 static bool
 con_write(Con c) {
+    printf("*** con_write - kind %c\n", c->res_head->con_kind);
+    if (c->res_head->con_kind != c->kind) {
+	c->kind = c->res_head->con_kind;
+    }
     switch (c->kind) {
     case CON_HTTP:
 	return con_http_write(c);
@@ -495,7 +552,7 @@ con_write(Con c) {
 }
 
 static void
-update_pub_con(Server server, Pub pub) {
+process_pub_con(Server server, Pub pub) {
     printf("*** update pub con\n");
     // TBD
     // find the con in sub_cache and ???
@@ -577,7 +634,7 @@ con_loop(void *x) {
 	    ccnt++;
 	}
 	while (NULL != (pub = (Pub)queue_pop(&server->pub_queue, 0.0))) {
-	    update_pub_con(server, pub);
+	    process_pub_con(server, pub);
 	}
 	pp = poll_setup(server, ca, ccnt, pa);
 	if (0 > (i = poll(pa, (nfds_t)(pp - pa), 100))) {
@@ -607,7 +664,7 @@ con_loop(void *x) {
 	if (0 != (pa[1].revents & POLLIN)) {
 	    queue_release(&server->pub_queue);
 	    while (NULL != (pub = (Pub)queue_pop(&server->pub_queue, 0.0))) {
-		update_pub_con(server, pub);
+		process_pub_con(server, pub);
 	    }
 	}
 	for (i = ccnt, cp = ca; 0 < i && cp < end; cp++) {

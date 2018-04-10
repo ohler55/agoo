@@ -9,11 +9,13 @@
 #include <ruby.h>
 
 #include "text.h"
+#include "types.h"
 
 typedef struct _Res {
     struct _Res		*next;
     _Atomic(Text)	message;
     bool		close;
+    ConKind		con_kind;
 } *Res;
 
 extern Res	res_create();

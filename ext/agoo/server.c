@@ -252,7 +252,7 @@ server_new(int argc, VALUE *argv, VALUE self) {
 	rb_raise(rb_eArgError, "%s", err.msg);
     }
     queue_multi_init(&s->con_queue, 256, false, false);
-    queue_multi_init(&s->pub_queue, 256, false, false);
+    queue_multi_init(&s->pub_queue, 256, true, false);
     queue_multi_init(&s->eval_queue, 1024, false, true);
 
     cache_init(&s->pages);
@@ -519,7 +519,9 @@ handle_rack_inner(void *x) {
 	t->len = snprintf(t->text, 1024, "HTTP/1.1 %d %s\r\n", code, status_msg);
 	break;
     case 101:
-	printf("*** protocol change  %d\n", bsize);
+
+	printf("*** protocol change  %c\n", req->upgrade);
+	
 	switch (req->upgrade) {
 	case UP_WS:
 	    if (Qnil == (req->handler = rb_hash_lookup(env, push_env_key))) {
@@ -530,6 +532,10 @@ handle_rack_inner(void *x) {
 	    req->handler_type = PUSH_HOOK;
 	    upgraded_extend(req->cid, req->handler);
 	    t->len = snprintf(t->text, 1024, "HTTP/1.1 %d %s\r\n", code, status_msg);
+
+	    // TBD add headers
+	    req->res->con_kind = CON_WS;
+
 	    /*
 	    req->con->kind = CON_WS;
 	    if (Qnil == (req->handler = rb_hash_lookup(env, push_env_key))) {
@@ -577,6 +583,9 @@ handle_rack_inner(void *x) {
 	    rb_iterate(rb_each, hv, header_each_cb, (VALUE)&t);
 	}
     }
+
+    // TBD if 101 then add headers for WS or SSE
+    
     t = text_append(t, "\r\n", 2);
     if (0 < bsize) {
 	if (T_ARRAY == rb_type(bv)) {

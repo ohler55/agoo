@@ -17,4 +17,10 @@ typedef enum {
     ON_CLOSE	= 'X', // use for on_close callback
 } Method;
 
+typedef enum {
+    CON_HTTP	= 'H',
+    CON_WS	= 'W',
+    CON_SSE	= 'S',
+} ConKind;
+
 #endif // __AGOO_TYPES_H__

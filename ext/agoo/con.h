@@ -11,14 +11,9 @@
 #include "request.h"
 #include "response.h"
 #include "server.h"
+#include "types.h"
 
 #define MAX_HEADER_SIZE	8192
-
-typedef enum {
-    CON_HTTP	= 'H',
-    CON_WS	= 'W',
-    CON_SSE	= 'S',
-} ConKind;
 
 typedef struct _Con {
     int			sock;
