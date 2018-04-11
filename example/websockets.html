@@ -12,6 +12,7 @@
       }
       sock.onopen = function() {
           sock.send("subscribe >");
+          document.getElementById("message").textContent = "connected";
       }
       sock.onmessage = function(msg) {
           document.getElementById("message").textContent = msg.data;

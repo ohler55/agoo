@@ -30,6 +30,7 @@
 #include "server.h"
 #include "sub.h"
 #include "upgraded.h"
+#include "websocket.h"
 
 static VALUE	server_class = Qundef;
 
@@ -520,46 +521,23 @@ handle_rack_inner(void *x) {
 	break;
     case 101:
 
-	printf("*** protocol change  %c\n", req->upgrade);
+	//printf("*** protocol change  %c -> %c\n", req->upgrade, req->res->con_kind);
 	
 	switch (req->upgrade) {
 	case UP_WS:
-	    if (Qnil == (req->handler = rb_hash_lookup(env, push_env_key))) {
+	    if (CON_WS != req->res->con_kind ||
+		Qnil == (req->handler = rb_hash_lookup(env, push_env_key))) {
 		strcpy(t->text, err500);
 		t->len = sizeof(err500) - 1;
 		break;
 	    }
 	    req->handler_type = PUSH_HOOK;
 	    upgraded_extend(req->cid, req->handler);
-	    t->len = snprintf(t->text, 1024, "HTTP/1.1 %d %s\r\n", code, status_msg);
-
-	    // TBD add headers
-	    req->res->con_kind = CON_WS;
-
-	    /*
-	    req->con->kind = CON_WS;
-	    if (Qnil == (req->handler = rb_hash_lookup(env, push_env_key))) {
-		strcpy(t->text, err500);
-		t->len = sizeof(err500) - 1;
-		break;
-	    }
-	    req->handler_type = PUSH_HOOK;
-	    rb_rescue2(setup_push_handler, (VALUE)x, rescue_error, (VALUE)x, rb_eException, 0);
-	    t->len = snprintf(t->text, 1024, "HTTP/1.1 %d %s\r\n", code, status_msg);
-	    */
+	    t->len = snprintf(t->text, 1024, "HTTP/1.1 101 %s\r\n", status_msg);
+	    t = ws_add_headers(req, t);
 	    break;
 	case UP_SSE:
-	    /*
-	    req->con->kind = CON_SSE;
-	    if (Qnil == (req->handler = rb_hash_lookup(env, push_env_key))) {
-		strcpy(t->text, err500);
-		t->len = sizeof(err500) - 1;
-		break;
-	    }
-	    req->handler_type = PUSH_HOOK;
-	    rb_rescue2(setup_push_handler, (VALUE)x, rescue_error, (VALUE)x, rb_eException, 0);
-	    t->len = snprintf(t->text, 1024, "HTTP/1.1 %d %s\r\n", code, status_msg);
-	    */
+	    // TBD
 	    break;
 	default:
 	    // An error on the app's part as a protocol upgrade must include a
@@ -583,9 +561,6 @@ handle_rack_inner(void *x) {
 	    rb_iterate(rb_each, hv, header_each_cb, (VALUE)&t);
 	}
     }
-
-    // TBD if 101 then add headers for WS or SSE
-    
     t = text_append(t, "\r\n", 2);
     if (0 < bsize) {
 	if (T_ARRAY == rb_type(bv)) {

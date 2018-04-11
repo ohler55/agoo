@@ -40,7 +40,7 @@ typedef struct _Server {
     struct _Queue	pub_queue;
     struct _Cache	pages;
     struct _Pusher	pusher;
-    struct _SubCache	sub_cache;
+    struct _SubCache	sub_cache; // subscription cache
     // TBD ConCache	con_cache; // Only WebSocket and SSE connections
 
     Hook		hooks;

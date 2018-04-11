@@ -320,24 +320,8 @@ check_upgrade(Con c) {
 	if (NULL != strstr(v, "Upgrade")) {
 	    if (NULL != (v = con_header_value(c->req->header.start, c->req->header.len, "Upgrade", &vlen))) {
 		if (0 == strncasecmp("WebSocket", v, vlen)) {
-
-		    Res	res = res_create();
-		    if (NULL == res) {
-			// TBD log error
-			return;
-		    }
-		    res->close = false;
-		    res->con_kind = CON_WS;
-		    if (NULL == c->res_tail) {
-			c->res_head = res;
-		    } else {
-			c->res_tail->next = res;
-		    }
-		    c->res_tail = res;
-		    
-		    printf("*** upgrade websocket\n");
-		    // TBD create ws res for open
-		    // should also put on_open on eval queue for 
+		    c->res_tail->close = false;
+		    c->res_tail->con_kind = CON_WS;
 		    return;
 		}
 	    }
@@ -417,8 +401,8 @@ con_http_read(Con c) {
 		    res->close = should_close(c->req->header.start, c->req->header.len);
 		}
 		c->req->res = res;
+		check_upgrade(c);
 		queue_push(&c->server->eval_queue, (void*)c->req);
-		check_upgrade(c); // TBD not needed
 		if (c->req->mlen < c->bcnt) {
 		    memmove(c->buf, c->buf + c->req->mlen, c->bcnt - c->req->mlen);
 		    c->bcnt -= c->req->mlen;
@@ -534,29 +518,40 @@ con_sse_write(Con c) {
 
 static bool
 con_write(Con c) {
-    printf("*** con_write - kind %c\n", c->res_head->con_kind);
-    if (c->res_head->con_kind != c->kind) {
-	c->kind = c->res_head->con_kind;
-    }
+    bool	remove = true;
+    ConKind	kind = c->res_head->con_kind;
+    
+    //printf("*** con_write - kind %c -> %c\n", c->kind, c->res_head->con_kind);
     switch (c->kind) {
     case CON_HTTP:
-	return con_http_write(c);
+	remove = con_http_write(c);
+	break;
     case CON_WS:
-	return con_ws_write(c);
+	remove = con_ws_write(c);
+	break;
     case CON_SSE:
-	return con_sse_write(c);
+	remove = con_sse_write(c);
+	break;
     default:
 	break;
     }
-    return true;
+    if (kind != c->kind) {
+	c->kind = kind;
+	if (CON_HTTP != kind && !remove) {
+	    // TBD put con in con_cache?
+	    // need a path back to handler
+	}
+    }
+    return remove;
 }
 
 static void
 process_pub_con(Server server, Pub pub) {
-    printf("*** update pub con\n");
+    printf("*** process pub con\n");
     // TBD
-    // find the con in sub_cache and ???
+    // find the con in sub_cache
     // put a res on the con res_tail
+    // check con kind for ws or sse
 }
 
 static struct pollfd*

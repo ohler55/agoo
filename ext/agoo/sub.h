@@ -16,14 +16,13 @@ typedef struct _Sub {
     uint64_t	cid; // TBD remove
     struct _Con	*con;
     uint64_t	id;
-    uint64_t	key;
+    uint64_t	key; // hash key
     char	subject[8];
 } *Sub;
 
 typedef struct _SubCache {
     Sub	buckets[SUB_BUCKET_SIZE];
 } *SubCache;
-
 
 extern void	sub_init(SubCache sc);
 extern void	sub_cleanup(SubCache sc);
