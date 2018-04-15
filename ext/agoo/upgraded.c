@@ -2,6 +2,8 @@
 
 #include <stdio.h>
 
+#include <ruby/encoding.h>
+
 #include "pub.h"
 #include "server.h"
 #include "upgraded.h"
@@ -13,27 +15,22 @@ up_write(VALUE self, VALUE msg) {
     uint64_t	cid = RB_FIX2ULONG(rb_ivar_get(self, rb_intern("@_cid")));
     Pub		p;
 
+    // TBD check write status of cid
+    
     printf("*** write called for %lu\n", cid);
     if (T_STRING == rb_type(msg)) {
-	p = pub_write(cid, (uint8_t*)StringValuePtr(msg), RSTRING_LEN(msg), false);
+	if (RB_ENCODING_IS_ASCII8BIT(msg)) {
+	    p = pub_write(cid, StringValuePtr(msg), RSTRING_LEN(msg), true);
+	} else {
+	    p = pub_write(cid, StringValuePtr(msg), RSTRING_LEN(msg), false);
+	}
     } else {
 	volatile VALUE	rs = rb_funcall(msg, rb_intern("to_s"), 0);
 	
-	p = pub_write(cid, (uint8_t*)StringValuePtr(rs), RSTRING_LEN(rs), false);
+	p = pub_write(cid, StringValuePtr(rs), RSTRING_LEN(rs), false);
     }
     printf("*** push to pub_queue\n");
     queue_push(&the_server->pub_queue, p);
-
-    return Qnil;
-}
-
-// ASCII-8BIT expected
-static VALUE
-up_binwrite(VALUE self, VALUE msg) {
-    uint64_t	cid = RB_FIX2ULONG(rb_ivar_get(self, rb_intern("@_cid")));
-
-    rb_check_type(msg, T_STRING);
-    queue_push(&the_server->pub_queue, pub_write(cid, (uint8_t*)StringValuePtr(msg), RSTRING_LEN(msg), true));
 
     return Qnil;
 }
@@ -76,7 +73,7 @@ upgraded_init(VALUE mod) {
     upgraded_mod = rb_define_module_under(mod, "Upgraded");
 
     rb_define_method(upgraded_mod, "write", up_write, 1);
-    rb_define_method(upgraded_mod, "binwrite", up_binwrite, 1);
     rb_define_method(upgraded_mod, "subscribe", up_subscribe, 1);
     rb_define_method(upgraded_mod, "close", up_close, 0);
+    // TBD ready? or pending?
 }

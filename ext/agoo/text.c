@@ -70,3 +70,24 @@ text_append(Text t, const char *s, int len) {
 
     return t;
 }
+
+Text
+text_prepend(Text t, const char *s, int len) {
+    if (0 >= len) {
+	len = (int)strlen(s);
+    }
+    if (t->alen <= t->len + len) {
+	long	new_len = t->alen + t->alen / 2;
+	size_t	size = sizeof(struct _Text) - TEXT_MIN_SIZE + new_len + 1;
+
+	if (NULL == (t = (Text)realloc(t, size))) {
+	    return NULL;
+	}
+	DEBUG_ALLOC(mem_text)
+	t->alen = new_len;
+    }
+    memmove(t->text, t->text + len, t->len + 1);
+    t->len += len;
+
+    return t;
+}

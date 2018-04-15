@@ -19,7 +19,7 @@ typedef struct _Con {
     int			sock;
     ConKind		kind;
     struct pollfd	*pp;
-    uint64_t		iid;
+    uint64_t		id;
     char		buf[MAX_HEADER_SIZE];
     size_t		bcnt;
 

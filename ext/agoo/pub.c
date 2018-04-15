@@ -4,6 +4,7 @@
 #include <string.h>
 
 #include "pub.h"
+#include "text.h"
 
 Pub
 pub_close(uint64_t cid) {
@@ -51,25 +52,29 @@ pub_unsubscribe(uint64_t cid, uint64_t sid) {
 }
 
 Pub
-pub_publish(char *subject, uint8_t *message, size_t mlen, bool bin) {
-    Pub	p = (Pub)malloc(sizeof(struct _Pub)) + - 8 + mlen + 1;
+pub_publish(char *subject, const char *message, size_t mlen, bool bin) {
+    Pub	p = (Pub)malloc(sizeof(struct _Pub));
 
     if (NULL != p) {
 	p->next = NULL;
 	p->kind = PUB_MSG;
 	p->cid = 0;
 	p->bin = bin;
-	p->mlen = mlen;
 	p->subject = strdup(subject);
-	memcpy(p->msg, message, mlen);
-	p->msg[mlen] = '\0'; // for strings and debugging
+	// Allocate an extra 16 bytes so the message can be expanded in place
+	// if a WebSocket write.
+	p->msg = text_allocate(mlen + 16);
+	p->msg = text_append(text_allocate(mlen + 16), message, mlen);
+	text_ref(p->msg);
     }
     return p;
 }
 
 Pub
-pub_write(uint64_t cid, uint8_t *message, size_t mlen, bool bin) {
-    Pub	p = (Pub)malloc(sizeof(struct _Pub)) + - 8 + mlen + 1;
+pub_write(uint64_t cid, const char *message, size_t mlen, bool bin) {
+    // Allocate an extra 16 bytes so the message can be expanded in place if a
+    // WebSocket write.
+    Pub	p = (Pub)malloc(sizeof(struct _Pub));
 
     if (NULL != p) {
 	p->next = NULL;
@@ -77,9 +82,11 @@ pub_write(uint64_t cid, uint8_t *message, size_t mlen, bool bin) {
 	p->cid = cid;
 	p->subject = NULL;
 	p->bin = bin;
-	p->mlen = mlen;
-	memcpy(p->msg, message, mlen);
-	p->msg[mlen] = '\0'; // for strings and debugging
+	// Allocate an extra 16 bytes so the message can be expanded in place
+	// if a WebSocket write.
+	p->msg = text_allocate(mlen + 16);
+	p->msg = text_append(text_allocate(mlen + 16), message, mlen);
+	text_ref(p->msg);
     }
     return p;
 }

@@ -20,5 +20,6 @@ extern Text	text_allocate(int len);
 extern void	text_ref(Text t);
 extern void	text_release(Text t);
 extern Text	text_append(Text t, const char *s, int len);
+extern Text	text_prepend(Text t, const char *s, int len);
 
 #endif /* __AGOO_TEXT_H__ */

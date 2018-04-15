@@ -29,7 +29,7 @@ con_create(Err err, Server server, int sock, uint64_t id) {
 	DEBUG_ALLOC(mem_con)
 	memset(c, 0, sizeof(struct _Con));
 	c->sock = sock;
-	c->iid = id;
+	c->id = id;
 	c->server = server;
 	c->kind = CON_HTTP;
     }
@@ -88,7 +88,7 @@ bad_request(Con c, int status, int line) {
     const char *msg = http_code_message(status);
     
     if (NULL == (res = res_create())) {
-	log_cat(&c->server->error_cat, "memory allocation of response failed on connection %llu @ %d.", c->iid, line);
+	log_cat(&c->server->error_cat, "memory allocation of response failed on connection %llu @ %d.", c->id, line);
     } else {
 	char	buf[256];
 	int	cnt = snprintf(buf, sizeof(buf), "HTTP/1.1 %d %s\r\nConnection: Close\r\nContent-Length: 0\r\n\r\n", status, msg);
@@ -145,7 +145,7 @@ con_header_read(Con c) {
     }
     if (server->req_cat.on) {
 	*hend = '\0';
-	log_cat(&server->req_cat, "%llu: %s", c->iid, c->buf);
+	log_cat(&server->req_cat, "%llu: %s", c->id, c->buf);
 	*hend = '\r';
     }
     for (b = c->buf; ' ' != *b; b++) {
@@ -286,7 +286,7 @@ HOOKED:
     c->req->server = c->server;
     c->req->method = method;
     c->req->upgrade = UP_NONE;
-    c->req->cid = c->iid;
+    c->req->cid = c->id;
     c->req->path.start = c->req->msg + (path - c->buf);
     c->req->path.len = (int)(pend - path);
     c->req->query.start = c->req->msg + (query - c->buf);
@@ -349,7 +349,7 @@ con_http_read(Con c) {
 	// If nothing read then no need to complain. Just close.
 	if (0 < c->bcnt) {
 	    if (0 == cnt) {
-		log_cat(&c->server->warn_cat, "Nothing to read. Client closed socket on connection %llu.", c->iid);
+		log_cat(&c->server->warn_cat, "Nothing to read. Client closed socket on connection %llu.", c->id);
 	    } else {
 		log_cat(&c->server->warn_cat, "Failed to read request. %s.", strerror(errno));
 	    }
@@ -385,11 +385,11 @@ con_http_read(Con c) {
 		Res	res;
 
 		if (c->server->debug_cat.on && NULL != c->req && NULL != c->req->body.start) {
-		    log_cat(&c->server->debug_cat, "request on %llu: %s", c->iid, c->req->body.start);
+		    log_cat(&c->server->debug_cat, "request on %llu: %s", c->id, c->req->body.start);
 		}
 		if (NULL == (res = res_create())) {
 		    c->req = NULL;
-		    log_cat(&c->server->error_cat, "memory allocation of response failed on connection %llu.", c->iid);
+		    log_cat(&c->server->error_cat, "memory allocation of response failed on connection %llu.", c->id);
 		    return bad_request(c, 500, __LINE__);
 		} else {
 		    if (NULL == c->res_tail) {
@@ -461,17 +461,17 @@ con_http_write(Con c) {
 	    }
 	    memcpy(buf, message->text, hend - message->text);
 	    buf[hend - message->text] = '\0';
-	    log_cat(&c->server->resp_cat, "%llu: %s", c->iid, buf);
+	    log_cat(&c->server->resp_cat, "%llu: %s", c->id, buf);
 	}
 	if (c->server->debug_cat.on) {
-	    log_cat(&c->server->debug_cat, "response on %llu: %s", c->iid, message->text);
+	    log_cat(&c->server->debug_cat, "response on %llu: %s", c->id, message->text);
 	}
     }
     if (0 > (cnt = send(c->sock, message->text + c->wcnt, message->len - c->wcnt, 0))) {
 	if (EAGAIN == errno) {
 	    return false;
 	}
-	log_cat(&c->server->error_cat, "Socket error @ %llu.", c->iid);
+	log_cat(&c->server->error_cat, "Socket error @ %llu.", c->id);
 
 	return true;
     }
@@ -547,11 +547,30 @@ con_write(Con c) {
 
 static void
 process_pub_con(Server server, Pub pub) {
-    printf("*** process pub con\n");
+    printf("*** process pub con - %c\n", pub->kind);
+
     // TBD
-    // find the con in sub_cache
-    // put a res on the con res_tail
-    // check con kind for ws or sse
+    // find the con in con_cache
+
+    // put a res on the con res_tail with the text
+    // free pub
+    // check con kind for ws or sse, expand if ws
+
+    switch (pub->kind) {
+    case PUB_SUB:
+	break;
+    case PUB_CLOSE:
+	break;
+    case PUB_UN:
+	break;
+    case PUB_MSG:
+	break;
+    case PUB_WRITE:
+	// TBD place on con res_tail
+	break;
+    default:
+	break;
+    }
 }
 
 static struct pollfd*
@@ -682,9 +701,9 @@ con_loop(void *x) {
 	    if (0 != (pp->revents & (POLLERR | POLLHUP | POLLNVAL))) {
 		if (0 < c->bcnt) {
 		    if (0 != (pp->revents & (POLLHUP | POLLNVAL))) {
-			log_cat(&server->error_cat, "Socket %llu closed.", c->iid);
+			log_cat(&server->error_cat, "Socket %llu closed.", c->id);
 		    } else if (!c->closing) {
-			log_cat(&server->error_cat, "Socket %llu error. %s", c->iid, strerror(errno));
+			log_cat(&server->error_cat, "Socket %llu error. %s", c->id, strerror(errno));
 		    }
 		}
 		goto CON_RM;
@@ -703,7 +722,7 @@ con_loop(void *x) {
 	CON_RM:
 	    ca[c->sock] = NULL;
 	    ccnt--;
-	    log_cat(&server->con_cat, "Connection %llu closed.", c->iid);
+	    log_cat(&server->con_cat, "Connection %llu closed.", c->id);
 	    con_destroy(c);
 	}
     }
