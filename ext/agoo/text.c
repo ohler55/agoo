@@ -15,6 +15,7 @@ text_create(const char *str, int len) {
 	DEBUG_ALLOC(mem_text)
 	t->len = len;
 	t->alen = len;
+	t->bin = false;
 	atomic_init(&t->ref_cnt, 0);
 	memcpy(t->text, str, len);
 	t->text[len] = '\0';
@@ -30,6 +31,7 @@ text_allocate(int len) {
 	DEBUG_ALLOC(mem_text)
 	t->len = 0;
 	t->alen = len;
+	t->bin = false;
 	atomic_init(&t->ref_cnt, 0);
 	*t->text = '\0';
     }
@@ -86,7 +88,8 @@ text_prepend(Text t, const char *s, int len) {
 	DEBUG_ALLOC(mem_text)
 	t->alen = new_len;
     }
-    memmove(t->text, t->text + len, t->len + 1);
+    memmove(t->text + len, t->text, t->len + 1);
+    memcpy(t->text, s, len);
     t->len += len;
 
     return t;

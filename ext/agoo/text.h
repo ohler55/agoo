@@ -12,6 +12,7 @@ typedef struct _Text {
     long	len; // length of valid text
     long	alen; // size of allocated text
     atomic_int	ref_cnt;
+    bool	bin;
     char	text[TEXT_MIN_SIZE];
 } *Text;
 

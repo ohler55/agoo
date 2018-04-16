@@ -14,6 +14,7 @@ server = Agoo::Server.new(6464, '.',
 			    request: true,
 			    response: true,
 			    eval: true,
+			    push: true,
 			  }
 			 )
 
@@ -60,6 +61,7 @@ class TickTock
     #unsubscribe()
     # optional arg of subject previously subscribed to
     puts "*** closing"
+    $tt = nil
   end
 
   def on_message(data)
@@ -83,7 +85,11 @@ loop do
   #Rack::Rack.publish('time', "%02d:%02d:%02d" % [now.hour, now.min, now.sec])
 
   # TBD remove, just for testing
-  $tt.write("%02d:%02d:%02d" % [now.hour, now.min, now.sec]) unless $tt.nil?
+  unless $tt.nil?
+    puts "*** pending: #{$tt.pending}"
+    $tt.write("%02d:%02d:%02d" % [now.hour, now.min, now.sec])
+    $tt.close
+  end
   
   sleep(1)
 end

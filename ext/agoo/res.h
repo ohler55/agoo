@@ -14,8 +14,8 @@
 typedef struct _Res {
     struct _Res		*next;
     _Atomic(Text)	message;
-    bool		close;
     ConKind		con_kind;
+    bool		close;
 } *Res;
 
 extern Res	res_create();

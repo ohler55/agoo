@@ -26,17 +26,25 @@ typedef struct _CSlot {
 typedef struct _CCache {
     CSlot		buckets[CC_BUCKET_SIZE];
     pthread_mutex_t	lock;
+    VALUE		wrap;
 } *CCache;
 
 extern void		cc_init(CCache cc);
 extern void		cc_cleanup(CCache cc);
-extern CSlot		cc_set_con(CCache cc, uint64_t cid, struct _Con *con);
+extern CSlot		cc_set_con(CCache cc, struct _Con *con);
 extern void		cc_set_handler(CCache cc, uint64_t cid, VALUE handler);
 extern void		cc_remove(CCache cc, uint64_t cid);
+
+extern void		cc_remove_con(CCache cc, uint64_t cid);
+extern VALUE		cc_ref_dec(CCache cc, uint64_t cid);
 
 extern struct _Con*	cc_get_con(CCache cc, uint64_t cid);
 extern VALUE		cc_get_handler(CCache cc, uint64_t cid);
 extern int		cc_get_pending(CCache cc, uint64_t cid);
 extern CSlot		cc_get_slot(CCache cc, uint64_t cid);
+
+extern void		cc_pending_inc(CCache cc, uint64_t cid);
+
+// TBD handle ref_cnt for con and for messages to handler
 
 #endif /* __AGOO_CCACHE_H__ */

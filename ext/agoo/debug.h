@@ -28,6 +28,7 @@ extern atomic_int	mem_page;
 extern atomic_int	mem_page_msg;
 extern atomic_int	mem_page_path;
 extern atomic_int	mem_page_slot;
+extern atomic_int	mem_pub;
 extern atomic_int	mem_qitem;
 extern atomic_int	mem_queue_item;
 extern atomic_int	mem_rack_logger;

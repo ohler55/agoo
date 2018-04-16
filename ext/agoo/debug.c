@@ -21,6 +21,7 @@ atomic_int	mem_page = 0;
 atomic_int	mem_page_msg = 0;
 atomic_int	mem_page_path = 0;
 atomic_int	mem_page_slot = 0;
+atomic_int	mem_pub = 0;
 atomic_int	mem_qitem = 0;
 atomic_int	mem_queue_item = 0;
 atomic_int	mem_rack_logger = 0;
@@ -55,6 +56,7 @@ debug_print_stats() {
     printf("  mem_page_msg:     %d\n", mem_page_msg);
     printf("  mem_page_path:    %d\n", mem_page_path);
     printf("  mem_page_slot:    %d\n", mem_page_slot);
+    printf("  mem_pub:          %d\n", mem_pub);
     printf("  mem_qitem:        %d\n", mem_qitem);
     printf("  mem_queue_item:   %d\n", mem_queue_item);
     printf("  mem_rack_logger:  %d\n", mem_rack_logger);

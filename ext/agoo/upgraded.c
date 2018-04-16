@@ -10,14 +10,23 @@
 
 static VALUE	upgraded_mod = Qundef;
 
+static ID	cid_id = 0;
+static ID	sid_id = 0;
+static ID	on_open_id = 0;
+static ID	to_s_id = 0;
+
 static VALUE
 up_write(VALUE self, VALUE msg) {
-    uint64_t	cid = RB_FIX2ULONG(rb_ivar_get(self, rb_intern("@_cid")));
+    uint64_t	cid = RB_FIX2ULONG(rb_ivar_get(self, cid_id));
     Pub		p;
 
-    // TBD check write status of cid
-    
-    printf("*** write called for %lu\n", cid);
+    if (0 < the_server->max_push_pending) {
+	int	pending = cc_get_pending(&the_server->con_cache, cid);
+
+	if (the_server->max_push_pending <= pending) {
+	    rb_raise(rb_eIOError, "Too many writes pending. Try again later.");
+	}
+    }
     if (T_STRING == rb_type(msg)) {
 	if (RB_ENCODING_IS_ASCII8BIT(msg)) {
 	    p = pub_write(cid, StringValuePtr(msg), RSTRING_LEN(msg), true);
@@ -25,11 +34,11 @@ up_write(VALUE self, VALUE msg) {
 	    p = pub_write(cid, StringValuePtr(msg), RSTRING_LEN(msg), false);
 	}
     } else {
-	volatile VALUE	rs = rb_funcall(msg, rb_intern("to_s"), 0);
+	volatile VALUE	rs = rb_funcall(msg, to_s_id, 0);
 	
 	p = pub_write(cid, StringValuePtr(rs), RSTRING_LEN(rs), false);
     }
-    printf("*** push to pub_queue\n");
+    cc_pending_inc(&the_server->con_cache, cid);
     queue_push(&the_server->pub_queue, p);
 
     return Qnil;
@@ -50,18 +59,29 @@ up_subscribe(VALUE self, VALUE subject) {
 
 static VALUE
 up_close(VALUE self) {
+    uint64_t	cid = RB_FIX2ULONG(rb_ivar_get(self, cid_id));
 
     printf("*** close called\n");
+    queue_push(&the_server->pub_queue, pub_close(cid));
 
     return Qnil;
 }
 
+static VALUE
+pending(VALUE self) {
+    uint64_t	cid = RB_FIX2ULONG(rb_ivar_get(self, cid_id));
+
+    return INT2NUM(cc_get_pending(&the_server->con_cache, cid));
+}
+
 void
 upgraded_extend(uint64_t cid, VALUE obj) {
-    rb_ivar_set(obj, rb_intern("@_cid"), ULONG2NUM(cid));
-    rb_ivar_set(obj, rb_intern("@_sid"), ULONG2NUM(0)); // used as counter for subscription id
+    rb_ivar_set(obj, cid_id, ULONG2NUM(cid));
+    rb_ivar_set(obj, sid_id, ULONG2NUM(0)); // used as counter for subscription id
     rb_extend_object(obj, upgraded_mod);
-    rb_funcall(obj, rb_intern("on_open"), 0);
+    if (rb_respond_to(obj, on_open_id)) {
+	rb_funcall(obj, on_open_id, 0);
+    }
 }
 
 /* Document-module: Agoo::Upgraded
@@ -75,5 +95,11 @@ upgraded_init(VALUE mod) {
     rb_define_method(upgraded_mod, "write", up_write, 1);
     rb_define_method(upgraded_mod, "subscribe", up_subscribe, 1);
     rb_define_method(upgraded_mod, "close", up_close, 0);
-    // TBD ready? or pending?
+    rb_define_method(upgraded_mod, "pending", pending, 0);
+
+    cid_id = rb_intern("@_cid");
+    sid_id = rb_intern("@_sid");
+    on_open_id = rb_intern("on_open");
+    to_s_id = rb_intern("to_s");
+    
 }

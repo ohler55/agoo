@@ -123,12 +123,12 @@ Servers that choose to support WebSockets and SSE connections should follow thes
                       on_message(message)              # called when a WebSocket message is received by server. <tt>message</tt> will be UTF-8 encoded for text messages and Binary encoded for binary messages.
                       on_shutdown()                    # may be called before a connection is closed due to server shutdown.
                       on_close()                       # called when the connection is closed
-                      on_ready()                       # may be called once for every time the socket's buffer changes from full to not-full.
+                      on_idle()                        # may be called once every time the number of pending writes drops to zero.
                      The object will be extended by the server to include:
                       write(message)  # writes to the WebSocket or SSE connection
                       close()         # forces a close of the WebSocket or SSE connection
                       open?()         # returns true if the connection is open, false otherwise
-                      pending?()      # returns true if there's data that wasn't written to the socket's buffer and the server supports the if on_ready callback. otherwise returns false.
+                      pending()       # returns the number of pending writes or -1 if the connection is closed
                      This option should only be set it the environment options has a non-nil value for the <tt>rack.upgrade?</tt> option,
                      If the response status is 300 or higher, the server MUST ignore the <tt>rack.upgrade</tt> value (send the response without performing an upgrade).
 

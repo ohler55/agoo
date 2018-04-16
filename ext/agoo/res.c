@@ -13,8 +13,9 @@ res_create() {
 	DEBUG_ALLOC(mem_res)
 	res->next = NULL;
 	atomic_init(&res->message, NULL);
-	res->close = false;
 	res->con_kind = CON_HTTP;
+	res->close = false;
+
     }
     return res;
 }

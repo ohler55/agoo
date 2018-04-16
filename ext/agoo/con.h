@@ -15,6 +15,8 @@
 
 #define MAX_HEADER_SIZE	8192
 
+struct _CSlot;
+
 typedef struct _Con {
     int			sock;
     ConKind		kind;
@@ -32,6 +34,8 @@ typedef struct _Con {
     Req			req;
     Res			res_head;
     Res			res_tail;
+
+    struct _CSlot	*slot; // only set for push connections
 } *Con;
 
 extern Con		con_create(Err err, Server server, int sock, uint64_t id);

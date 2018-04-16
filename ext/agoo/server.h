@@ -9,10 +9,10 @@
 
 #include <ruby.h>
 
+#include "ccache.h"
 #include "hook.h"
 #include "log.h"
 #include "page.h"
-#include "pusher.h"
 #include "queue.h"
 #include "sub.h"
 
@@ -20,6 +20,7 @@ typedef struct _Server {
     volatile bool	active;
     volatile bool	ready;
     int			thread_cnt;
+    int			max_push_pending;
     int			port;
     bool		pedantic;
     char		*root;
@@ -35,13 +36,13 @@ typedef struct _Server {
     struct _LogCat	req_cat;
     struct _LogCat	resp_cat;
     struct _LogCat	eval_cat;
+    struct _LogCat	push_cat;
     
     struct _Queue	con_queue;
     struct _Queue	pub_queue;
     struct _Cache	pages;
-    struct _Pusher	pusher;
     struct _SubCache	sub_cache; // subscription cache
-    // TBD ConCache	con_cache; // Only WebSocket and SSE connections
+    struct _CCache	con_cache; // Only WebSocket and SSE connections
 
     Hook		hooks;
     Hook		hook404;

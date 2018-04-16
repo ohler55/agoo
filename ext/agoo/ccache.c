@@ -9,10 +9,35 @@
 #include "con.h"
 #include "debug.h"
 
+static void
+cc_mark(void *ptr) {
+    if (NULL != ptr) {
+	CCache	cc = (CCache)ptr;
+	CSlot	slot;
+	CSlot	*bp = cc->buckets;
+	CSlot	*end = bp + CC_BUCKET_SIZE;
+
+	if (Qnil != cc->wrap) {
+	    rb_gc_mark(cc->wrap);
+	}
+	pthread_mutex_lock(&cc->lock);
+	for (bp = cc->buckets; bp < end; bp++) {
+	    for (slot = *bp; NULL != slot; slot = slot->next) {
+		if (Qnil != slot->handler) {
+		    rb_gc_mark(slot->handler);
+		}
+	    }
+	}
+	pthread_mutex_unlock(&cc->lock);
+    }
+}
+
+
 void
 cc_init(CCache cc) {
     memset(cc, 0, sizeof(struct _CCache));
     pthread_mutex_init(&cc->lock, 0);
+    cc->wrap = Data_Wrap_Struct(rb_cObject, cc_mark, NULL, cc);
 }
 
 void
@@ -33,11 +58,12 @@ cc_cleanup(CCache cc) {
 }
 
 CSlot
-cc_set_con(CCache cc, uint64_t cid, Con con) {
+cc_set_con(CCache cc, Con con) {
     CSlot	slot = (CSlot)malloc(sizeof(struct _CSlot));
-    CSlot	*bucket = cc->buckets + (CC_BUCKET_MASK & cid);
+    CSlot	*bucket = cc->buckets + (CC_BUCKET_MASK & con->id);
 
     if (NULL != slot) {
+	DEBUG_ALLOC(mem_cslot);
 	slot->cid = con->id;
 	slot->con = con;
 	slot->handler = Qnil;
@@ -71,8 +97,73 @@ cc_remove(CCache cc, uint64_t cid) {
     }
     pthread_mutex_unlock(&cc->lock);
     if (NULL != slot) {
+	DEBUG_FREE(mem_cslot)
 	free(slot);
     }
+}
+
+void
+cc_remove_con(CCache cc, uint64_t cid) {
+    CSlot	*bucket = cc->buckets + (CC_BUCKET_MASK & cid);
+    CSlot	slot;
+    CSlot	prev = NULL;
+
+    pthread_mutex_lock(&cc->lock);
+    for (slot = *bucket; NULL != slot; slot = slot->next) {
+	if (cid = slot->cid) {
+	    if (atomic_fetch_sub(&slot->ref_cnt, 1) <= 1) {
+		if (NULL == prev) {
+		    *bucket = slot->next;
+		} else {
+		    prev->next = slot->next;
+		}
+	    } else {
+		atomic_store(&slot->pending, -1);
+		slot = NULL;
+	    }
+	    break;
+	}
+	prev = slot;
+    }
+    pthread_mutex_unlock(&cc->lock);
+    if (NULL != slot) {
+	DEBUG_FREE(mem_cslot)
+	free(slot);
+    }
+}
+
+VALUE
+cc_ref_dec(CCache cc, uint64_t cid) {
+    CSlot	*bucket = cc->buckets + (CC_BUCKET_MASK & cid);
+    CSlot	slot;
+    VALUE	handler = Qnil;
+    CSlot	prev = NULL;
+
+    pthread_mutex_lock(&cc->lock);
+    for (slot = *bucket; NULL != slot; slot = slot->next) {
+	if (cid = slot->cid) {
+	    int	rcnt = atomic_fetch_sub(&slot->ref_cnt, 1);
+
+	    handler = slot->handler;
+	    if (rcnt <= 1) {
+		if (NULL == prev) {
+		    *bucket = slot->next;
+		} else {
+		    prev->next = slot->next;
+		}
+	    } else {
+		slot = NULL;
+	    }
+	    break;
+	}
+	prev = slot;
+    }
+    pthread_mutex_unlock(&cc->lock);
+    if (NULL != slot) {
+	DEBUG_FREE(mem_cslot)
+	free(slot);
+    }
+    return handler;
 }
 
 void
@@ -135,7 +226,7 @@ cc_get_pending(CCache cc, uint64_t cid) {
     pthread_mutex_lock(&cc->lock);
     for (slot = *bucket; NULL != slot; slot = slot->next) {
 	if (cid = slot->cid) {
-	    pending = slot->pending;
+	    pending = atomic_load(&slot->pending);
 	    break;
 	}
     }
@@ -158,4 +249,19 @@ cc_get_slot(CCache cc, uint64_t cid) {
     pthread_mutex_unlock(&cc->lock);
 
     return slot;
+}
+
+void
+cc_pending_inc(CCache cc, uint64_t cid) {
+    CSlot	*bucket = cc->buckets + (CC_BUCKET_MASK & cid);
+    CSlot	slot;
+
+    pthread_mutex_lock(&cc->lock);
+    for (slot = *bucket; NULL != slot; slot = slot->next) {
+	if (cid = slot->cid) {
+	    atomic_fetch_add(&slot->pending, 1);
+	    break;
+	}
+    }
+    pthread_mutex_unlock(&cc->lock);
 }

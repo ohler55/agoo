@@ -70,6 +70,7 @@ shutdown_server(Server server) {
 	queue_cleanup(&server->con_queue);
 	queue_cleanup(&server->pub_queue);
 	sub_cleanup(&server->sub_cache);
+	cc_cleanup(&server->con_cache);
 	// The preferred method to of waiting for the ruby threads would be
 	// either a join or even a kill but since we don't have the gvi here
 	// that would cause a segfault. Instead we set a timeout and wait for
@@ -94,7 +95,6 @@ shutdown_server(Server server) {
 	    hook_destroy(h);
 	}
 	queue_cleanup(&server->eval_queue);
-	pusher_cleanup(&server->pusher);
 	log_close(&server->log);
 	debug_print_stats();    
     }
@@ -129,6 +129,7 @@ configure(Err err, Server s, int port, const char *root, VALUE options) {
     s->running = 0;
     s->listen_thread = 0;
     s->con_thread = 0;
+    s->max_push_pending = 32;
     s->log.cats = NULL;
     log_cat_reg(&s->log, &s->error_cat, "ERROR",    ERROR, RED, true);
     log_cat_reg(&s->log, &s->warn_cat,  "WARN",     WARN,  YELLOW, true);
@@ -138,6 +139,7 @@ configure(Err err, Server s, int port, const char *root, VALUE options) {
     log_cat_reg(&s->log, &s->req_cat,   "request",  INFO,  CYAN, false);
     log_cat_reg(&s->log, &s->resp_cat,  "response", INFO,  DARK_CYAN, false);
     log_cat_reg(&s->log, &s->eval_cat,  "eval",     INFO,  BLUE, false);
+    log_cat_reg(&s->log, &s->push_cat,  "push",     INFO,  DARK_CYAN, false);
 
     if (ERR_OK != log_init(err, &s->log, options)) {
 	return err->code;
@@ -152,6 +154,15 @@ configure(Err err, Server s, int port, const char *root, VALUE options) {
 		s->thread_cnt = tc;
 	    } else {
 		rb_raise(rb_eArgError, "thread_count must be between 1 and 1000.");
+	    }
+	}
+	if (Qnil != (v = rb_hash_lookup(options, ID2SYM(rb_intern("max_push_pending"))))) {
+	    int	tc = FIX2INT(v);
+
+	    if (0 <= tc || tc < 1000) {
+		s->thread_cnt = tc;
+	    } else {
+		rb_raise(rb_eArgError, "thread_count must be between 0 and 1000.");
 	    }
 	}
 	if (Qnil != (v = rb_hash_lookup(options, ID2SYM(rb_intern("pedantic"))))) {
@@ -257,7 +268,7 @@ server_new(int argc, VALUE *argv, VALUE self) {
     queue_multi_init(&s->eval_queue, 1024, false, true);
 
     cache_init(&s->pages);
-    pusher_init(&s->pusher);
+    cc_init(&s->con_cache);
     sub_init(&s->sub_cache);
 
     the_server = s;

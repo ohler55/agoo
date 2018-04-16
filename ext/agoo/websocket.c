@@ -56,10 +56,10 @@ ws_add_headers(Req req, Text t) {
 }
 
 Text
-ws_expand(Text t, bool bin) {
+ws_expand(Text t) {
     uint8_t	buf[16];
     uint8_t	*b = buf;
-    uint8_t	opcode = bin ? OP_BIN : OP_TEXT;
+    uint8_t	opcode = t->bin ? OP_BIN : OP_TEXT;
 
     *b++ = 0x80 | (uint8_t)opcode;
     // send unmasked

@@ -11,6 +11,7 @@
 #include "pub.h"
 #include "res.h"
 #include "server.h"
+#include "websocket.h"
 
 #define MAX_SOCK	4096
 #define CON_TIMEOUT	5.0
@@ -46,7 +47,10 @@ con_destroy(Con c) {
 	free(c->req);
 	DEBUG_FREE(mem_req)
     }
-    // TBD remove from con_cache if kind is SSE or WS
+    if (NULL != c->slot) {
+	cc_remove_con(&c->server->con_cache, c->id);
+	c->slot = NULL;
+    }
     DEBUG_FREE(mem_con)
     free(c);
 }
@@ -494,19 +498,55 @@ con_http_write(Con c) {
 
 static bool
 con_ws_write(Con c) {
-    Res	res = c->res_head;
-    
-    printf("*** ws write\n");
-    
-    c->res_head = res->next;
-    if (res == c->res_tail) {
-	c->res_tail = NULL;
+    Res		res = c->res_head;
+    Text	message = res_message(res);
+    ssize_t	cnt;
+
+    if (NULL == message) {
+	bool	done = res->close;
+	
+	res_destroy(res);
+	printf("*** ws close\n");
+	// TBD place cb on cb_queue
+
+	return done;
     }
-    res_destroy(res);
+    c->timeout = dtime() + CON_TIMEOUT;
+    if (0 == c->wcnt) {
+	Text	t;
+	
+	if (c->server->push_cat.on) {
+	    log_cat(&c->server->push_cat, "%llu: %s", c->id, message->text);
+	}
+	t = ws_expand(message);
+	if (t != message) {
+	    res_set_message(res, t);
+	    message = t;
+	}
+    }
+    if (0 > (cnt = send(c->sock, message->text + c->wcnt, message->len - c->wcnt, 0))) {
+	if (EAGAIN == errno) {
+	    return false;
+	}
+	log_cat(&c->server->error_cat, "Socket error @ %llu.", c->id);
 
-    // TBD if open then put on_open callback on eval queue
+	return true;
+    }
+    c->wcnt += cnt;
+    if (c->wcnt == message->len) { // finished
+	Res	res = c->res_head;
+	bool	done = res->close;
+	
+	c->res_head = res->next;
+	if (res == c->res_tail) {
+	    c->res_tail = NULL;
+	}
+	c->wcnt = 0;
+	res_destroy(res);
+	atomic_fetch_sub(&c->slot->pending, 1);
 
-    // TBD
+	return done;
+    }
     return false;
 }
 
@@ -521,7 +561,6 @@ con_write(Con c) {
     bool	remove = true;
     ConKind	kind = c->res_head->con_kind;
     
-    //printf("*** con_write - kind %c -> %c\n", c->kind, c->res_head->con_kind);
     switch (c->kind) {
     case CON_HTTP:
 	remove = con_http_write(c);
@@ -538,8 +577,7 @@ con_write(Con c) {
     if (kind != c->kind) {
 	c->kind = kind;
 	if (CON_HTTP != kind && !remove) {
-	    // TBD put con in con_cache?
-	    // need a path back to handler
+	    c->slot = cc_set_con(&c->server->con_cache, c);
 	}
     }
     return remove;
@@ -547,30 +585,65 @@ con_write(Con c) {
 
 static void
 process_pub_con(Server server, Pub pub) {
+    Con	c;
+
     printf("*** process pub con - %c\n", pub->kind);
-
-    // TBD
-    // find the con in con_cache
-
-    // put a res on the con res_tail with the text
-    // free pub
-    // check con kind for ws or sse, expand if ws
 
     switch (pub->kind) {
     case PUB_SUB:
+	// TBD
 	break;
     case PUB_CLOSE:
+	if (NULL == (c = cc_get_con(&server->con_cache, pub->cid))) {
+	    log_cat(&server->warn_cat, "Socket %llu already closed.", pub->cid);
+	    pub_destroy(pub);	
+	    return;
+	} else {
+	    Res	res = res_create();;
+
+	    if (NULL != res) {
+		if (NULL == c->res_tail) {
+		    c->res_head = res;
+		} else {
+		    c->res_tail->next = res;
+		}
+		c->res_tail = res;
+		res->con_kind = c->kind;
+		res->close = true;
+	    }
+	}
 	break;
     case PUB_UN:
+	// TBD
 	break;
     case PUB_MSG:
+	// TBD
 	break;
-    case PUB_WRITE:
-	// TBD place on con res_tail
+    case PUB_WRITE: {
+	if (NULL == (c = cc_get_con(&server->con_cache, pub->cid))) {
+	    log_cat(&server->warn_cat, "Socket %llu already closed. WebSocket write failed.", pub->cid);
+	    pub_destroy(pub);	
+	    return;
+	} else {
+	    Res	res = res_create();;
+
+	    if (NULL != res) {
+		if (NULL == c->res_tail) {
+		    c->res_head = res;
+		} else {
+		    c->res_tail->next = res;
+		}
+		c->res_tail = res;
+		res->con_kind = c->kind;
+		res_set_message(res, pub->msg);
+	    }
+	}
 	break;
+    }
     default:
 	break;
     }
+    pub_destroy(pub);	
 }
 
 static struct pollfd*
@@ -601,7 +674,7 @@ poll_setup(Server server, Con *ca, int ccnt, struct pollfd *pp) {
 	switch (c->kind) {
 	case CON_HTTP:
 	case CON_WS:
-	    if (NULL != c->res_head && NULL != res_message(c->res_head)) {
+	    if (NULL != c->res_head && (c->res_head->close || NULL != res_message(c->res_head))) {
 		pp->events = POLLIN | POLLOUT;
 	    } else {
 		pp->events = POLLIN;
@@ -720,6 +793,8 @@ con_loop(void *x) {
 	    }
 	    continue;
 	CON_RM:
+	    printf("*** remove con\n");
+	    
 	    ca[c->sock] = NULL;
 	    ccnt--;
 	    log_cat(&server->con_cat, "Connection %llu closed.", c->id);

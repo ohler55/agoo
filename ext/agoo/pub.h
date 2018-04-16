@@ -22,7 +22,6 @@ typedef enum {
 typedef struct _Pub {
     struct _Pub		*next;
     PubKind		kind;
-    bool		bin;
     uint64_t		cid;
     char		*subject;
     union {
@@ -36,5 +35,6 @@ extern Pub	pub_subscribe(uint64_t cid, uint64_t sid, const char *subject);
 extern Pub	pub_unsubscribe(uint64_t cid, uint64_t sid);
 extern Pub	pub_publish(char *subject, const char *message, size_t mlen, bool bin);
 extern Pub	pub_write(uint64_t cid, const char *message, size_t mlen, bool bin);
+extern void	pub_destroy(Pub pub);
 
 #endif // __AGOO_PUB_H__
