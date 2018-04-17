@@ -6,6 +6,7 @@
 
 #include "debug.h"
 
+atomic_int	mem_cb = 0;
 atomic_int	mem_con = 0;
 atomic_int	mem_cslot = 0;
 atomic_int	mem_err_stream = 0;
@@ -41,6 +42,7 @@ debug_print_stats() {
     
     printf("********************************************************************************\n");
     printf("memory statistics\n");
+    printf("  mem_cb:           %d\n", mem_cb);
     printf("  mem_con:          %d\n", mem_con);
     printf("  mem_cslot:        %d\n", mem_cslot);
     printf("  mem_err_stream:   %d\n", mem_err_stream);

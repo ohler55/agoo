@@ -5,6 +5,7 @@
 
 #include <pthread.h>
 #include <stdatomic.h>
+#include <stdbool.h>
 #include <stdint.h>
 
 #include <ruby.h>
@@ -21,6 +22,10 @@ typedef struct _CSlot {
     VALUE		handler;
     atomic_int		pending;
     atomic_int		ref_cnt;
+    bool		on_empty;
+    bool		on_close;
+    bool		on_shut;
+    bool		on_msg;
 } *CSlot;
 
 typedef struct _CCache {
@@ -32,7 +37,7 @@ typedef struct _CCache {
 extern void		cc_init(CCache cc);
 extern void		cc_cleanup(CCache cc);
 extern CSlot		cc_set_con(CCache cc, struct _Con *con);
-extern void		cc_set_handler(CCache cc, uint64_t cid, VALUE handler);
+extern void		cc_set_handler(CCache cc, uint64_t cid, VALUE handler, bool on_empty, bool on_close, bool on_shut, bool on_msg);
 extern void		cc_remove(CCache cc, uint64_t cid);
 
 extern void		cc_remove_con(CCache cc, uint64_t cid);

@@ -59,22 +59,67 @@ cc_cleanup(CCache cc) {
 
 CSlot
 cc_set_con(CCache cc, Con con) {
-    CSlot	slot = (CSlot)malloc(sizeof(struct _CSlot));
     CSlot	*bucket = cc->buckets + (CC_BUCKET_MASK & con->id);
+    CSlot	slot;
 
-    if (NULL != slot) {
-	DEBUG_ALLOC(mem_cslot);
-	slot->cid = con->id;
-	slot->con = con;
-	slot->handler = Qnil;
-	atomic_init(&slot->pending, 0);
-	atomic_init(&slot->ref_cnt, 1);
-	pthread_mutex_lock(&cc->lock);
-	slot->next = *bucket;
-	*bucket = slot;
-	pthread_mutex_unlock(&cc->lock);
+    pthread_mutex_lock(&cc->lock);
+    for (slot = *bucket; NULL != slot; slot = slot->next) {
+	if (con->id = slot->cid) {
+	    slot->con = con;
+	    break;
+	}
     }
+    if (NULL == slot) {
+	if (NULL != (slot = (CSlot)malloc(sizeof(struct _CSlot)))) {
+	    DEBUG_ALLOC(mem_cslot);
+	    slot->cid = con->id;
+	    slot->con = con;
+	    slot->handler = Qnil;
+	    slot->on_empty = false;
+	    slot->on_close = false;
+	    slot->on_shut = false;
+	    slot->on_msg = false;
+	    atomic_init(&slot->pending, 0);
+	    atomic_init(&slot->ref_cnt, 1);
+	    slot->next = *bucket;
+	    *bucket = slot;
+	}
+    }
+    pthread_mutex_unlock(&cc->lock);
+
     return slot;
+}
+
+void
+cc_set_handler(CCache cc, uint64_t cid, VALUE handler, bool on_empty, bool on_close, bool on_shut, bool on_msg) {
+    CSlot	*bucket = cc->buckets + (CC_BUCKET_MASK & cid);
+    CSlot	slot;
+
+    pthread_mutex_lock(&cc->lock);
+    for (slot = *bucket; NULL != slot; slot = slot->next) {
+	if (cid = slot->cid) {
+	    slot->handler = handler;
+	    break;
+	}
+    }
+    if (NULL == slot) {
+	// TBD is is faster to lock twice or allocate while locked?
+	if (NULL != (slot = (CSlot)malloc(sizeof(struct _CSlot)))) {
+	    DEBUG_ALLOC(mem_cslot);
+	    slot->cid = cid;
+	    slot->con = NULL;
+	    slot->handler = handler;
+	    slot->on_empty = on_empty;
+	    slot->on_close = on_close;
+	    slot->on_shut = on_shut;
+	    slot->on_msg = on_msg;
+	    atomic_init(&slot->pending, 0);
+	    atomic_init(&slot->ref_cnt, 1);
+	    slot->next = *bucket;
+	    *bucket = slot;
+	}
+    }
+    pthread_mutex_unlock(&cc->lock);
 }
 
 void
@@ -164,21 +209,6 @@ cc_ref_dec(CCache cc, uint64_t cid) {
 	free(slot);
     }
     return handler;
-}
-
-void
-cc_set_handler(CCache cc, uint64_t cid, VALUE handler) {
-    CSlot	*bucket = cc->buckets + (CC_BUCKET_MASK & cid);
-    CSlot	slot;
-
-    pthread_mutex_lock(&cc->lock);
-    for (slot = *bucket; NULL != slot; slot = slot->next) {
-	if (cid = slot->cid) {
-	    slot->handler = handler;
-	    break;
-	}
-    }
-    pthread_mutex_unlock(&cc->lock);
 }
 
 Con

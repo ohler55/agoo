@@ -82,6 +82,11 @@ upgraded_extend(uint64_t cid, VALUE obj) {
     if (rb_respond_to(obj, on_open_id)) {
 	rb_funcall(obj, on_open_id, 0);
     }
+    cc_set_handler(&the_server->con_cache, cid, obj,
+		   Qtrue == rb_respond_to(obj, rb_intern("on_empty")),
+		   Qtrue == rb_respond_to(obj, rb_intern("on_close")),
+		   Qtrue == rb_respond_to(obj, rb_intern("on_shutdown")),
+		   Qtrue == rb_respond_to(obj, rb_intern("on_message")));
 }
 
 /* Document-module: Agoo::Upgraded

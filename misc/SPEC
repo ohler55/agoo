@@ -123,7 +123,7 @@ Servers that choose to support WebSockets and SSE connections should follow thes
                       on_message(message)              # called when a WebSocket message is received by server. <tt>message</tt> will be UTF-8 encoded for text messages and Binary encoded for binary messages.
                       on_shutdown()                    # may be called before a connection is closed due to server shutdown.
                       on_close()                       # called when the connection is closed
-                      on_idle()                        # may be called once every time the number of pending writes drops to zero.
+                      on_drained                       # may be called when the number of pending writes drops to zero.
                      The object will be extended by the server to include:
                       write(message)  # writes to the WebSocket or SSE connection
                       close()         # forces a close of the WebSocket or SSE connection

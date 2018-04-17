@@ -50,6 +50,18 @@ static const char	websocket_val[] = "websocket";
 static const char	accept_key[] = "Accept";
 static const char	event_stream_val[] = "text/event-stream";
 
+Req
+request_create(size_t mlen) {
+    size_t	size = mlen + sizeof(struct _Req) - 7;
+    Req		req = (Req)malloc(size);
+    
+    if (NULL != req) {
+	memset(req, 0, size);
+	req->mlen = mlen;
+    }
+    return req;
+}
+
 static VALUE
 req_method(Req r) {
     VALUE	m;

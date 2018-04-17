@@ -13,8 +13,11 @@ typedef enum {
     PUT		= 'U',
     ALL		= 'A',
     NONE	= '\0',
+
     ON_MSG	= 'M', // use for on_message callback
     ON_CLOSE	= 'X', // use for on_close callback
+    ON_SHUTDOWN	= 'S', // use for on_shotdown callback
+    ON_EMPTY	= 'E', // use for on_empty callback
 } Method;
 
 typedef enum {

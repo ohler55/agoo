@@ -656,6 +656,7 @@ handle_push(void *x) {
 
 static void
 handle_protected(Req req, bool gvi) {
+    printf("*** hook type %c\n", req->handler_type);
     switch (req->handler_type) {
     case BASE_HOOK:
 	if (gvi) {

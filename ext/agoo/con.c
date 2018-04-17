@@ -274,7 +274,7 @@ con_header_read(Con c) {
     }
 HOOKED:
     // Create request and populate.
-    if (NULL == (c->req = (Req)malloc(mlen + sizeof(struct _Req) - 8 + 1))) {
+    if (NULL == (c->req = request_create(mlen))) {
 	return bad_request(c, 413, __LINE__);
     }
     DEBUG_ALLOC(mem_req)
@@ -295,7 +295,6 @@ HOOKED:
     c->req->path.len = (int)(pend - path);
     c->req->query.start = c->req->msg + (query - c->buf);
     c->req->query.len = (int)(qend - query);
-    c->req->mlen = mlen;
     c->req->body.start = c->req->msg + (hend - c->buf + 4);
     c->req->body.len = (unsigned int)clen;
     b = strstr(b, "\r\n");
@@ -503,13 +502,20 @@ con_ws_write(Con c) {
     ssize_t	cnt;
 
     if (NULL == message) {
-	bool	done = res->close;
-	
+	printf("*** ws close - slot %p handler %0lx\n", c->slot, c->slot->handler);
+	if (NULL != c->slot && Qnil != c->slot->handler) {
+	    Req	req = request_create(0);
+	    
+	    printf("*** request push\n");
+	    req->cid = c->id;
+	    req->method = ON_CLOSE;
+	    req->handler_type = PUSH_HOOK;
+	    req->handler = c->slot->handler;
+	    queue_push(&c->server->eval_queue, (void*)req);
+	}
 	res_destroy(res);
-	printf("*** ws close\n");
-	// TBD place cb on cb_queue
 
-	return done;
+	return true;
     }
     c->timeout = dtime() + CON_TIMEOUT;
     if (0 == c->wcnt) {
@@ -585,7 +591,7 @@ con_write(Con c) {
 
 static void
 process_pub_con(Server server, Pub pub) {
-    Con	c;
+    CSlot	slot;
 
     printf("*** process pub con - %c\n", pub->kind);
 
@@ -594,7 +600,7 @@ process_pub_con(Server server, Pub pub) {
 	// TBD
 	break;
     case PUB_CLOSE:
-	if (NULL == (c = cc_get_con(&server->con_cache, pub->cid))) {
+	if (NULL == (slot = cc_get_slot(&server->con_cache, pub->cid)) || NULL == slot->con) {
 	    log_cat(&server->warn_cat, "Socket %llu already closed.", pub->cid);
 	    pub_destroy(pub);	
 	    return;
@@ -602,14 +608,15 @@ process_pub_con(Server server, Pub pub) {
 	    Res	res = res_create();;
 
 	    if (NULL != res) {
-		if (NULL == c->res_tail) {
-		    c->res_head = res;
+		if (NULL == slot->con->res_tail) {
+		    slot->con->res_head = res;
 		} else {
-		    c->res_tail->next = res;
+		    slot->con->res_tail->next = res;
 		}
-		c->res_tail = res;
-		res->con_kind = c->kind;
+		slot->con->res_tail = res;
+		res->con_kind = slot->con->kind;
 		res->close = true;
+		printf("*** process pub con handler is %lx\n", cc_get_handler(&server->con_cache, slot->con->id));
 	    }
 	}
 	break;
@@ -620,7 +627,7 @@ process_pub_con(Server server, Pub pub) {
 	// TBD
 	break;
     case PUB_WRITE: {
-	if (NULL == (c = cc_get_con(&server->con_cache, pub->cid))) {
+	if (NULL == (slot = cc_get_slot(&server->con_cache, pub->cid)) || NULL == slot->con) {
 	    log_cat(&server->warn_cat, "Socket %llu already closed. WebSocket write failed.", pub->cid);
 	    pub_destroy(pub);	
 	    return;
@@ -628,13 +635,13 @@ process_pub_con(Server server, Pub pub) {
 	    Res	res = res_create();;
 
 	    if (NULL != res) {
-		if (NULL == c->res_tail) {
-		    c->res_head = res;
+		if (NULL == slot->con->res_tail) {
+		    slot->con->res_head = res;
 		} else {
-		    c->res_tail->next = res;
+		    slot->con->res_tail->next = res;
 		}
-		c->res_tail = res;
-		res->con_kind = c->kind;
+		slot->con->res_tail = res;
+		res->con_kind = slot->con->kind;
 		res_set_message(res, pub->msg);
 	    }
 	}
