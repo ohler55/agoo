@@ -29,6 +29,7 @@ static VALUE	rack_logger_val = Qundef;
 static VALUE	rack_multiprocess_val = Qundef;
 static VALUE	rack_multithread_val = Qundef;
 static VALUE	rack_run_once_val = Qundef;
+static VALUE	rack_upgrade_val = Qundef;
 static VALUE	rack_url_scheme_val = Qundef;
 static VALUE	rack_version_val = Qundef;
 static VALUE	rack_version_val_val = Qundef;
@@ -37,6 +38,9 @@ static VALUE	script_name_val = Qundef;
 static VALUE	server_name_val = Qundef;
 static VALUE	server_port_val = Qundef;
 static VALUE	slash_val = Qundef;
+
+static VALUE	sse_sym;
+static VALUE	websocket_sym;
 
 static VALUE	stringio_class = Qundef;
 
@@ -233,6 +237,26 @@ req_server_port(Req r) {
 static VALUE
 server_port(VALUE self) {
     return req_server_port((Req)DATA_PTR(self));
+}
+
+static VALUE
+req_rack_upgrade(Req r) {
+    switch (r->upgrade) {
+    case UP_WS:		return websocket_sym;
+    case UP_SSE:	return sse_sym;
+    default:		return Qnil;
+    }
+}
+
+/* Document-method: rack_upgrade?
+ *
+ * call-seq: rack_upgrade?()
+ *
+ * Returns the URL scheme or either _http_ or _https_ as a string.
+ */
+static VALUE
+rack_upgrade(VALUE self) {
+    return req_rack_upgrade((Req)DATA_PTR(self));
 }
 
 /* Document-method: rack_version
@@ -525,6 +549,7 @@ request_env(Req req) {
     rb_hash_aset(env, rack_multiprocess_val, Qfalse);
     rb_hash_aset(env, rack_run_once_val, Qfalse);
     rb_hash_aset(env, rack_logger_val, req_rack_logger(req));
+    rb_hash_aset(env, rack_upgrade_val, req_rack_upgrade(req));
 
     return env;
 }
@@ -598,6 +623,7 @@ request_init(VALUE mod) {
     rb_define_method(req_class, "rack_multithread", rack_multithread, 0);
     rb_define_method(req_class, "rack_multiprocess", rack_multiprocess, 0);
     rb_define_method(req_class, "rack_run_once", rack_run_once, 0);
+    rb_define_method(req_class, "rack_upgrade?", rack_upgrade, 0);
     rb_define_method(req_class, "headers", headers, 0);
     rb_define_method(req_class, "body", body, 0);
     rb_define_method(req_class, "rack_logger", rack_logger, 0);
@@ -630,6 +656,7 @@ request_init(VALUE mod) {
     rack_multiprocess_val = rb_str_new_cstr("rack.multiprocess");rb_gc_register_address(&rack_multiprocess_val);
     rack_multithread_val = rb_str_new_cstr("rack.multithread");rb_gc_register_address(&rack_multithread_val);
     rack_run_once_val = rb_str_new_cstr("rack.run_once");	rb_gc_register_address(&rack_run_once_val);
+    rack_upgrade_val = rb_str_new_cstr("rack.upgrade?");	rb_gc_register_address(&rack_upgrade_val);
     rack_url_scheme_val = rb_str_new_cstr("rack.url_scheme");	rb_gc_register_address(&rack_url_scheme_val);
     rack_version_val = rb_str_new_cstr("rack.version");		rb_gc_register_address(&rack_version_val);
     request_method_val = rb_str_new_cstr("REQUEST_METHOD");	rb_gc_register_address(&request_method_val);
@@ -637,4 +664,7 @@ request_init(VALUE mod) {
     server_name_val = rb_str_new_cstr("SERVER_NAME");		rb_gc_register_address(&server_name_val);
     server_port_val = rb_str_new_cstr("SERVER_PORT");		rb_gc_register_address(&server_port_val);
     slash_val = rb_str_new_cstr("/");				rb_gc_register_address(&slash_val);
+
+    sse_sym = ID2SYM(rb_intern("sse"));				rb_gc_register_address(&sse_sym);
+    websocket_sym = ID2SYM(rb_intern("websocket"));		rb_gc_register_address(&websocket_sym);
 }

@@ -33,10 +33,8 @@ end
 class Listen
   # Only used for WebSockets or SSE upgrades.
   def call(env)
-    if (env['HTTP_Connection'].to_s.downcase.include?('upgrade') &&
-	env['HTTP_Upgrade'].to_s.downcase == 'websocket') ||     # WebSockets
-       env['HTTP_Accept'] == 'text/event-stream'  # SSE
-      env['push.handler'] = TickTock.new(env)
+    unless env['rack.upgrade?'].nil?
+      env['rack.upgrade'] = TickTock.new(env)
       [ 101, { }, [ ] ]
     else
       [ 404, { }, [ ] ]

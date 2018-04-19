@@ -116,6 +116,10 @@ cc_set_handler(CCache cc, uint64_t cid, VALUE handler, bool on_empty, bool on_cl
 	    atomic_init(&slot->pending, 0);
 	    atomic_init(&slot->ref_cnt, 1);
 	    slot->next = *bucket;
+	    slot->on_empty = on_empty;
+	    slot->on_close = on_close;
+	    slot->on_shut = on_shut;
+	    slot->on_msg = on_msg;
 	    *bucket = slot;
 	}
     }

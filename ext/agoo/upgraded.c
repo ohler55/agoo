@@ -61,7 +61,6 @@ static VALUE
 up_close(VALUE self) {
     uint64_t	cid = RB_FIX2ULONG(rb_ivar_get(self, cid_id));
 
-    printf("*** close called\n");
     queue_push(&the_server->pub_queue, pub_close(cid));
 
     return Qnil;
@@ -83,10 +82,11 @@ upgraded_extend(uint64_t cid, VALUE obj) {
 	rb_funcall(obj, on_open_id, 0);
     }
     cc_set_handler(&the_server->con_cache, cid, obj,
-		   Qtrue == rb_respond_to(obj, rb_intern("on_drained")),
-		   Qtrue == rb_respond_to(obj, rb_intern("on_close")),
-		   Qtrue == rb_respond_to(obj, rb_intern("on_shutdown")),
-		   Qtrue == rb_respond_to(obj, rb_intern("on_message")));
+		   rb_respond_to(obj, rb_intern("on_drained")),
+		   rb_respond_to(obj, rb_intern("on_close")),
+		   rb_respond_to(obj, rb_intern("on_shutdown")),
+		   rb_respond_to(obj, rb_intern("on_message")));
+    rb_funcall(obj, rb_intern("to_s"), 0);
 }
 
 /* Document-module: Agoo::Upgraded

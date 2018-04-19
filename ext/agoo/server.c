@@ -114,8 +114,8 @@ static void
 server_free(void *ptr) {
     shutdown_server((Server)ptr);
     // Commented out for now as it causes a segfault later. Some thread seems
-    //to be pointing at it even though they have exited so live with a memory
-    //leak that only shows up when the program exits.
+    // to be pointing at it even though they have exited so live with a memory
+    // leak that only shows up when the program exits.
     //xfree(ptr);
     DEBUG_FREE(mem_server)
     the_server = NULL;
@@ -630,20 +630,28 @@ handle_wab(void *x) {
 
 static VALUE
 handle_push_inner(void *x) {
-    //Req		req = (Req)x;
+    Req	req = (Req)x;
 
-    printf("*** handle_push\n");
+    printf("****** handle_push %c - %c  %lx\n", req->handler_type, req->method, req->handler);
+
+    switch (req->method) {
+    case ON_MSG:
+	// TBD handle binary as well
+	rb_funcall(req->handler, rb_intern("on_message"), 1, rb_str_new(req->msg, req->mlen));
+	break;
+    case ON_CLOSE:
+	rb_funcall(req->handler, rb_intern("on_close"), 0);
+	break;
+    case ON_SHUTDOWN:
+	rb_funcall(req->handler, rb_intern("on_shutdown"), 0);
+	break;
+    case ON_EMPTY:
+	rb_funcall(req->handler, rb_intern("on_drained"), 0);
+	break;
+    default:
+	break;
+    }
     // TBD
-    // could be on_close or on_message
-    // lookup in push_cache
-    // if not found then ignore
-    // if found
-    //   if close remove first then call on_close
-    //   else on_message
-
-    // pub_cache
-    //  on server
-    //  pointer to wrap
 
     return Qfalse;
 }
@@ -656,7 +664,6 @@ handle_push(void *x) {
 
 static void
 handle_protected(Req req, bool gvi) {
-    printf("*** hook type %c\n", req->handler_type);
     switch (req->handler_type) {
     case BASE_HOOK:
 	if (gvi) {
@@ -680,7 +687,11 @@ handle_protected(Req req, bool gvi) {
 	}
 	break;
     case PUSH_HOOK:
-	handle_push(req);
+	if (gvi) {
+	    rb_thread_call_with_gvl(handle_push, req);
+	} else {
+	    handle_push(req);
+	}
 	break;
     default: {
 	char	buf[256];
@@ -1083,15 +1094,15 @@ server_init(VALUE mod) {
     on_request_id = rb_intern("on_request");
     to_i_id = rb_intern("to_i");
     
-    connect_sym = ID2SYM(rb_intern("CONNECT"));	rb_gc_register_address(&connect_sym);
-    delete_sym = ID2SYM(rb_intern("DELETE"));	rb_gc_register_address(&delete_sym);
-    get_sym = ID2SYM(rb_intern("GET"));		rb_gc_register_address(&get_sym);
-    head_sym = ID2SYM(rb_intern("HEAD"));	rb_gc_register_address(&head_sym);
-    options_sym = ID2SYM(rb_intern("OPTIONS"));	rb_gc_register_address(&options_sym);
-    post_sym = ID2SYM(rb_intern("POST"));	rb_gc_register_address(&post_sym);
-    put_sym = ID2SYM(rb_intern("PUT"));		rb_gc_register_address(&put_sym);
+    connect_sym = ID2SYM(rb_intern("CONNECT"));		rb_gc_register_address(&connect_sym);
+    delete_sym = ID2SYM(rb_intern("DELETE"));		rb_gc_register_address(&delete_sym);
+    get_sym = ID2SYM(rb_intern("GET"));			rb_gc_register_address(&get_sym);
+    head_sym = ID2SYM(rb_intern("HEAD"));		rb_gc_register_address(&head_sym);
+    options_sym = ID2SYM(rb_intern("OPTIONS"));		rb_gc_register_address(&options_sym);
+    post_sym = ID2SYM(rb_intern("POST"));		rb_gc_register_address(&post_sym);
+    put_sym = ID2SYM(rb_intern("PUT"));			rb_gc_register_address(&put_sym);
 
-    push_env_key = rb_str_new_cstr("push.handler"); rb_gc_register_address(&push_env_key);
+    push_env_key = rb_str_new_cstr("rack.upgrade");	rb_gc_register_address(&push_env_key);
 
     http_init();
 }

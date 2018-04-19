@@ -502,8 +502,8 @@ con_ws_write(Con c) {
     ssize_t	cnt;
 
     if (NULL == message) {
-	printf("*** ws close - slot %p handler %0lx\n", c->slot, c->slot->handler);
-	if (NULL != c->slot && Qnil != c->slot->handler) {
+	printf("*** ws close - slot %p handler %0lx ok to close %d\n", c->slot, c->slot->handler, c->slot->on_close);
+	if (NULL != c->slot && Qnil != c->slot->handler && c->slot->on_close) {
 	    Req	req = request_create(0);
 	    
 	    printf("*** request push\n");
@@ -800,8 +800,6 @@ con_loop(void *x) {
 	    }
 	    continue;
 	CON_RM:
-	    printf("*** remove con\n");
-	    
 	    ca[c->sock] = NULL;
 	    ccnt--;
 	    log_cat(&server->con_cat, "Connection %llu closed.", c->id);
