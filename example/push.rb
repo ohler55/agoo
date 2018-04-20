@@ -62,8 +62,12 @@ class TickTock
     $tt = nil
   end
 
+  def on_drained()
+    puts "*** on_drained"
+  end
+
   def on_message(data)
-    puts "received #{data}"
+    puts "******* received #{data}"
     write("echo: #{data}")
   end
 
@@ -84,9 +88,8 @@ loop do
 
   # TBD remove, just for testing
   unless $tt.nil?
-    puts "*** pending: #{$tt.pending}"
     $tt.write("%02d:%02d:%02d" % [now.hour, now.min, now.sec])
-    $tt.close
+    #$tt.close
   end
   
   sleep(1)

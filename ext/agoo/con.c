@@ -502,11 +502,9 @@ con_ws_write(Con c) {
     ssize_t	cnt;
 
     if (NULL == message) {
-	printf("*** ws close - slot %p handler %0lx ok to close %d\n", c->slot, c->slot->handler, c->slot->on_close);
 	if (NULL != c->slot && Qnil != c->slot->handler && c->slot->on_close) {
 	    Req	req = request_create(0);
 	    
-	    printf("*** request push\n");
 	    req->cid = c->id;
 	    req->method = ON_CLOSE;
 	    req->handler_type = PUSH_HOOK;
@@ -542,6 +540,7 @@ con_ws_write(Con c) {
     if (c->wcnt == message->len) { // finished
 	Res	res = c->res_head;
 	bool	done = res->close;
+	int	pending;
 	
 	c->res_head = res->next;
 	if (res == c->res_tail) {
@@ -549,8 +548,17 @@ con_ws_write(Con c) {
 	}
 	c->wcnt = 0;
 	res_destroy(res);
-	atomic_fetch_sub(&c->slot->pending, 1);
-
+	if (1 == (pending = atomic_fetch_sub(&c->slot->pending, 1))) {
+	    if (NULL != c->slot && Qnil != c->slot->handler && c->slot->on_empty) {
+		Req	req = request_create(0);
+	    
+		req->cid = c->id;
+		req->method = ON_EMPTY;
+		req->handler_type = PUSH_HOOK;
+		req->handler = c->slot->handler;
+		queue_push(&c->server->eval_queue, (void*)req);
+	    }
+	}
 	return done;
     }
     return false;

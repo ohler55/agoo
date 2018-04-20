@@ -19,6 +19,7 @@
 
 #include <ruby.h>
 #include <ruby/thread.h>
+#include <ruby/encoding.h>
 
 #include "con.h"
 #include "debug.h"
@@ -45,6 +46,9 @@ static VALUE	put_sym;
 
 static ID	call_id;
 static ID	each_id;
+static ID	on_close_id;
+static ID	on_drained_id;
+static ID	on_message_id;
 static ID	on_request_id;
 static ID	to_i_id;
 
@@ -632,21 +636,27 @@ static VALUE
 handle_push_inner(void *x) {
     Req	req = (Req)x;
 
-    printf("****** handle_push %c - %c  %lx\n", req->handler_type, req->method, req->handler);
+    printf("*** handle_push %c - %c  %lx\n", req->handler_type, req->method, req->handler);
 
     switch (req->method) {
     case ON_MSG:
-	// TBD handle binary as well
-	rb_funcall(req->handler, rb_intern("on_message"), 1, rb_str_new(req->msg, req->mlen));
+	rb_funcall(req->handler, on_message_id, 1, rb_str_new(req->msg, req->mlen));
 	break;
+    case ON_BIN: {
+	volatile VALUE	rstr = rb_str_new(req->msg, req->mlen);
+
+	rb_enc_associate(rstr, rb_ascii8bit_encoding());
+	rb_funcall(req->handler, on_message_id, 1, rstr);
+	break;
+    }
     case ON_CLOSE:
-	rb_funcall(req->handler, rb_intern("on_close"), 0);
+	rb_funcall(req->handler, on_close_id, 0);
 	break;
     case ON_SHUTDOWN:
 	rb_funcall(req->handler, rb_intern("on_shutdown"), 0);
 	break;
     case ON_EMPTY:
-	rb_funcall(req->handler, rb_intern("on_drained"), 0);
+	rb_funcall(req->handler, on_drained_id, 0);
 	break;
     default:
 	break;
@@ -1091,6 +1101,9 @@ server_init(VALUE mod) {
 
     call_id = rb_intern("call");
     each_id = rb_intern("each");
+    on_close_id = rb_intern("on_close");
+    on_drained_id = rb_intern("on_drained");
+    on_message_id = rb_intern("on_message");
     on_request_id = rb_intern("on_request");
     to_i_id = rb_intern("to_i");
     
