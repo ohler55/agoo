@@ -67,7 +67,7 @@ class TickTock
   end
 
   def on_message(data)
-    puts "******* received #{data}"
+    puts "*** received #{data}"
     write("echo: #{data}")
   end
 
@@ -92,5 +92,5 @@ loop do
     #$tt.close
   end
   
-  sleep(1)
+  sleep(10)
 end

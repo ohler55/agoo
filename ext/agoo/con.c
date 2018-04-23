@@ -33,12 +33,16 @@ con_create(Err err, Server server, int sock, uint64_t id) {
 	c->id = id;
 	c->server = server;
 	c->kind = CON_HTTP;
+	c->timeout = dtime() + CON_TIMEOUT;
     }
     return c;
 }
 
 void
 con_destroy(Con c) {
+    if (CON_WS == c->kind || CON_SSE == c->kind) {
+	ws_req_close(c);
+    }
     if (0 < c->sock) {
 	close(c->sock);
 	c->sock = 0;
@@ -277,7 +281,7 @@ HOOKED:
     if (NULL == (c->req = request_create(mlen))) {
 	return bad_request(c, 413, __LINE__);
     }
-    DEBUG_ALLOC(mem_req)
+    DEBUG_ALLOC(mem_req);
     if ((long)c->bcnt <= mlen) {
 	memcpy(c->req->msg, c->buf, c->bcnt);
 	if ((long)c->bcnt < mlen) {
@@ -386,6 +390,7 @@ con_http_read(Con c) {
 	if (NULL != c->req) {
 	    if (c->req->mlen <= c->bcnt) {
 		Res	res;
+		long	mlen;
 
 		if (c->server->debug_cat.on && NULL != c->req && NULL != c->req->body.start) {
 		    log_cat(&c->server->debug_cat, "request on %llu: %s", c->id, c->req->body.start);
@@ -404,11 +409,12 @@ con_http_read(Con c) {
 		    res->close = should_close(c->req->header.start, c->req->header.len);
 		}
 		c->req->res = res;
+		mlen = c->req->mlen;
 		check_upgrade(c);
 		queue_push(&c->server->eval_queue, (void*)c->req);
 		if (c->req->mlen < c->bcnt) {
-		    memmove(c->buf, c->buf + c->req->mlen, c->bcnt - c->req->mlen);
-		    c->bcnt -= c->req->mlen;
+		    memmove(c->buf, c->buf + mlen, c->bcnt - mlen);
+		    c->bcnt -= mlen;
 		} else {
 		    c->bcnt = 0;
 		    *c->buf = '\0';
@@ -426,7 +432,93 @@ con_http_read(Con c) {
 
 static bool
 con_ws_read(Con c) {
-    // TBD
+    ssize_t	cnt;
+    uint8_t	*b;
+    uint8_t	op;
+    long	mlen;	
+
+    if (NULL != c->req) {
+	cnt = recv(c->sock, c->req->msg + c->bcnt, c->req->mlen - c->bcnt, 0);
+    } else {
+	cnt = recv(c->sock, c->buf + c->bcnt, sizeof(c->buf) - c->bcnt - 1, 0);
+    }
+    c->timeout = dtime() + CON_TIMEOUT;
+    if (0 >= cnt) {
+	// If nothing read then no need to complain. Just close.
+	if (0 < c->bcnt) {
+	    if (0 == cnt) {
+		log_cat(&c->server->warn_cat, "Nothing to read. Client closed socket on connection %llu.", c->id);
+	    } else {
+		log_cat(&c->server->warn_cat, "Failed to read WebSocket message. %s.", strerror(errno));
+	    }
+	}
+	return true;
+    }
+    c->bcnt += cnt;
+    while (true) {
+	if (NULL == c->req) {
+	    if (c->bcnt < 2) {
+		return false; // Try again.
+	    }
+	    b = (uint8_t*)c->buf;
+	    if (0 >= (mlen = ws_calc_len(c, b, c->bcnt))) {
+		return (mlen < 0);
+	    }
+	    op = 0x0F & *b;
+	
+	    printf("*** read %ld op: %02x bcnt: %ld mlen: %ld\n", cnt, op, c->bcnt, mlen);
+	    switch (op) {
+	    case WS_OP_TEXT:
+	    case WS_OP_BIN:
+		if (ws_create_req(c, mlen)) {
+		    return true;
+		}
+		break;
+	    case WS_OP_CLOSE:
+		// TBD put close message on res_tail
+		return true;
+		break;
+	    case WS_OP_PING:
+		printf("*** ping received\n");
+		// TBD place pong res on con res_tail
+		return true;
+		break;
+	    case WS_OP_PONG:
+		// ignore
+		break;
+	    case WS_OP_CONT:
+	    default:
+		log_cat(&c->server->error_cat, "WebSocket op 0x%02x not supported on %llu.", op, c->id);
+		return true;
+	    }
+	}
+	if (NULL != c->req) {
+	    mlen = c->req->mlen;
+	    c->req->mlen = ws_decode(c->req->msg, c->req->mlen);
+	    if (mlen <= (long)c->bcnt) {
+		if (c->server->debug_cat.on) {
+		    if (ON_MSG == c->req->method) {
+			log_cat(&c->server->debug_cat, "WebSocket message on %llu: %s", c->id, c->req->msg);
+		    } else {
+			log_cat(&c->server->debug_cat, "WebSocket binary message on %llu", c->id);
+		    }
+		}
+	    }
+	    queue_push(&c->server->eval_queue, (void*)c->req);
+	    if (mlen < (long)c->bcnt) {
+		memmove(c->buf, c->buf + mlen, c->bcnt - mlen);
+		c->bcnt -= mlen;
+	    } else {
+		c->bcnt = 0;
+		*c->buf = '\0';
+		c->req = NULL;
+		break;
+	    }
+	    c->req = NULL;
+	    continue;
+	}
+	break;
+    }
     return false;
 }
 
@@ -495,6 +587,8 @@ con_http_write(Con c) {
     return false;
 }
 
+static const char	ping_msg[] = "\x89\x00";
+
 static bool
 con_ws_write(Con c) {
     Res		res = c->res_head;
@@ -502,25 +596,38 @@ con_ws_write(Con c) {
     ssize_t	cnt;
 
     if (NULL == message) {
-	if (NULL != c->slot && Qnil != c->slot->handler && c->slot->on_close) {
-	    Req	req = request_create(0);
-	    
-	    req->cid = c->id;
-	    req->method = ON_CLOSE;
-	    req->handler_type = PUSH_HOOK;
-	    req->handler = c->slot->handler;
-	    queue_push(&c->server->eval_queue, (void*)req);
+	if (res->ping) {
+	    if (0 > (cnt = send(c->sock, ping_msg, sizeof(ping_msg) - 1, 0))) {
+		if (EAGAIN == errno) {
+		    return false;
+		}
+		log_cat(&c->server->error_cat, "Socket error @ %llu.", c->id);
+		ws_req_close(c);
+		res_destroy(res);
+	
+		return true;
+	    }
+	} else {
+	    ws_req_close(c);
+	    res_destroy(res);
+	    return true;
 	}
-	res_destroy(res);
-
-	return true;
+	c->res_head = res->next;
+	if (res == c->res_tail) {
+	    c->res_tail = NULL;
+	}
+	return false;
     }
     c->timeout = dtime() + CON_TIMEOUT;
     if (0 == c->wcnt) {
 	Text	t;
 	
 	if (c->server->push_cat.on) {
-	    log_cat(&c->server->push_cat, "%llu: %s", c->id, message->text);
+	    if (message->bin) {
+		log_cat(&c->server->push_cat, "%llu binary", c->id);
+	    } else {
+		log_cat(&c->server->push_cat, "%llu: %s", c->id, message->text);
+	    }
 	}
 	t = ws_expand(message);
 	if (t != message) {
@@ -533,7 +640,8 @@ con_ws_write(Con c) {
 	    return false;
 	}
 	log_cat(&c->server->error_cat, "Socket error @ %llu.", c->id);
-
+	ws_req_close(c);
+	
 	return true;
     }
     c->wcnt += cnt;
@@ -574,7 +682,7 @@ static bool
 con_write(Con c) {
     bool	remove = true;
     ConKind	kind = c->res_head->con_kind;
-    
+
     switch (c->kind) {
     case CON_HTTP:
 	remove = con_http_write(c);
@@ -640,7 +748,7 @@ process_pub_con(Server server, Pub pub) {
 	    pub_destroy(pub);	
 	    return;
 	} else {
-	    Res	res = res_create();;
+	    Res	res = res_create();
 
 	    if (NULL != res) {
 		if (NULL == slot->con->res_tail) {
@@ -667,7 +775,7 @@ poll_setup(Server server, Con *ca, int ccnt, struct pollfd *pp) {
     Con		*end = ca + MAX_SOCK;
     Con		c;
     int		i;
-    
+
     // The first two pollfd are for the con_queue and the pub_queue in that
     // order.
     pp->fd = queue_listen(&server->con_queue);
@@ -689,7 +797,7 @@ poll_setup(Server server, Con *ca, int ccnt, struct pollfd *pp) {
 	switch (c->kind) {
 	case CON_HTTP:
 	case CON_WS:
-	    if (NULL != c->res_head && (c->res_head->close || NULL != res_message(c->res_head))) {
+	    if (NULL != c->res_head && (c->res_head->close || c->res_head->ping || NULL != res_message(c->res_head))) {
 		pp->events = POLLIN | POLLOUT;
 	    } else {
 		pp->events = POLLIN;
@@ -749,24 +857,22 @@ con_loop(void *x) {
 	}
 	now = dtime();
 
-	if (0 == i) { // nothing to read or write
-	    // TBD check for cons to close
-	    continue;
-	}
-	// Check con_queue if an event is waiting.
-	if (0 != (pa->revents & POLLIN)) {
-	    queue_release(&server->con_queue);
-	    while (NULL != (c = (Con)queue_pop(&server->con_queue, 0.0))) {
-		mcnt++;
-		ca[c->sock] = c;
-		ccnt++;
+	if (0 < i) {
+	    // Check con_queue if an event is waiting.
+	    if (0 != (pa->revents & POLLIN)) {
+		queue_release(&server->con_queue);
+		while (NULL != (c = (Con)queue_pop(&server->con_queue, 0.0))) {
+		    mcnt++;
+		    ca[c->sock] = c;
+		    ccnt++;
+		}
 	    }
-	}
-	// Check pub_queue if an event is waiting.
-	if (0 != (pa[1].revents & POLLIN)) {
-	    queue_release(&server->pub_queue);
-	    while (NULL != (pub = (Pub)queue_pop(&server->pub_queue, 0.0))) {
-		process_pub_con(server, pub);
+	    // Check pub_queue if an event is waiting.
+	    if (0 != (pa[1].revents & POLLIN)) {
+		queue_release(&server->pub_queue);
+		while (NULL != (pub = (Pub)queue_pop(&server->pub_queue, 0.0))) {
+		    process_pub_con(server, pub);
+		}
 	    }
 	}
 	for (i = ccnt, cp = ca; 0 < i && cp < end; cp++) {
@@ -800,6 +906,10 @@ con_loop(void *x) {
 		continue;
 	    } else if (c->closing) {
 		goto CON_RM;
+	    } else if (CON_WS == c->kind || CON_SSE == c->kind) {
+		c->timeout = dtime() + CON_TIMEOUT;
+		ws_ping(c);
+		continue;
 	    } else {
 		c->closing = true;
 		c->timeout = now + 0.5;

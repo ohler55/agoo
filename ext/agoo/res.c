@@ -15,7 +15,7 @@ res_create() {
 	atomic_init(&res->message, NULL);
 	res->con_kind = CON_HTTP;
 	res->close = false;
-
+	res->ping = false;
     }
     return res;
 }

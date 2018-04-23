@@ -16,6 +16,7 @@ typedef struct _Res {
     _Atomic(Text)	message;
     ConKind		con_kind;
     bool		close;
+    bool		ping;
 } *Res;
 
 extern Res	res_create();
