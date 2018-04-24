@@ -15,7 +15,7 @@ typedef struct _RackLogger {
 
 static void
 rack_logger_free(void *ptr) {
-    DEBUG_FREE(mem_rack_logger)
+    DEBUG_FREE(mem_rack_logger, ptr)
     xfree(ptr);
 }
 
@@ -23,7 +23,7 @@ VALUE
 rack_logger_new(Server server) {
     RackLogger	rl = ALLOC(struct _RackLogger);
 
-    DEBUG_ALLOC(mem_rack_logger)
+    DEBUG_ALLOC(mem_rack_logger, rl)
     rl->server = server;
     
     //return Data_Wrap_Struct(rl_class, NULL, xfree, rl);

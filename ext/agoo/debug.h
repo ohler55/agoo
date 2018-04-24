@@ -6,11 +6,11 @@
 #include <stdatomic.h>
 
 #ifdef MEM_DEBUG
-#define DEBUG_ALLOC(var) { atomic_fetch_add(&var, 1); }
-#define DEBUG_FREE(var) { atomic_fetch_sub(&var, 1); }
+#define DEBUG_ALLOC(var, ptr) { atomic_fetch_add(&var, 1); debug_add(ptr, #var, __FILE__, __LINE__); }
+#define DEBUG_FREE(var, ptr) { atomic_fetch_sub(&var, 1); debug_del(ptr, __FILE__, __LINE__); }
 #else
-#define DEBUG_ALLOC(var) { }
-#define DEBUG_FREE(var) { }
+#define DEBUG_ALLOC(var, ptr) { }
+#define DEBUG_FREE(var, ptr) { }
 #endif
 
 extern atomic_int	mem_cb;
@@ -41,6 +41,8 @@ extern atomic_int	mem_server;
 extern atomic_int	mem_text;
 extern atomic_int	mem_to_s;
 
+extern void	debug_add(void *ptr, const char *type, const char *file, int line);
+extern void	debug_del(void *ptr, const char *file, int line);
 extern void	debug_print_stats();
 
 #endif /* __AGOO_DEBUG_H__ */

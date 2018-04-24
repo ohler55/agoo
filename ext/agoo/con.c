@@ -27,7 +27,7 @@ con_create(Err err, Server server, int sock, uint64_t id) {
     if (NULL == (c = (Con)malloc(sizeof(struct _Con)))) {
 	err_set(err, ERR_MEMORY, "Failed to allocate memory for a connection.");
     } else {
-	DEBUG_ALLOC(mem_con)
+	DEBUG_ALLOC(mem_con, c)
 	memset(c, 0, sizeof(struct _Con));
 	c->sock = sock;
 	c->id = id;
@@ -48,14 +48,13 @@ con_destroy(Con c) {
 	c->sock = 0;
     }
     if (NULL != c->req) {
-	free(c->req);
-	DEBUG_FREE(mem_req)
+	request_destroy(c->req);
     }
     if (NULL != c->slot) {
 	cc_remove_con(&c->server->con_cache, c->id);
 	c->slot = NULL;
     }
-    DEBUG_FREE(mem_con)
+    DEBUG_FREE(mem_con, c)
     free(c);
 }
 
@@ -102,7 +101,6 @@ bad_request(Con c, int status, int line) {
 	int	cnt = snprintf(buf, sizeof(buf), "HTTP/1.1 %d %s\r\nConnection: Close\r\nContent-Length: 0\r\n\r\n", status, msg);
 	Text	message = text_create(buf, cnt);
 	
-	DEBUG_ALLOC(mem_res)
 	if (NULL == c->res_tail) {
 	    c->res_head = res;
 	} else {
@@ -281,7 +279,6 @@ HOOKED:
     if (NULL == (c->req = request_create(mlen))) {
 	return bad_request(c, 413, __LINE__);
     }
-    DEBUG_ALLOC(mem_req);
     if ((long)c->bcnt <= mlen) {
 	memcpy(c->req->msg, c->buf, c->bcnt);
 	if ((long)c->bcnt < mlen) {
@@ -465,8 +462,6 @@ con_ws_read(Con c) {
 		return (mlen < 0);
 	    }
 	    op = 0x0F & *b;
-	
-	    printf("*** read %ld op: %02x bcnt: %ld mlen: %ld\n", cnt, op, c->bcnt, mlen);
 	    switch (op) {
 	    case WS_OP_TEXT:
 	    case WS_OP_BIN:
@@ -475,13 +470,9 @@ con_ws_read(Con c) {
 		}
 		break;
 	    case WS_OP_CLOSE:
-		// TBD put close message on res_tail
 		return true;
-		break;
 	    case WS_OP_PING:
-		printf("*** ping received\n");
-		// TBD place pong res on con res_tail
-		return true;
+		ws_pong(c);
 		break;
 	    case WS_OP_PONG:
 		// ignore
@@ -588,6 +579,7 @@ con_http_write(Con c) {
 }
 
 static const char	ping_msg[] = "\x89\x00";
+static const char	pong_msg[] = "\x8a\x00";
 
 static bool
 con_ws_write(Con c) {
@@ -598,6 +590,17 @@ con_ws_write(Con c) {
     if (NULL == message) {
 	if (res->ping) {
 	    if (0 > (cnt = send(c->sock, ping_msg, sizeof(ping_msg) - 1, 0))) {
+		if (EAGAIN == errno) {
+		    return false;
+		}
+		log_cat(&c->server->error_cat, "Socket error @ %llu.", c->id);
+		ws_req_close(c);
+		res_destroy(res);
+	
+		return true;
+	    }
+	} else if (res->pong) {
+	    if (0 > (cnt = send(c->sock, pong_msg, sizeof(pong_msg) - 1, 0))) {
 		if (EAGAIN == errno) {
 		    return false;
 		}
@@ -709,12 +712,7 @@ static void
 process_pub_con(Server server, Pub pub) {
     CSlot	slot;
 
-    printf("*** process pub con - %c\n", pub->kind);
-
     switch (pub->kind) {
-    case PUB_SUB:
-	// TBD
-	break;
     case PUB_CLOSE:
 	if (NULL == (slot = cc_get_slot(&server->con_cache, pub->cid)) || NULL == slot->con) {
 	    log_cat(&server->warn_cat, "Socket %llu already closed.", pub->cid);
@@ -732,15 +730,8 @@ process_pub_con(Server server, Pub pub) {
 		slot->con->res_tail = res;
 		res->con_kind = slot->con->kind;
 		res->close = true;
-		printf("*** process pub con handler is %lx\n", cc_get_handler(&server->con_cache, slot->con->id));
 	    }
 	}
-	break;
-    case PUB_UN:
-	// TBD
-	break;
-    case PUB_MSG:
-	// TBD
 	break;
     case PUB_WRITE: {
 	if (NULL == (slot = cc_get_slot(&server->con_cache, pub->cid)) || NULL == slot->con) {
@@ -759,8 +750,18 @@ process_pub_con(Server server, Pub pub) {
 		slot->con->res_tail = res;
 		res->con_kind = slot->con->kind;
 		res_set_message(res, pub->msg);
+		// TBD release ref on msg? or is it released on write
 	    }
 	}
+	break;
+    case PUB_SUB:
+	// TBD handle a subscribe when implementing pub/sub 
+	break;
+    case PUB_UN:
+	// TBD handle a subscribe when implementing pub/sub 
+	break;
+    case PUB_MSG:
+	// TBD handle a subscribe when implementing pub/sub 
 	break;
     }
     default:

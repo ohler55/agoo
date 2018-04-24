@@ -11,7 +11,7 @@ hook_create(Method method, const char *pattern, VALUE handler) {
     Hook	hook = (Hook)malloc(sizeof(struct _Hook));
 
     if (NULL != hook) {
-	DEBUG_ALLOC(mem_hook)
+	DEBUG_ALLOC(mem_hook, hook)
 	if (NULL == pattern) {
 	    pattern = "";
 	}
@@ -19,7 +19,7 @@ hook_create(Method method, const char *pattern, VALUE handler) {
 	hook->handler = handler;
 	rb_gc_register_address(&handler);
 	hook->pattern = strdup(pattern);
-	DEBUG_ALLOC(mem_hook_pattern)
+	DEBUG_ALLOC(mem_hook_pattern, hook->pattern)
 	hook->method = method;
 	if (rb_respond_to(handler, rb_intern("on_request"))) {
 	    hook->type = BASE_HOOK;
@@ -39,8 +39,8 @@ hook_create(Method method, const char *pattern, VALUE handler) {
 
 void
 hook_destroy(Hook hook) {
-    DEBUG_FREE(mem_hook_pattern)
-    DEBUG_FREE(mem_hook)
+    DEBUG_FREE(mem_hook_pattern, hook->pattern)
+	DEBUG_FREE(mem_hook, hook)
     free(hook->pattern);
     free(hook);
 }

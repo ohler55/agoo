@@ -12,7 +12,7 @@ text_create(const char *str, int len) {
     Text	t = (Text)malloc(sizeof(struct _Text) - TEXT_MIN_SIZE + len + 1);
 
     if (NULL != t) {
-	DEBUG_ALLOC(mem_text)
+	DEBUG_ALLOC(mem_text, t)
 	t->len = len;
 	t->alen = len;
 	t->bin = false;
@@ -28,7 +28,7 @@ text_allocate(int len) {
     Text	t = (Text)malloc(sizeof(struct _Text) - TEXT_MIN_SIZE + len + 1);
 
     if (NULL != t) {
-	DEBUG_ALLOC(mem_text)
+	DEBUG_ALLOC(mem_text, t)
 	t->len = 0;
 	t->alen = len;
 	t->bin = false;
@@ -46,7 +46,7 @@ text_ref(Text t) {
 void
 text_release(Text t) {
     if (1 >= atomic_fetch_sub(&t->ref_cnt, 1)) {
-	DEBUG_FREE(mem_text)
+	DEBUG_FREE(mem_text, t)
 	free(t);
     }
 }
@@ -63,7 +63,6 @@ text_append(Text t, const char *s, int len) {
 	if (NULL == (t = (Text)realloc(t, size))) {
 	    return NULL;
 	}
-	DEBUG_ALLOC(mem_text)
 	t->alen = new_len;
     }
     memcpy(t->text + t->len, s, len);
@@ -85,7 +84,6 @@ text_prepend(Text t, const char *s, int len) {
 	if (NULL == (t = (Text)realloc(t, size))) {
 	    return NULL;
 	}
-	DEBUG_ALLOC(mem_text)
 	t->alen = new_len;
     }
     memmove(t->text + len, t->text, t->len + 1);

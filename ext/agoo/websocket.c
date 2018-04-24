@@ -18,7 +18,6 @@ static const char	ws_protocol[] = "Sec-WebSocket-Protocol: ";
 static const char	ws_accept[] = "Sec-WebSocket-Accept: ";
 
 //static const uint8_t	close_msg[] = "\x88\x02\x03\xE8";
-//static const uint8_t	pong_msg[] = "\x8A\x00";
 
 Text
 ws_add_headers(Req req, Text t) {
@@ -171,7 +170,6 @@ ws_create_req(Con c, long mlen) {
     if (NULL == c->slot || Qnil == c->slot->handler) {
 	return true;
     }
-    DEBUG_ALLOC(mem_req);
     memset(c->req, 0, sizeof(struct _Req));
     if ((long)c->bcnt <= mlen) {
 	memcpy(c->req->msg, c->buf, c->bcnt);
@@ -217,7 +215,7 @@ ws_ping(Con c) {
     if (NULL == (res = res_create())) {
 	log_cat(&c->server->error_cat, "Memory allocation of response failed on connection %llu.", c->id);
     } else {
-	DEBUG_ALLOC(mem_res)
+	DEBUG_ALLOC(mem_res, res)
 	if (NULL == c->res_tail) {
 	    c->res_head = res;
 	} else {
@@ -227,5 +225,25 @@ ws_ping(Con c) {
 	res->close = false;
 	res->con_kind = CON_WS;
 	res->ping = true;
+    }
+}
+
+void
+ws_pong(Con c) {
+    Res	res;
+    
+    if (NULL == (res = res_create())) {
+	log_cat(&c->server->error_cat, "Memory allocation of response failed on connection %llu.", c->id);
+    } else {
+	DEBUG_ALLOC(mem_res, res)
+	if (NULL == c->res_tail) {
+	    c->res_head = res;
+	} else {
+	    c->res_tail->next = res;
+	}
+	c->res_tail = res;
+	res->close = false;
+	res->con_kind = CON_WS;
+	res->pong = true;
     }
 }

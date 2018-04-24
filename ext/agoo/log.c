@@ -232,7 +232,7 @@ loop(void *ctx) {
 	    }
 	    if (NULL != e->whatp) {
 		free(e->whatp);
-		DEBUG_FREE(mem_log_what)
+		DEBUG_FREE(mem_log_what, e->whatp)
 	    }
 	    e->ready = false;
 	}
@@ -366,7 +366,7 @@ log_init(Err err, Log log, VALUE cfg) {
 	}
     }
     log->q = (LogEntry)malloc(sizeof(struct _LogEntry) * qsize);
-    DEBUG_ALLOC(mem_log_entry)
+    DEBUG_ALLOC(mem_log_entry, log->q)
 
     log->end = log->q + qsize;
 
@@ -397,7 +397,7 @@ log_close(Log log) {
 	fclose(log->file);
 	log->file = NULL;
     }
-    DEBUG_FREE(mem_log_entry)
+    DEBUG_FREE(mem_log_entry, log->q)
     free(log->q);
     log->q = NULL;
     log->end = NULL;
@@ -473,7 +473,7 @@ log_catv(LogCat cat, const char *fmt, va_list ap) {
 	if ((int)sizeof(e->what) <= (cnt = vsnprintf(e->what, sizeof(e->what), fmt, ap))) {
 	    e->whatp = (char*)malloc(cnt + 1);
 
-	    DEBUG_ALLOC(mem_log_what)
+	    DEBUG_ALLOC(mem_log_what, e->whatp)
     
 	    if (NULL != e->whatp) {
 		vsnprintf(e->whatp, cnt + 1, fmt, ap2);

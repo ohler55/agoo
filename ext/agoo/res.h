@@ -17,6 +17,7 @@ typedef struct _Res {
     ConKind		con_kind;
     bool		close;
     bool		ping;
+    bool		pong;
 } *Res;
 
 extern Res	res_create();

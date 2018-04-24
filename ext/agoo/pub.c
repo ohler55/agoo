@@ -1,5 +1,6 @@
 // Copyright (c) 2018, Peter Ohler, All rights reserved.
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -12,7 +13,7 @@ pub_close(uint64_t cid) {
     Pub	p = (Pub)malloc(sizeof(struct _Pub));
 
     if (NULL != p) {
-	DEBUG_ALLOC(mem_pub);
+	DEBUG_ALLOC(mem_pub, p);
 	p->next = NULL;
 	p->kind = PUB_CLOSE;
 	p->cid = cid;
@@ -27,7 +28,7 @@ pub_subscribe(uint64_t cid, uint64_t sid, const char *subject) {
     Pub	p = (Pub)malloc(sizeof(struct _Pub));
 
     if (NULL != p) {
-	DEBUG_ALLOC(mem_pub);
+	DEBUG_ALLOC(mem_pub, p);
 	p->next = NULL;
 	p->kind = PUB_SUB;
 	p->cid = cid;
@@ -42,7 +43,7 @@ pub_unsubscribe(uint64_t cid, uint64_t sid) {
     Pub	p = (Pub)malloc(sizeof(struct _Pub));
 
     if (NULL != p) {
-	DEBUG_ALLOC(mem_pub);
+	DEBUG_ALLOC(mem_pub, p);
 	p->next = NULL;
 	p->kind = PUB_UN;
 	p->cid = cid;
@@ -57,7 +58,7 @@ pub_publish(char *subject, const char *message, size_t mlen, bool bin) {
     Pub	p = (Pub)malloc(sizeof(struct _Pub));
 
     if (NULL != p) {
-	DEBUG_ALLOC(mem_pub);
+	DEBUG_ALLOC(mem_pub, p);
 	p->next = NULL;
 	p->kind = PUB_MSG;
 	p->cid = 0;
@@ -78,7 +79,7 @@ pub_write(uint64_t cid, const char *message, size_t mlen, bool bin) {
     Pub	p = (Pub)malloc(sizeof(struct _Pub));
 
     if (NULL != p) {
-	DEBUG_ALLOC(mem_pub);
+	DEBUG_ALLOC(mem_pub, p);
 	p->next = NULL;
 	p->kind = PUB_WRITE;
 	p->cid = cid;
@@ -105,7 +106,7 @@ pub_destroy(Pub pub) {
     default:
 	break;
     }
-    DEBUG_FREE(mem_pub);
+    DEBUG_FREE(mem_pub, pub);
     free(pub);
 }
 

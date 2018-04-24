@@ -35,7 +35,7 @@ class Listen
   def call(env)
     unless env['rack.upgrade?'].nil?
       env['rack.upgrade'] = TickTock.new(env)
-      [ 101, { }, [ ] ]
+      [ 200, { }, [ ] ]
     else
       [ 404, { }, [ ] ]
     end
@@ -92,5 +92,5 @@ loop do
     #$tt.close
   end
   
-  sleep(10)
+  sleep(1)
 end

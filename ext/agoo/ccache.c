@@ -50,7 +50,7 @@ cc_cleanup(CCache cc) {
     for (i = CC_BUCKET_SIZE; 0 < i; i--, sp++) {
 	for (s = *sp; NULL != s; s = n) {
 	    n = s->next;
-	    DEBUG_FREE(mem_cslot)
+	    DEBUG_FREE(mem_cslot, s);
 	    free(s);
 	}
 	*sp = NULL;
@@ -71,7 +71,7 @@ cc_set_con(CCache cc, Con con) {
     }
     if (NULL == slot) {
 	if (NULL != (slot = (CSlot)malloc(sizeof(struct _CSlot)))) {
-	    DEBUG_ALLOC(mem_cslot);
+	    DEBUG_ALLOC(mem_cslot, slot);
 	    slot->cid = con->id;
 	    slot->con = con;
 	    slot->handler = Qnil;
@@ -105,7 +105,7 @@ cc_set_handler(CCache cc, uint64_t cid, VALUE handler, bool on_empty, bool on_cl
     if (NULL == slot) {
 	// TBD is is faster to lock twice or allocate while locked?
 	if (NULL != (slot = (CSlot)malloc(sizeof(struct _CSlot)))) {
-	    DEBUG_ALLOC(mem_cslot);
+	    DEBUG_ALLOC(mem_cslot, slot);
 	    slot->cid = cid;
 	    slot->con = NULL;
 	    slot->handler = handler;
@@ -146,7 +146,7 @@ cc_remove(CCache cc, uint64_t cid) {
     }
     pthread_mutex_unlock(&cc->lock);
     if (NULL != slot) {
-	DEBUG_FREE(mem_cslot)
+	DEBUG_FREE(mem_cslot, slot)
 	free(slot);
     }
 }
@@ -176,7 +176,7 @@ cc_remove_con(CCache cc, uint64_t cid) {
     }
     pthread_mutex_unlock(&cc->lock);
     if (NULL != slot) {
-	DEBUG_FREE(mem_cslot)
+	DEBUG_FREE(mem_cslot, slot)
 	free(slot);
     }
 }
@@ -209,7 +209,7 @@ cc_ref_dec(CCache cc, uint64_t cid) {
     }
     pthread_mutex_unlock(&cc->lock);
     if (NULL != slot) {
-	DEBUG_FREE(mem_cslot)
+	DEBUG_FREE(mem_cslot, slot)
 	free(slot);
     }
     return handler;

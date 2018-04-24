@@ -22,5 +22,6 @@ extern bool		ws_create_req(Con c, long mlen);
 extern void		ws_req_close(Con c);
 
 extern void		ws_ping(Con c);
+extern void		ws_pong(Con c);
 
 #endif // __AGOO_WEBSOCKET_H__

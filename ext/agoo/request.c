@@ -60,6 +60,7 @@ request_create(size_t mlen) {
     Req		req = (Req)malloc(size);
     
     if (NULL != req) {
+	DEBUG_ALLOC(mem_req, req);
 	memset(req, 0, size);
 	req->mlen = mlen;
     }
@@ -586,7 +587,7 @@ to_s(VALUE self) {
 
 void
 request_destroy(Req req) {
-    DEBUG_FREE(mem_req)
+    DEBUG_FREE(mem_req, req)
     free(req);
 }
 

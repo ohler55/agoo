@@ -88,7 +88,7 @@ shutdown_server(Server server) {
 		}
 		dsleep(0.02);
 	    }
-	    DEBUG_FREE(mem_eval_threads)
+	    DEBUG_FREE(mem_eval_threads, server->eval_threads)
 	    xfree(server->eval_threads);
 	    server->eval_threads = NULL;
 	}
@@ -121,7 +121,7 @@ server_free(void *ptr) {
     // to be pointing at it even though they have exited so live with a memory
     // leak that only shows up when the program exits.
     //xfree(ptr);
-    DEBUG_FREE(mem_server)
+    DEBUG_FREE(mem_server, the_server)
     the_server = NULL;
 }
 
@@ -259,11 +259,11 @@ server_new(int argc, VALUE *argv, VALUE self) {
 	options = argv[2];
     }
     s = ALLOC(struct _Server);
-    DEBUG_ALLOC(mem_server)
+    DEBUG_ALLOC(mem_server, s)
     memset(s, 0, sizeof(struct _Server));
     if (ERR_OK != configure(&err, s, port, root, options)) {
+	DEBUG_FREE(mem_server, s)
 	xfree(s);
-	DEBUG_FREE(mem_server)
 	// TBD raise Agoo specific exception
 	rb_raise(rb_eArgError, "%s", err.msg);
     }
@@ -527,6 +527,7 @@ handle_rack_inner(void *x) {
     }
     switch (code) {
     case 100:
+    case 101:
     case 102:
     case 204:
     case 205:
@@ -534,10 +535,12 @@ handle_rack_inner(void *x) {
 	// Content-Type and Content-Length can not be present
 	t->len = snprintf(t->text, 1024, "HTTP/1.1 %d %s\r\n", code, status_msg);
 	break;
-    case 101:
-
-	//printf("*** protocol change  %c -> %c\n", req->upgrade, req->res->con_kind);
-	
+    default:
+	// Note that using simply sprintf causes an abort with travis OSX tests.
+	t->len = snprintf(t->text, 1024, "HTTP/1.1 %d %s\r\nContent-Length: %d\r\n", code, status_msg, bsize);
+	break;
+    }
+    if (code < 300) {
 	switch (req->upgrade) {
 	case UP_WS:
 	    if (CON_WS != req->res->con_kind ||
@@ -561,11 +564,6 @@ handle_rack_inner(void *x) {
 	    t->len = sizeof(err500) - 1;
 	    break;
 	}
-	break;
-    default:
-	// Note that using simply sprintf causes an abort with travis OSX tests.
-	t->len = snprintf(t->text, 1024, "HTTP/1.1 %d %s\r\nContent-Length: %d\r\n", code, status_msg, bsize);
-	break;
     }
     if (HEAD == req->method) {
 	bsize = 0;
@@ -636,8 +634,6 @@ static VALUE
 handle_push_inner(void *x) {
     Req	req = (Req)x;
 
-    printf("*** handle_push %c - %c  %lx\n", req->handler_type, req->method, req->handler);
-
     switch (req->method) {
     case ON_MSG:
 	rb_funcall(req->handler, on_message_id, 1, rb_str_new(req->msg, req->mlen));
@@ -661,8 +657,6 @@ handle_push_inner(void *x) {
     default:
 	break;
     }
-    // TBD
-
     return Qfalse;
 }
 
@@ -725,8 +719,7 @@ process_loop(void *ptr) {
     while (server->active) {
 	if (NULL != (req = (Req)queue_pop(&server->eval_queue, 0.1))) {
 	    handle_protected(req, true);
-	    free(req);
-	    DEBUG_FREE(mem_req)
+	    request_destroy(req);
 	}
     }
     atomic_fetch_sub(&server->running, 1);
@@ -782,13 +775,12 @@ start(VALUE self) {
 	while (server->active) {
 	    if (NULL != (req = (Req)queue_pop(&server->eval_queue, 0.1))) {
 		handle_protected(req, false);
-		free(req);
-		DEBUG_FREE(mem_req)
+		request_destroy(req);
 	    }
 	}
     } else {
 	server->eval_threads = ALLOC_N(VALUE, server->thread_cnt + 1);
-	DEBUG_ALLOC(mem_eval_threads)
+	DEBUG_ALLOC(mem_eval_threads, server->eval_threads)
 
 	for (i = server->thread_cnt, vp = server->eval_threads; 0 < i; i--, vp++) {
 	    *vp = rb_thread_create(wrap_process_loop, server);
