@@ -558,10 +558,6 @@ handle_rack_inner(void *x) {
 	    // TBD
 	    break;
 	default:
-	    // An error on the app's part as a protocol upgrade must include a
-	    // supported handler.
-	    strcpy(t->text, err500);
-	    t->len = sizeof(err500) - 1;
 	    break;
 	}
     }
