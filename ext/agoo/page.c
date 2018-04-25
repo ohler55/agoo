@@ -235,7 +235,7 @@ cache_init(Cache cache) {
 }
 
 void
-cache_destroy(Cache cache) {
+cache_cleanup(Cache cache) {
     Slot	*sp = cache->buckets;
     Slot	s;
     Slot	n;
@@ -248,6 +248,7 @@ cache_destroy(Cache cache) {
 	for (s = *sp; NULL != s; s = n) {
 	    n = s->next;
 	    DEBUG_FREE(mem_page_slot, s)
+	    page_destroy(s->value);
 	    free(s);
 	}
 	*sp = NULL;
@@ -256,13 +257,11 @@ cache_destroy(Cache cache) {
     for (i = MIME_BUCKET_SIZE; 0 < i; i--, mp++) {
 	for (sm = *mp; NULL != sm; sm = m) {
 	    m = sm->next;
-	    DEBUG_FREE(mem_page_slot, sm)
+	    DEBUG_FREE(mem_mime_slot, sm)
 	    free(sm);
 	}
 	*mp = NULL;
     }
-    //DEBUG_FREE(mem_cache, cache);
-    free(cache);
 }
 
 // The page resp contents point to the page resp msg to save memory and reduce
@@ -298,6 +297,8 @@ page_destroy(Page p) {
     free(p);
 }
 
+#define FOO 1
+
 static bool
 update_contents(Cache cache, Page p) {
     const char	*mime = NULL;
@@ -307,10 +308,10 @@ update_contents(Cache cache, Page p) {
     long	size;
     struct stat	fattr;
     long	msize;
-    char	*msg;
     int		cnt;
     struct stat	fs;
-
+    Text	t;
+    
     for (; '.' != *suffix; suffix--) {
 	if (suffix <= p->path) {
 	    suffix = NULL;
@@ -370,21 +371,19 @@ update_contents(Cache cache, Page p) {
     // Format size plus space for the length, the mime type, and some
     // padding. Then add the content length.
     msize = sizeof(page_fmt) + 60 + size;
-    if (NULL == (msg = (char*)malloc(msize))) {
+    if (NULL == (t = text_allocate(msize))) {
 	return false;
     }
-    DEBUG_ALLOC(mem_page_msg, msg)
-    cnt = sprintf(msg, page_fmt, mime, size);
-
+    cnt = sprintf(t->text, page_fmt, mime, size);
     msize = cnt + size;
-    if (size != (long)fread(msg + cnt, 1, size, f)) {
+    if (size != (long)fread(t->text + cnt, 1, size, f)) {
 	fclose(f);
-	DEBUG_FREE(mem_page_msg, msg)
-	free(msg);
+	text_release(t);
 	return false;
     }
     fclose(f);
-    msg[msize] = '\0';
+    t->text[msize] = '\0';
+    t->len = msize;
     if (0 == stat(p->path, &fattr)) {
 	p->mtime = fattr.st_mtime;
     } else {
@@ -394,7 +393,7 @@ update_contents(Cache cache, Page p) {
 	text_release(p->resp);
 	p->resp = NULL;
     }
-    p->resp = text_create(msg, (int)msize);
+    p->resp = t;
     text_ref(p->resp);
     p->last_check = dtime();
 

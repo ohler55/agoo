@@ -57,6 +57,16 @@ static const char	err500[] = "HTTP/1.1 500 Internal Server Error\r\n";
 Server	the_server = NULL;
 
 static void
+server_free(void *ptr) {
+    // Commented out for now as it causes a segfault later. Some thread seems
+    // to be pointing at it even though they have exited so live with a memory
+    // leak that only shows up when the program exits.
+    xfree(ptr);
+    DEBUG_FREE(mem_server, ptr);
+    //the_server = NULL;
+}
+
+static void
 shutdown_server(Server server) {
     if (NULL != server && server->active) {
 	the_server = NULL;
@@ -100,6 +110,9 @@ shutdown_server(Server server) {
 	}
 	queue_cleanup(&server->eval_queue);
 	log_close(&server->log);
+	cache_cleanup(&server->pages);
+	http_cleanup();
+	server_free(server);
 	debug_print_stats();    
     }
 }
@@ -112,17 +125,6 @@ sig_handler(int sig) {
     // Use exit instead of rb_exit as rb_exit segfaults most of the time.
     //rb_exit(0);
     exit(0);
-}
-
-static void
-server_free(void *ptr) {
-    shutdown_server((Server)ptr);
-    // Commented out for now as it causes a segfault later. Some thread seems
-    // to be pointing at it even though they have exited so live with a memory
-    // leak that only shows up when the program exits.
-    //xfree(ptr);
-    DEBUG_FREE(mem_server, the_server)
-    the_server = NULL;
 }
 
 static int
@@ -248,6 +250,7 @@ server_new(int argc, VALUE *argv, VALUE self) {
     int		port;
     const char	*root;
     VALUE	options = Qnil;
+    VALUE	wrap;
     
     if (argc < 2 || 3 < argc) {
 	rb_raise(rb_eArgError, "Wrong number of arguments to Agoo::Server.new.");
@@ -277,7 +280,10 @@ server_new(int argc, VALUE *argv, VALUE self) {
 
     the_server = s;
     
-    return Data_Wrap_Struct(server_class, NULL, server_free, s);
+    wrap =  Data_Wrap_Struct(server_class, NULL, server_free, s);
+    rb_gc_register_address(&wrap);
+
+    return wrap;
 }
 
 static void*

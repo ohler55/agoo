@@ -46,6 +46,8 @@ typedef struct _Cache {
 } *Cache;
 
 extern void	cache_init(Cache cache);
+extern void	cache_cleanup(Cache cache);
+
 extern void	page_destroy(Page p);
 extern Page	page_get(Err err, Cache cache, const char *dir, const char *path, int plen);
 extern void	mime_set(Cache cache, const char *key, const char *value);

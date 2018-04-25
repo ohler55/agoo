@@ -750,7 +750,6 @@ process_pub_con(Server server, Pub pub) {
 		slot->con->res_tail = res;
 		res->con_kind = slot->con->kind;
 		res_set_message(res, pub->msg);
-		// TBD release ref on msg? or is it released on write
 	    }
 	}
 	break;
@@ -923,6 +922,11 @@ con_loop(void *x) {
 	    ccnt--;
 	    log_cat(&server->con_cat, "Connection %llu closed.", c->id);
 	    con_destroy(c);
+	}
+    }
+    for (i = ccnt, cp = ca; 0 < i && cp < end; cp++) {
+	if (NULL != *cp) {
+	    con_destroy(*cp);
 	}
     }
     atomic_fetch_sub(&server->running, 1);
