@@ -47,14 +47,11 @@ atomic_int	mem_response = 0;
 atomic_int	mem_text = 0;
 atomic_int	mem_to_s = 0;
 
+#ifdef MEM_DEBUG
 static void
 print_stats() {
     Rec	r;
 
-    // TBD wrap these in a grab of the gvi
-    //rb_gc_enable();
-    //rb_gc();
-    
     printf("********************************************************************************\n");
     pthread_mutex_lock(&lock);
 
@@ -115,6 +112,7 @@ print_stats() {
     printf("  mem_to_s:         %d\n", mem_to_s);
 #endif
 }
+#endif
 
 #if 0
 static void*
