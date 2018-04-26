@@ -28,7 +28,6 @@ typedef struct _Con {
     ssize_t		mcnt;  // how much has been read so far
     ssize_t		wcnt;  // how much has been written
 
-    Server		server;
     double		timeout;
     bool		closing;
     Req			req;
@@ -38,7 +37,7 @@ typedef struct _Con {
     struct _CSlot	*slot; // only set for push connections
 } *Con;
 
-extern Con		con_create(Err err, Server server, int sock, uint64_t id);
+extern Con		con_create(Err err, int sock, uint64_t id);
 extern void		con_destroy(Con c);
 extern const char*	con_header_value(const char *header, int hlen, const char *key, int *vlen);
 

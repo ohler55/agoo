@@ -17,7 +17,7 @@
 #define CON_TIMEOUT	5.0
 
 Con
-con_create(Err err, Server server, int sock, uint64_t id) {
+con_create(Err err, int sock, uint64_t id) {
     Con	c;
 
     if (MAX_SOCK <= sock) {
@@ -31,7 +31,6 @@ con_create(Err err, Server server, int sock, uint64_t id) {
 	memset(c, 0, sizeof(struct _Con));
 	c->sock = sock;
 	c->id = id;
-	c->server = server;
 	c->kind = CON_HTTP;
 	c->timeout = dtime() + CON_TIMEOUT;
     }
@@ -51,7 +50,7 @@ con_destroy(Con c) {
 	request_destroy(c->req);
     }
     if (NULL != c->slot) {
-	cc_remove_con(&c->server->con_cache, c->id);
+	cc_remove_con(&the_server.con_cache, c->id);
 	c->slot = NULL;
     }
     DEBUG_FREE(mem_con, c)
@@ -95,7 +94,7 @@ bad_request(Con c, int status, int line) {
     const char *msg = http_code_message(status);
     
     if (NULL == (res = res_create())) {
-	log_cat(&c->server->error_cat, "memory allocation of response failed on connection %llu @ %d.", c->id, line);
+	log_cat(&error_cat, "memory allocation of response failed on connection %llu @ %d.", c->id, line);
     } else {
 	char	buf[256];
 	int	cnt = snprintf(buf, sizeof(buf), "HTTP/1.1 %d %s\r\nConnection: Close\r\nContent-Length: 0\r\n\r\n", status, msg);
@@ -131,7 +130,6 @@ should_close(const char *header, int hlen) {
 //  negative of message length - when message is handled here.
 static long
 con_header_read(Con c) {
-    Server	server = c->server;
     char	*hend = strstr(c->buf, "\r\n\r\n");
     Method	method;
     char	*path;
@@ -149,9 +147,9 @@ con_header_read(Con c) {
 	}
 	return 0;
     }
-    if (server->req_cat.on) {
+    if (req_cat.on) {
 	*hend = '\0';
-	log_cat(&server->req_cat, "%llu: %s", c->id, c->buf);
+	log_cat(&req_cat, "%llu: %s", c->id, c->buf);
 	*hend = '\r';
     }
     for (b = c->buf; ' ' != *b; b++) {
@@ -240,17 +238,17 @@ con_header_read(Con c) {
 	qend = b;
     }
     mlen = hend - c->buf + 4 + clen;
-    if (NULL == (hook = hook_find(server->hooks, method, path, pend))) {
+    if (NULL == (hook = hook_find(the_server.hooks, method, path, pend))) {
 	if (GET == method) {
 	    struct _Err	err = ERR_INIT;
-	    Page	p = page_get(&err, &server->pages, server->root, path, (int)(pend - path));
+	    Page	p = page_get(&err, &the_server.pages, the_server.root, path, (int)(pend - path));
 	    Res		res;
 
 	    if (NULL == p) {
-		if (NULL != server->hook404) {
+		if (NULL != the_server.hook404) {
 		    // There would be too many parameters to pass to a
 		    // separate function so just goto the hook processing.
-		    hook = server->hook404;
+		    hook = the_server.hook404;
 		    goto HOOKED;
 		}
 		return bad_request(c, 404, __LINE__);
@@ -267,8 +265,6 @@ con_header_read(Con c) {
 
 	    b = strstr(c->buf, "\r\n");
 	    res->close = should_close(b, (int)(hend - b));
-
-	    text_ref(p->resp);
 	    res_set_message(res, p->resp);
 
 	    return -mlen;
@@ -288,7 +284,6 @@ HOOKED:
 	memcpy(c->req->msg, c->buf, mlen);
     }
     c->req->msg[mlen] = '\0';
-    c->req->server = c->server;
     c->req->method = method;
     c->req->upgrade = UP_NONE;
     c->req->cid = c->id;
@@ -353,9 +348,9 @@ con_http_read(Con c) {
 	// If nothing read then no need to complain. Just close.
 	if (0 < c->bcnt) {
 	    if (0 == cnt) {
-		log_cat(&c->server->warn_cat, "Nothing to read. Client closed socket on connection %llu.", c->id);
+		log_cat(&warn_cat, "Nothing to read. Client closed socket on connection %llu.", c->id);
 	    } else {
-		log_cat(&c->server->warn_cat, "Failed to read request. %s.", strerror(errno));
+		log_cat(&warn_cat, "Failed to read request. %s.", strerror(errno));
 	    }
 	}
 	return true;
@@ -389,12 +384,12 @@ con_http_read(Con c) {
 		Res	res;
 		long	mlen;
 
-		if (c->server->debug_cat.on && NULL != c->req && NULL != c->req->body.start) {
-		    log_cat(&c->server->debug_cat, "request on %llu: %s", c->id, c->req->body.start);
+		if (debug_cat.on && NULL != c->req && NULL != c->req->body.start) {
+		    log_cat(&debug_cat, "request on %llu: %s", c->id, c->req->body.start);
 		}
 		if (NULL == (res = res_create())) {
 		    c->req = NULL;
-		    log_cat(&c->server->error_cat, "memory allocation of response failed on connection %llu.", c->id);
+		    log_cat(&error_cat, "memory allocation of response failed on connection %llu.", c->id);
 		    return bad_request(c, 500, __LINE__);
 		} else {
 		    if (NULL == c->res_tail) {
@@ -408,7 +403,7 @@ con_http_read(Con c) {
 		c->req->res = res;
 		mlen = c->req->mlen;
 		check_upgrade(c);
-		queue_push(&c->server->eval_queue, (void*)c->req);
+		queue_push(&the_server.eval_queue, (void*)c->req);
 		if (c->req->mlen < c->bcnt) {
 		    memmove(c->buf, c->buf + mlen, c->bcnt - mlen);
 		    c->bcnt -= mlen;
@@ -444,9 +439,9 @@ con_ws_read(Con c) {
 	// If nothing read then no need to complain. Just close.
 	if (0 < c->bcnt) {
 	    if (0 == cnt) {
-		log_cat(&c->server->warn_cat, "Nothing to read. Client closed socket on connection %llu.", c->id);
+		log_cat(&warn_cat, "Nothing to read. Client closed socket on connection %llu.", c->id);
 	    } else {
-		log_cat(&c->server->warn_cat, "Failed to read WebSocket message. %s.", strerror(errno));
+		log_cat(&warn_cat, "Failed to read WebSocket message. %s.", strerror(errno));
 	    }
 	}
 	return true;
@@ -479,7 +474,7 @@ con_ws_read(Con c) {
 		break;
 	    case WS_OP_CONT:
 	    default:
-		log_cat(&c->server->error_cat, "WebSocket op 0x%02x not supported on %llu.", op, c->id);
+		log_cat(&error_cat, "WebSocket op 0x%02x not supported on %llu.", op, c->id);
 		return true;
 	    }
 	}
@@ -487,15 +482,15 @@ con_ws_read(Con c) {
 	    mlen = c->req->mlen;
 	    c->req->mlen = ws_decode(c->req->msg, c->req->mlen);
 	    if (mlen <= (long)c->bcnt) {
-		if (c->server->debug_cat.on) {
+		if (debug_cat.on) {
 		    if (ON_MSG == c->req->method) {
-			log_cat(&c->server->debug_cat, "WebSocket message on %llu: %s", c->id, c->req->msg);
+			log_cat(&debug_cat, "WebSocket message on %llu: %s", c->id, c->req->msg);
 		    } else {
-			log_cat(&c->server->debug_cat, "WebSocket binary message on %llu", c->id);
+			log_cat(&debug_cat, "WebSocket binary message on %llu", c->id);
 		    }
 		}
 	    }
-	    queue_push(&c->server->eval_queue, (void*)c->req);
+	    queue_push(&the_server.eval_queue, (void*)c->req);
 	    if (mlen < (long)c->bcnt) {
 		memmove(c->buf, c->buf + mlen, c->bcnt - mlen);
 		c->bcnt -= mlen;
@@ -535,7 +530,7 @@ con_http_write(Con c) {
 
     c->timeout = dtime() + CON_TIMEOUT;
     if (0 == c->wcnt) {
-	if (c->server->resp_cat.on) {
+	if (resp_cat.on) {
 	    char	buf[4096];
 	    char	*hend = strstr(message->text, "\r\n\r\n");
 
@@ -547,17 +542,17 @@ con_http_write(Con c) {
 	    }
 	    memcpy(buf, message->text, hend - message->text);
 	    buf[hend - message->text] = '\0';
-	    log_cat(&c->server->resp_cat, "%llu: %s", c->id, buf);
+	    log_cat(&resp_cat, "%llu: %s", c->id, buf);
 	}
-	if (c->server->debug_cat.on) {
-	    log_cat(&c->server->debug_cat, "response on %llu: %s", c->id, message->text);
+	if (debug_cat.on) {
+	    log_cat(&debug_cat, "response on %llu: %s", c->id, message->text);
 	}
     }
     if (0 > (cnt = send(c->sock, message->text + c->wcnt, message->len - c->wcnt, 0))) {
 	if (EAGAIN == errno) {
 	    return false;
 	}
-	log_cat(&c->server->error_cat, "Socket error @ %llu.", c->id);
+	log_cat(&error_cat, "Socket error @ %llu.", c->id);
 
 	return true;
     }
@@ -593,7 +588,7 @@ con_ws_write(Con c) {
 		if (EAGAIN == errno) {
 		    return false;
 		}
-		log_cat(&c->server->error_cat, "Socket error @ %llu.", c->id);
+		log_cat(&error_cat, "Socket error @ %llu.", c->id);
 		ws_req_close(c);
 		res_destroy(res);
 	
@@ -604,7 +599,7 @@ con_ws_write(Con c) {
 		if (EAGAIN == errno) {
 		    return false;
 		}
-		log_cat(&c->server->error_cat, "Socket error @ %llu.", c->id);
+		log_cat(&error_cat, "Socket error @ %llu.", c->id);
 		ws_req_close(c);
 		res_destroy(res);
 	
@@ -625,11 +620,11 @@ con_ws_write(Con c) {
     if (0 == c->wcnt) {
 	Text	t;
 	
-	if (c->server->push_cat.on) {
+	if (push_cat.on) {
 	    if (message->bin) {
-		log_cat(&c->server->push_cat, "%llu binary", c->id);
+		log_cat(&push_cat, "%llu binary", c->id);
 	    } else {
-		log_cat(&c->server->push_cat, "%llu: %s", c->id, message->text);
+		log_cat(&push_cat, "%llu: %s", c->id, message->text);
 	    }
 	}
 	t = ws_expand(message);
@@ -642,7 +637,7 @@ con_ws_write(Con c) {
 	if (EAGAIN == errno) {
 	    return false;
 	}
-	log_cat(&c->server->error_cat, "Socket error @ %llu.", c->id);
+	log_cat(&error_cat, "Socket error @ %llu.", c->id);
 	ws_req_close(c);
 	
 	return true;
@@ -667,7 +662,7 @@ con_ws_write(Con c) {
 		req->method = ON_EMPTY;
 		req->handler_type = PUSH_HOOK;
 		req->handler = c->slot->handler;
-		queue_push(&c->server->eval_queue, (void*)req);
+		queue_push(&the_server.eval_queue, (void*)req);
 	    }
 	}
 	return done;
@@ -702,20 +697,20 @@ con_write(Con c) {
     if (kind != c->kind) {
 	c->kind = kind;
 	if (CON_HTTP != kind && !remove) {
-	    c->slot = cc_set_con(&c->server->con_cache, c);
+	    c->slot = cc_set_con(&the_server.con_cache, c);
 	}
     }
     return remove;
 }
 
 static void
-process_pub_con(Server server, Pub pub) {
+process_pub_con(Pub pub) {
     CSlot	slot;
 
     switch (pub->kind) {
     case PUB_CLOSE:
-	if (NULL == (slot = cc_get_slot(&server->con_cache, pub->cid)) || NULL == slot->con) {
-	    log_cat(&server->warn_cat, "Socket %llu already closed.", pub->cid);
+	if (NULL == (slot = cc_get_slot(&the_server.con_cache, pub->cid)) || NULL == slot->con) {
+	    log_cat(&warn_cat, "Socket %llu already closed.", pub->cid);
 	    pub_destroy(pub);	
 	    return;
 	} else {
@@ -734,8 +729,8 @@ process_pub_con(Server server, Pub pub) {
 	}
 	break;
     case PUB_WRITE: {
-	if (NULL == (slot = cc_get_slot(&server->con_cache, pub->cid)) || NULL == slot->con) {
-	    log_cat(&server->warn_cat, "Socket %llu already closed. WebSocket write failed.", pub->cid);
+	if (NULL == (slot = cc_get_slot(&the_server.con_cache, pub->cid)) || NULL == slot->con) {
+	    log_cat(&warn_cat, "Socket %llu already closed. WebSocket write failed.", pub->cid);
 	    pub_destroy(pub);	
 	    return;
 	} else {
@@ -770,7 +765,7 @@ process_pub_con(Server server, Pub pub) {
 }
 
 static struct pollfd*
-poll_setup(Server server, Con *ca, int ccnt, struct pollfd *pp) {
+poll_setup(Con *ca, int ccnt, struct pollfd *pp) {
     Con		*cp;
     Con		*end = ca + MAX_SOCK;
     Con		c;
@@ -778,11 +773,11 @@ poll_setup(Server server, Con *ca, int ccnt, struct pollfd *pp) {
 
     // The first two pollfd are for the con_queue and the pub_queue in that
     // order.
-    pp->fd = queue_listen(&server->con_queue);
+    pp->fd = queue_listen(&the_server.con_queue);
     pp->events = POLLIN;
     pp->revents = 0;
     pp++;
-    pp->fd = queue_listen(&server->pub_queue);
+    pp->fd = queue_listen(&the_server.pub_queue);
     pp->events = POLLIN;
     pp->revents = 0;
     pp++;
@@ -821,7 +816,6 @@ poll_setup(Server server, Con *ca, int ccnt, struct pollfd *pp) {
 
 void*
 con_loop(void *x) {
-    Server		server = (Server)x;
     Con			c;
     Con			ca[MAX_SOCK + 2];
     struct pollfd	pa[MAX_SOCK + 2];
@@ -834,24 +828,24 @@ con_loop(void *x) {
     double		now;
     Pub			pub;
     
-    atomic_fetch_add(&server->running, 1);
+    atomic_fetch_add(&the_server.running, 1);
     memset(ca, 0, sizeof(ca));
     memset(pa, 0, sizeof(pa));
-    while (server->active) {
-	while (NULL != (c = (Con)queue_pop(&server->con_queue, 0.0))) {
+    while (the_server.active) {
+	while (NULL != (c = (Con)queue_pop(&the_server.con_queue, 0.0))) {
 	    mcnt++;
 	    ca[c->sock] = c;
 	    ccnt++;
 	}
-	while (NULL != (pub = (Pub)queue_pop(&server->pub_queue, 0.0))) {
-	    process_pub_con(server, pub);
+	while (NULL != (pub = (Pub)queue_pop(&the_server.pub_queue, 0.0))) {
+	    process_pub_con(pub);
 	}
-	pp = poll_setup(server, ca, ccnt, pa);
+	pp = poll_setup(ca, ccnt, pa);
 	if (0 > (i = poll(pa, (nfds_t)(pp - pa), 100))) {
 	    if (EAGAIN == errno) {
 		continue;
 	    }
-	    log_cat(&server->error_cat, "Polling error. %s.", strerror(errno));
+	    log_cat(&error_cat, "Polling error. %s.", strerror(errno));
 	    // Either a signal or something bad like out of memory. Might as well exit.
 	    break;
 	}
@@ -860,8 +854,8 @@ con_loop(void *x) {
 	if (0 < i) {
 	    // Check con_queue if an event is waiting.
 	    if (0 != (pa->revents & POLLIN)) {
-		queue_release(&server->con_queue);
-		while (NULL != (c = (Con)queue_pop(&server->con_queue, 0.0))) {
+		queue_release(&the_server.con_queue);
+		while (NULL != (c = (Con)queue_pop(&the_server.con_queue, 0.0))) {
 		    mcnt++;
 		    ca[c->sock] = c;
 		    ccnt++;
@@ -869,9 +863,9 @@ con_loop(void *x) {
 	    }
 	    // Check pub_queue if an event is waiting.
 	    if (0 != (pa[1].revents & POLLIN)) {
-		queue_release(&server->pub_queue);
-		while (NULL != (pub = (Pub)queue_pop(&server->pub_queue, 0.0))) {
-		    process_pub_con(server, pub);
+		queue_release(&the_server.pub_queue);
+		while (NULL != (pub = (Pub)queue_pop(&the_server.pub_queue, 0.0))) {
+		    process_pub_con(pub);
 		}
 	    }
 	}
@@ -895,9 +889,9 @@ con_loop(void *x) {
 	    if (0 != (pp->revents & (POLLERR | POLLHUP | POLLNVAL))) {
 		if (0 < c->bcnt) {
 		    if (0 != (pp->revents & (POLLHUP | POLLNVAL))) {
-			log_cat(&server->error_cat, "Socket %llu closed.", c->id);
+			log_cat(&error_cat, "Socket %llu closed.", c->id);
 		    } else if (!c->closing) {
-			log_cat(&server->error_cat, "Socket %llu error. %s", c->id, strerror(errno));
+			log_cat(&error_cat, "Socket %llu error. %s", c->id, strerror(errno));
 		    }
 		}
 		goto CON_RM;
@@ -920,7 +914,7 @@ con_loop(void *x) {
 	CON_RM:
 	    ca[c->sock] = NULL;
 	    ccnt--;
-	    log_cat(&server->con_cat, "Connection %llu closed.", c->id);
+	    log_cat(&con_cat, "Connection %llu closed.", c->id);
 	    con_destroy(c);
 	}
     }
@@ -929,7 +923,7 @@ con_loop(void *x) {
 	    con_destroy(*cp);
 	}
     }
-    atomic_fetch_sub(&server->running, 1);
+    atomic_fetch_sub(&the_server.running, 1);
     
     return NULL;
 }

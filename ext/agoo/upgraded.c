@@ -20,10 +20,13 @@ up_write(VALUE self, VALUE msg) {
     uint64_t	cid = RB_FIX2ULONG(rb_ivar_get(self, cid_id));
     Pub		p;
 
-    if (0 < the_server->max_push_pending) {
-	int	pending = cc_get_pending(&the_server->con_cache, cid);
+    if (!the_server.active) {
+	rb_raise(rb_eIOError, "Server shutdown.");
+    }
+    if (0 < the_server.max_push_pending) {
+	int	pending = cc_get_pending(&the_server.con_cache, cid);
 
-	if (the_server->max_push_pending <= pending) {
+	if (the_server.max_push_pending <= pending) {
 	    rb_raise(rb_eIOError, "Too many writes pending. Try again later.");
 	}
     }
@@ -38,8 +41,8 @@ up_write(VALUE self, VALUE msg) {
 	
 	p = pub_write(cid, StringValuePtr(rs), RSTRING_LEN(rs), false);
     }
-    cc_pending_inc(&the_server->con_cache, cid);
-    queue_push(&the_server->pub_queue, p);
+    cc_pending_inc(&the_server.con_cache, cid);
+    queue_push(&the_server.pub_queue, p);
 
     return Qnil;
 }
@@ -61,7 +64,10 @@ static VALUE
 up_close(VALUE self) {
     uint64_t	cid = RB_FIX2ULONG(rb_ivar_get(self, cid_id));
 
-    queue_push(&the_server->pub_queue, pub_close(cid));
+    if (!the_server.active) {
+	rb_raise(rb_eIOError, "Server shutdown.");
+    }
+    queue_push(&the_server.pub_queue, pub_close(cid));
 
     return Qnil;
 }
@@ -70,18 +76,24 @@ static VALUE
 pending(VALUE self) {
     uint64_t	cid = RB_FIX2ULONG(rb_ivar_get(self, cid_id));
 
-    return INT2NUM(cc_get_pending(&the_server->con_cache, cid));
+    if (!the_server.active) {
+	rb_raise(rb_eIOError, "Server shutdown.");
+    }
+    return INT2NUM(cc_get_pending(&the_server.con_cache, cid));
 }
 
 void
 upgraded_extend(uint64_t cid, VALUE obj) {
+    if (!the_server.active) {
+	rb_raise(rb_eIOError, "Server shutdown.");
+    }
     rb_ivar_set(obj, cid_id, ULONG2NUM(cid));
     rb_ivar_set(obj, sid_id, ULONG2NUM(0)); // used as counter for subscription id
     rb_extend_object(obj, upgraded_mod);
     if (rb_respond_to(obj, on_open_id)) {
 	rb_funcall(obj, on_open_id, 0);
     }
-    cc_set_handler(&the_server->con_cache, cid, obj,
+    cc_set_handler(&the_server.con_cache, cid, obj,
 		   rb_respond_to(obj, rb_intern("on_drained")),
 		   rb_respond_to(obj, rb_intern("on_close")),
 		   rb_respond_to(obj, rb_intern("on_shutdown")),

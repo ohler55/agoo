@@ -5,10 +5,7 @@
 
 #include <ruby.h>
 
-struct _Server;
-
 typedef struct _Subscription {
-    struct _Server	*server;
     VALUE		self;
     uint64_t		cid;
     uint64_t		id;
@@ -16,6 +13,6 @@ typedef struct _Subscription {
 } *Subscription;
 
 extern void	subscription_init(VALUE mod);
-extern VALUE	subscription_new(struct _Server *s, uint64_t cid, uint64_t id, VALUE handler);
+extern VALUE	subscription_new(uint64_t cid, uint64_t id, VALUE handler);
 
 #endif // __AGOO_SUBSCRIPTION_H__

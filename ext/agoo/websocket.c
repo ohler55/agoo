@@ -126,7 +126,7 @@ ws_calc_len(Con c, uint8_t *buf, size_t cnt) {
     uint64_t	plen;
 
     if (0 == (0x80 & *b)) {
-	log_cat(&c->server->error_cat, "FIN must be 1. Websocket continuation not implemented on connection %llu.", c->id);
+	log_cat(&error_cat, "FIN must be 1. Websocket continuation not implemented on connection %llu.", c->id);
 	return -1;
     }
     b++;
@@ -164,7 +164,7 @@ ws_create_req(Con c, long mlen) {
     uint8_t	op = 0x0F & *c->buf;
     
     if (NULL == (c->req = request_create(mlen))) {
-	log_cat(&c->server->error_cat, "Out of memory attempting to allocate request.");
+	log_cat(&error_cat, "Out of memory attempting to allocate request.");
 	return true;
     }
     if (NULL == c->slot || Qnil == c->slot->handler) {
@@ -181,7 +181,6 @@ ws_create_req(Con c, long mlen) {
     }
     c->req->msg[mlen] = '\0';
     c->req->mlen = mlen;
-    c->req->server = c->server;
     c->req->method = (WS_OP_BIN == op) ? ON_BIN : ON_MSG;
     c->req->upgrade = UP_NONE;
     c->req->cid = c->id;
@@ -204,7 +203,7 @@ ws_req_close(Con c) {
 	req->method = ON_CLOSE;
 	req->handler_type = PUSH_HOOK;
 	req->handler = c->slot->handler;
-	queue_push(&c->server->eval_queue, (void*)req);
+	queue_push(&the_server.eval_queue, (void*)req);
     }
 }
 
@@ -213,7 +212,7 @@ ws_ping(Con c) {
     Res	res;
     
     if (NULL == (res = res_create())) {
-	log_cat(&c->server->error_cat, "Memory allocation of response failed on connection %llu.", c->id);
+	log_cat(&error_cat, "Memory allocation of response failed on connection %llu.", c->id);
     } else {
 	DEBUG_ALLOC(mem_res, res)
 	if (NULL == c->res_tail) {
@@ -233,7 +232,7 @@ ws_pong(Con c) {
     Res	res;
     
     if (NULL == (res = res_create())) {
-	log_cat(&c->server->error_cat, "Memory allocation of response failed on connection %llu.", c->id);
+	log_cat(&error_cat, "Memory allocation of response failed on connection %llu.", c->id);
     } else {
 	DEBUG_ALLOC(mem_res, res)
 	if (NULL == c->res_tail) {

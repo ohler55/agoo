@@ -8,10 +8,9 @@
 static VALUE	subscription_class = Qundef;
 
 VALUE
-subscription_new(struct _Server *server, uint64_t cid, uint64_t id, VALUE handler) {
+subscription_new(uint64_t cid, uint64_t id, VALUE handler) {
     Subscription	s = ALLOC(struct _Subscription);
 
-    s->server = server;
     s->cid = cid;
     s->id = id;
     s->handler = handler;
@@ -33,8 +32,8 @@ subscription_close(VALUE self) {
     if (0 != s->cid && 0 != s->id) {
 	Pub	p = pub_unsubscribe(s->cid, s->id);
 	
-	queue_push(&s->server->pub_queue, (void*)p);
-	queue_wakeup(&s->server->pub_queue);
+	queue_push(&the_server.pub_queue, (void*)p);
+	queue_wakeup(&the_server.pub_queue);
 	s->cid = 0;
 	s->id = 0;
     }

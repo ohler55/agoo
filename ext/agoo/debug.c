@@ -5,6 +5,7 @@
 #include <stdio.h>
 
 #include <ruby.h>
+#include <ruby/thread.h>
 
 #include "debug.h"
 
@@ -43,20 +44,20 @@ atomic_int	mem_req = 0;
 atomic_int	mem_res = 0;
 atomic_int	mem_res_body = 0;
 atomic_int	mem_response = 0;
-atomic_int	mem_server = 0;
 atomic_int	mem_text = 0;
 atomic_int	mem_to_s = 0;
 
-void
-debug_print_stats() {
-#ifdef MEM_DEBUG
+static void
+print_stats() {
     Rec	r;
-    
-    rb_gc_enable();
-    rb_gc();
+
+    // TBD wrap these in a grab of the gvi
+    //rb_gc_enable();
+    //rb_gc();
     
     printf("********************************************************************************\n");
-    pthread_mutex_lock(&lock);	
+    pthread_mutex_lock(&lock);
+
     while (NULL != (r = recs)) {
 	int	cnt = 1;
 	Rec	prev = NULL;
@@ -78,12 +79,13 @@ debug_print_stats() {
 		prev = r2;
 	    }
 	}
-	printf("%10s:%3d %-10s allocated and not freed %4d times.\n", r->file, r->line, r->type + 4, cnt);
+	printf("%16s:%3d %-12s allocated and not freed %4d times.\n", r->file, r->line, r->type + 4, cnt);
 	free(r);
     }
     pthread_mutex_unlock(&lock);	
 
     printf("********************************************************************************\n");
+#if 0
     printf("memory statistics\n");
     printf("  mem_cb:           %d\n", mem_cb);
     printf("  mem_con:          %d\n", mem_con);
@@ -109,9 +111,35 @@ debug_print_stats() {
     printf("  mem_res:          %d\n", mem_res);
     printf("  mem_res_body:     %d\n", mem_res_body);
     printf("  mem_response:     %d\n", mem_response);
-    printf("  mem_server:       %d\n", mem_server);
     printf("  mem_text:         %d\n", mem_text);
     printf("  mem_to_s:         %d\n", mem_to_s);
+#endif
+}
+
+#if 0
+static void*
+handle_gc(void *x) {
+    rb_gc_enable();
+    rb_gc();
+    return NULL;
+}
+#endif
+
+void
+debug_report() {
+#ifdef MEM_DEBUG
+    // TBD how can ownership of GVL be determined?
+    //rb_thread_call_with_gvl(handle_gc, NULL);
+    print_stats();
+#endif
+}
+
+void
+debug_rreport() {
+#ifdef MEM_DEBUG
+    rb_gc_enable();
+    rb_gc();
+    print_stats();
 #endif
 }
 
@@ -131,7 +159,7 @@ debug_add(void *ptr, const char *type, const char *file, int line) {
 
 void
 debug_del(void *ptr, const char *file, int line) {
-    Rec	r;
+    Rec	r = NULL;
     Rec	prev = NULL;
     
     pthread_mutex_lock(&lock);
@@ -148,7 +176,8 @@ debug_del(void *ptr, const char *file, int line) {
     }
     pthread_mutex_unlock(&lock);
     if (NULL == r) {
-	printf("Free at %s:%d not allocated or already freed.\n", r->file, r->line);
+	printf("Free at %s:%d (%p) not allocated or already freed.\n", file, line, ptr);
+    } else {
+	free(r);
     }
-    free(r);
 }

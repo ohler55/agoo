@@ -37,12 +37,12 @@ extern atomic_int	mem_req;
 extern atomic_int	mem_res;
 extern atomic_int	mem_res_body;
 extern atomic_int	mem_response;
-extern atomic_int	mem_server;
 extern atomic_int	mem_text;
 extern atomic_int	mem_to_s;
 
 extern void	debug_add(void *ptr, const char *type, const char *file, int line);
 extern void	debug_del(void *ptr, const char *file, int line);
-extern void	debug_print_stats();
+extern void	debug_report();
+extern void	debug_rreport(); // when called from ruby
 
 #endif /* __AGOO_DEBUG_H__ */

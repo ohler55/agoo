@@ -22,12 +22,11 @@ es_free(void *ptr) {
 }
 
 VALUE
-error_stream_new(Server server) {
+error_stream_new() {
     ErrorStream	es = ALLOC(struct _ErrorStream);
 
     DEBUG_ALLOC(mem_err_stream, es)
     es->text = text_allocate(1024);
-    es->server = server;
     
     return Data_Wrap_Struct(es_class, NULL, es_free, es);
 }
@@ -75,7 +74,7 @@ static VALUE
 es_flush(VALUE self) {
     ErrorStream	es = (ErrorStream)DATA_PTR(self);
 
-    log_cat(&es->server->error_cat, "%s", es->text->text);
+    log_cat(&error_cat, "%s", es->text->text);
     es->text->len = 0;
 
     return self;

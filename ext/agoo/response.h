@@ -22,12 +22,11 @@ typedef struct _Response {
     Header	headers;
     int		blen;
     char	*body;
-    Server	server;
 } *Response;
 
 extern void	response_init(VALUE mod);
 
-extern VALUE	response_new(Server server);
+extern VALUE	response_new();
 extern Text	response_text(VALUE self);
 
 #endif // __AGOO_RESPONSE_H__

@@ -53,22 +53,23 @@ response_free(void *ptr) {
     while (NULL != (h = res->headers)) {
 	res->headers = h->next;
 	DEBUG_FREE(mem_header, h)
-	xfree(h);
+	    // TBD
+	    //xfree(h);
     }
     DEBUG_FREE(mem_res_body, res->body);
     DEBUG_FREE(mem_response, ptr);
     free(res->body); // allocated with strdup
-    xfree(ptr);
+    // TBD
+    //xfree(ptr);
 }
 
 VALUE
-response_new(Server server ) {
+response_new( ) {
     Response	res = ALLOC(struct _Response);
 
     DEBUG_ALLOC(mem_response, res)
     memset(res, 0, sizeof(struct _Response));
     res->code = 200;
-    res->server = server;
     
     return Data_Wrap_Struct(res_class, NULL, response_free, res);
 }
@@ -215,8 +216,9 @@ head_set(VALUE self, VALUE key, VALUE val) {
 	    } else {
 		prev->next = h->next;
 	    }
-	    DEBUG_FREE(mem_header, h)
-	    xfree(h);
+	    DEBUG_FREE(mem_header, h);
+	    // TBD
+	    //xfree(h);
 	    break;
 	}
 	prev = h;
@@ -227,7 +229,7 @@ head_set(VALUE self, VALUE key, VALUE val) {
     vs = StringValuePtr(val);
     vlen = (int)RSTRING_LEN(val);
 
-    if (res->server->pedantic) {
+    if (the_server.pedantic) {
 	http_header_ok(ks, klen, vs, vlen);
     }
     hlen = klen + vlen + 4;

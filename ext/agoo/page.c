@@ -247,7 +247,7 @@ cache_cleanup(Cache cache) {
     for (i = PAGE_BUCKET_SIZE; 0 < i; i--, sp++) {
 	for (s = *sp; NULL != s; s = n) {
 	    n = s->next;
-	    DEBUG_FREE(mem_page_slot, s)
+	    DEBUG_FREE(mem_page_slot, s);
 	    page_destroy(s->value);
 	    free(s);
 	}
@@ -257,7 +257,7 @@ cache_cleanup(Cache cache) {
     for (i = MIME_BUCKET_SIZE; 0 < i; i--, mp++) {
 	for (sm = *mp; NULL != sm; sm = m) {
 	    m = sm->next;
-	    DEBUG_FREE(mem_mime_slot, sm)
+	    DEBUG_FREE(mem_mime_slot, sm);
 	    free(sm);
 	}
 	*mp = NULL;
@@ -291,13 +291,11 @@ page_destroy(Page p) {
 	text_release(p->resp);
 	p->resp = NULL;
     }
-    DEBUG_FREE(mem_page_path, p->path)
-	DEBUG_FREE(mem_page, p)
+    DEBUG_FREE(mem_page_path, p->path);
+    DEBUG_FREE(mem_page, p);
     free(p->path);
     free(p);
 }
-
-#define FOO 1
 
 static bool
 update_contents(Cache cache, Page p) {

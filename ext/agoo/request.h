@@ -25,7 +25,6 @@ typedef struct _Str {
 } *Str;
 
 typedef struct _Req {
-    struct _Server	*server;
     Method		method;
     Upgrade		upgrade;
     uint64_t		cid;

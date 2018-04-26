@@ -1,22 +1,27 @@
 
 require 'agoo'
 
+# The log is configured separately from the server. The log is ready without
+# the configuration step but the default values will be used.
+Agoo::Log.configure(dir: '',
+		    console: true,
+		    classic: true,
+		    colorize: true,
+		    states: {
+		      INFO: true,
+		      DEBUG: true,
+		      connect: true,
+		      request: true,
+		      response: true,
+		      eval: true,
+		      push: true,
+		    })
+
 # Setting the thread count to 0 causes the server to use the current
 # thread. Greater than zero runs the server in a separate thread and the
 # current thread can be used for other tasks as long as it does not exit.
-#server = Agoo::Server.new(6464, '.', thread_count: 0)
-server = Agoo::Server.new(6464, '.',
-			  thread_count: 1,
-			  log_states: {
-			    INFO: true,
-			    DEBUG: true,
-			    connect: true,
-			    request: true,
-			    response: true,
-			    eval: true,
-			    push: true,
-			  }
-			 )
+#Agoo::Server.init(6464, '.', thread_count: 0)
+Agoo::Server.init(6464, '.', thread_count: 1)
 
 class HelloHandler
   def call(env)
@@ -75,11 +80,11 @@ end
 
 # Register the handler before calling start. Agoo allows for demultiplexing at
 # the server instead of in the call().
-server.handle(:GET, "/hello", HelloHandler.new)
-server.handle(:GET, "/listen", Listen.new)
-server.handle(:GET, "/sse", Listen.new)
+Agoo::Server.handle(:GET, "/hello", HelloHandler.new)
+Agoo::Server.handle(:GET, "/listen", Listen.new)
+Agoo::Server.handle(:GET, "/sse", Listen.new)
 
-server.start()
+Agoo::Server.start()
 
 loop do
   now = Time.now

@@ -313,7 +313,7 @@ rack_input(VALUE self) {
 
 static VALUE
 req_rack_errors(Req r) {
-    return error_stream_new(r->server);
+    return error_stream_new();
 }
 
 /* Document-method: rack_errors
@@ -333,7 +333,7 @@ req_rack_multithread(Req r) {
     if (NULL == r) {
 	rb_raise(rb_eArgError, "Request is no longer valid.");
     }
-    if (NULL != r->server && 1 < r->server->thread_cnt) {
+    if (1 < the_server.thread_cnt) {
 	return Qtrue;
     }
     return Qfalse;
@@ -505,7 +505,7 @@ body(VALUE self) {
 
 static VALUE
 req_rack_logger(Req req) {
-    return rack_logger_new(req->server);
+    return rack_logger_new();
 }
 
 /* Document-method: rack_logger
@@ -655,7 +655,7 @@ request_init(VALUE mod) {
     rack_input_val = rb_str_new_cstr("rack.input");		rb_gc_register_address(&rack_input_val);
     rack_logger_val = rb_str_new_cstr("rack.logger");		rb_gc_register_address(&rack_logger_val);
     rack_multiprocess_val = rb_str_new_cstr("rack.multiprocess");rb_gc_register_address(&rack_multiprocess_val);
-    rack_multithread_val = rb_str_new_cstr("rack.multithread");rb_gc_register_address(&rack_multithread_val);
+    rack_multithread_val = rb_str_new_cstr("rack.multithread");	rb_gc_register_address(&rack_multithread_val);
     rack_run_once_val = rb_str_new_cstr("rack.run_once");	rb_gc_register_address(&rack_run_once_val);
     rack_upgrade_val = rb_str_new_cstr("rack.upgrade?");	rb_gc_register_address(&rack_upgrade_val);
     rack_url_scheme_val = rb_str_new_cstr("rack.url_scheme");	rb_gc_register_address(&rack_url_scheme_val);

@@ -6,7 +6,6 @@
 #include <netdb.h>
 #include <netinet/tcp.h>
 #include <poll.h>
-#include <signal.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -33,7 +32,9 @@
 #include "upgraded.h"
 #include "websocket.h"
 
-static VALUE	server_class = Qundef;
+extern void	agoo_shutdown();
+
+static VALUE	server_mod = Qundef;
 
 static VALUE	connect_sym;
 static VALUE	delete_sym;
@@ -54,102 +55,66 @@ static ID	to_i_id;
 
 static const char	err500[] = "HTTP/1.1 500 Internal Server Error\r\n";
 
-Server	the_server = NULL;
+struct _Server	the_server = {false};
 
-static void
-server_free(void *ptr) {
-    // Commented out for now as it causes a segfault later. Some thread seems
-    // to be pointing at it even though they have exited so live with a memory
-    // leak that only shows up when the program exits.
-    xfree(ptr);
-    DEBUG_FREE(mem_server, ptr);
-    //the_server = NULL;
-}
-
-static void
-shutdown_server(Server server) {
-    if (NULL != server && server->active) {
-	the_server = NULL;
-
-	log_cat(&server->info_cat, "Agoo shutting down.");
-	server->active = false;
-	if (0 != server->listen_thread) {
-	    pthread_join(server->listen_thread, NULL);
-	    server->listen_thread = 0;
-	}
-	if (0 != server->con_thread) {
-	    pthread_join(server->con_thread, NULL);
-	    server->con_thread = 0;
-	}
-	queue_cleanup(&server->con_queue);
-	queue_cleanup(&server->pub_queue);
-	sub_cleanup(&server->sub_cache);
-	cc_cleanup(&server->con_cache);
-	// The preferred method to of waiting for the ruby threads would be
-	// either a join or even a kill but since we don't have the gvi here
-	// that would cause a segfault. Instead we set a timeout and wait for
-	// the running counter to drop to zero.
-	if (NULL != server->eval_threads) {
-	    double	timeout = dtime() + 2.0;
-
-	    while (dtime() < timeout) {
-		if (0 >= atomic_load(&server->running)) {
-		    break;
-		}
-		dsleep(0.02);
+void
+server_shutdown() {
+    if (the_server.inited) {
+	log_cat(&info_cat, "Agoo shutting down.");
+	the_server.inited = false;
+	if (the_server.active) {
+	    the_server.active = false;
+	    if (0 != the_server.listen_thread) {
+		pthread_join(the_server.listen_thread, NULL);
+		the_server.listen_thread = 0;
 	    }
-	    DEBUG_FREE(mem_eval_threads, server->eval_threads)
-	    xfree(server->eval_threads);
-	    server->eval_threads = NULL;
-	}
-	while (NULL != server->hooks) {
-	    Hook	h = server->hooks;
+	    if (0 != the_server.con_thread) {
+		pthread_join(the_server.con_thread, NULL);
+		the_server.con_thread = 0;
+	    }
+	    sub_cleanup(&the_server.sub_cache);
+	    cc_cleanup(&the_server.con_cache);
+	    // The preferred method to of waiting for the ruby threads would be
+	    // either a join or even a kill but since we don't have the gvi here
+	    // that would cause a segfault. Instead we set a timeout and wait for
+	    // the running counter to drop to zero.
+	    if (NULL != the_server.eval_threads) {
+		double	timeout = dtime() + 2.0;
 
-	    server->hooks = h->next;
-	    hook_destroy(h);
+		while (dtime() < timeout) {
+		    if (0 >= atomic_load(&the_server.running)) {
+			break;
+		    }
+		    dsleep(0.02);
+		}
+		DEBUG_FREE(mem_eval_threads, the_server.eval_threads);
+		xfree(the_server.eval_threads); // TBD use regular malloc and free
+		the_server.eval_threads = NULL;
+	    }
+	    while (NULL != the_server.hooks) {
+		Hook	h = the_server.hooks;
+
+		the_server.hooks = h->next;
+		hook_destroy(h);
+	    }
 	}
-	queue_cleanup(&server->eval_queue);
-	log_close(&server->log);
-	cache_cleanup(&server->pages);
+	queue_cleanup(&the_server.con_queue);
+	queue_cleanup(&the_server.pub_queue);
+	queue_cleanup(&the_server.eval_queue);
+	cache_cleanup(&the_server.pages);
 	http_cleanup();
-	server_free(server);
-	debug_print_stats();    
     }
-}
-
-static void
-sig_handler(int sig) {
-    if (NULL != the_server) {
-	shutdown_server(the_server);
-    }
-    // Use exit instead of rb_exit as rb_exit segfaults most of the time.
-    //rb_exit(0);
-    exit(0);
 }
 
 static int
-configure(Err err, Server s, int port, const char *root, VALUE options) {
-    s->port = port;
-    s->root = strdup(root);
-    s->thread_cnt = 0;
-    s->running = 0;
-    s->listen_thread = 0;
-    s->con_thread = 0;
-    s->max_push_pending = 32;
-    s->log.cats = NULL;
-    log_cat_reg(&s->log, &s->error_cat, "ERROR",    ERROR, RED, true);
-    log_cat_reg(&s->log, &s->warn_cat,  "WARN",     WARN,  YELLOW, true);
-    log_cat_reg(&s->log, &s->info_cat,  "INFO",     INFO,  GREEN, true);
-    log_cat_reg(&s->log, &s->debug_cat, "DEBUG",    DEBUG, GRAY, false);
-    log_cat_reg(&s->log, &s->con_cat,   "connect",  INFO,  GREEN, false);
-    log_cat_reg(&s->log, &s->req_cat,   "request",  INFO,  CYAN, false);
-    log_cat_reg(&s->log, &s->resp_cat,  "response", INFO,  DARK_CYAN, false);
-    log_cat_reg(&s->log, &s->eval_cat,  "eval",     INFO,  BLUE, false);
-    log_cat_reg(&s->log, &s->push_cat,  "push",     INFO,  DARK_CYAN, false);
-
-    if (ERR_OK != log_init(err, &s->log, options)) {
-	return err->code;
-    }
+configure(Err err, int port, const char *root, VALUE options) {
+    the_server.port = port;
+    the_server.root = strdup(root);
+    the_server.thread_cnt = 0;
+    the_server.running = 0;
+    the_server.listen_thread = 0;
+    the_server.con_thread = 0;
+    the_server.max_push_pending = 32;
     if (Qnil != options) {
 	VALUE	v;
 
@@ -157,7 +122,7 @@ configure(Err err, Server s, int port, const char *root, VALUE options) {
 	    int	tc = FIX2INT(v);
 
 	    if (1 <= tc || tc < 1000) {
-		s->thread_cnt = tc;
+		the_server.thread_cnt = tc;
 	    } else {
 		rb_raise(rb_eArgError, "thread_count must be between 1 and 1000.");
 	    }
@@ -166,24 +131,24 @@ configure(Err err, Server s, int port, const char *root, VALUE options) {
 	    int	tc = FIX2INT(v);
 
 	    if (0 <= tc || tc < 1000) {
-		s->thread_cnt = tc;
+		the_server.thread_cnt = tc;
 	    } else {
 		rb_raise(rb_eArgError, "thread_count must be between 0 and 1000.");
 	    }
 	}
 	if (Qnil != (v = rb_hash_lookup(options, ID2SYM(rb_intern("pedantic"))))) {
-	    s->pedantic = (Qtrue == v);
+	    the_server.pedantic = (Qtrue == v);
 	}
 	if (Qnil != (v = rb_hash_lookup(options, ID2SYM(rb_intern("Port"))))) {
 	    if (rb_cInteger == rb_obj_class(v)) {
-		s->port = NUM2INT(v);
+		the_server.port = NUM2INT(v);
 	    } else {
 		switch (rb_type(v)) {
 		case T_STRING:
-		    s->port = atoi(StringValuePtr(v));
+		    the_server.port = atoi(StringValuePtr(v));
 		    break;
 		case T_FIXNUM:
-		    s->port = NUM2INT(v);
+		    the_server.port = NUM2INT(v);
 		    break;
 		default:
 		    break;
@@ -192,30 +157,31 @@ configure(Err err, Server s, int port, const char *root, VALUE options) {
 	}
 	if (Qnil != (v = rb_hash_lookup(options, ID2SYM(rb_intern("quiet"))))) {
 	    if (Qtrue == v) {
-		s->info_cat.on = false;
+		info_cat.on = false;
 	    }
 	}
 	if (Qnil != (v = rb_hash_lookup(options, ID2SYM(rb_intern("debug"))))) {
 	    if (Qtrue == v) {
-		s->error_cat.on = true;
-		s->warn_cat.on = true;
-		s->info_cat.on = true;
-		s->debug_cat.on = true;
-		s->con_cat.on = true;
-		s->req_cat.on = true;
-		s->resp_cat.on = true;
-		s->eval_cat.on = true;
+		error_cat.on = true;
+		warn_cat.on = true;
+		info_cat.on = true;
+		debug_cat.on = true;
+		con_cat.on = true;
+		req_cat.on = true;
+		resp_cat.on = true;
+		eval_cat.on = true;
+		push_cat.on = true;
 	    }
 	}
     }
     return ERR_OK;
 }
 
-/* Document-method: new
+/* Document-method: init
  *
- * call-seq: new(port, root, options)
+ * call-seq: init(port, root, options)
  *
- * Creates a new server that will listen on the designated _port_ and using
+ * Configures the server that will listen on the designated _port_ and using
  * the _root_ as the root of the static resources. Logging is feature based
  * and not level based and the options reflect that approach.
  *
@@ -244,16 +210,14 @@ configure(Err err, Server s, int port, const char *root, VALUE options) {
  *     - *:eval* handler evaluationss
  */
 static VALUE
-server_new(int argc, VALUE *argv, VALUE self) {
-    Server	s;
+rserver_init(int argc, VALUE *argv, VALUE self) {
     struct _Err	err = ERR_INIT;
     int		port;
     const char	*root;
     VALUE	options = Qnil;
-    VALUE	wrap;
-    
+
     if (argc < 2 || 3 < argc) {
-	rb_raise(rb_eArgError, "Wrong number of arguments to Agoo::Server.new.");
+	rb_raise(rb_eArgError, "Wrong number of arguments to Agoo::Server.configure.");
     }
     port = FIX2INT(argv[0]);
     rb_check_type(argv[1], T_STRING);
@@ -261,34 +225,26 @@ server_new(int argc, VALUE *argv, VALUE self) {
     if (3 <= argc) {
 	options = argv[2];
     }
-    s = ALLOC(struct _Server);
-    DEBUG_ALLOC(mem_server, s)
-    memset(s, 0, sizeof(struct _Server));
-    if (ERR_OK != configure(&err, s, port, root, options)) {
-	DEBUG_FREE(mem_server, s)
-	xfree(s);
+    memset(&the_server, 0, sizeof(struct _Server));
+    if (ERR_OK != configure(&err, port, root, options)) {
 	// TBD raise Agoo specific exception
 	rb_raise(rb_eArgError, "%s", err.msg);
     }
-    queue_multi_init(&s->con_queue, 256, false, false);
-    queue_multi_init(&s->pub_queue, 256, true, false);
-    queue_multi_init(&s->eval_queue, 1024, false, true);
+    queue_multi_init(&the_server.con_queue, 256, false, false);
+    queue_multi_init(&the_server.pub_queue, 256, true, false);
+    queue_multi_init(&the_server.eval_queue, 1024, false, true);
 
-    cache_init(&s->pages);
-    cc_init(&s->con_cache);
-    sub_init(&s->sub_cache);
-
-    the_server = s;
+    cache_init(&the_server.pages);
+    cc_init(&the_server.con_cache);
+    sub_init(&the_server.sub_cache);
     
-    wrap =  Data_Wrap_Struct(server_class, NULL, server_free, s);
-    rb_gc_register_address(&wrap);
+    the_server.inited = true;
 
-    return wrap;
+    return Qnil;
 }
 
 static void*
 listen_loop(void *x) {
-    Server		server = (Server)x;
     struct sockaddr_in	addr;
     int			optval = 1;
     struct pollfd	pa[1];
@@ -301,10 +257,9 @@ listen_loop(void *x) {
     int			i;
     uint64_t		cnt = 0;
 
-    atomic_fetch_add(&server->running, 1);
     if (0 >= (pa->fd = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP))) {
-	log_cat(&server->error_cat, "Server failed to open server socket. %s.", strerror(errno));
-	atomic_fetch_sub(&server->running, 1);
+	log_cat(&error_cat, "Server failed to open server socket. %s.", strerror(errno));
+	atomic_fetch_sub(&the_server.running, 1);
 	return NULL;
     }
 #ifdef OSX_OS 
@@ -313,26 +268,26 @@ listen_loop(void *x) {
     memset(&addr, 0, sizeof(addr));
     addr.sin_family = AF_INET;
     addr.sin_addr.s_addr = INADDR_ANY;
-    addr.sin_port = htons(server->port);
+    addr.sin_port = htons(the_server.port);
     setsockopt(pa->fd, SOL_SOCKET, SO_REUSEPORT, &optval, sizeof(optval));
     setsockopt(pa->fd, IPPROTO_TCP, TCP_NODELAY, &optval, sizeof(optval));
     if (0 > bind(fp->fd, (struct sockaddr*)&addr, sizeof(addr))) {
-	log_cat(&server->error_cat, "Server failed to bind server socket. %s.", strerror(errno));
-	atomic_fetch_sub(&server->running, 1);
+	log_cat(&error_cat, "Server failed to bind server socket. %s.", strerror(errno));
+	atomic_fetch_sub(&the_server.running, 1);
 	return NULL;
     }
     listen(pa->fd, 1000);
-    server->ready = true;
     pa->events = POLLIN;
     pa->revents = 0;
 
     memset(&client_addr, 0, sizeof(client_addr));
-    while (server->active) {
+    atomic_fetch_add(&the_server.running, 1);
+    while (the_server.active) {
 	if (0 > (i = poll(pa, 1, 100))) {
 	    if (EAGAIN == errno) {
 		continue;
 	    }
-	    log_cat(&server->error_cat, "Server polling error. %s.", strerror(errno));
+	    log_cat(&error_cat, "Server polling error. %s.", strerror(errno));
 	    // Either a signal or something bad like out of memory. Might as well exit.
 	    break;
 	}
@@ -341,9 +296,9 @@ listen_loop(void *x) {
 	}
 	if (0 != (pa->revents & POLLIN)) {
 	    if (0 > (client_sock = accept(pa->fd, (struct sockaddr*)&client_addr, &alen))) {
-		log_cat(&server->error_cat, "Server accept connection failed. %s.", strerror(errno));
-	    } else if (NULL == (con = con_create(&err, server, client_sock, ++cnt))) {
-		log_cat(&server->error_cat, "Server accept connection failed. %s.", err.msg);
+		log_cat(&error_cat, "Server accept connection failed. %s.", strerror(errno));
+	    } else if (NULL == (con = con_create(&err, client_sock, ++cnt))) {
+		log_cat(&error_cat, "Server accept connection failed. %s.", err.msg);
 		close(client_sock);
 		cnt--;
 		err_clear(&err);
@@ -354,22 +309,22 @@ listen_loop(void *x) {
 		fcntl(client_sock, F_SETFL, O_NONBLOCK);
 		setsockopt(client_sock, SOL_SOCKET, SO_KEEPALIVE, &optval, sizeof(optval));
 		setsockopt(client_sock, IPPROTO_TCP, TCP_NODELAY, &optval, sizeof(optval));
-		log_cat(&server->con_cat, "Server accepted connection %llu on port %d [%d]", (unsigned long long)cnt, server->port, con->sock);
-		queue_push(&server->con_queue, (void*)con);
+		log_cat(&con_cat, "Server accepted connection %llu on port %d [%d]", (unsigned long long)cnt, the_server.port, con->sock);
+		queue_push(&the_server.con_queue, (void*)con);
 	    }
 	}
 	if (0 != (pa->revents & (POLLERR | POLLHUP | POLLNVAL))) {
 	    if (0 != (pa->revents & (POLLHUP | POLLNVAL))) {
-		log_cat(&server->error_cat, "Agoo server socket on port %d closed.", server->port);
+		log_cat(&error_cat, "Agoo server socket on port %d closed.", the_server.port);
 	    } else {
-		log_cat(&server->error_cat, "Agoo server socket on port %d error.", server->port);
+		log_cat(&error_cat, "Agoo server socket on port %d error.", the_server.port);
 	    }
-	    server->active = false;
+	    the_server.active = false;
 	}
 	pa->revents = 0;
     }
     close(pa->fd);
-    atomic_fetch_sub(&server->running, 1);
+    atomic_fetch_sub(&the_server.running, 1);
 
     return NULL;
 }
@@ -396,7 +351,7 @@ rescue_error(VALUE x) {
 
     req->res->close = true;
     res_set_message(req->res, message);
-    queue_wakeup(&req->server->con_queue);
+    queue_wakeup(&the_server.con_queue);
 
     return Qfalse;
 }
@@ -405,13 +360,13 @@ static VALUE
 handle_base_inner(void *x) {
     Req			req = (Req)x;
     volatile VALUE	rr = request_wrap(req);
-    volatile VALUE	rres = response_new(req->server);
+    volatile VALUE	rres = response_new();
     
     rb_funcall(req->handler, on_request_id, 2, rr, rres);
     DATA_PTR(rr) = NULL;
 
     res_set_message(req->res, response_text(rres));
-    queue_wakeup(&req->server->con_queue);
+    queue_wakeup(&the_server.con_queue);
 
     return Qfalse;
 }
@@ -592,7 +547,7 @@ handle_rack_inner(void *x) {
 	}
     }
     res_set_message(req->res, t);
-    queue_wakeup(&req->server->con_queue);
+    queue_wakeup(&the_server.con_queue);
 
     return Qfalse;
 }
@@ -614,13 +569,13 @@ static VALUE
 handle_wab_inner(void *x) {
     Req			req = (Req)x;
     volatile VALUE	rr = request_wrap(req);
-    volatile VALUE	rres = response_new(req->server);
+    volatile VALUE	rres = response_new();
     
     rb_funcall(req->handler, on_request_id, 2, rr, rres);
     DATA_PTR(rr) = NULL;
 
     res_set_message(req->res, response_text(rres));
-    queue_wakeup(&req->server->con_queue);
+    queue_wakeup(&the_server.con_queue);
 
     return Qfalse;
 }
@@ -706,7 +661,7 @@ handle_protected(Req req, bool gvi) {
 	
 	req->res->close = true;
 	res_set_message(req->res, message);
-	queue_wakeup(&req->server->con_queue);
+	queue_wakeup(&the_server.con_queue);
 	break;
     }
     }
@@ -714,24 +669,23 @@ handle_protected(Req req, bool gvi) {
 
 static void*
 process_loop(void *ptr) {
-    Server	server = (Server)ptr;
-    Req		req;
+    Req	req;
     
-    atomic_fetch_add(&server->running, 1);
-    while (server->active) {
-	if (NULL != (req = (Req)queue_pop(&server->eval_queue, 0.1))) {
+    atomic_fetch_add(&the_server.running, 1);
+    while (the_server.active) {
+	if (NULL != (req = (Req)queue_pop(&the_server.eval_queue, 0.1))) {
 	    handle_protected(req, true);
 	    request_destroy(req);
 	}
     }
-    atomic_fetch_sub(&server->running, 1);
+    atomic_fetch_sub(&the_server.running, 1);
     
     return NULL;
 }
 
 static VALUE
 wrap_process_loop(void *ptr) {
-    rb_thread_call_without_gvl(process_loop, ptr, RUBY_UBF_IO, NULL);
+    rb_thread_call_without_gvl(process_loop, NULL, RUBY_UBF_IO, NULL);
     return Qnil;
 }
 
@@ -742,52 +696,56 @@ wrap_process_loop(void *ptr) {
  * Start the server.
  */
 static VALUE
-start(VALUE self) {
-    Server	server = (Server)DATA_PTR(self);
+server_start(VALUE self) {
     VALUE	*vp;
     int		i;
     double	giveup;
     
-    server->active = true;
-    server->ready = false;
+    the_server.active = true;
 
-    pthread_create(&server->listen_thread, NULL, listen_loop, server);
-    pthread_create(&server->con_thread, NULL, con_loop, server);
+    pthread_create(&the_server.listen_thread, NULL, listen_loop, NULL);
+    pthread_create(&the_server.con_thread, NULL, con_loop, NULL);
     
     giveup = dtime() + 1.0;
     while (dtime() < giveup) {
-	if (server->ready) {
+	if (2 <= atomic_load(&the_server.running)) {
 	    break;
 	}
-	dsleep(0.001);
+	dsleep(0.01);
     }
-    signal(SIGINT, sig_handler);
-    signal(SIGTERM, sig_handler);
-    signal(SIGPIPE, SIG_IGN);
-
-    if (server->info_cat.on) {
+    if (info_cat.on) {
 	VALUE	agoo = rb_const_get_at(rb_cObject, rb_intern("Agoo"));
 	VALUE	v = rb_const_get_at(agoo, rb_intern("VERSION"));
 					       
-	log_cat(&server->info_cat, "Agoo %s listening on port %d.", StringValuePtr(v), server->port);
+	log_cat(&info_cat, "Agoo %s listening on port %d.", StringValuePtr(v), the_server.port);
     }
-    if (0 >= server->thread_cnt) {
+    if (0 >= the_server.thread_cnt) {
 	Req		req;
 
-	while (server->active) {
-	    if (NULL != (req = (Req)queue_pop(&server->eval_queue, 0.1))) {
+	while (the_server.active) {
+	    if (NULL != (req = (Req)queue_pop(&the_server.eval_queue, 0.1))) {
 		handle_protected(req, false);
 		request_destroy(req);
 	    }
 	}
     } else {
-	server->eval_threads = ALLOC_N(VALUE, server->thread_cnt + 1);
-	DEBUG_ALLOC(mem_eval_threads, server->eval_threads)
+	the_server.eval_threads = ALLOC_N(VALUE, the_server.thread_cnt + 1);
+	DEBUG_ALLOC(mem_eval_threads, the_server.eval_threads);
 
-	for (i = server->thread_cnt, vp = server->eval_threads; 0 < i; i--, vp++) {
-	    *vp = rb_thread_create(wrap_process_loop, server);
+	for (i = the_server.thread_cnt, vp = the_server.eval_threads; 0 < i; i--, vp++) {
+	    *vp = rb_thread_create(wrap_process_loop, NULL);
 	}
 	*vp = Qnil;
+	giveup = dtime() + 1.0;
+	while (dtime() < giveup) {
+	    // The processing threads will not start until this thread
+	    // releases ownership so do that and then see if the threads has
+	    // been started yet.
+	    rb_thread_schedule();
+	    if (2 + the_server.thread_cnt <= atomic_load(&the_server.running)) {
+		break;
+	    }
+	}
     }
     return Qnil;
 }
@@ -799,176 +757,8 @@ start(VALUE self) {
  * Shutdown the server. Logs and queues are flushed before shutting down.
  */
 static VALUE
-server_shutdown(VALUE self) {
-    shutdown_server((Server)DATA_PTR(self));
-    return Qnil;
-}
-
-/* Document-method: error?
- *
- * call-seq: error?()
- *
- * Returns true is errors are being logged.
- */
-static VALUE
-log_errorp(VALUE self) {
-    return ((Server)DATA_PTR(self))->error_cat.on ? Qtrue : Qfalse;
-}
-
-/* Document-method: warn?
- *
- * call-seq: warn?()
- *
- * Returns true is warnings are being logged.
- */
-static VALUE
-log_warnp(VALUE self) {
-    return ((Server)DATA_PTR(self))->warn_cat.on ? Qtrue : Qfalse;
-}
-
-/* Document-method: info?
- *
- * call-seq: info?()
- *
- * Returns true is info entries are being logged.
- */
-static VALUE
-log_infop(VALUE self) {
-    return ((Server)DATA_PTR(self))->info_cat.on ? Qtrue : Qfalse;
-}
-
-/* Document-method: debug?
- *
- * call-seq: debug?()
- *
- * Returns true is debug entries are being logged.
- */
-static VALUE
-log_debugp(VALUE self) {
-    return ((Server)DATA_PTR(self))->debug_cat.on ? Qtrue : Qfalse;
-}
-
-/* Document-method: eval?
- *
- * call-seq: eval?()
- *
- * Returns true is handler evaluation entries are being logged.
- */
-static VALUE
-log_evalp(VALUE self) {
-    return ((Server)DATA_PTR(self))->eval_cat.on ? Qtrue : Qfalse;
-}
-
-/* Document-method: error
- *
- * call-seq: error(msg)
- *
- * Log an error message.
- */
-static VALUE
-log_error(VALUE self, VALUE msg) {
-    log_cat(&((Server)DATA_PTR(self))->error_cat, "%s", StringValuePtr(msg));
-    return Qnil;
-}
-
-/* Document-method: warn
- *
- * call-seq: warn(msg)
- *
- * Log a warn message.
- */
-static VALUE
-log_warn(VALUE self, VALUE msg) {
-    log_cat(&((Server)DATA_PTR(self))->warn_cat, "%s", StringValuePtr(msg));
-    return Qnil;
-}
-
-/* Document-method: info
- *
- * call-seq: info(msg)
- *
- * Log an info message.
- */
-static VALUE
-log_info(VALUE self, VALUE msg) {
-    log_cat(&((Server)DATA_PTR(self))->info_cat, "%s", StringValuePtr(msg));
-    return Qnil;
-}
-
-/* Document-method: debug
- *
- * call-seq: debug(msg)
- *
- * Log a debug message.
- */
-static VALUE
-log_debug(VALUE self, VALUE msg) {
-    log_cat(&((Server)DATA_PTR(self))->debug_cat, "%s", StringValuePtr(msg));
-    return Qnil;
-}
-
-/* Document-method: log_eval
- *
- * call-seq: log_eval(msg)
- *
- * Log an eval message.
- */
-static VALUE
-log_eval(VALUE self, VALUE msg) {
-    log_cat(&((Server)DATA_PTR(self))->eval_cat, "%s", StringValuePtr(msg));
-    return Qnil;
-}
-
-/* Document-method: log_state
- *
- * call-seq: log_state(label)
- *
- * Return the logging state of the category identified by the _label_.
- */
-static VALUE
-log_state(VALUE self, VALUE label) {
-    Server	server = (Server)DATA_PTR(self);
-    LogCat	cat = log_cat_find(&server->log, StringValuePtr(label));
-
-    if (NULL == cat) {
-	rb_raise(rb_eArgError, "%s is not a valid log category.", StringValuePtr(label));
-    }
-    return cat->on ? Qtrue : Qfalse;
-}
-
-/* Document-method: set_log_state
- *
- * call-seq: set_log_state(label, state)
- *
- * Set the logging state of the category identified by the _label_.
- */
-static VALUE
-set_log_state(VALUE self, VALUE label, VALUE on) {
-    Server	server = (Server)DATA_PTR(self);
-    LogCat	cat = log_cat_find(&server->log, StringValuePtr(label));
-
-    if (NULL == cat) {
-	rb_raise(rb_eArgError, "%s is not a valid log category.", StringValuePtr(label));
-    }
-    cat->on = (Qtrue == on);
-
-    return Qnil;
-}
-
-/* Document-method: log_flush
- *
- * call-seq: log_flush()
- *
- * Flush the log queue and write all entries to disk or the console. The call
- * waits for the flush to complete.
- */
-static VALUE
-server_log_flush(VALUE self, VALUE to) {
-    double	timeout = NUM2DBL(to);
-    
-    if (!log_flush(&((Server)DATA_PTR(self))->log, timeout)) {
-	rb_raise(rb_eStandardError, "timed out waiting for log flush.");
-    }
+rserver_shutdown(VALUE self) {
+    server_shutdown();
     return Qnil;
 }
 
@@ -982,7 +772,6 @@ server_log_flush(VALUE self, VALUE to) {
  */
 static VALUE
 handle(VALUE self, VALUE method, VALUE pattern, VALUE handler) {
-    Server	server = (Server)DATA_PTR(self);
     Hook	hook;
     Method	meth = ALL;
     const char	*pat;
@@ -1015,13 +804,13 @@ handle(VALUE self, VALUE method, VALUE pattern, VALUE handler) {
 	Hook	h;
 	Hook	prev = NULL;
 
-	for (h = server->hooks; NULL != h; h = h->next) {
+	for (h = the_server.hooks; NULL != h; h = h->next) {
 	    prev = h;
 	}
 	if (NULL != prev) {
 	    prev->next = hook;
 	} else {
-	    server->hooks = hook;
+	    the_server.hooks = hook;
 	}
 	rb_gc_register_address(&hook->handler);
     }
@@ -1037,12 +826,10 @@ handle(VALUE self, VALUE method, VALUE pattern, VALUE handler) {
  */
 static VALUE
 handle_not_found(VALUE self, VALUE handler) {
-    Server	server = (Server)DATA_PTR(self);
-
-    if (NULL == (server->hook404 = hook_create(GET, "/", handler))) {
+    if (NULL == (the_server.hook404 = hook_create(GET, "/", handler))) {
 	rb_raise(rb_eStandardError, "out of memory.");
     }
-    rb_gc_register_address(&server->hook404->handler);
+    rb_gc_register_address(&the_server.hook404->handler);
     
     return Qnil;
 }
@@ -1056,7 +843,7 @@ handle_not_found(VALUE self, VALUE handler) {
  */
 static VALUE
 add_mime(VALUE self, VALUE suffix, VALUE type) {
-    mime_set(&((Server)DATA_PTR(self))->pages, StringValuePtr(suffix), StringValuePtr(type));
+    mime_set(&the_server.pages, StringValuePtr(suffix), StringValuePtr(type));
 
     return Qnil;
 }
@@ -1068,30 +855,15 @@ add_mime(VALUE self, VALUE suffix, VALUE type) {
  */
 void
 server_init(VALUE mod) {
-    server_class = rb_define_class_under(mod, "Server", rb_cObject);
+    server_mod = rb_define_module_under(mod, "Server");
 
-    rb_define_module_function(server_class, "new", server_new, -1);
-    rb_define_method(server_class, "start", start, 0);
-    rb_define_method(server_class, "shutdown", server_shutdown, 0);
+    rb_define_module_function(server_mod, "init", rserver_init, -1);
+    rb_define_module_function(server_mod, "start", server_start, 0);
+    rb_define_module_function(server_mod, "shutdown", rserver_shutdown, 0);
 
-    rb_define_method(server_class, "error?", log_errorp, 0);
-    rb_define_method(server_class, "warn?", log_warnp, 0);
-    rb_define_method(server_class, "info?", log_infop, 0);
-    rb_define_method(server_class, "debug?", log_debugp, 0);
-    rb_define_method(server_class, "log_eval?", log_evalp, 0);
-    rb_define_method(server_class, "error", log_error, 1);
-    rb_define_method(server_class, "warn", log_warn, 1);
-    rb_define_method(server_class, "info", log_info, 1);
-    rb_define_method(server_class, "debug", log_debug, 1);
-    rb_define_method(server_class, "log_eval", log_eval, 1);
-
-    rb_define_method(server_class, "log_state", log_state, 1);
-    rb_define_method(server_class, "set_log_state", set_log_state, 2);
-    rb_define_method(server_class, "log_flush", server_log_flush, 1);
-
-    rb_define_method(server_class, "handle", handle, 3);
-    rb_define_method(server_class, "handle_not_found", handle_not_found, 1);
-    rb_define_method(server_class, "add_mime", add_mime, 2);
+    rb_define_module_function(server_mod, "handle", handle, 3);
+    rb_define_module_function(server_mod, "handle_not_found", handle_not_found, 1);
+    rb_define_module_function(server_mod, "add_mime", add_mime, 2);
 
     call_id = rb_intern("call");
     each_id = rb_intern("each");
