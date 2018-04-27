@@ -28,7 +28,7 @@ before_script:
   - cd ../..
 
 script:
-  - cd test && ./log_test.rb -v
-  - cd test && ./static_test.rb -v
-  - cd test && ./base_test.rb -v
-  - cd test && ./rack_test.rb -v
+  - cd test && ./log_test.rb
+  - cd test && ./static_test.rb
+  - cd test && ./base_test.rb
+  - cd test && ./rack_test.rb
