@@ -31,5 +31,5 @@ script:
   - cd test
   - ./log_test.rb
   - ./static_test.rb
-  - ./base_test.rb
-  - ./rack_test.rb
+  - ./base_handler_test.rb
+  - ./rack_handler_test.rb
