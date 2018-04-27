@@ -59,7 +59,7 @@ b64_to(const uchar *src, int len, char *b64) {
     }
     *b64 = '\0';
 
-    return b64 - start;
+    return (int)(b64 - start);
 }
 
 unsigned long

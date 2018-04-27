@@ -65,8 +65,8 @@ pub_publish(char *subject, const char *message, size_t mlen, bool bin) {
 	p->subject = strdup(subject);
 	// Allocate an extra 16 bytes so the message can be expanded in place
 	// if a WebSocket write.
-	p->msg = text_allocate(mlen + 16);
-	p->msg = text_append(text_allocate(mlen + 16), message, mlen);
+	p->msg = text_allocate((int)mlen + 16);
+	p->msg = text_append(text_allocate((int)mlen + 16), message, (int)mlen);
 	text_ref(p->msg);
     }
     return p;
@@ -86,7 +86,7 @@ pub_write(uint64_t cid, const char *message, size_t mlen, bool bin) {
 	p->subject = NULL;
 	// Allocate an extra 16 bytes so the message can be expanded in place
 	// if a WebSocket write.
-	p->msg = text_append(text_allocate(mlen + 16), message, mlen);
+	p->msg = text_append(text_allocate((int)mlen + 16), message, (int)mlen);
 	p->msg->bin = bin;
 	text_ref(p->msg);
     }

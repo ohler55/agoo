@@ -215,14 +215,14 @@ log_rotate() {
     the_log.file = fopen(from, "w");
     the_log.size = 0;
 
-    remove_old_logs(log);
+    remove_old_logs();
 }
 
 static void*
 loop(void *ctx) {
     LogEntry	e;
 
-    while (!the_log.done || !log_queue_empty(log)) {
+    while (!the_log.done || !log_queue_empty()) {
 	if (NULL != (e = log_queue_pop(0.5))) {
 	    if (the_log.console) {
 		if (the_log.classic) {
@@ -255,7 +255,7 @@ bool
 log_flush(double timeout) {
     timeout += dtime();
     
-    while (!the_log.done && !log_queue_empty(log)) {
+    while (!the_log.done && !log_queue_empty()) {
 	if (timeout < dtime()) {
 	    return false;
 	}

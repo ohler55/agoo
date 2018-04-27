@@ -70,7 +70,7 @@ ws_expand(Text t) {
 	    *b++ = (uint8_t)((t->len >> i) & 0xFF);
 	}
     }
-    return text_prepend(t, (const char*)buf, b - buf);
+    return text_prepend(t, (const char*)buf, (int)(b - buf));
 }
 
 size_t

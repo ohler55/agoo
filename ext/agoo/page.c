@@ -369,7 +369,7 @@ update_contents(Cache cache, Page p) {
     // Format size plus space for the length, the mime type, and some
     // padding. Then add the content length.
     msize = sizeof(page_fmt) + 60 + size;
-    if (NULL == (t = text_allocate(msize))) {
+    if (NULL == (t = text_allocate((int)msize))) {
 	return false;
     }
     cnt = sprintf(t->text, page_fmt, mime, size);

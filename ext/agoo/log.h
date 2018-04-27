@@ -91,16 +91,16 @@ struct _Log {
 };
 
 extern struct _Log	the_log;
-struct _LogCat		fatal_cat;
-struct _LogCat		error_cat;
-struct _LogCat		warn_cat;
-struct _LogCat		info_cat;
-struct _LogCat		debug_cat;
-struct _LogCat		con_cat;
-struct _LogCat		req_cat;
-struct _LogCat		resp_cat;
-struct _LogCat		eval_cat;
-struct _LogCat		push_cat;
+extern struct _LogCat	fatal_cat;
+extern struct _LogCat	error_cat;
+extern struct _LogCat	warn_cat;
+extern struct _LogCat	info_cat;
+extern struct _LogCat	debug_cat;
+extern struct _LogCat	con_cat;
+extern struct _LogCat	req_cat;
+extern struct _LogCat	resp_cat;
+extern struct _LogCat	eval_cat;
+extern struct _LogCat	push_cat;
 
 extern void	log_init(VALUE mod);
 
