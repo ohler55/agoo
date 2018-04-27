@@ -41,7 +41,7 @@ faster than Sinatra and 1000 times faster than Rails. In both cases the
 latency was two orders of magnitude lower or more. Checkout the benchmarks on
 <a href="http://opo.technology/benchmarks.html#web_benchmarks">OpO
 benchmarks</a>. Note that the benchmarks had to use a C program called <a
-href="https://github.com/ohler55/perfer">perfer</a> to hit the Agoo
+href="https://github.com/ohler55/perfer">Perfer</a> to hit the Agoo
 limits. Ruby benchmarks driver could not push Agoo hard enough.
 
 Agoo supports the [Ruby rack API](https://rack.github.io) which allows for the
@@ -64,6 +64,6 @@ the develop branch. Pull requests should be made against the develop branch.
 
  - *WABuR* *repo*: https://github.com/ohler55/wabur has an option to use Agoo
 
- - *Perer* *repo*: https://github.com/ohler55/perfer
+ - *Perfer* *repo*: https://github.com/ohler55/perfer
 
 Follow [@peterohler on Twitter](http://twitter.com/#!/peterohler) for announcements and news about the Agoo gem.
