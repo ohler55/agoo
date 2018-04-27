@@ -23,7 +23,7 @@ subscription_new(uint64_t cid, uint64_t id, VALUE handler) {
  *
  * call-seq: close()
  *
- * Close or unsubscriptionscribe a subscriptionscription.
+ * Close or unsubscribe a subscription.
  */
 static VALUE
 subscription_close(VALUE self) {
@@ -40,7 +40,7 @@ subscription_close(VALUE self) {
     return Qnil;
 }
 
-/* Document-class: Agoo::Subscriptionscription
+/* Document-class: Agoo::Subscription
  *
  * The handle on a subscriptionscription used to register interest in messages
  * published on a subscriptionject. Published messages are delivered to Javascript
@@ -48,7 +48,7 @@ subscription_close(VALUE self) {
  */
 void
 subscription_init(VALUE mod) {
-    subscription_class = rb_define_class_under(mod, "Subscriptionscription", rb_cObject);
+    subscription_class = rb_define_class_under(mod, "Subscription", rb_cObject);
 
     rb_define_method(subscription_class, "close", subscription_close, 0);
 }

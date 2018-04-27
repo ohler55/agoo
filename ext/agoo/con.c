@@ -11,6 +11,7 @@
 #include "pub.h"
 #include "res.h"
 #include "server.h"
+#include "sse.h"
 #include "websocket.h"
 
 #define MAX_SOCK	4096
@@ -328,7 +329,8 @@ check_upgrade(Con c) {
     }
     if (NULL != (v = con_header_value(c->req->header.start, c->req->header.len, "Accept", &vlen))) {
 	if (0 == strncasecmp("text/event-stream", v, vlen)) {
-	    printf("*** upgrade SSE\n");
+	    c->res_tail->close = false;
+	    c->res_tail->con_kind = CON_SSE;
 	    return;
 	}
     }
@@ -672,7 +674,62 @@ con_ws_write(Con c) {
 
 static bool
 con_sse_write(Con c) {
-    // TBD
+    Res		res = c->res_head;
+    Text	message = res_message(res);
+    ssize_t	cnt;
+
+    if (NULL == message) {
+	ws_req_close(c);
+	res_destroy(res);
+	return true;
+    }
+    c->timeout = dtime() + CON_TIMEOUT *2;
+    if (0 == c->wcnt) {
+	Text	t;
+	
+	if (push_cat.on) {
+	    log_cat(&push_cat, "%llu: %s", c->id, message->text);
+	}
+	t = sse_expand(message);
+	if (t != message) {
+	    res_set_message(res, t);
+	    message = t;
+	}
+    }
+    if (0 > (cnt = send(c->sock, message->text + c->wcnt, message->len - c->wcnt, 0))) {
+	if (EAGAIN == errno) {
+	    return false;
+	}
+	log_cat(&error_cat, "Socket error @ %llu.", c->id);
+	ws_req_close(c);
+	
+	return true;
+    }
+    c->wcnt += cnt;
+    if (c->wcnt == message->len) { // finished
+	Res	res = c->res_head;
+	bool	done = res->close;
+	int	pending;
+	
+	c->res_head = res->next;
+	if (res == c->res_tail) {
+	    c->res_tail = NULL;
+	}
+	c->wcnt = 0;
+	res_destroy(res);
+	if (1 == (pending = atomic_fetch_sub(&c->slot->pending, 1))) {
+	    if (NULL != c->slot && Qnil != c->slot->handler && c->slot->on_empty) {
+		Req	req = request_create(0);
+	    
+		req->cid = c->id;
+		req->method = ON_EMPTY;
+		req->handler_type = PUSH_HOOK;
+		req->handler = c->slot->handler;
+		queue_push(&the_server.eval_queue, (void*)req);
+	    }
+	}
+	return done;
+    }
     return false;
 }
 

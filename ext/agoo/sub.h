@@ -13,7 +13,7 @@ struct _Con;
 
 typedef struct _Sub {
     struct _Sub	*next;
-    uint64_t	cid; // TBD remove
+    uint64_t	cid;
     struct _Con	*con;
     uint64_t	id;
     uint64_t	key; // hash key

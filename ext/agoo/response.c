@@ -52,15 +52,14 @@ response_free(void *ptr) {
 
     while (NULL != (h = res->headers)) {
 	res->headers = h->next;
-	DEBUG_FREE(mem_header, h)
-	    // TBD
-	    //xfree(h);
+	DEBUG_FREE(mem_header, h);
+	// TBD
+	xfree(h);
     }
     DEBUG_FREE(mem_res_body, res->body);
     DEBUG_FREE(mem_response, ptr);
     free(res->body); // allocated with strdup
-    // TBD
-    //xfree(ptr);
+    xfree(ptr);
 }
 
 VALUE
@@ -137,7 +136,8 @@ body_set(VALUE self, VALUE val) {
 	DEBUG_ALLOC(mem_res_body, res->body)
 	res->blen = (int)RSTRING_LEN(val);
     } else {
-	// TBD use Oj
+	rb_raise(rb_eArgError, "Expected a string");
+	// TBD use Oj to encode val
     }
     return Qnil;
 }
@@ -217,8 +217,7 @@ head_set(VALUE self, VALUE key, VALUE val) {
 		prev->next = h->next;
 	    }
 	    DEBUG_FREE(mem_header, h);
-	    // TBD
-	    //xfree(h);
+	    xfree(h);
 	    break;
 	}
 	prev = h;

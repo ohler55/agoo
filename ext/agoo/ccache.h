@@ -50,6 +50,4 @@ extern CSlot		cc_get_slot(CCache cc, uint64_t cid);
 
 extern void		cc_pending_inc(CCache cc, uint64_t cid);
 
-// TBD handle ref_cnt for con and for messages to handler
-
 #endif /* __AGOO_CCACHE_H__ */

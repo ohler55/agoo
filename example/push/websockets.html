@@ -1,5 +1,6 @@
 <html>
   <body>
+    <p id="status"> ... </p>
     <p id="message"> ... waiting ... </p>
 
     <script type="text/javascript">
@@ -11,8 +12,7 @@
           sock = new WebSocket(url);
       }
       sock.onopen = function() {
-          sock.send("subscribe >");
-          document.getElementById("message").textContent = "connected";
+          document.getElementById("status").textContent = "connected";
       }
       sock.onmessage = function(msg) {
           document.getElementById("message").textContent = msg.data;

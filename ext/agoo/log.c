@@ -402,9 +402,30 @@ log_cat(LogCat cat, const char *fmt, ...) {
 
 /* Document-method: configure
  *
- * call-seq: configure()
+ * call-seq: configure(options)
  *
- * Configure the logger.
+ * Configures the logger
+ *
+ * - *options* [_Hash_] server options
+ *
+ *   - *:dir* [_String_] directory to place log files in. If nil or empty then no log files are written.
+ *
+ *   - *:console* [_true_|_false_] if true log entry are display on the console.
+ *
+ *   - *:classic* [_true_|_false_] if true log entry follow a classic format. If false log entries are JSON.
+ *
+ *   - *:colorize* [_true_|_false_] if true log entries are colorized.
+ *
+ *   - *:states* [_Hash_] a map of logging categories and whether they should be on or off. Categories are:
+ *     - *:ERROR* errors
+ *     - *:WARN* warnings
+ *     - *:INFO* infomational
+ *     - *:DEBUG* debugging
+ *     - *:connect* openning and closing of connections
+ *     - *:request* requests
+ *     - *:response* responses
+ *     - *:eval* handler evaluationss
+ *     - *:push* writes to WebSocket or SSE connection
  */
 static VALUE
 rlog_configure(VALUE self, VALUE options) {

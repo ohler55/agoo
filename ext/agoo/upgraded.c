@@ -15,6 +15,12 @@ static ID	sid_id = 0;
 static ID	on_open_id = 0;
 static ID	to_s_id = 0;
 
+/* Document-method: write
+ *
+ * call-seq: write(msg)
+ *
+ * Writes a message to the WebSocket or SSe connection.
+ */
 static VALUE
 up_write(VALUE self, VALUE msg) {
     uint64_t	cid = RB_FIX2ULONG(rb_ivar_get(self, cid_id));
@@ -47,19 +53,32 @@ up_write(VALUE self, VALUE msg) {
     return Qnil;
 }
 
+/* Document-method: subscribe
+ *
+ * call-seq: subscribe(subject)
+ *
+ * Subscribes to messages published on the specified subject. (not implemented
+ * yet)
+ */
 static VALUE
 up_subscribe(VALUE self, VALUE subject) {
 
-    printf("*** subscribe called\n");
+    // printf("*** subscribe called\n");
 
     // increment @_sid
     // create subscription
     // push pub onto server pub_queue
-
     // TBD create subscription object and return it
+
     return Qnil;
 }
 
+/* Document-method: close
+ *
+ * call-seq: close()
+ *
+ * Closes the connections associated with the handler.
+ */
 static VALUE
 up_close(VALUE self) {
     uint64_t	cid = RB_FIX2ULONG(rb_ivar_get(self, cid_id));
@@ -72,6 +91,13 @@ up_close(VALUE self) {
     return Qnil;
 }
 
+/* Document-method: pending
+ *
+ * call-seq: pending()
+ *
+ * Returns the number of pending WebSocket or SSE writes. If the connection is
+ * closed then -1 is returned.
+ */
 static VALUE
 pending(VALUE self) {
     uint64_t	cid = RB_FIX2ULONG(rb_ivar_get(self, cid_id));

@@ -28,6 +28,7 @@
 #include "response.h"
 #include "request.h"
 #include "server.h"
+#include "sse.h"
 #include "sub.h"
 #include "upgraded.h"
 #include "websocket.h"
@@ -74,10 +75,10 @@ server_shutdown() {
 	    }
 	    sub_cleanup(&the_server.sub_cache);
 	    cc_cleanup(&the_server.con_cache);
-	    // The preferred method to of waiting for the ruby threads would be
-	    // either a join or even a kill but since we don't have the gvi here
-	    // that would cause a segfault. Instead we set a timeout and wait for
-	    // the running counter to drop to zero.
+	    // The preferred method to of waiting for the ruby threads would
+	    // be either a join or even a kill but since we may not have the
+	    // gvl here that would cause a segfault. Instead we set a timeout
+	    // and wait for the running counter to drop to zero.
 	    if (NULL != the_server.eval_threads) {
 		double	timeout = dtime() + 2.0;
 
@@ -88,7 +89,7 @@ server_shutdown() {
 		    dsleep(0.02);
 		}
 		DEBUG_FREE(mem_eval_threads, the_server.eval_threads);
-		xfree(the_server.eval_threads); // TBD use regular malloc and free
+		free(the_server.eval_threads); // TBD use regular malloc and free
 		the_server.eval_threads = NULL;
 	    }
 	    while (NULL != the_server.hooks) {
@@ -190,24 +191,6 @@ configure(Err err, int port, const char *root, VALUE options) {
  *   - *:pedantic* [_true_|_false_] if true response header and status codes are check and an exception raised if they violate the rack spec at https://github.com/rack/rack/blob/master/SPEC, https://tools.ietf.org/html/rfc3875#section-4.1.18, or https://tools.ietf.org/html/rfc7230.
  *
  *   - *:thread_count* [_Integer_] number of ruby worker threads. Defaults to one. If zero then the _start_ function will not return but instead will proess using the thread that called _start_. Usually the default is best unless the workers are making IO calls.
- *
- *   - *:log_dir* [_String_] directory to place log files in. If nil or empty then no log files are written.
- *
- *   - *:log_console* [_true_|_false_] if true log entry are display on the console.
- *
- *   - *:log_classic* [_true_|_false_] if true log entry follow a classic format. If false log entries are JSON.
- *
- *   - *:log_colorize* [_true_|_false_] if true log entries are colorized.
- *
- *   - *:log_states* [_Hash_] a map of logging categories and whether they should be on or off. Categories are:
- *     - *:ERROR* errors
- *     - *:WARN* warnings
- *     - *:INFO* infomational
- *     - *:DEBUG* debugging
- *     - *:connect* openning and closing of connections
- *     - *:request* requests
- *     - *:response* responses
- *     - *:eval* handler evaluationss
  */
 static VALUE
 rserver_init(int argc, VALUE *argv, VALUE self) {
@@ -227,7 +210,6 @@ rserver_init(int argc, VALUE *argv, VALUE self) {
     }
     memset(&the_server, 0, sizeof(struct _Server));
     if (ERR_OK != configure(&err, port, root, options)) {
-	// TBD raise Agoo specific exception
 	rb_raise(rb_eArgError, "%s", err.msg);
     }
     queue_multi_init(&the_server.con_queue, 256, false, false);
@@ -516,8 +498,18 @@ handle_rack_inner(void *x) {
 	    t = ws_add_headers(req, t);
 	    break;
 	case UP_SSE:
-	    // TBD
-	    break;
+	    if (CON_SSE != req->res->con_kind ||
+		Qnil == (req->handler = rb_hash_lookup(env, push_env_key))) {
+		strcpy(t->text, err500);
+		t->len = sizeof(err500) - 1;
+		break;
+	    }
+	    req->handler_type = PUSH_HOOK;
+	    upgraded_extend(req->cid, req->handler);
+	    t = sse_upgrade(req, t);
+	    res_set_message(req->res, t);
+	    queue_wakeup(&the_server.con_queue);
+	    return Qfalse;
 	default:
 	    break;
 	}
@@ -729,7 +721,7 @@ server_start(VALUE self) {
 	    }
 	}
     } else {
-	the_server.eval_threads = ALLOC_N(VALUE, the_server.thread_cnt + 1);
+	the_server.eval_threads = (VALUE*)malloc(sizeof(VALUE) * (the_server.thread_cnt + 1));
 	DEBUG_ALLOC(mem_eval_threads, the_server.eval_threads);
 
 	for (i = the_server.thread_cnt, vp = the_server.eval_threads; 0 < i; i--, vp++) {
