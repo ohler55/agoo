@@ -17,7 +17,6 @@ class StaticTest < Minitest::Test
   # Run all the tests in one test to avoid creating the server multiple times.
   def test_static
     begin
-      puts "static test started"
       Agoo::Log.configure(dir: '',
 			  console: true,
 			  classic: true,
@@ -34,14 +33,13 @@ class StaticTest < Minitest::Test
       Agoo::Server.init(6469, 'root', thread_count: 1)
       Agoo::Server.add_mime('odd', 'text/odd')
       Agoo::Server.start()
-      puts "fetch_index"
+      puts "*** fetch_index"
       fetch_index_test
+      puts "*** mime"
       mime_test
-      puts "fetch_auto"
+      puts "*** fetch_auto"
       fetch_auto_index_test
-      puts "fetch_nested"
       fetch_nested_test
-      puts "fetch_not found"
       fetch_not_found_test
     ensure
       Agoo::shutdown
