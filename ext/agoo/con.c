@@ -383,6 +383,7 @@ con_http_read(Con c) {
 	}
 	if (NULL != c->req) {
 	    if (c->req->mlen <= c->bcnt) {
+		Req	req;
 		Res	res;
 		long	mlen;
 
@@ -405,17 +406,17 @@ con_http_read(Con c) {
 		c->req->res = res;
 		mlen = c->req->mlen;
 		check_upgrade(c);
-		queue_push(&the_server.eval_queue, (void*)c->req);
-		if (c->req->mlen < c->bcnt) {
+		req = c->req;
+		c->req = NULL;
+		queue_push(&the_server.eval_queue, (void*)req);
+		if (mlen < (long)c->bcnt) {
 		    memmove(c->buf, c->buf + mlen, c->bcnt - mlen);
 		    c->bcnt -= mlen;
 		} else {
 		    c->bcnt = 0;
 		    *c->buf = '\0';
-		    c->req = NULL;
 		    break;
 		}
-		c->req = NULL;
 		continue;
 	    }
 	}
@@ -848,6 +849,12 @@ poll_setup(Con *ca, int ccnt, struct pollfd *pp) {
 	pp->events = 0;
 	switch (c->kind) {
 	case CON_HTTP:
+	    if (NULL != c->res_head && NULL != res_message(c->res_head)) {
+		pp->events = POLLIN | POLLOUT;
+	    } else {
+		pp->events = POLLIN;
+	    }
+	    break;
 	case CON_WS:
 	    if (NULL != c->res_head && (c->res_head->close || c->res_head->ping || NULL != res_message(c->res_head))) {
 		pp->events = POLLIN | POLLOUT;
