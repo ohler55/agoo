@@ -61,6 +61,7 @@ struct _Server	the_server = {false};
 void
 server_shutdown() {
     if (the_server.inited) {
+	printf("*** server shutdown\n");
 	log_cat(&info_cat, "Agoo shutting down.");
 	the_server.inited = false;
 	if (the_server.active) {
@@ -75,6 +76,8 @@ server_shutdown() {
 	    }
 	    sub_cleanup(&the_server.sub_cache);
 	    cc_cleanup(&the_server.con_cache);
+	    printf("*** before eval thread shutdown\n");
+
 	    // The preferred method to of waiting for the ruby threads would
 	    // be either a join or even a kill but since we may not have the
 	    // gvl here that would cause a segfault. Instead we set a timeout
@@ -99,11 +102,13 @@ server_shutdown() {
 		hook_destroy(h);
 	    }
 	}
+	printf("*** before queue cleanup\n");
 	queue_cleanup(&the_server.con_queue);
 	queue_cleanup(&the_server.pub_queue);
 	queue_cleanup(&the_server.eval_queue);
 	cache_cleanup(&the_server.pages);
 	http_cleanup();
+	printf("*** end of shutdown\n");
     }
 }
 
