@@ -50,7 +50,9 @@ class StaticTest < Minitest::Test
     uri = URI('http://localhost:6469/index.html')
     req = Net::HTTP::Get.new(uri)
     puts "*** before request"
+    sleep(1.0)
     res = Net::HTTP.start(uri.hostname, uri.port) { |h|
+      puts "*** request being called"
       h.request(req)
       puts "*** request returned"
     }
