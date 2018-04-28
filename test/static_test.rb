@@ -33,9 +33,7 @@ class StaticTest < Minitest::Test
       Agoo::Server.init(6469, 'root', thread_count: 1)
       Agoo::Server.add_mime('odd', 'text/odd')
       Agoo::Server.start()
-      puts "*** fetch_index"
       fetch_index_test
-      puts "*** mime"
       mime_test
       fetch_auto_index_test
       fetch_nested_test
@@ -48,29 +46,24 @@ class StaticTest < Minitest::Test
 
   def fetch_index_test
     uri = URI('http://localhost:6469/index.html')
-    req = Net::HTTP::Get.new(uri)
-    req['Accept-Encoding'] = '*'
-    req['User-Agent'] = 'Ruby'
-
-    puts "*** before request"
-    sleep(1.0)
-    res = Net::HTTP.start(uri.hostname, uri.port) { |h|
-      puts "*** request being called"
-      begin
-	h.request(req)
-      rescue Exception => e
-	puts "*** #{e.class}: #{e.message}"
-      end
-      puts "*** request returned"
-    }
-    content = res.body
-    assert_equal('text/html', res['Content-Type'])
     expect = %|<!DOCTYPE html>
 <html>
   <head><title>Agoo Test</title></head>
   <body>Agoo</body>
 </html>
 |
+    if true
+      content = Net::HTTP.get(uri)
+    else
+      req = Net::HTTP::Get.new(uri)
+      req['Accept-Encoding'] = '*'
+      req['User-Agent'] = 'Ruby'
+      res = Net::HTTP.start(uri.hostname, uri.port) { |h|
+	h.request(req)
+      }
+      content = res.body
+      assert_equal('text/html', res['Content-Type'])
+    end
     assert_equal(expect, content)
   end
 
