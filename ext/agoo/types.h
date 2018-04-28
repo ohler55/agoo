@@ -11,6 +11,7 @@ typedef enum {
     OPTIONS	= 'O',
     POST	= 'P',
     PUT		= 'U',
+    PATCH	= 'T',
     ALL		= 'A',
     NONE	= '\0',
 

@@ -19,6 +19,7 @@ static VALUE	get_val = Qundef;
 static VALUE	head_val = Qundef;
 static VALUE	http_val = Qundef;
 static VALUE	options_val = Qundef;
+static VALUE	patch_val = Qundef;
 static VALUE	path_info_val = Qundef;
 static VALUE	post_val = Qundef;
 static VALUE	put_val = Qundef;
@@ -82,6 +83,7 @@ req_method(Req r) {
     case OPTIONS:	m = options_val;	break;
     case POST:		m = post_val;		break;
     case PUT:		m = put_val;		break;
+    case PATCH:		m = patch_val;		break;
     default:		m = Qnil;		break;
     }
     return m;
@@ -647,6 +649,7 @@ request_init(VALUE mod) {
     head_val = rb_str_new_cstr("HEAD");				rb_gc_register_address(&head_val);
     http_val = rb_str_new_cstr("http");				rb_gc_register_address(&http_val);
     options_val = rb_str_new_cstr("OPTIONS");			rb_gc_register_address(&options_val);
+    patch_val = rb_str_new_cstr("PATCH");			rb_gc_register_address(&patch_val);
     path_info_val = rb_str_new_cstr("PATH_INFO");		rb_gc_register_address(&path_info_val);
     post_val = rb_str_new_cstr("POST");				rb_gc_register_address(&post_val);
     put_val = rb_str_new_cstr("PUT");				rb_gc_register_address(&put_val);
