@@ -33,7 +33,7 @@ class StaticTest < Minitest::Test
       Agoo::Server.init(6469, 'root', thread_count: 1)
       Agoo::Server.add_mime('odd', 'text/odd')
       Agoo::Server.start()
-      fetch_index_test
+      #fetch_index_test
       mime_test
       fetch_auto_index_test
       fetch_nested_test
