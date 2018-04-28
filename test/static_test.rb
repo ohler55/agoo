@@ -56,10 +56,13 @@ class StaticTest < Minitest::Test
     sleep(1.0)
     res = Net::HTTP.start(uri.hostname, uri.port) { |h|
       puts "*** request being called"
-      h.request(req)
+      begin
+	h.request(req)
+      rescue Exception => e
+	puts "*** #{e.class}: #{e.message}"
+      end
       puts "*** request returned"
     }
-    puts "*** after request"
     content = res.body
     assert_equal('text/html', res['Content-Type'])
     expect = %|<!DOCTYPE html>
