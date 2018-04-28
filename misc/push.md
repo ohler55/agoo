@@ -1,95 +1,200 @@
 # Rack Push
 
-JavaScript in browsers can request a WebSockets or SSE connection. The server
-will detect this attempt by looking at the Upgrade header value or for SSE the
-Content-Type. When detected the on_open method of app object registered by
-rackup is called with an env object. That object responds to a write with a
-single argument that responds to to_s. When the connection is closed the
-on_close method is called if the app responds to that methid.
+# TBD something interesting about rack, ruby push
 
-In addition to the callbacks the server can implement a broadcast method that
-takes two arguments, a path and a data object. The path is is used to match
-against connections established and sends the data on any matching
-connections.
+realtime websites use websockets and sse (push)
+  race results, operations, stocks, waiting for actions to finish, async query results, ...
 
-```ruby
-require "rack"
-require 'agoo'
+won't it be nice to be able to support push with ruby rack
 
-class TickTock
-  def initialize(env)
-    @ticking = true
-    # Note that the sender can become invalid at any time if the connection is
-    # closed. It will raise an exception on send if that occurs.
-    Thread.new {
-      while @ticking do
-	now = Time.now
-	@sender.write("%02d:%02d:%02d" % [now.hour, now.min, now.sec])
-      end
-    }
-  end
-  
-  def on_close
-    # Shutdown the time publisher.
-    @ticking = false
-  end
-
-  # This method is optional as not all endpoints need to receive from the
-  # browser.
-  def on_message(data)
-    puts "received #{data}"
-  end
-
-  # This is only needed for Iodine compatibility but can be used in any case.
-  def write(data)
-    @sender.write(data)
-  end
-
-end
-
-class FlyHandler
-
-  attr_accessor: sender
-  
-  # Normal HTTP request handler.
-  def call(env)
-    # This part is only needed for Iodine.
-    if env['HTTP_UPGRADE'.freeze] =~ /websocket/i
-      env['upgrade.websocket'.freeze] = TickTock.new(env)
-      return [0, {}, []]
-    end
-    [ 200, { }, [ "flying fish clock" ] ]
-  end
-
-  # This method is called when a WebSockets or SSE connection is
-  # established. The env argument is the same as what would be given to the
-  # call method except the env[`push.writer'] is set to a writer that can be
-  # used to push or publish data to the browser.
-  #
-  # Return a handler for on_message and on_close callbacks. This is
-  # optional. If nil is returned then broadcasts to the browsers are possible
-  # but not direct write from Ruby are. If the call raises an exception then
-  # the connection is closed.
-  def on_open(env)
-    TickTock.new(env)
-  end
-
-end
-
-run FlyHandler.new
-
-# A minimal startup of the Agoo rack handle using rackup and expecting a
-# WebSockets or SSE connection. Note this does not allow for loading any
-# static assets.
-# $ bundle exec rackup
-
-# Make requests on port 9292 to received responses.
-```
-
-
-## Why not Hijack
-
+now only hijack
 - no callback mechanism
 - round peg in a square hole
  - assumes raw IO
  - convoluted multi-step to makes something even partially workable
+
+proposed spec addition for eactly that and two servers already support that spec, Agoo and Iodine
+
+proposed spec and implementation make it easy to push
+
+## How To
+
+
+
+## Implementation
+
+TBD
+
+### websocket.html
+
+TBD
+
+```html
+<html>
+  <body>
+    <p id="status"> ... </p>
+    <p id="message"> ... waiting ... </p>
+
+    <script type="text/javascript">
+      var sock;
+      var url = "ws://" + document.URL.split('/')[2] + '/listen'
+      if (typeof MozWebSocket != "undefined") {
+          sock = new MozWebSocket(url);
+      } else {
+          sock = new WebSocket(url);
+      }
+      sock.onopen = function() {
+          document.getElementById("status").textContent = "connected";
+      }
+      sock.onmessage = function(msg) {
+          document.getElementById("message").textContent = msg.data;
+      }
+    </script>
+  </body>
+</html>
+```
+
+### sse.html
+
+TBD
+
+```html
+<html>
+  <body>
+    <p id="status"> ... </p>
+    <p id="message"> ... waiting ... </p>
+
+    <script type="text/javascript">
+    var src = new EventSource('sse');
+    src.onopen = function() {
+        document.getElementById('status').textContent = 'connected';
+    }
+    src.onerror = function() {
+        document.getElementById('status').textContent = 'not connected';
+    }
+    function doSet(e) {
+        document.getElementById("message").textContent = e.data;
+    }
+    src.addEventListener('msg', doSet, false);
+    </script>
+  </body>
+</html>
+```
+
+### push.rb
+
+TBD
+
+```ruby
+require 'agoo'
+
+# The websocket.html and sse.html are used for this example. After starting
+# open a URL of http://localhost:6464/websocket.html or
+# http://localhost:6464/sse.html.
+
+# The log is configured separately from the server. The log is ready without
+# the configuration step but the default values will be used. All the states
+# are set to true for the example but can be set to false to make the example
+# less verbose.
+Agoo::Log.configure(dir: '',
+		    console: true,
+		    classic: true,
+		    colorize: true,
+		    states: {
+		      INFO: true,
+		      DEBUG: true,
+		      connect: true,
+		      request: true,
+		      response: true,
+		      eval: true,
+		      push: true,
+		    })
+
+# Setting the thread count to 0 causes the server to use the current
+# thread. Greater than zero runs the server in a separate thread and the
+# current thread can be used for other tasks as long as it does not exit.
+#Agoo::Server.init(6464, '.', thread_count: 0)
+Agoo::Server.init(6464, '.', thread_count: 1)
+
+class HelloHandler
+  def call(env)
+    [ 200, { }, [ "hello world" ] ]
+  end
+end
+
+# Used for both SSE and WebSocket connections. WebSocket requests are
+# detected by an env['rack.upgrade?'] value of :websocket while an SSE
+# connection is detected by an env['rack.upgrade?'] value of :sse.  In both
+# cases a Push handler should be created and returned by setting
+# env['rack.upgrade'] to the new object or handler. The handler will be
+# extended to have a 'write' method as well as a 'pending' and a 'close'
+# method.
+class Listen
+  # Only used for WebSocket or SSE upgrades.
+  def call(env)
+    unless env['rack.upgrade?'].nil?
+      env['rack.upgrade'] = TickTock.new(env)
+      [ 200, { }, [ ] ]
+    else
+      [ 404, { }, [ ] ]
+    end
+  end
+end
+
+$tt = nil
+
+# A class to handle published times. It works with both WebSocket and SSE.
+class TickTock
+  def initialize(env)
+    $tt = self
+  end
+
+  def on_open()
+    puts "--- on_open with #{@_cid}"
+  end
+
+  def on_close
+    puts "--- closing"
+    $tt = nil
+  end
+
+  def on_drained()
+    puts "--- on_drained"
+  end
+
+  def on_message(data)
+    puts "--- received #{data}"
+    write("echo: #{data}")
+  end
+
+end
+
+# Register the handler before calling start. Agoo allows for demultiplexing at
+# the server instead of in the call() method.
+Agoo::Server.handle(:GET, "/hello", HelloHandler.new)
+Agoo::Server.handle(:GET, "/listen", Listen.new)
+Agoo::Server.handle(:GET, "/sse", Listen.new)
+
+# With a thread_count greater than 0 the call to start returns after creating
+# a server thread. If the count is 0 then the call only returned when the
+# server is shutdown.
+Agoo::Server.start()
+
+# A simple clock publisher of sorts. It writes teh current time every second
+# to the current listener. To support multiple listeners an array or some
+# other collection could be used instead of a single value variable.
+loop do
+  now = Time.now
+
+  unless $tt.nil?
+    $tt.write("%02d:%02d:%02d" % [now.hour, now.min, now.sec])
+  end
+  sleep(1)
+end
+
+# This example does not use the config.ru approach as the Agoo demultiplexer
+# is used to support several different connection types.
+
+# To run this example:
+# ruby push.rb
+```

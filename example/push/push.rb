@@ -2,7 +2,7 @@
 require 'agoo'
 
 # The websocket.html and sse.html are used for this example. After starting
-# open a URL of http://localhost:6464/websockets.html or
+# open a URL of http://localhost:6464/websocket.html or
 # http://localhost:6464/sse.html.
 
 # The log is configured separately from the server. The log is ready without
@@ -35,7 +35,7 @@ class HelloHandler
   end
 end
 
-# Used for both SSE and WebSockets connections. WebSocket requests are
+# Used for both SSE and WebSocket connections. WebSocket requests are
 # detected by an env['rack.upgrade?'] value of :websocket while an SSE
 # connection is detected by an env['rack.upgrade?'] value of :sse.  In both
 # cases a Push handler should be created and returned by setting
@@ -43,7 +43,7 @@ end
 # extended to have a 'write' method as well as a 'pending' and a 'close'
 # method.
 class Listen
-  # Only used for WebSockets or SSE upgrades.
+  # Only used for WebSocket or SSE upgrades.
   def call(env)
     unless env['rack.upgrade?'].nil?
       env['rack.upgrade'] = TickTock.new(env)
@@ -56,7 +56,7 @@ end
 
 $tt = nil
 
-# A class to handle published times. It works with both WebSockets and SSE.
+# A class to handle published times. It works with both WebSocket and SSE.
 class TickTock
   def initialize(env)
     $tt = self
@@ -104,3 +104,9 @@ loop do
   end
   sleep(1)
 end
+
+# This example does not use the config.ru approach as the Agoo demultiplexer
+# is used to support several different connection types.
+
+# To run this example:
+# ruby push.rb

@@ -65,7 +65,7 @@ up_subscribe(VALUE self, VALUE subject) {
 
     // printf("*** subscribe called\n");
 
-    // increment @_sid
+    // increment _sid
     // create subscription
     // push pub onto server pub_queue
     // TBD create subscription object and return it
@@ -140,8 +140,8 @@ upgraded_init(VALUE mod) {
     rb_define_method(upgraded_mod, "close", up_close, 0);
     rb_define_method(upgraded_mod, "pending", pending, 0);
 
-    cid_id = rb_intern("@_cid");
-    sid_id = rb_intern("@_sid");
+    cid_id = rb_intern("_cid");
+    sid_id = rb_intern("_sid");
     on_open_id = rb_intern("on_open");
     to_s_id = rb_intern("to_s");
     
