@@ -30,13 +30,17 @@ class StaticTest < Minitest::Test
 			    eval: true,
 			  })
 
-      Agoo::Server.init(6466, 'root', thread_count: 1)
+      Agoo::Server.init(6469, 'root', thread_count: 1)
       Agoo::Server.add_mime('odd', 'text/odd')
       Agoo::Server.start()
+      puts "fetch_index"
       fetch_index_test
       mime_test
+      puts "fetch_auto"
       fetch_auto_index_test
+      puts "fetch_nested"
       fetch_nested_test
+      puts "fetch_not found"
       fetch_not_found_test
     ensure
       Agoo::shutdown
@@ -45,7 +49,7 @@ class StaticTest < Minitest::Test
 
 
   def fetch_index_test
-    uri = URI('http://localhost:6466/index.html')
+    uri = URI('http://localhost:6469/index.html')
     req = Net::HTTP::Get.new(uri)
     res = Net::HTTP.start(uri.hostname, uri.port) { |h|
       h.request(req)
@@ -62,7 +66,7 @@ class StaticTest < Minitest::Test
   end
 
   def mime_test
-    uri = URI('http://localhost:6466/odd.odd')
+    uri = URI('http://localhost:6469/odd.odd')
     req = Net::HTTP::Get.new(uri)
     res = Net::HTTP.start(uri.hostname, uri.port) { |h|
       h.request(req)
@@ -71,7 +75,7 @@ class StaticTest < Minitest::Test
   end
 
   def fetch_auto_index_test
-    uri = URI('http://localhost:6466/')
+    uri = URI('http://localhost:6469/')
     content = Net::HTTP.get(uri)
     expect = %|<!DOCTYPE html>
 <html>
@@ -83,14 +87,14 @@ class StaticTest < Minitest::Test
   end
 
   def fetch_nested_test
-    uri = URI('http://localhost:6466/nest/something.txt')
+    uri = URI('http://localhost:6469/nest/something.txt')
     content = Net::HTTP.get(uri)
     assert_equal('Just some text.
 ', content)
   end
 
   def fetch_not_found_test
-    uri = URI('http://localhost:6466/bad.html')
+    uri = URI('http://localhost:6469/bad.html')
     res = Net::HTTP.get_response(uri)
     assert_equal("404", res.code)
   end
