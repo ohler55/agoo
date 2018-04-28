@@ -37,7 +37,6 @@ class StaticTest < Minitest::Test
       fetch_index_test
       puts "*** mime"
       mime_test
-      puts "*** fetch_auto"
       fetch_auto_index_test
       fetch_nested_test
       fetch_not_found_test
@@ -50,9 +49,12 @@ class StaticTest < Minitest::Test
   def fetch_index_test
     uri = URI('http://localhost:6469/index.html')
     req = Net::HTTP::Get.new(uri)
+    puts "*** before request"
     res = Net::HTTP.start(uri.hostname, uri.port) { |h|
       h.request(req)
+      puts "*** request returned"
     }
+    puts "*** after request"
     content = res.body
     assert_equal('text/html', res['Content-Type'])
     expect = %|<!DOCTYPE html>
