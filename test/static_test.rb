@@ -49,6 +49,9 @@ class StaticTest < Minitest::Test
   def fetch_index_test
     uri = URI('http://localhost:6469/index.html')
     req = Net::HTTP::Get.new(uri)
+    req['Accept-Encoding'] = '*'
+    req['User-Agent'] = 'Ruby'
+
     puts "*** before request"
     sleep(1.0)
     res = Net::HTTP.start(uri.hostname, uri.port) { |h|
