@@ -17,6 +17,7 @@ class StaticTest < Minitest::Test
   # Run all the tests in one test to avoid creating the server multiple times.
   def test_static
     begin
+      puts "static test started"
       Agoo::Log.configure(dir: '',
 			  console: true,
 			  classic: true,
