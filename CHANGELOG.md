@@ -1,6 +1,6 @@
 # CHANGELOG
 
-### 2.0.0 - 2018-04-28
+### 2.0.0 - 2018-04-29
 
 - WebSocket and SSE support added.
 

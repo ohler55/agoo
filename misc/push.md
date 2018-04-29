@@ -1,33 +1,55 @@
 # Rack Push
 
-# TBD something interesting about rack, ruby push
+Realtime websites are essential for some domains. A web site dispaying stock
+prices or race progress would not be very useful if the displays were not kept
+up to date. There is of course contant refreshes or polling but that puts a
+heavy demand on the server and it is not real time.
 
-realtime websites use websockets and sse (push)
-  race results, operations, stocks, waiting for actions to finish, async query results, ...
+Fortunately there is technology to push data to a web page. WebSocket and SSE
+provide a means to push data to a web page. Coupled with Javascript pages can
+be dynamic and display data as it changes.
 
-won't it be nice to be able to support push with ruby rack
+Sadly, if using Ruby the has not been any real support for either WebSocket or
+SSE. Using Rack as an example it was possible to hijack a connection and
+manage all the interactions using raw IO calls but that is a task that is not
+for the faint at heart. It is a non trivial exercise. Won't it be nice to have
+a simple way of supporting push with Ruby.
 
-now only hijack
-- no callback mechanism
-- round peg in a square hole
- - assumes raw IO
- - convoluted multi-step to makes something even partially workable
+There is a proposal to extend the Rack spec to include an option for WebSocket
+and SSE. Currently two servers support that proposed
+extension. [Agoo](https://https://github.com/ohler55/agoo) and
+[Iodine](https://github.com/boazsegev/iodine) both high performance web server
+gems that support push and implement the proposed Rack extension.
 
-proposed spec addition for eactly that and two servers already support that spec, Agoo and Iodine
+## Simple
 
-proposed spec and implementation make it easy to push
+Rack handlers are expected to have a `#call(env)` method that processes HTTP
+requests. If the `env` argument to that call includes a non `nil` value for
+`env['rack.upgrade?']` then the handle is expected to upgrade to a push
+connection that is either WebSocket or SSE.
 
-## How To
+Acceptance of the connection upgrade is implemented by setting
+`env['rack.upgrade'] to a new push handler. The push handler can implement
+methods `#on_open`, `#on_close`, `#on_message`, `#on_drained`, and
+`#on_shutdown`. These are all optional. The object is extended by the server
+to have a `#write(msg)` and a `#pending` method. The `#write(msg)` method is
+used to push data to web pages. The details are handled by the server. Just
+call write and data appears at browser.
 
+## Example
 
+The example is a bit more than a hello world but only enough to make it
+interesting. A browser is used to connect to a Rack server that runs a clock,
+On each tick of the clock the time is sent to the browser. Either an SSE and a
+WebSocket page can be used.
 
-## Implementation
-
-TBD
+The example makes use of the Agoo server. Some variations in the
+demultiplexing would be needed using the Iodine server but the core Ruby code
+would be the same.
 
 ### websocket.html
 
-TBD
+The websocket.html page is a trivial example of how to use WebSockets.
 
 ```html
 <html>
@@ -56,7 +78,8 @@ TBD
 
 ### sse.html
 
-TBD
+The sse.html page is a trivial example of how to use SSE. SSE is the preferred
+method for pushing events to mobile devices.
 
 ```html
 <html>
@@ -83,7 +106,7 @@ TBD
 
 ### push.rb
 
-TBD
+The push.rb file is an example of how to use push with the Agoo gem.
 
 ```ruby
 require 'agoo'
@@ -91,24 +114,6 @@ require 'agoo'
 # The websocket.html and sse.html are used for this example. After starting
 # open a URL of http://localhost:6464/websocket.html or
 # http://localhost:6464/sse.html.
-
-# The log is configured separately from the server. The log is ready without
-# the configuration step but the default values will be used. All the states
-# are set to true for the example but can be set to false to make the example
-# less verbose.
-Agoo::Log.configure(dir: '',
-		    console: true,
-		    classic: true,
-		    colorize: true,
-		    states: {
-		      INFO: true,
-		      DEBUG: true,
-		      connect: true,
-		      request: true,
-		      response: true,
-		      eval: true,
-		      push: true,
-		    })
 
 # Setting the thread count to 0 causes the server to use the current
 # thread. Greater than zero runs the server in a separate thread and the
