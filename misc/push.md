@@ -1,19 +1,21 @@
-# Rack Push
+# A New Rack Push
 
-Realtime websites are essential for some domains. A web site dispaying stock
+Realtime websites are essential for some domains. A web site displaying stock
 prices or race progress would not be very useful if the displays were not kept
-up to date. There is of course contant refreshes or polling but that puts a
+up to date. There is of course constant refreshes or polling but that puts a
 heavy demand on the server and it is not real time.
 
 Fortunately there is technology to push data to a web page. WebSocket and SSE
 provide a means to push data to a web page. Coupled with Javascript pages can
 be dynamic and display data as it changes.
 
-Sadly, if using Ruby the has not been any real support for either WebSocket or
-SSE. Using Rack as an example it was possible to hijack a connection and
+Up until now, Ruby support for WebSockets and SSE was very cumbersome, resulting in poor performance and higher memory bloat despite well authored gems such as Faye and ActionCable.
+
+Using Rack as an example it was possible to hijack a connection and
 manage all the interactions using raw IO calls but that is a task that is not
-for the faint at heart. It is a non trivial exercise. Won't it be nice to have
-a simple way of supporting push with Ruby.
+for the faint at heart. It is a non trivial exercise and it requires duplication of the network handling logic. Basically it's almost like running two servers instead of one.
+
+Won't it be nice to have a simple way of supporting push with Ruby? Something that works with the server rather than against it? Something that avoids the need to run another "server" on the same process?
 
 There is a proposal to extend the Rack spec to include an option for WebSocket
 and SSE. Currently two servers support that proposed
@@ -21,15 +23,17 @@ extension. [Agoo](https://https://github.com/ohler55/agoo) and
 [Iodine](https://github.com/boazsegev/iodine) both high performance web server
 gems that support push and implement the proposed Rack extension.
 
-## Simple
+## Simple Callback Design
 
-Rack handlers are expected to have a `#call(env)` method that processes HTTP
+The Rack extension proposal uses a simple callback design. This design replaces the need for socket hijacking, removes the hassle of socket management and decouples the application from the network protocol layer.
+
+All Rack handlers already have a `#call(env)` method that processes HTTP
 requests. If the `env` argument to that call includes a non `nil` value for
 `env['rack.upgrade?']` then the handle is expected to upgrade to a push
 connection that is either WebSocket or SSE.
 
 Acceptance of the connection upgrade is implemented by setting
-`env['rack.upgrade'] to a new push handler. The push handler can implement
+`env['rack.upgrade']` to a new push handler. The push handler can implement
 methods `#on_open`, `#on_close`, `#on_message`, `#on_drained`, and
 `#on_shutdown`. These are all optional. The object is extended by the server
 to have a `#write(msg)` and a `#pending` method. The `#write(msg)` method is
