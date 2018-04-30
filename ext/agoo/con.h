@@ -11,31 +11,33 @@
 #include "request.h"
 #include "response.h"
 #include "server.h"
+#include "types.h"
 
 #define MAX_HEADER_SIZE	8192
 
+struct _CSlot;
+
 typedef struct _Con {
     int			sock;
+    ConKind		kind;
     struct pollfd	*pp;
-    //char		id[32];
-    uint64_t		iid;
+    uint64_t		id;
     char		buf[MAX_HEADER_SIZE];
     size_t		bcnt;
 
     ssize_t		mcnt;  // how much has been read so far
     ssize_t		wcnt;  // how much has been written
 
-    Server		server;
     double		timeout;
     bool		closing;
     Req			req;
     Res			res_head;
     Res			res_tail;
 
-    //FEval		eval;
+    struct _CSlot	*slot; // only set for push connections
 } *Con;
 
-extern Con		con_create(Err err, Server server, int sock, uint64_t id);
+extern Con		con_create(Err err, int sock, uint64_t id);
 extern void		con_destroy(Con c);
 extern const char*	con_header_value(const char *header, int hlen, const char *key, int *vlen);
 

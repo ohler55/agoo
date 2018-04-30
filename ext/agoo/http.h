@@ -6,6 +6,8 @@
 #include <stdbool.h>
 
 extern void		http_init();
+extern void		http_cleanup();
+
 extern void		http_header_ok(const char *key, int klen, const char *value, int vlen);
 
 extern const char*	http_code_message(int code);

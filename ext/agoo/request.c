@@ -19,6 +19,7 @@ static VALUE	get_val = Qundef;
 static VALUE	head_val = Qundef;
 static VALUE	http_val = Qundef;
 static VALUE	options_val = Qundef;
+static VALUE	patch_val = Qundef;
 static VALUE	path_info_val = Qundef;
 static VALUE	post_val = Qundef;
 static VALUE	put_val = Qundef;
@@ -29,6 +30,7 @@ static VALUE	rack_logger_val = Qundef;
 static VALUE	rack_multiprocess_val = Qundef;
 static VALUE	rack_multithread_val = Qundef;
 static VALUE	rack_run_once_val = Qundef;
+static VALUE	rack_upgrade_val = Qundef;
 static VALUE	rack_url_scheme_val = Qundef;
 static VALUE	rack_version_val = Qundef;
 static VALUE	rack_version_val_val = Qundef;
@@ -38,12 +40,33 @@ static VALUE	server_name_val = Qundef;
 static VALUE	server_port_val = Qundef;
 static VALUE	slash_val = Qundef;
 
+static VALUE	sse_sym;
+static VALUE	websocket_sym;
+
 static VALUE	stringio_class = Qundef;
 
 static ID	new_id;
 
 static const char	content_type[] = "Content-Type";
 static const char	content_length[] = "Content-Length";
+static const char	connection_key[] = "Connection";
+static const char	upgrade_key[] = "Upgrade";
+static const char	websocket_val[] = "websocket";
+static const char	accept_key[] = "Accept";
+static const char	event_stream_val[] = "text/event-stream";
+
+Req
+request_create(size_t mlen) {
+    size_t	size = mlen + sizeof(struct _Req) - 7;
+    Req		req = (Req)malloc(size);
+    
+    if (NULL != req) {
+	DEBUG_ALLOC(mem_req, req);
+	memset(req, 0, size);
+	req->mlen = mlen;
+    }
+    return req;
+}
 
 static VALUE
 req_method(Req r) {
@@ -60,6 +83,7 @@ req_method(Req r) {
     case OPTIONS:	m = options_val;	break;
     case POST:		m = post_val;		break;
     case PUT:		m = put_val;		break;
+    case PATCH:		m = patch_val;		break;
     default:		m = Qnil;		break;
     }
     return m;
@@ -218,6 +242,26 @@ server_port(VALUE self) {
     return req_server_port((Req)DATA_PTR(self));
 }
 
+static VALUE
+req_rack_upgrade(Req r) {
+    switch (r->upgrade) {
+    case UP_WS:		return websocket_sym;
+    case UP_SSE:	return sse_sym;
+    default:		return Qnil;
+    }
+}
+
+/* Document-method: rack_upgrade?
+ *
+ * call-seq: rack_upgrade?()
+ *
+ * Returns the URL scheme or either _http_ or _https_ as a string.
+ */
+static VALUE
+rack_upgrade(VALUE self) {
+    return req_rack_upgrade((Req)DATA_PTR(self));
+}
+
 /* Document-method: rack_version
  *
  * call-seq: rack_version()
@@ -271,7 +315,7 @@ rack_input(VALUE self) {
 
 static VALUE
 req_rack_errors(Req r) {
-    return error_stream_new(r->server);
+    return error_stream_new();
 }
 
 /* Document-method: rack_errors
@@ -291,7 +335,7 @@ req_rack_multithread(Req r) {
     if (NULL == r) {
 	rb_raise(rb_eArgError, "Request is no longer valid.");
     }
-    if (NULL != r->server && 1 < r->server->thread_cnt) {
+    if (1 < the_server.thread_cnt) {
 	return Qtrue;
     }
     return Qfalse;
@@ -354,13 +398,16 @@ add_header_value(VALUE hh, const char *key, int klen, const char *val, int vlen)
 
 static void
 fill_headers(Req r, VALUE hash) {
-    char		*h = r->header.start;
-    char		*end = h + r->header.len;
-    char		*key = h;
-    char		*kend = key;
-    char		*val = NULL;
-    char		*vend;
-    
+    char	*h = r->header.start;
+    char	*end = h + r->header.len + 1; // +1 for last \r
+    char	*key = h;
+    char	*kend = key;
+    char	*val = NULL;
+    char	*vend;
+    int		klen;
+    bool	upgrade = false;
+    bool	ws = false;
+
     if (NULL == r) {
 	rb_raise(rb_eArgError, "Request is no longer valid.");
     }
@@ -370,22 +417,40 @@ fill_headers(Req r, VALUE hash) {
 	    kend = h;
 	    val = h + 1;
 	    break;
-	case ' ':
-	    if (NULL != val) {
-		val++;
-	    } else {
-		// TBD handle trailing spaces as well
-		key++;
-	    }
-	    break;
 	case '\r':
 	    if (NULL != val) {
+		for (; ' ' == *val; val++) {
+		}
 		vend = h;
+	    }
+	    if (NULL != key) {
+		for (; ' ' == *key; key++) {
+		}
 	    }
 	    if ('\n' == *(h + 1)) {
 		h++;
 	    }
-	    add_header_value(hash, key, (int)(kend - key), val, (int)(vend - val));
+	    klen = (int)(kend - key);
+	    add_header_value(hash, key, klen, val, (int)(vend - val));
+	    if (sizeof(upgrade_key) - 1 == klen && 0 == strncasecmp(key, upgrade_key, sizeof(upgrade_key) - 1)) {
+		if (sizeof(websocket_val) - 1 == vend - val &&
+		    0 == strncasecmp(val, websocket_val, sizeof(websocket_val) - 1)) {
+		    ws = true;
+		}
+	    } else if (sizeof(connection_key) - 1 == klen && 0 == strncasecmp(key, connection_key, sizeof(connection_key) - 1)) {
+		char	buf[1024];
+
+		strncpy(buf, val, vend - val);
+		buf[sizeof(buf)-1] = '\0';
+		if (NULL != strstr(buf, upgrade_key)) {
+		    upgrade = true;
+		}
+	    } else if (sizeof(accept_key) - 1 == klen && 0 == strncasecmp(key, accept_key, sizeof(accept_key) - 1)) {
+		if (sizeof(event_stream_val) - 1 == vend - val &&
+		    0 == strncasecmp(val, event_stream_val, sizeof(event_stream_val) - 1)) {
+		    r->upgrade = UP_SSE;
+		}
+	    }
 	    key = h + 1;
 	    kend = NULL;
 	    val = NULL;
@@ -394,6 +459,9 @@ fill_headers(Req r, VALUE hash) {
 	default:
 	    break;
 	}
+    }
+    if (upgrade && ws) {
+	r->upgrade = UP_WS;
     }
 }
 
@@ -439,7 +507,7 @@ body(VALUE self) {
 
 static VALUE
 req_rack_logger(Req req) {
-    return rack_logger_new(req->server);
+    return rack_logger_new();
 }
 
 /* Document-method: rack_logger
@@ -484,6 +552,7 @@ request_env(Req req) {
     rb_hash_aset(env, rack_multiprocess_val, Qfalse);
     rb_hash_aset(env, rack_run_once_val, Qfalse);
     rb_hash_aset(env, rack_logger_val, req_rack_logger(req));
+    rb_hash_aset(env, rack_upgrade_val, req_rack_upgrade(req));
 
     return env;
 }
@@ -520,7 +589,7 @@ to_s(VALUE self) {
 
 void
 request_destroy(Req req) {
-    DEBUG_FREE(mem_req)
+    DEBUG_FREE(mem_req, req)
     free(req);
 }
 
@@ -557,6 +626,7 @@ request_init(VALUE mod) {
     rb_define_method(req_class, "rack_multithread", rack_multithread, 0);
     rb_define_method(req_class, "rack_multiprocess", rack_multiprocess, 0);
     rb_define_method(req_class, "rack_run_once", rack_run_once, 0);
+    rb_define_method(req_class, "rack_upgrade?", rack_upgrade, 0);
     rb_define_method(req_class, "headers", headers, 0);
     rb_define_method(req_class, "body", body, 0);
     rb_define_method(req_class, "rack_logger", rack_logger, 0);
@@ -579,6 +649,7 @@ request_init(VALUE mod) {
     head_val = rb_str_new_cstr("HEAD");				rb_gc_register_address(&head_val);
     http_val = rb_str_new_cstr("http");				rb_gc_register_address(&http_val);
     options_val = rb_str_new_cstr("OPTIONS");			rb_gc_register_address(&options_val);
+    patch_val = rb_str_new_cstr("PATCH");			rb_gc_register_address(&patch_val);
     path_info_val = rb_str_new_cstr("PATH_INFO");		rb_gc_register_address(&path_info_val);
     post_val = rb_str_new_cstr("POST");				rb_gc_register_address(&post_val);
     put_val = rb_str_new_cstr("PUT");				rb_gc_register_address(&put_val);
@@ -587,8 +658,9 @@ request_init(VALUE mod) {
     rack_input_val = rb_str_new_cstr("rack.input");		rb_gc_register_address(&rack_input_val);
     rack_logger_val = rb_str_new_cstr("rack.logger");		rb_gc_register_address(&rack_logger_val);
     rack_multiprocess_val = rb_str_new_cstr("rack.multiprocess");rb_gc_register_address(&rack_multiprocess_val);
-    rack_multithread_val = rb_str_new_cstr("rack.multithread");rb_gc_register_address(&rack_multithread_val);
+    rack_multithread_val = rb_str_new_cstr("rack.multithread");	rb_gc_register_address(&rack_multithread_val);
     rack_run_once_val = rb_str_new_cstr("rack.run_once");	rb_gc_register_address(&rack_run_once_val);
+    rack_upgrade_val = rb_str_new_cstr("rack.upgrade?");	rb_gc_register_address(&rack_upgrade_val);
     rack_url_scheme_val = rb_str_new_cstr("rack.url_scheme");	rb_gc_register_address(&rack_url_scheme_val);
     rack_version_val = rb_str_new_cstr("rack.version");		rb_gc_register_address(&rack_version_val);
     request_method_val = rb_str_new_cstr("REQUEST_METHOD");	rb_gc_register_address(&request_method_val);
@@ -596,4 +668,7 @@ request_init(VALUE mod) {
     server_name_val = rb_str_new_cstr("SERVER_NAME");		rb_gc_register_address(&server_name_val);
     server_port_val = rb_str_new_cstr("SERVER_PORT");		rb_gc_register_address(&server_port_val);
     slash_val = rb_str_new_cstr("/");				rb_gc_register_address(&slash_val);
+
+    sse_sym = ID2SYM(rb_intern("sse"));				rb_gc_register_address(&sse_sym);
+    websocket_sym = ID2SYM(rb_intern("websocket"));		rb_gc_register_address(&websocket_sym);
 }

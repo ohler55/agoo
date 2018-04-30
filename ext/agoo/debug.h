@@ -6,14 +6,16 @@
 #include <stdatomic.h>
 
 #ifdef MEM_DEBUG
-#define DEBUG_ALLOC(var) { atomic_fetch_add(&var, 1); }
-#define DEBUG_FREE(var) { atomic_fetch_sub(&var, 1); }
+#define DEBUG_ALLOC(var, ptr) { atomic_fetch_add(&var, 1); debug_add(ptr, #var, __FILE__, __LINE__); }
+#define DEBUG_FREE(var, ptr) { atomic_fetch_sub(&var, 1); debug_del(ptr, __FILE__, __LINE__); }
 #else
-#define DEBUG_ALLOC(var) { }
-#define DEBUG_FREE(var) { }
+#define DEBUG_ALLOC(var, ptr) { }
+#define DEBUG_FREE(var, ptr) { }
 #endif
 
+extern atomic_int	mem_cb;
 extern atomic_int	mem_con;
+extern atomic_int	mem_cslot;
 extern atomic_int	mem_err_stream;
 extern atomic_int	mem_eval_threads;
 extern atomic_int	mem_header;
@@ -27,6 +29,7 @@ extern atomic_int	mem_page;
 extern atomic_int	mem_page_msg;
 extern atomic_int	mem_page_path;
 extern atomic_int	mem_page_slot;
+extern atomic_int	mem_pub;
 extern atomic_int	mem_qitem;
 extern atomic_int	mem_queue_item;
 extern atomic_int	mem_rack_logger;
@@ -34,10 +37,12 @@ extern atomic_int	mem_req;
 extern atomic_int	mem_res;
 extern atomic_int	mem_res_body;
 extern atomic_int	mem_response;
-extern atomic_int	mem_server;
 extern atomic_int	mem_text;
 extern atomic_int	mem_to_s;
 
-extern void	debug_print_stats();
+extern void	debug_add(void *ptr, const char *type, const char *file, int line);
+extern void	debug_del(void *ptr, const char *file, int line);
+extern void	debug_report();
+extern void	debug_rreport(); // when called from ruby
 
 #endif /* __AGOO_DEBUG_H__ */

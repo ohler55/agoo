@@ -8,6 +8,6 @@
 #include "server.h"
 
 extern void	error_stream_init(VALUE mod);
-extern VALUE	error_stream_new(Server server);
+extern VALUE	error_stream_new();
 
 #endif // __AGOO_ERROR_STREAM_H__

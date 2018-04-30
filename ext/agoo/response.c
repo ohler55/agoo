@@ -52,23 +52,23 @@ response_free(void *ptr) {
 
     while (NULL != (h = res->headers)) {
 	res->headers = h->next;
-	DEBUG_FREE(mem_header)
+	DEBUG_FREE(mem_header, h);
+	// TBD
 	xfree(h);
     }
-    DEBUG_FREE(mem_res_body);
-    DEBUG_FREE(mem_response);
+    DEBUG_FREE(mem_res_body, res->body);
+    DEBUG_FREE(mem_response, ptr);
     free(res->body); // allocated with strdup
     xfree(ptr);
 }
 
 VALUE
-response_new(Server server ) {
+response_new( ) {
     Response	res = ALLOC(struct _Response);
 
-    DEBUG_ALLOC(mem_response)
+    DEBUG_ALLOC(mem_response, res)
     memset(res, 0, sizeof(struct _Response));
     res->code = 200;
-    res->server = server;
     
     return Data_Wrap_Struct(res_class, NULL, response_free, res);
 }
@@ -85,7 +85,7 @@ to_s(VALUE self) {
     int		len = response_len(res);
     char	*s = ALLOC_N(char, len + 1);
 
-    DEBUG_ALLOC(mem_to_s)
+    DEBUG_ALLOC(mem_to_s, s)
     response_fill(res, s);
     
     return rb_str_new(s, len);
@@ -133,10 +133,11 @@ body_set(VALUE self, VALUE val) {
 
     if (T_STRING == rb_type(val)) {
 	res->body = strdup(StringValuePtr(val));
-	DEBUG_ALLOC(mem_res_body)
+	DEBUG_ALLOC(mem_res_body, res->body)
 	res->blen = (int)RSTRING_LEN(val);
     } else {
-	// TBD use Oj
+	rb_raise(rb_eArgError, "Expected a string");
+	// TBD use Oj to encode val
     }
     return Qnil;
 }
@@ -215,7 +216,7 @@ head_set(VALUE self, VALUE key, VALUE val) {
 	    } else {
 		prev->next = h->next;
 	    }
-	    DEBUG_FREE(mem_header)
+	    DEBUG_FREE(mem_header, h);
 	    xfree(h);
 	    break;
 	}
@@ -227,12 +228,12 @@ head_set(VALUE self, VALUE key, VALUE val) {
     vs = StringValuePtr(val);
     vlen = (int)RSTRING_LEN(val);
 
-    if (res->server->pedantic) {
+    if (the_server.pedantic) {
 	http_header_ok(ks, klen, vs, vlen);
     }
     hlen = klen + vlen + 4;
     h = (Header)ALLOC_N(char, sizeof(struct _Header) - 8 + hlen + 1);
-    DEBUG_ALLOC(mem_header)
+    DEBUG_ALLOC(mem_header, h)
 
     h->next = NULL;
     h->len = hlen;

@@ -159,7 +159,7 @@ mime_set(Cache cache, const char *key, const char *value) {
 	    ((0 <= len && len <= MAX_KEY_UNIQ) || 0 == strcmp(s->key, key))) {
 	    if (h == (int64_t)s->hash && len == s->klen &&
 		((0 <= len && len <= MAX_KEY_UNIQ) || 0 == strcmp(s->key, key))) {
-		DEBUG_FREE(mem_mime_slot)
+		DEBUG_FREE(mem_mime_slot, s->value)
 		free(s->value);
 		s->value = strdup(value);
 		return;
@@ -169,7 +169,7 @@ mime_set(Cache cache, const char *key, const char *value) {
     if (NULL == (s = (MimeSlot)malloc(sizeof(struct _MimeSlot)))) {
 	rb_raise(rb_eArgError, "out of memory adding %s", key);
     }
-    DEBUG_ALLOC(mem_mime_slot)
+    DEBUG_ALLOC(mem_mime_slot, s)
     s->hash = h;
     s->klen = len;
     if (NULL == key) {
@@ -209,7 +209,7 @@ cache_set(Cache cache, const char *key, int klen, Page value) {
     if (NULL == (s = (Slot)malloc(sizeof(struct _Slot)))) {
 	return value;
     }
-    DEBUG_ALLOC(mem_page_slot)
+    DEBUG_ALLOC(mem_page_slot, s)
     s->hash = h;
     s->klen = len;
     if (NULL == key) {
@@ -235,7 +235,7 @@ cache_init(Cache cache) {
 }
 
 void
-cache_destroy(Cache cache) {
+cache_cleanup(Cache cache) {
     Slot	*sp = cache->buckets;
     Slot	s;
     Slot	n;
@@ -247,7 +247,8 @@ cache_destroy(Cache cache) {
     for (i = PAGE_BUCKET_SIZE; 0 < i; i--, sp++) {
 	for (s = *sp; NULL != s; s = n) {
 	    n = s->next;
-	    DEBUG_FREE(mem_page_slot)
+	    DEBUG_FREE(mem_page_slot, s);
+	    page_destroy(s->value);
 	    free(s);
 	}
 	*sp = NULL;
@@ -256,13 +257,11 @@ cache_destroy(Cache cache) {
     for (i = MIME_BUCKET_SIZE; 0 < i; i--, mp++) {
 	for (sm = *mp; NULL != sm; sm = m) {
 	    m = sm->next;
-	    DEBUG_FREE(mem_page_slot)
+	    DEBUG_FREE(mem_mime_slot, sm);
 	    free(sm);
 	}
 	*mp = NULL;
     }
-    //DEBUG_FREE(mem_cache)
-    free(cache);
 }
 
 // The page resp contents point to the page resp msg to save memory and reduce
@@ -272,13 +271,13 @@ page_create(const char *path) {
     Page	p = (Page)malloc(sizeof(struct _Page));
 
     if (NULL != p) {
-	DEBUG_ALLOC(mem_page)
+	DEBUG_ALLOC(mem_page, p)
 	p->resp = NULL;
 	if (NULL == path) {
 	    p->path = NULL;
 	} else {
 	    p->path = strdup(path);
-	    DEBUG_ALLOC(mem_page_path)
+	    DEBUG_ALLOC(mem_page_path, p->path)
 	}
 	p->mtime = 0;
 	p->last_check = 0.0;
@@ -292,8 +291,8 @@ page_destroy(Page p) {
 	text_release(p->resp);
 	p->resp = NULL;
     }
-    DEBUG_FREE(mem_page_path)
-    DEBUG_FREE(mem_page)
+    DEBUG_FREE(mem_page_path, p->path);
+    DEBUG_FREE(mem_page, p);
     free(p->path);
     free(p);
 }
@@ -307,10 +306,10 @@ update_contents(Cache cache, Page p) {
     long	size;
     struct stat	fattr;
     long	msize;
-    char	*msg;
     int		cnt;
     struct stat	fs;
-
+    Text	t;
+    
     for (; '.' != *suffix; suffix--) {
 	if (suffix <= p->path) {
 	    suffix = NULL;
@@ -370,21 +369,19 @@ update_contents(Cache cache, Page p) {
     // Format size plus space for the length, the mime type, and some
     // padding. Then add the content length.
     msize = sizeof(page_fmt) + 60 + size;
-    if (NULL == (msg = (char*)malloc(msize))) {
+    if (NULL == (t = text_allocate((int)msize))) {
 	return false;
     }
-    DEBUG_ALLOC(mem_page_msg)
-    cnt = sprintf(msg, page_fmt, mime, size);
-
+    cnt = sprintf(t->text, page_fmt, mime, size);
     msize = cnt + size;
-    if (size != (long)fread(msg + cnt, 1, size, f)) {
+    if (size != (long)fread(t->text + cnt, 1, size, f)) {
 	fclose(f);
-	DEBUG_FREE(mem_page_msg)
-	free(msg);
+	text_release(t);
 	return false;
     }
     fclose(f);
-    msg[msize] = '\0';
+    t->text[msize] = '\0';
+    t->len = msize;
     if (0 == stat(p->path, &fattr)) {
 	p->mtime = fattr.st_mtime;
     } else {
@@ -394,7 +391,7 @@ update_contents(Cache cache, Page p) {
 	text_release(p->resp);
 	p->resp = NULL;
     }
-    p->resp = text_create(msg, (int)msize);
+    p->resp = t;
     text_ref(p->resp);
     p->last_check = dtime();
 

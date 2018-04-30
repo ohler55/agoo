@@ -44,28 +44,30 @@ class BaseHandlerTest < Minitest::Test
 
   def test_base_handler
     begin
-      server = Agoo::Server.new(6470, 'root',
-				pedantic: false,
-				log_dir: '',
-				thread_count: 1,
-				log_console: true,
-				log_classic: true,
-				log_colorize: true,
-				log_states: {
-				  INFO: false,
-				  DEBUG: false,
-				  connect: false,
-				  request: false,
-				  response: false,
-				  eval: true,
-				})
+      Agoo::Log.configure(dir: '',
+			  console: true,
+			  classic: true,
+			  colorize: true,
+			  states: {
+			    INFO: false,
+			    DEBUG: false,
+			    connect: false,
+			    request: false,
+			    response: false,
+			    eval: true,
+			  })
+
+      Agoo::Server.init(6470, 'root', thread_count: 1)
+
       handler = TellMeHandler.new
-      server.handle(:GET, "/tellme", handler)
-      server.handle(:POST, "/makeme", handler)
-      server.handle(:PUT, "/makeme", handler)
-      server.handle(:GET, "/wild/*/one", WildHandler.new('one'))
-      server.handle(:GET, "/wild/all/**", WildHandler.new('all'))
-      server.start()
+
+      Agoo::Server.handle(:GET, "/tellme", handler)
+      Agoo::Server.handle(:POST, "/makeme", handler)
+      Agoo::Server.handle(:PUT, "/makeme", handler)
+      Agoo::Server.handle(:GET, "/wild/*/one", WildHandler.new('one'))
+      Agoo::Server.handle(:GET, "/wild/all/**", WildHandler.new('all'))
+
+      Agoo::Server.start()
 
       #sleep(100)
       eval_test
@@ -74,7 +76,7 @@ class BaseHandlerTest < Minitest::Test
       wild_one_test
       wild_all_test
     ensure
-      server.shutdown
+      Agoo.shutdown
     end
   end
   

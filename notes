@@ -3,7 +3,7 @@
 - refs
   - http://www.rubydoc.info/github/rack/rack/master/file/SPEC
 
-rdoc -t Agoo -m README.md -x "test/*" -x extconf.rb
+rdoc -t Agoo -m README.md -x "test/*" -x "example/*" -x extconf.rb
 
 - todo
 
