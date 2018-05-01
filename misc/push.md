@@ -169,13 +169,13 @@ $tt_mutex = Mutex.new
 # A class to handle published times. It works with both WebSocket and SSE.
 class TickTock
   def initialize(env)
-    $tt_mutex.synchronize {
-      $tt_list << self
-    }
   end
 
   def on_open()
     puts "--- on_open"
+    $tt_mutex.synchronize {
+      $tt_list << self
+    }
   end
 
   def on_close
@@ -297,13 +297,13 @@ $tt_mutex = Mutex.new
 # A class to handle published times. It works with both WebSocket and SSE.
 class TickTock
   def initialize(env)
-    $tt_mutex.synchronize {
-      $tt_list << self
-    }
   end
 
   def on_open()
     puts "--- on_open"
+    $tt_mutex.synchronize {
+      $tt_list << self
+    }
   end
 
   def on_close
