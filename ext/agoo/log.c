@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <sys/time.h>
 #include <sys/types.h>
 #include <time.h>
 
@@ -346,7 +347,6 @@ log_cat_find(const char *label) {
 void
 log_catv(LogCat cat, const char *fmt, va_list ap) {
     if (cat->on && !the_log.done) {
-	struct timespec	ts;
 	LogEntry	e;
 	LogEntry	tail;
 	int		cnt;
@@ -361,11 +361,23 @@ log_catv(LogCat cat, const char *fmt, va_list ap) {
 	while (atomic_load(&the_log.head) == the_log.tail) {
 	    dsleep(RETRY_SECS);
 	}
-	// TBD fill in the entry at tail
-	clock_gettime(CLOCK_REALTIME, &ts);
 	e = the_log.tail;
 	e->cat = cat;
-	e->when = (int64_t)ts.tv_sec * 1000000000LL + (int64_t)ts.tv_nsec;
+	{
+#ifdef CLOCK_REALTIME
+	    struct timespec	ts;
+	    
+	    clock_gettime(CLOCK_REALTIME, &ts);
+	    e->when = (int64_t)ts.tv_sec * 1000000000LL + (int64_t)ts.tv_nsec;
+#else
+	    struct timeval	tv;
+	    struct timezone	tz;
+
+	    gettimeofday(&tv, &tz);
+
+	    e->when = (int64_t)tv.tv_sec * 1000000000LL + (int64_t)tv.tv_usec * 1000.0;
+#endif
+	}
 	e->whatp = NULL;
 	if ((int)sizeof(e->what) <= (cnt = vsnprintf(e->what, sizeof(e->what), fmt, ap))) {
 	    e->whatp = (char*)malloc(cnt + 1);

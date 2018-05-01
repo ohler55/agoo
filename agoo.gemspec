@@ -14,12 +14,12 @@ Gem::Specification.new do |s|
   s.licenses = ['MIT']
   s.required_ruby_version = '>= 2.0'
 
-  s.files = Dir["{lib,ext,test}/**/*.{rb,h,c}"] + ['LICENSE', 'README.md']
+  s.files = Dir["{lib,ext,test}/**/*.{rb,h,c}"] + ['LICENSE', 'README.md', 'CHANGELOG.md']
   s.test_files = Dir["test/**/*.rb"]
   s.extensions = ["ext/agoo/extconf.rb"]
 
   s.has_rdoc = true
-  s.extra_rdoc_files = ['README.md'] + Dir["pages/*.md"]
+  s.extra_rdoc_files = ['README.md', 'CHANGELOG.md', 'LICENSE'] + Dir["pages/*.md"]
   s.rdoc_options = ['-t', 'Agoo', '-m', 'README.md', '-x', '"test/*"', '-x', '"example/*"', '-x', 'extconf.rb']
 
   s.bindir = 'bin'
