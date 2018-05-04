@@ -16,12 +16,13 @@ matrix:
             - g++-7
       env:
         - MATRIX_EVAL="CC=gcc-7 && CXX=g++-7"
+      before_script:
+        - mv /usr/bin/gcc /usr/bin/gcc.old
+        - ln -s /usr/bin/gcc-7 /usr/bin/gcc
     - os: osx
 
 before_script:
   - eval "${MATRIX_EVAL}"
-  - which gcc
-  - which gcc-7
   - gem build agoo.gemspec
   - gem install oj
   - gem install agoo-*
