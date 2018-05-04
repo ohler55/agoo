@@ -1,7 +1,5 @@
 # CHANGELOG
 
-<<<<<<< Updated upstream
-=======
 ### 2.0.2 - 2018-05-04
 
 - Fixed compiler issues for different OSs and compilers.
@@ -12,7 +10,6 @@
 
 - Allow compilation on older macOS compilers.
 
->>>>>>> Stashed changes
 ### 2.0.0 - 2018-04-30
 
 - WebSocket and SSE support added.

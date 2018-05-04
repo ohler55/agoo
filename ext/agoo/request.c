@@ -184,7 +184,7 @@ req_server_name(Req r) {
 	rb_raise(rb_eArgError, "Request is no longer valid.");
     }
     if (NULL == (host = con_header_value(r->header.start, r->header.len, "Host", &len))) {
-	return Qnil;
+	return rb_str_new2("unknown");
     }
     for (colon = host + len - 1; host < colon; colon--) {
 	if (':' == *colon) {
@@ -192,7 +192,7 @@ req_server_name(Req r) {
 	}
     }
     if (host == colon) {
-	return Qnil;
+	return rb_str_new(host, len);
     }
     return rb_str_new(host, colon - host);
 }
