@@ -19,16 +19,22 @@ matrix:
       before_script:
         - sudo mv /usr/bin/gcc /usr/bin/gcc.old
         - sudo ln -s /usr/bin/gcc-7 /usr/bin/gcc
+        - eval "${MATRIX_EVAL}"
+        - gem build agoo.gemspec
+        - gem install oj
+        - gem install agoo-*
+        - cd ext/agoo
+        - ruby extconf.rb && make clean all
+        - cd ../..
     - os: osx
-
-before_script:
-  - eval "${MATRIX_EVAL}"
-  - gem build agoo.gemspec
-  - gem install oj
-  - gem install agoo-*
-  - cd ext/agoo
-  - ruby extconf.rb && make clean all
-  - cd ../..
+      before_script:
+        - eval "${MATRIX_EVAL}"
+        - gem build agoo.gemspec
+        - gem install oj
+        - gem install agoo-*
+        - cd ext/agoo
+        - ruby extconf.rb && make clean all
+        - cd ../..
 
 script:
   - cd test
