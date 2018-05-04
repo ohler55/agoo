@@ -17,8 +17,8 @@ matrix:
       env:
         - MATRIX_EVAL="CC=gcc-7 && CXX=g++-7"
       before_script:
-        - mv /usr/bin/gcc /usr/bin/gcc.old
-        - ln -s /usr/bin/gcc-7 /usr/bin/gcc
+        - sudo mv /usr/bin/gcc /usr/bin/gcc.old
+        - sudo ln -s /usr/bin/gcc-7 /usr/bin/gcc
     - os: osx
 
 before_script:
