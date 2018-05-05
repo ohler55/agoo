@@ -367,7 +367,9 @@ header_cb(VALUE key, VALUE value, Text *tp) {
     const char	*vs = StringValuePtr(value);
     int		vlen = (int)RSTRING_LEN(value);
 
-    http_header_ok(ks, klen, vs, vlen);
+    if (the_server.pedantic) {
+	http_header_ok(ks, klen, vs, vlen);
+    }
     if (0 != strcasecmp("Content-Length", ks)) {
 	*tp = text_append(*tp, ks, klen);
 	*tp = text_append(*tp, ": ", 2);

@@ -418,6 +418,7 @@ static const char	*header_keys[] = {
     "X-TipoRicevuta",
     "X-Trasporto",
     "X-VerificaSicurezza",
+    "X-XSS-Protection",
     "X400-Content-Identifier",
     "X400-Content-Return",
     "X400-Content-Type",

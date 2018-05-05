@@ -1,5 +1,9 @@
 # CHANGELOG
 
+### 2.0.3 - 2018-05-05
+
+- Allow X-XSS-Protection and only check headers in pendantic mode.
+
 ### 2.0.2 - 2018-05-04
 
 - Fixed compiler issues for different OSs and compilers.
