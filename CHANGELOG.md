@@ -1,5 +1,9 @@
 # CHANGELOG
 
+### 2.0.4 - 2018-05-06
+
+- Fix allocation bug.
+
 ### 2.0.3 - 2018-05-05
 
 - Allow X-XSS-Protection and only check headers in pendantic mode.

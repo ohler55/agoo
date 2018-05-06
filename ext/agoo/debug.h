@@ -7,9 +7,11 @@
 
 #ifdef MEM_DEBUG
 #define DEBUG_ALLOC(var, ptr) { atomic_fetch_add(&var, 1); debug_add(ptr, #var, __FILE__, __LINE__); }
+#define DEBUG_REALLOC(var, orig, ptr) { debug_update(orig, ptr, #var, __FILE__, __LINE__); }
 #define DEBUG_FREE(var, ptr) { atomic_fetch_sub(&var, 1); debug_del(ptr, __FILE__, __LINE__); }
 #else
 #define DEBUG_ALLOC(var, ptr) { }
+#define DEBUG_REALLOC(var, orig, ptr) { }
 #define DEBUG_FREE(var, ptr) { }
 #endif
 
@@ -41,6 +43,7 @@ extern atomic_int	mem_text;
 extern atomic_int	mem_to_s;
 
 extern void	debug_add(void *ptr, const char *type, const char *file, int line);
+extern void	debug_update(void *orig, void *ptr, const char *type, const char *file, int line);
 extern void	debug_del(void *ptr, const char *file, int line);
 extern void	debug_report();
 extern void	debug_rreport(); // when called from ruby

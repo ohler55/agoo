@@ -46,7 +46,7 @@ text_ref(Text t) {
 void
 text_release(Text t) {
     if (1 >= atomic_fetch_sub(&t->ref_cnt, 1)) {
-	DEBUG_FREE(mem_text, t)
+	DEBUG_FREE(mem_text, t);
 	free(t);
     }
 }
@@ -57,12 +57,14 @@ text_append(Text t, const char *s, int len) {
 	len = (int)strlen(s);
     }
     if (t->alen <= t->len + len) {
-	long	new_len = t->alen + t->alen / 2;
+	long	new_len = t->alen + len + t->alen / 2;
 	size_t	size = sizeof(struct _Text) - TEXT_MIN_SIZE + new_len + 1;
-
+	Text	t0 = t;
+	
 	if (NULL == (t = (Text)realloc(t, size))) {
 	    return NULL;
 	}
+	DEBUG_REALLOC(mem_text, t0, t);
 	t->alen = new_len;
     }
     memcpy(t->text + t->len, s, len);
@@ -78,7 +80,7 @@ text_prepend(Text t, const char *s, int len) {
 	len = (int)strlen(s);
     }
     if (t->alen <= t->len + len) {
-	long	new_len = t->alen + t->alen / 2;
+	long	new_len = t->alen + len + t->alen / 2;
 	size_t	size = sizeof(struct _Text) - TEXT_MIN_SIZE + new_len + 1;
 
 	if (NULL == (t = (Text)realloc(t, size))) {
