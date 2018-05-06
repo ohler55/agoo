@@ -38,7 +38,7 @@ class BaseHandlerTest < Minitest::Test
     end
 
     def on_request(req, res)
-      res.body = "#{@name} - #{req.script_name}"
+      res.body = "#{@name} - #{req.path_info}"
     end
   end
 
@@ -98,10 +98,10 @@ class BaseHandlerTest < Minitest::Test
       "HTTP_Accept" => "application/json",
       "HTTP_Accept-Encoding" => "*",
       "HTTP_User-Agent" => "Ruby",
-      "PATH_INFO" => "",
+      "PATH_INFO" => "/tellme",
       "QUERY_STRING" => "a=1",
       "REQUEST_METHOD" => "GET",
-      "SCRIPT_NAME" => "/tellme",
+      "SCRIPT_NAME" => "",
       "SERVER_NAME" => "localhost",
       "SERVER_PORT" => "6470",
       "rack.errors" => nil,
