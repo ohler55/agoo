@@ -1,5 +1,11 @@
 # CHANGELOG
 
+### 2.0.5 - 2018-05-06
+
+- Changed to putting all the path on the `REQUEST_PATH` variable instead of the `SCRIPT_NAME` to accomodate Rails which only uses the `REQUEST_PATH`.
+
+- Duplicated all `HTTP_` variables to use an all upper case key in addition to the Rack spec simple concatenation to make Rails middleware work. There seems to be an undocumented agreement that all keys will be uppercase.
+
 ### 2.0.4 - 2018-05-06
 
 - Fix allocation bug.

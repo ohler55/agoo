@@ -1,6 +1,7 @@
 // Copyright (c) 2018, Peter Ohler, All rights reserved.
 
 #include <stdio.h>
+#include <ctype.h>
 
 #include "debug.h"
 #include "con.h"
@@ -109,10 +110,7 @@ req_script_name(Req r) {
     if (NULL == r) {
 	rb_raise(rb_eArgError, "Request is no longer valid.");
     }
-    if (0 == r->path.len || (1 == r->path.len && '/' == *r->path.start)) {
-	return empty_val;
-    }
-    return rb_str_new(r->path.start, r->path.len);
+    return empty_val;
 }
 
 /* Document-method: script_name
@@ -136,7 +134,11 @@ req_path_info(Req r) {
     if (0 == r->path.len || (1 == r->path.len && '/' == *r->path.start)) {
 	return slash_val;
     }
-    return empty_val;
+
+    if (0 == r->path.len || (1 == r->path.len && '/' == *r->path.start)) {
+	return empty_val;
+    }
+    return rb_str_new(r->path.start, r->path.len);
 }
 
 /* Document-method: path_info
@@ -383,7 +385,7 @@ add_header_value(VALUE hh, const char *key, int klen, const char *val, int vlen)
     } else {
 	char	hkey[1024];
 	char	*k = hkey;
-
+	
 	strcpy(hkey, "HTTP_");
 	k = hkey + 5;
 	if ((int)(sizeof(hkey) - 5) <= klen) {
@@ -392,6 +394,11 @@ add_header_value(VALUE hh, const char *key, int klen, const char *val, int vlen)
 	strncpy(k, key, klen);
 	hkey[klen + 5] = '\0';
     
+	rb_hash_aset(hh, rb_str_new(hkey, klen + 5), rb_str_new(val, vlen));
+	// Contrary to the Rack spec, Rails expects all upper case keys so add those as well.
+	for (k = hkey + 5; '\0' != *k; k++) {
+	    *k = toupper(*k);
+	}
 	rb_hash_aset(hh, rb_str_new(hkey, klen + 5), rb_str_new(val, vlen));
     }
 }
