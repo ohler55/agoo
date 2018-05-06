@@ -6,11 +6,16 @@
 rdoc -t Agoo -m README.md -x "test/*" -x "example/*" -x extconf.rb
 
 - todo
+ - test blocking with multiple threads
 
- - chain() or use()
-  - add module/class/object in chain before call()
-  - same as Rack::Builder#use
- 
 
-- hijacking - is it needed?
- - before and afters for call, pipeline
+- con close logic
+ - con_destroy only called after up ref_cnt is 0
+ - still have pub queue for removing upgraded
+
+- con connection array
+ - change to double linked list?
+  - still need way of determining pa size
+   - could just make a large size or maybe use max socket from os, allocate on heap is better
+   - setrlimit to hard limit from getrlimit
+   

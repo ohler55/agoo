@@ -11,8 +11,11 @@
 #include "text.h"
 #include "types.h"
 
+struct _Con;
+
 typedef struct _Res {
     struct _Res		*next;
+    struct _Con		*con;
     _Atomic(Text)	message;
     ConKind		con_kind;
     bool		close;
@@ -20,7 +23,7 @@ typedef struct _Res {
     bool		pong;
 } *Res;
 
-extern Res	res_create();
+extern Res	res_create(struct _Con *con);
 extern void	res_destroy(Res res);
 extern void	res_set_message(Res res, Text t);
 

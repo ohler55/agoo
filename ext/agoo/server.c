@@ -219,6 +219,9 @@ rserver_init(int argc, VALUE *argv, VALUE self) {
     cache_init(&the_server.pages);
     cc_init(&the_server.con_cache);
     sub_init(&the_server.sub_cache);
+
+    pthread_mutex_init(&the_server.up_lock, 0);
+    the_server.up_list = NULL;
     
     the_server.inited = true;
 
@@ -495,7 +498,9 @@ handle_rack_inner(void *x) {
 		break;
 	    }
 	    req->handler_type = PUSH_HOOK;
-	    upgraded_extend(req->cid, req->handler);
+	    // TBD how to get con
+	    // TBD upgraded_create
+	    //upgraded_extend(req->cid, req->handler);
 	    t->len = snprintf(t->text, 1024, "HTTP/1.1 101 %s\r\n", status_msg);
 	    t = ws_add_headers(req, t);
 	    break;
@@ -507,7 +512,8 @@ handle_rack_inner(void *x) {
 		break;
 	    }
 	    req->handler_type = PUSH_HOOK;
-	    upgraded_extend(req->cid, req->handler);
+	    // TBD upgraded_create
+	    //upgraded_extend(req->cid, req->handler);
 	    t = sse_upgrade(req, t);
 	    res_set_message(req->res, t);
 	    queue_wakeup(&the_server.con_queue);

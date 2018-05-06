@@ -12,6 +12,7 @@
 #include "res.h"
 #include "server.h"
 #include "sse.h"
+#include "upgraded.h"
 #include "websocket.h"
 
 #define MAX_SOCK	4096
@@ -50,9 +51,13 @@ con_destroy(Con c) {
     if (NULL != c->req) {
 	request_destroy(c->req);
     }
-    if (NULL != c->slot) {
-	cc_remove_con(&the_server.con_cache, c->id);
-	c->slot = NULL;
+    if (NULL != c->up) {
+
+	upgrade_release_con(c->up);
+
+	// TBD lock and remove or remove if ref is 0
+	//cc_remove_con(&the_server.con_cache, c->id);
+	c->up = NULL;
     }
     DEBUG_FREE(mem_con, c)
     free(c);
@@ -94,7 +99,7 @@ bad_request(Con c, int status, int line) {
     Res		res;
     const char *msg = http_code_message(status);
     
-    if (NULL == (res = res_create())) {
+    if (NULL == (res = res_create(c))) {
 	log_cat(&error_cat, "memory allocation of response failed on connection %llu @ %d.", c->id, line);
     } else {
 	char	buf[256];
@@ -254,7 +259,7 @@ con_header_read(Con c) {
 		}
 		return bad_request(c, 404, __LINE__);
 	    }
-    	    if (NULL == (res = res_create())) {
+    	    if (NULL == (res = res_create(c))) {
 		return bad_request(c, 500, __LINE__);
 	    }
 	    if (NULL == c->res_tail) {
@@ -287,7 +292,7 @@ HOOKED:
     c->req->msg[mlen] = '\0';
     c->req->method = method;
     c->req->upgrade = UP_NONE;
-    c->req->cid = c->id;
+    c->req->up = NULL;
     c->req->path.start = c->req->msg + (path - c->buf);
     c->req->path.len = (int)(pend - path);
     c->req->query.start = c->req->msg + (query - c->buf);
@@ -390,7 +395,7 @@ con_http_read(Con c) {
 		if (debug_cat.on && NULL != c->req && NULL != c->req->body.start) {
 		    log_cat(&debug_cat, "request on %llu: %s", c->id, c->req->body.start);
 		}
-		if (NULL == (res = res_create())) {
+		if (NULL == (res = res_create(c))) {
 		    c->req = NULL;
 		    log_cat(&error_cat, "memory allocation of response failed on connection %llu.", c->id);
 		    return bad_request(c, 500, __LINE__);
@@ -657,14 +662,14 @@ con_ws_write(Con c) {
 	}
 	c->wcnt = 0;
 	res_destroy(res);
-	if (1 == (pending = atomic_fetch_sub(&c->slot->pending, 1))) {
-	    if (NULL != c->slot && Qnil != c->slot->handler && c->slot->on_empty) {
+	if (1 == (pending = atomic_fetch_sub(&c->up->pending, 1))) {
+	    if (NULL != c->up && Qnil != c->up->handler && c->up->on_empty) {
 		Req	req = request_create(0);
 	    
-		req->cid = c->id;
+		req->up = c->up;
 		req->method = ON_EMPTY;
 		req->handler_type = PUSH_HOOK;
-		req->handler = c->slot->handler;
+		req->handler = c->up->handler;
 		queue_push(&the_server.eval_queue, (void*)req);
 	    }
 	}
@@ -718,14 +723,14 @@ con_sse_write(Con c) {
 	}
 	c->wcnt = 0;
 	res_destroy(res);
-	if (1 == (pending = atomic_fetch_sub(&c->slot->pending, 1))) {
-	    if (NULL != c->slot && Qnil != c->slot->handler && c->slot->on_empty) {
+	if (1 == (pending = atomic_fetch_sub(&c->up->pending, 1))) {
+	    if (NULL != c->up && Qnil != c->up->handler && c->up->on_empty) {
 		Req	req = request_create(0);
 	    
-		req->cid = c->id;
+		req->up = c->up;
 		req->method = ON_EMPTY;
 		req->handler_type = PUSH_HOOK;
-		req->handler = c->slot->handler;
+		req->handler = c->up->handler;
 		queue_push(&the_server.eval_queue, (void*)req);
 	    }
 	}
@@ -754,54 +759,53 @@ con_write(Con c) {
     }
     if (kind != c->kind) {
 	c->kind = kind;
+	/*
 	if (CON_HTTP != kind && !remove) {
-	    c->slot = cc_set_con(&the_server.con_cache, c);
+	    // TBD add to up_list now or later?
+	    //c->slot = cc_set_con(&the_server.con_cache, c);
 	}
+	*/
     }
     return remove;
 }
 
 static void
 process_pub_con(Pub pub) {
-    CSlot	slot;
+    Upgraded	up = pub->up;
 
     switch (pub->kind) {
     case PUB_CLOSE:
-	if (NULL == (slot = cc_get_slot(&the_server.con_cache, pub->cid)) || NULL == slot->con) {
-	    log_cat(&warn_cat, "Socket %llu already closed.", pub->cid);
-	    pub_destroy(pub);	
-	    return;
+	if (NULL == up->con) {
+	    log_cat(&warn_cat, "Connection already closed.");
 	} else {
-	    Res	res = res_create();;
+	    Res	res = res_create(up->con);
 
 	    if (NULL != res) {
-		if (NULL == slot->con->res_tail) {
-		    slot->con->res_head = res;
+		if (NULL == up->con->res_tail) {
+		    up->con->res_head = res;
 		} else {
-		    slot->con->res_tail->next = res;
+		    up->con->res_tail->next = res;
 		}
-		slot->con->res_tail = res;
-		res->con_kind = slot->con->kind;
+		up->con->res_tail = res;
+		res->con_kind = up->con->kind;
 		res->close = true;
 	    }
 	}
 	break;
     case PUB_WRITE: {
-	if (NULL == (slot = cc_get_slot(&the_server.con_cache, pub->cid)) || NULL == slot->con) {
-	    log_cat(&warn_cat, "Socket %llu already closed. WebSocket write failed.", pub->cid);
-	    pub_destroy(pub);	
-	    return;
+	if (NULL == up->con) {
+	    log_cat(&warn_cat, "Connection already closed. WebSocket write failed.");
 	} else {
-	    Res	res = res_create();
+	    Res	res = res_create(up->con);
 
 	    if (NULL != res) {
-		if (NULL == slot->con->res_tail) {
-		    slot->con->res_head = res;
+		if (NULL == up->con->res_tail) {
+		    up->con->res_head = res;
 		} else {
-		    slot->con->res_tail->next = res;
+		    up->con->res_tail->next = res;
 		}
-		slot->con->res_tail = res;
-		res->con_kind = slot->con->kind;
+		up->con->res_tail = res;
+		res->con_kind = up->con->kind;
 		res_set_message(res, pub->msg);
 	    }
 	}
@@ -840,7 +844,7 @@ poll_setup(Con *ca, int ccnt, struct pollfd *pp) {
     pp->revents = 0;
     pp++;
     for (i = ccnt, cp = ca; 0 < i && cp < end; cp++) {
-	if (NULL == *cp) {
+	if (NULL == *cp || (*cp)->dead) {
 	    continue;
 	}
 	c = *cp;
@@ -876,6 +880,23 @@ poll_setup(Con *ca, int ccnt, struct pollfd *pp) {
 	pp++;
     }
     return pp;
+}
+
+static bool
+remove_dead_res(Con c) {
+    Res	res;
+    
+    while (NULL != (res = c->res_head)) {
+	if (NULL == res_message(c->res_head) && !c->res_head->close && !c->res_head->ping) {
+	    break;
+	}
+	c->res_head = res->next;
+	if (res == c->res_tail) {
+	    c->res_tail = NULL;
+	}
+	res_destroy(res);
+    }
+    return NULL == c->res_head;
 }
 
 void*
@@ -942,12 +963,14 @@ con_loop(void *x) {
 	    pp = c->pp;
 	    if (0 != (pp->revents & POLLIN)) {
 		if (con_read(c)) {
-		    goto CON_RM;
+		    c->dead = true;
+		    goto CON_CHECK;
 		}
 	    }
 	    if (0 != (pp->revents & POLLOUT)) {
 		if (con_write(c)) {
-		    goto CON_RM;
+		    c->dead = true;
+		    goto CON_CHECK;
 		}
 	    }
 	    if (0 != (pp->revents & (POLLERR | POLLHUP | POLLNVAL))) {
@@ -958,12 +981,20 @@ con_loop(void *x) {
 			log_cat(&error_cat, "Socket %llu error. %s", c->id, strerror(errno));
 		    }
 		}
-		goto CON_RM;
+		c->dead = true;
+		goto CON_CHECK;
 	    }
-	    if (0.0 == c->timeout || now < c->timeout) { 
+	CON_CHECK:
+	    if (c->dead) {
+		if (remove_dead_res(c)) {
+		    goto CON_RM;
+		}
+	    } else if (0.0 == c->timeout || now < c->timeout) { 
 		continue;
 	    } else if (c->closing) {
-		goto CON_RM;
+		if (remove_dead_res(c)) {
+		    goto CON_RM;
+		}
 	    } else if (CON_WS == c->kind || CON_SSE == c->kind) {
 		c->timeout = dtime() + CON_TIMEOUT;
 		ws_ping(c);

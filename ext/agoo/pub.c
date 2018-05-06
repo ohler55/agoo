@@ -7,16 +7,17 @@
 #include "debug.h"
 #include "pub.h"
 #include "text.h"
+#include "upgraded.h"
 
 Pub
-pub_close(uint64_t cid) {
+pub_close(Upgraded up) {
     Pub	p = (Pub)malloc(sizeof(struct _Pub));
 
     if (NULL != p) {
 	DEBUG_ALLOC(mem_pub, p);
 	p->next = NULL;
 	p->kind = PUB_CLOSE;
-	p->cid = cid;
+	p->up = up;
 	p->sid = 0;
 	p->subject = NULL;
     }
@@ -24,14 +25,14 @@ pub_close(uint64_t cid) {
 }
 
 Pub
-pub_subscribe(uint64_t cid, uint64_t sid, const char *subject) {
+pub_subscribe(Upgraded up, uint64_t sid, const char *subject) {
     Pub	p = (Pub)malloc(sizeof(struct _Pub));
 
     if (NULL != p) {
 	DEBUG_ALLOC(mem_pub, p);
 	p->next = NULL;
 	p->kind = PUB_SUB;
-	p->cid = cid;
+	p->up = up;
 	p->sid = sid;
 	p->subject = strdup(subject);
     }
@@ -39,14 +40,14 @@ pub_subscribe(uint64_t cid, uint64_t sid, const char *subject) {
 }
 
 Pub
-pub_unsubscribe(uint64_t cid, uint64_t sid) {
+pub_unsubscribe(Upgraded up, uint64_t sid) {
     Pub	p = (Pub)malloc(sizeof(struct _Pub));
 
     if (NULL != p) {
 	DEBUG_ALLOC(mem_pub, p);
 	p->next = NULL;
 	p->kind = PUB_UN;
-	p->cid = cid;
+	p->up = up;
 	p->sid = sid;
 	p->subject = NULL;
     }
@@ -61,7 +62,7 @@ pub_publish(char *subject, const char *message, size_t mlen, bool bin) {
 	DEBUG_ALLOC(mem_pub, p);
 	p->next = NULL;
 	p->kind = PUB_MSG;
-	p->cid = 0;
+	p->up = NULL;
 	p->subject = strdup(subject);
 	// Allocate an extra 24 bytes so the message can be expanded in place
 	// if a WebSocket or SSE write.
@@ -73,7 +74,7 @@ pub_publish(char *subject, const char *message, size_t mlen, bool bin) {
 }
 
 Pub
-pub_write(uint64_t cid, const char *message, size_t mlen, bool bin) {
+pub_write(Upgraded up, const char *message, size_t mlen, bool bin) {
     // Allocate an extra 16 bytes so the message can be expanded in place if a
     // WebSocket write.
     Pub	p = (Pub)malloc(sizeof(struct _Pub));
@@ -82,7 +83,7 @@ pub_write(uint64_t cid, const char *message, size_t mlen, bool bin) {
 	DEBUG_ALLOC(mem_pub, p);
 	p->next = NULL;
 	p->kind = PUB_WRITE;
-	p->cid = cid;
+	p->up = up;
 	p->subject = NULL;
 	// Allocate an extra 16 bytes so the message can be expanded in place
 	// if a WebSocket write.
@@ -105,6 +106,7 @@ pub_destroy(Pub pub) {
     default:
 	break;
     }
+    upgrade_release(pub->up);
     DEBUG_FREE(mem_pub, pub);
     free(pub);
 }

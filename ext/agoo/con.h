@@ -15,7 +15,7 @@
 
 #define MAX_HEADER_SIZE	8192
 
-struct _CSlot;
+struct _Upgraded;
 
 typedef struct _Con {
     int			sock;
@@ -30,11 +30,12 @@ typedef struct _Con {
 
     double		timeout;
     bool		closing;
+    bool		dead;
     Req			req;
     Res			res_head;
     Res			res_tail;
 
-    struct _CSlot	*slot; // only set for push connections
+    struct _Upgraded	*up; // only set for push connections
 } *Con;
 
 extern Con		con_create(Err err, int sock, uint64_t id);

@@ -15,6 +15,7 @@
 #include "page.h"
 #include "queue.h"
 #include "sub.h"
+#include "upgraded.h"
 
 typedef struct _Server {
     volatile bool	inited;
@@ -27,7 +28,10 @@ typedef struct _Server {
     atomic_int		running;
     pthread_t		listen_thread;
     pthread_t		con_thread;
-    
+
+    pthread_mutex_t	up_lock;
+    Upgraded		up_list;
+
     struct _Queue	con_queue;
     struct _Queue	pub_queue;
     struct _Cache	pages;

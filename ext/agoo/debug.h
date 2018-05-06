@@ -39,6 +39,7 @@ extern atomic_int	mem_res_body;
 extern atomic_int	mem_response;
 extern atomic_int	mem_text;
 extern atomic_int	mem_to_s;
+extern atomic_int	mem_upgraded;
 
 extern void	debug_add(void *ptr, const char *type, const char *file, int line);
 extern void	debug_del(void *ptr, const char *file, int line);

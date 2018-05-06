@@ -46,6 +46,7 @@ atomic_int	mem_res_body = 0;
 atomic_int	mem_response = 0;
 atomic_int	mem_text = 0;
 atomic_int	mem_to_s = 0;
+atomic_int	mem_upgraded = 0;
 
 #ifdef MEM_DEBUG
 static void
