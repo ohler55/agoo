@@ -106,7 +106,7 @@ pub_destroy(Pub pub) {
     default:
 	break;
     }
-    upgrade_release(pub->up);
+    upgraded_release(pub->up);
     DEBUG_FREE(mem_pub, pub);
     free(pub);
 }

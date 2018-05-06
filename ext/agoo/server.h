@@ -9,7 +9,6 @@
 
 #include <ruby.h>
 
-#include "ccache.h"
 #include "hook.h"
 #include "log.h"
 #include "page.h"
@@ -36,7 +35,6 @@ typedef struct _Server {
     struct _Queue	pub_queue;
     struct _Cache	pages;
     struct _SubCache	sub_cache; // subscription cache
-    struct _CCache	con_cache; // Only WebSocket and SSE connections
 
     Hook		hooks;
     Hook		hook404;

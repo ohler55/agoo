@@ -203,6 +203,7 @@ ws_req_close(Con c) {
 	req->method = ON_CLOSE;
 	req->handler_type = PUSH_HOOK;
 	req->handler = c->up->handler;
+	atomic_fetch_add(&c->up->ref_cnt, 1);
 	queue_push(&the_server.eval_queue, (void*)req);
     }
 }

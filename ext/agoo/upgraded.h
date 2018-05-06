@@ -25,7 +25,9 @@ typedef struct _Upgraded {
 
 extern void	upgraded_init(VALUE mod);
 extern Upgraded	upgraded_create(struct _Con *c, VALUE obj);
-extern void	upgrade_release(Upgraded up);
-extern void	upgrade_release_con(Upgraded up);
+extern void	upgraded_release(Upgraded up);
+extern void	upgraded_release_con(Upgraded up);
+
+extern void	upgraded_ref(Upgraded up);
 
 #endif // __AGOO_UPGRADED_H__

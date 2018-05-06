@@ -25,6 +25,7 @@
 #include "dtime.h"
 #include "err.h"
 #include "http.h"
+#include "pub.h"
 #include "response.h"
 #include "request.h"
 #include "server.h"
@@ -46,6 +47,8 @@ static VALUE	post_sym;
 static VALUE	push_env_key;
 static VALUE	put_sym;
 
+static VALUE	rserver;
+
 static ID	call_id;
 static ID	each_id;
 static ID	on_close_id;
@@ -57,6 +60,23 @@ static ID	to_i_id;
 static const char	err500[] = "HTTP/1.1 500 Internal Server Error\r\n";
 
 struct _Server	the_server = {false};
+
+static void
+server_mark(void *ptr) {
+    Upgraded	up;
+
+    rb_gc_mark(rserver);
+    pthread_mutex_lock(&the_server.up_lock);
+    for (up = the_server.up_list; NULL != up; up = up->next) {
+	if (Qnil != up->handler) {
+	    rb_gc_mark(up->handler);
+	}
+	if (Qnil != up->wrap) {
+	    rb_gc_mark(up->wrap);
+	}
+    }
+    pthread_mutex_unlock(&the_server.up_lock);
+}
 
 void
 server_shutdown() {
@@ -74,7 +94,6 @@ server_shutdown() {
 		the_server.con_thread = 0;
 	    }
 	    sub_cleanup(&the_server.sub_cache);
-	    cc_cleanup(&the_server.con_cache);
 	    // The preferred method to of waiting for the ruby threads would
 	    // be either a join or even a kill but since we may not have the
 	    // gvl here that would cause a segfault. Instead we set a timeout
@@ -89,7 +108,7 @@ server_shutdown() {
 		    dsleep(0.02);
 		}
 		DEBUG_FREE(mem_eval_threads, the_server.eval_threads);
-		free(the_server.eval_threads); // TBD use regular malloc and free
+		free(the_server.eval_threads);
 		the_server.eval_threads = NULL;
 	    }
 	    while (NULL != the_server.hooks) {
@@ -217,7 +236,6 @@ rserver_init(int argc, VALUE *argv, VALUE self) {
     queue_multi_init(&the_server.eval_queue, 1024, false, true);
 
     cache_init(&the_server.pages);
-    cc_init(&the_server.con_cache);
     sub_init(&the_server.sub_cache);
 
     pthread_mutex_init(&the_server.up_lock, 0);
@@ -498,9 +516,7 @@ handle_rack_inner(void *x) {
 		break;
 	    }
 	    req->handler_type = PUSH_HOOK;
-	    // TBD how to get con
-	    // TBD upgraded_create
-	    //upgraded_extend(req->cid, req->handler);
+	    upgraded_create(req->res->con, req->handler);
 	    t->len = snprintf(t->text, 1024, "HTTP/1.1 101 %s\r\n", status_msg);
 	    t = ws_add_headers(req, t);
 	    break;
@@ -512,8 +528,7 @@ handle_rack_inner(void *x) {
 		break;
 	    }
 	    req->handler_type = PUSH_HOOK;
-	    // TBD upgraded_create
-	    //upgraded_extend(req->cid, req->handler);
+	    upgraded_create(req->res->con, req->handler);
 	    t = sse_upgrade(req, t);
 	    res_set_message(req->res, t);
 	    queue_wakeup(&the_server.con_queue);
@@ -554,9 +569,6 @@ handle_rack_inner(void *x) {
 
 static void*
 handle_rack(void *x) {
-    // Disable GC. The handle_rack function or rather the env seems to get
-    // collected even though it is volatile so for now turn off GC
-    // temporarily.
     //rb_gc_disable();
     rb_rescue2(handle_rack_inner, (VALUE)x, rescue_error, (VALUE)x, rb_eException, 0);
     //rb_gc_enable();
@@ -593,27 +605,31 @@ handle_push_inner(void *x) {
 
     switch (req->method) {
     case ON_MSG:
-	rb_funcall(req->handler, on_message_id, 1, rb_str_new(req->msg, req->mlen));
+	rb_funcall(req->handler, on_message_id, 2, req->up->wrap, rb_str_new(req->msg, req->mlen));
 	break;
     case ON_BIN: {
 	volatile VALUE	rstr = rb_str_new(req->msg, req->mlen);
 
 	rb_enc_associate(rstr, rb_ascii8bit_encoding());
-	rb_funcall(req->handler, on_message_id, 1, rstr);
+	rb_funcall(req->handler, on_message_id, 2, req->up->wrap, rstr);
 	break;
     }
     case ON_CLOSE:
-	rb_funcall(req->handler, on_close_id, 0);
+	upgraded_ref(req->up);
+	queue_push(&the_server.pub_queue, pub_close(req->up));
+	rb_funcall(req->handler, on_close_id, 1, req->up->wrap);
 	break;
     case ON_SHUTDOWN:
-	rb_funcall(req->handler, rb_intern("on_shutdown"), 0);
+	rb_funcall(req->handler, rb_intern("on_shutdown"), 1, req->up->wrap);
 	break;
     case ON_EMPTY:
-	rb_funcall(req->handler, on_drained_id, 0);
+	rb_funcall(req->handler, on_drained_id, 1, req->up->wrap);
 	break;
     default:
 	break;
     }
+    upgraded_release(req->up);
+    
     return Qfalse;
 }
 
@@ -886,6 +902,9 @@ server_init(VALUE mod) {
     put_sym = ID2SYM(rb_intern("PUT"));			rb_gc_register_address(&put_sym);
 
     push_env_key = rb_str_new_cstr("rack.upgrade");	rb_gc_register_address(&push_env_key);
+
+    rserver = Data_Wrap_Struct(rb_cObject, server_mark, NULL, "dummy");
+    rb_gc_register_address(&rserver);
 
     http_init();
 }

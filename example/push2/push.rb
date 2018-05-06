@@ -15,7 +15,7 @@ Agoo::Log.configure(dir: '',
 		    colorize: true,
 		    states: {
 		      INFO: true,
-		      DEBUG: true,
+		      DEBUG: false,
 		      connect: true,
 		      request: true,
 		      response: true,
@@ -60,7 +60,7 @@ class Clock
     }
   end
 
-  def on_drained
+  def on_drained(client)
     puts "--- on_drained"
   end
 

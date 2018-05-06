@@ -23,17 +23,21 @@ destroy(Upgraded up) {
     }
     if (NULL == up->prev) {
 	the_server.up_list = up->next;
-	up->next->prev = NULL;
+	if (NULL != up->next) {
+	    up->next->prev = NULL;
+	}
     } else {
 	up->prev->next = up->next;
-	up->next->prev = up->prev;
+	if (NULL != up->next) {
+	    up->next->prev = up->prev;
+	}
     }
     DEBUG_FREE(mem_upgraded, up);
     free(up);
 }
 
 void
-upgrade_release(Upgraded up) {
+upgraded_release(Upgraded up) {
     if (atomic_fetch_sub(&up->ref_cnt, 1) <= 1) {
 	pthread_mutex_lock(&the_server.up_lock);
 	destroy(up);
@@ -42,13 +46,18 @@ upgrade_release(Upgraded up) {
 }
 
 void
-upgrade_release_con(Upgraded up) {
+upgraded_release_con(Upgraded up) {
     if (atomic_fetch_sub(&up->ref_cnt, 1) <= 1) {
 	pthread_mutex_lock(&the_server.up_lock);
 	up->con = NULL;
 	destroy(up);
 	pthread_mutex_unlock(&the_server.up_lock);
     }    
+}
+
+void
+upgraded_ref(Upgraded up) {
+    atomic_fetch_add(&up->ref_cnt, 1);
 }
 
 static Upgraded
@@ -185,10 +194,11 @@ upgraded_create(Con c, VALUE obj) {
 	}
 	up->next = the_server.up_list;
 	the_server.up_list = up;
+	c->up = up;
 	pthread_mutex_unlock(&the_server.up_lock);
 
 	if (rb_respond_to(obj, on_open_id)) {
-	    rb_funcall(obj, on_open_id, 0);
+	    rb_funcall(obj, on_open_id, 1, up->wrap);
 	}
     }
     return up;

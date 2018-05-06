@@ -53,7 +53,7 @@ con_destroy(Con c) {
     }
     if (NULL != c->up) {
 
-	upgrade_release_con(c->up);
+	upgraded_release_con(c->up);
 
 	// TBD lock and remove or remove if ref is 0
 	//cc_remove_con(&the_server.con_cache, c->id);
@@ -498,6 +498,7 @@ con_ws_read(Con c) {
 		    }
 		}
 	    }
+	    upgraded_ref(c->up);
 	    queue_push(&the_server.eval_queue, (void*)c->req);
 	    if (mlen < (long)c->bcnt) {
 		memmove(c->buf, c->buf + mlen, c->bcnt - mlen);
@@ -670,6 +671,7 @@ con_ws_write(Con c) {
 		req->method = ON_EMPTY;
 		req->handler_type = PUSH_HOOK;
 		req->handler = c->up->handler;
+		upgraded_ref(c->up);
 		queue_push(&the_server.eval_queue, (void*)req);
 	    }
 	}
@@ -731,6 +733,7 @@ con_sse_write(Con c) {
 		req->method = ON_EMPTY;
 		req->handler_type = PUSH_HOOK;
 		req->handler = c->up->handler;
+		upgraded_ref(c->up);
 		queue_push(&the_server.eval_queue, (void*)req);
 	    }
 	}
@@ -775,9 +778,10 @@ process_pub_con(Pub pub) {
 
     switch (pub->kind) {
     case PUB_CLOSE:
-	if (NULL == up->con) {
-	    log_cat(&warn_cat, "Connection already closed.");
-	} else {
+	// An close after already closed is used to decrement the reference
+	// count on the upgraded so it can be destroyed in the con loop
+	// threads.
+	if (NULL != up->con) {
 	    Res	res = res_create(up->con);
 
 	    if (NULL != res) {
