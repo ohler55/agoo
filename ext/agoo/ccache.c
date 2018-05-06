@@ -64,7 +64,7 @@ cc_set_con(CCache cc, Con con) {
 
     pthread_mutex_lock(&cc->lock);
     for (slot = *bucket; NULL != slot; slot = slot->next) {
-	if (con->id = slot->cid) {
+	if (con->id == slot->cid) {
 	    slot->con = con;
 	    break;
 	}
@@ -97,7 +97,7 @@ cc_set_handler(CCache cc, uint64_t cid, VALUE handler, bool on_empty, bool on_cl
 
     pthread_mutex_lock(&cc->lock);
     for (slot = *bucket; NULL != slot; slot = slot->next) {
-	if (cid = slot->cid) {
+	if (cid == slot->cid) {
 	    slot->handler = handler;
 	    break;
 	}
@@ -134,7 +134,7 @@ cc_remove(CCache cc, uint64_t cid) {
 
     pthread_mutex_lock(&cc->lock);
     for (slot = *bucket; NULL != slot; slot = slot->next) {
-	if (cid = slot->cid) {
+	if (cid == slot->cid) {
 	    if (NULL == prev) {
 		*bucket = slot->next;
 	    } else {
@@ -159,7 +159,7 @@ cc_remove_con(CCache cc, uint64_t cid) {
 
     pthread_mutex_lock(&cc->lock);
     for (slot = *bucket; NULL != slot; slot = slot->next) {
-	if (cid = slot->cid) {
+	if (cid == slot->cid) {
 	    if (atomic_fetch_sub(&slot->ref_cnt, 1) <= 1) {
 		if (NULL == prev) {
 		    *bucket = slot->next;
@@ -190,7 +190,7 @@ cc_ref_dec(CCache cc, uint64_t cid) {
 
     pthread_mutex_lock(&cc->lock);
     for (slot = *bucket; NULL != slot; slot = slot->next) {
-	if (cid = slot->cid) {
+	if (cid == slot->cid) {
 	    int	rcnt = atomic_fetch_sub(&slot->ref_cnt, 1);
 
 	    handler = slot->handler;
@@ -223,7 +223,7 @@ cc_get_con(CCache cc, uint64_t cid) {
 
     pthread_mutex_lock(&cc->lock);
     for (slot = *bucket; NULL != slot; slot = slot->next) {
-	if (cid = slot->cid) {
+	if (cid == slot->cid) {
 	    con = slot->con;
 	    break;
 	}
@@ -241,7 +241,7 @@ cc_get_handler(CCache cc, uint64_t cid) {
 
     pthread_mutex_lock(&cc->lock);
     for (slot = *bucket; NULL != slot; slot = slot->next) {
-	if (cid = slot->cid) {
+	if (cid == slot->cid) {
 	    handler = slot->handler;
 	    break;
 	}
@@ -259,7 +259,7 @@ cc_get_pending(CCache cc, uint64_t cid) {
 
     pthread_mutex_lock(&cc->lock);
     for (slot = *bucket; NULL != slot; slot = slot->next) {
-	if (cid = slot->cid) {
+	if (cid == slot->cid) {
 	    pending = atomic_load(&slot->pending);
 	    break;
 	}
@@ -276,7 +276,7 @@ cc_get_slot(CCache cc, uint64_t cid) {
 
     pthread_mutex_lock(&cc->lock);
     for (slot = *bucket; NULL != slot; slot = slot->next) {
-	if (cid = slot->cid) {
+	if (cid == slot->cid) {
 	    break;
 	}
     }
@@ -292,7 +292,7 @@ cc_pending_inc(CCache cc, uint64_t cid) {
 
     pthread_mutex_lock(&cc->lock);
     for (slot = *bucket; NULL != slot; slot = slot->next) {
-	if (cid = slot->cid) {
+	if (cid == slot->cid) {
 	    atomic_fetch_add(&slot->pending, 1);
 	    break;
 	}

@@ -157,6 +157,23 @@ debug_add(void *ptr, const char *type, const char *file, int line) {
 }
 
 void
+debug_update(void *orig, void *ptr, const char *type, const char *file, int line) {
+    Rec	r;
+    
+    pthread_mutex_lock(&lock);
+    for (r = recs; NULL != r; r = r->next) {
+	if (orig == r->ptr) {
+	    r->ptr = ptr;
+	    break;
+	}
+    }
+    pthread_mutex_unlock(&lock);	
+    if (NULL == r) {
+	printf("Realloc at %s:%d (%p) not allocated.\n", file, line, orig);
+    }
+}
+
+void
 debug_del(void *ptr, const char *file, int line) {
     Rec	r = NULL;
     Rec	prev = NULL;
