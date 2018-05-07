@@ -59,8 +59,9 @@ text_append(Text t, const char *s, int len) {
     if (t->alen <= t->len + len) {
 	long	new_len = t->alen + len + t->alen / 2;
 	size_t	size = sizeof(struct _Text) - TEXT_MIN_SIZE + new_len + 1;
+#ifdef MEM_DEBUG
 	Text	t0 = t;
-	
+#endif	
 	if (NULL == (t = (Text)realloc(t, size))) {
 	    return NULL;
 	}

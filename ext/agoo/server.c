@@ -903,7 +903,7 @@ server_init(VALUE mod) {
 
     push_env_key = rb_str_new_cstr("rack.upgrade");	rb_gc_register_address(&push_env_key);
 
-    rserver = Data_Wrap_Struct(rb_cObject, server_mark, NULL, "dummy");
+    rserver = Data_Wrap_Struct(rb_cObject, server_mark, NULL, strdup("dummy"));
     rb_gc_register_address(&rserver);
 
     http_init();
