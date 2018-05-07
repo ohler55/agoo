@@ -8,10 +8,10 @@
 static VALUE	subscription_class = Qundef;
 
 VALUE
-subscription_new(uint64_t cid, uint64_t id, VALUE handler) {
+subscription_new(Upgraded up, uint64_t id, VALUE handler) {
     Subscription	s = ALLOC(struct _Subscription);
 
-    s->cid = cid;
+    s->up = up;
     s->id = id;
     s->handler = handler;
     s->self = Data_Wrap_Struct(subscription_class, NULL, xfree, s);
@@ -29,12 +29,12 @@ static VALUE
 subscription_close(VALUE self) {
     Subscription	s = DATA_PTR(self);
 
-    if (0 != s->cid && 0 != s->id) {
-	Pub	p = pub_unsubscribe(s->cid, s->id);
+    if (NULL != s->up && 0 != s->id) {
+	Pub	p = pub_unsubscribe(s->up, s->id);
 	
 	queue_push(&the_server.pub_queue, (void*)p);
 	queue_wakeup(&the_server.pub_queue);
-	s->cid = 0;
+	s->up = NULL;
 	s->id = 0;
     }
     return Qnil;

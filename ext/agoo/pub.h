@@ -8,6 +8,7 @@
 #include <stdlib.h>
 
 struct _Text;
+struct _Upgraded;
 
 typedef enum {
     PUB_SUB	= 'S',
@@ -22,7 +23,7 @@ typedef enum {
 typedef struct _Pub {
     struct _Pub		*next;
     PubKind		kind;
-    uint64_t		cid;
+    struct _Upgraded	*up;
     char		*subject;
     union {
 	uint64_t	sid;
@@ -30,11 +31,11 @@ typedef struct _Pub {
     };
 } *Pub;
 
-extern Pub	pub_close(uint64_t cid);
-extern Pub	pub_subscribe(uint64_t cid, uint64_t sid, const char *subject);
-extern Pub	pub_unsubscribe(uint64_t cid, uint64_t sid);
+extern Pub	pub_close(struct _Upgraded *up);
+extern Pub	pub_subscribe(struct _Upgraded *up, uint64_t sid, const char *subject);
+extern Pub	pub_unsubscribe(struct _Upgraded *up, uint64_t sid);
 extern Pub	pub_publish(char *subject, const char *message, size_t mlen, bool bin);
-extern Pub	pub_write(uint64_t cid, const char *message, size_t mlen, bool bin);
+extern Pub	pub_write(struct _Upgraded *up, const char *message, size_t mlen, bool bin);
 extern void	pub_destroy(Pub pub);
 
 #endif // __AGOO_PUB_H__

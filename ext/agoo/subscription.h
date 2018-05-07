@@ -5,14 +5,16 @@
 
 #include <ruby.h>
 
+struct _Upgraded;
+
 typedef struct _Subscription {
     VALUE		self;
-    uint64_t		cid;
+    struct _Upgraded	*up;
     uint64_t		id;
     VALUE		handler;
 } *Subscription;
 
 extern void	subscription_init(VALUE mod);
-extern VALUE	subscription_new(uint64_t cid, uint64_t id, VALUE handler);
+extern VALUE	subscription_new(struct _Upgraded *up, uint64_t id, VALUE handler);
 
 #endif // __AGOO_SUBSCRIPTION_H__

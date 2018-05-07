@@ -19,6 +19,7 @@ Makefile
 .rbenv-version
 .ruby-version
 Gemfile.lock
+.DS_Store
 
 # Used by dotenv library to load environment variables.
 # .env

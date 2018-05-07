@@ -167,7 +167,7 @@ ws_create_req(Con c, long mlen) {
 	log_cat(&error_cat, "Out of memory attempting to allocate request.");
 	return true;
     }
-    if (NULL == c->slot || Qnil == c->slot->handler) {
+    if (NULL == c->up || Qnil == c->up->handler) {
 	return true;
     }
     memset(c->req, 0, sizeof(struct _Req));
@@ -183,11 +183,11 @@ ws_create_req(Con c, long mlen) {
     c->req->mlen = mlen;
     c->req->method = (WS_OP_BIN == op) ? ON_BIN : ON_MSG;
     c->req->upgrade = UP_NONE;
-    c->req->cid = c->id;
+    c->req->up = c->up;
     c->req->res = NULL;
     c->req->handler_type = PUSH_HOOK;
-    if (c->slot->on_msg) {
-	c->req->handler = c->slot->handler;
+    if (c->up->on_msg) {
+	c->req->handler = c->up->handler;
     } else {
 	c->req->handler = Qnil;
     }
@@ -196,13 +196,14 @@ ws_create_req(Con c, long mlen) {
 
 void
 ws_req_close(Con c) {
-    if (NULL != c->slot && Qnil != c->slot->handler && c->slot->on_close) {
+    if (NULL != c->up && Qnil != c->up->handler && c->up->on_close) {
 	Req	req = request_create(0);
 	    
-	req->cid = c->id;
+	req->up = c->up;
 	req->method = ON_CLOSE;
 	req->handler_type = PUSH_HOOK;
-	req->handler = c->slot->handler;
+	req->handler = c->up->handler;
+	atomic_fetch_add(&c->up->ref_cnt, 1);
 	queue_push(&the_server.eval_queue, (void*)req);
     }
 }
@@ -211,7 +212,7 @@ void
 ws_ping(Con c) {
     Res	res;
     
-    if (NULL == (res = res_create())) {
+    if (NULL == (res = res_create(c))) {
 	log_cat(&error_cat, "Memory allocation of response failed on connection %llu.", c->id);
     } else {
 	DEBUG_ALLOC(mem_res, res)
@@ -231,7 +232,7 @@ void
 ws_pong(Con c) {
     Res	res;
     
-    if (NULL == (res = res_create())) {
+    if (NULL == (res = res_create(c))) {
 	log_cat(&error_cat, "Memory allocation of response failed on connection %llu.", c->id);
     } else {
 	DEBUG_ALLOC(mem_res, res)

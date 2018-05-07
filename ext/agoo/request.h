@@ -12,6 +12,7 @@
 #include "types.h"
 
 struct _Server;
+struct _Upgraded;
 
 typedef enum {
     UP_NONE	= '\0',
@@ -27,7 +28,7 @@ typedef struct _Str {
 typedef struct _Req {
     Method		method;
     Upgrade		upgrade;
-    uint64_t		cid;
+    struct _Upgraded	*up;
     struct _Str		path;
     struct _Str		query;
     struct _Str		header;

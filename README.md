@@ -45,7 +45,7 @@ href="https://github.com/ohler55/perfer">Perfer</a> to hit the Agoo
 limits. Ruby benchmarks driver could not push Agoo hard enough.
 
 Agoo supports the [Ruby rack API](https://rack.github.io) which allows for the
-use of rack compatible gems. Agoo also supports WebSockets and SSE.
+use of rack compatible gems such as Hanami and Rails. Agoo also supports WebSockets and SSE.
 
 ## Releases
 
