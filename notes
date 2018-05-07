@@ -6,13 +6,6 @@
 rdoc -t Agoo -m README.md -x "test/*" -x "example/*" -x extconf.rb
 
 - todo
- - test blocking with multiple threads
-
-- remove ccache
-
-- con close logic
- - con_destroy only called after up ref_cnt is 0
- - still have pub queue for removing upgraded
 
 - con connection array
  - change to double linked list?

@@ -353,6 +353,7 @@ update_contents(Cache cache, Page p) {
 	    if (NULL == (f = fopen(path, "rb"))) {
 		return false;
 	    }
+	    mime = "text/html";
 	} else {
 	    return false;
 	}

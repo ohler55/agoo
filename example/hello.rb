@@ -11,9 +11,9 @@ Agoo::Log.configure(dir: '',
 		    states: {
 		      INFO: true,
 		      DEBUG: false,
-		      connect: false,
-		      request: false,
-		      response: false,
+		      connect: true,
+		      request: true,
+		      response: true,
 		      eval: true,
 		      push: false,
 		    })
