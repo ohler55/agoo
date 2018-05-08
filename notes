@@ -13,3 +13,4 @@ rdoc -t Agoo -m README.md -x "test/*" -x "example/*" -x extconf.rb
    - could just make a large size or maybe use max socket from os, allocate on heap is better
    - setrlimit to hard limit from getrlimit
    
+

@@ -39,6 +39,7 @@ extern atomic_int	mem_req;
 extern atomic_int	mem_res;
 extern atomic_int	mem_res_body;
 extern atomic_int	mem_response;
+extern atomic_int	mem_subject;
 extern atomic_int	mem_text;
 extern atomic_int	mem_to_s;
 extern atomic_int	mem_upgraded;

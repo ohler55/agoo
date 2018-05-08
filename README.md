@@ -22,7 +22,10 @@ end
 handler = MyHandler.new
 Agoo::Server.handle(:GET, "/hello", handler)
 Agoo::Server.start()
-# To run this example type the following then go to a browser and enter a URL of localhost:6464/hello.
+
+# To run this example type the following then go to a browser and enter a URL
+# of localhost:6464/hello.
+#
 # ruby hello.rb
 ```
 

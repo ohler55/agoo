@@ -17,6 +17,7 @@ typedef struct _Text {
 } *Text;
 
 extern Text	text_create(const char *str, int len);
+extern Text	text_dup(Text t);
 extern Text	text_allocate(int len);
 extern void	text_ref(Text t);
 extern void	text_release(Text t);

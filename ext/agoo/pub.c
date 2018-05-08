@@ -6,6 +6,7 @@
 
 #include "debug.h"
 #include "pub.h"
+#include "subject.h"
 #include "text.h"
 #include "upgraded.h"
 
@@ -18,14 +19,14 @@ pub_close(Upgraded up) {
 	p->next = NULL;
 	p->kind = PUB_CLOSE;
 	p->up = up;
-	p->sid = 0;
 	p->subject = NULL;
+	p->msg = NULL;
     }
     return p;
 }
 
 Pub
-pub_subscribe(Upgraded up, uint64_t sid, const char *subject) {
+pub_subscribe(Upgraded up, const char *subject, int slen) {
     Pub	p = (Pub)malloc(sizeof(struct _Pub));
 
     if (NULL != p) {
@@ -33,14 +34,14 @@ pub_subscribe(Upgraded up, uint64_t sid, const char *subject) {
 	p->next = NULL;
 	p->kind = PUB_SUB;
 	p->up = up;
-	p->sid = sid;
-	p->subject = strdup(subject);
+	p->subject = subject_create(subject, slen);
+	p->msg = NULL;
     }
     return p;
 }
 
 Pub
-pub_unsubscribe(Upgraded up, uint64_t sid) {
+pub_unsubscribe(Upgraded up, const char *subject, int slen) {
     Pub	p = (Pub)malloc(sizeof(struct _Pub));
 
     if (NULL != p) {
@@ -48,14 +49,18 @@ pub_unsubscribe(Upgraded up, uint64_t sid) {
 	p->next = NULL;
 	p->kind = PUB_UN;
 	p->up = up;
-	p->sid = sid;
-	p->subject = NULL;
+	if (NULL != subject) {
+	    p->subject = subject_create(subject, slen);
+	} else {
+	    p->subject = NULL;
+	}
+	p->msg = NULL;
     }
     return p;
 }
 
 Pub
-pub_publish(char *subject, const char *message, size_t mlen, bool bin) {
+pub_publish(char *subject, int slen, const char *message, size_t mlen) {
     Pub	p = (Pub)malloc(sizeof(struct _Pub));
 
     if (NULL != p) {
@@ -63,11 +68,10 @@ pub_publish(char *subject, const char *message, size_t mlen, bool bin) {
 	p->next = NULL;
 	p->kind = PUB_MSG;
 	p->up = NULL;
-	p->subject = strdup(subject);
+	p->subject = subject_create(subject, slen);
 	// Allocate an extra 24 bytes so the message can be expanded in place
 	// if a WebSocket or SSE write.
-	p->msg = text_allocate((int)mlen + 24);
-	p->msg = text_append(text_allocate((int)mlen + 16), message, (int)mlen);
+	p->msg = text_append(text_allocate((int)mlen + 24), message, (int)mlen);
 	text_ref(p->msg);
     }
     return p;
@@ -96,17 +100,15 @@ pub_write(Upgraded up, const char *message, size_t mlen, bool bin) {
 
 void
 pub_destroy(Pub pub) {
-    switch (pub->kind) {
-    case PUB_MSG:
-    case PUB_WRITE:
-	if (NULL != pub->msg) {
-	    text_release(pub->msg);
-	}
-	break;
-    default:
-	break;
+    if (NULL != pub->msg) {
+	text_release(pub->msg);
     }
-    upgraded_release(pub->up);
+    if (NULL != pub->subject) {
+	subject_destroy(pub->subject);
+    }
+    if (NULL != pub->up) {
+	upgraded_release(pub->up);
+    }
     DEBUG_FREE(mem_pub, pub);
     free(pub);
 }

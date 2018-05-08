@@ -341,21 +341,25 @@ rescue_error(VALUE x) {
     volatile VALUE	msg = rb_funcall(info, rb_intern("message"), 0);
     const char		*classname = rb_obj_classname(info);
     const char		*ms = rb_string_value_ptr(&msg);
-    char		buf[1024];
-    int			len = (int)(strlen(classname) + 2 + strlen(ms));
-    int			cnt;
-    Text		message;
 
-    if ((int)(sizeof(buf) - sizeof(bad500) + 7) <= len) {
-	len = sizeof(buf) - sizeof(bad500) + 7;
+    if (NULL == req->up) {
+	char	buf[1024];
+	int	len = (int)(strlen(classname) + 2 + strlen(ms));
+	int	cnt;
+	Text	message;
+
+	if ((int)(sizeof(buf) - sizeof(bad500) + 7) <= len) {
+	    len = sizeof(buf) - sizeof(bad500) + 7;
+	}
+	cnt = snprintf(buf, sizeof(buf), "%s%d\r\n\r\n%s: %s", bad500, len, classname, ms);
+	message = text_create(buf, cnt);
+
+	req->res->close = true;
+	res_set_message(req->res, message);
+	queue_wakeup(&the_server.con_queue);
+    } else {
+	log_cat(&error_cat, "%s: %s", classname, ms);
     }
-    cnt = snprintf(buf, sizeof(buf), "%s%d\r\n\r\n%s: %s", bad500, len, classname, ms);
-    message = text_create(buf, cnt);
-
-    req->res->close = true;
-    res_set_message(req->res, message);
-    queue_wakeup(&the_server.con_queue);
-
     return Qfalse;
 }
 
@@ -674,7 +678,7 @@ handle_protected(Req req, bool gvi) {
 	char	buf[256];
 	int	cnt = snprintf(buf, sizeof(buf), "HTTP/1.1 500 Internal Error\r\nConnection: Close\r\nContent-Length: 0\r\n\r\n");
 	Text	message = text_create(buf, cnt);
-	
+
 	req->res->close = true;
 	res_set_message(req->res, message);
 	queue_wakeup(&the_server.con_queue);

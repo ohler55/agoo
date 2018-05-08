@@ -27,7 +27,9 @@ There is a proposal to extend the Rack spec to include an option for WebSocket
 and SSE. Currently two servers support that proposed
 extension. [Agoo](https://https://github.com/ohler55/agoo) and
 [Iodine](https://github.com/boazsegev/iodine) both high performance web server
-gems that support push and implement the proposed Rack extension.
+gems that support push and implement the proposed Rack extension. A copy of
+the proposed spec in HTML format is
+[here](http://www.ohler.com/agoo/rack/file.SPEC.html).
 
 ## Simple Callback Design
 
@@ -176,12 +178,10 @@ class Clock
       msg = "%02d:%02d:%02d" % [now.hour, now.min, now.sec]
       @mutex.synchronize {
 	@clients.each { |c|
-	  begin
-	    c.write(msg)
-	  rescue Exception => e
+          unless c.write(msg)
 	    # If the connection is closed while writing this could occur. Just
 	    # the nature of async systems.
-	    puts "--- write failed. #{e.class}: #{e.message}"
+	    puts "--- write failed"
 	  end
 	}
       }
@@ -302,12 +302,10 @@ class Clock
       msg = "%02d:%02d:%02d" % [now.hour, now.min, now.sec]
       @mutex.synchronize {
 	@clients.each { |c|
-	  begin
-	    c.write(msg)
-	  rescue Exception => e
+          unless c.write(msg)
 	    # If the connection is closed while writing this could occur. Just
 	    # the nature of async systems.
-	    puts "--- write failed. #{e.class}: #{e.message}"
+	    puts "--- write failed"
 	  end
 	}
       }
@@ -326,6 +324,112 @@ $clock = Clock.new
 # env['rack.upgrade'] to the new object or handler. The handler will be
 # extended to have a 'write' method as well as a 'pending' and a 'close'
 # method.
+class Listen
+  # Only used for WebSocket or SSE upgrades.
+  def call(env)
+    unless env['rack.upgrade?'].nil?
+      env['rack.upgrade'] = $clock
+      [ 200, { }, [ ] ]
+    else
+      [ 404, { }, [ ] ]
+    end
+  end
+end
+
+# Register the handler before calling start. Agoo allows for de-multiplexing at
+# the server instead of in the call() method.
+Agoo::Server.handle(:GET, "/hello", HelloHandler.new)
+Agoo::Server.handle(:GET, "/listen", Listen.new)
+Agoo::Server.handle(:GET, "/sse", Listen.new)
+
+# With a thread_count greater than 0 the call to start returns after creating
+# a server thread. If the count is 0 then the call only returned when the
+# server is shutdown.
+Agoo::Server.start()
+
+# Start the clock.
+$clock.start
+
+# This example does not use the config.ru approach as the Agoo de-multiplexer
+# is used to support several different connection types instead of
+# de-multiplexing in the #call method.
+
+# To run this example:
+# ruby push.rb
+
+# After starting open a URL of http://localhost:6464/websocket.html or
+# http://localhost:6464/sse.html.
+```
+
+### pubsub.rb
+
+As a bonus publish and subscribe is possible using string subjects. Instead of
+setting up the `@clients` array attribute the Agoo server can take care of
+those details. Note the use of `Agoo.publish` and `client.subscribe` in the
+`pubsub.rb` example.
+
+```ruby
+
+require 'agoo'
+
+# The websocket.html and sse.html are used for this example. After starting
+# open a URL of http://localhost:6464/websocket.html or
+# http://localhost:6464/sse.html.
+
+Agoo::Server.init(6464, '.', thread_count: 1)
+
+class HelloHandler
+  def call(env)
+    [ 200, { }, [ "hello world" ] ]
+  end
+end
+
+# A class to handle published times. It works with both WebSocket and
+# SSE. Only a single instance is needed as the object is stateless. Note that
+# publish and subscribe methods are used to push messages to the WebSocket or
+# SSE connections.
+class Clock
+  def initialize()
+  end
+
+  def on_open(client)
+    puts "--- on_open"
+    client.subscribe('time')
+  end
+
+  def on_close(client)
+    puts "--- on_close"
+  end
+
+  def on_drained(client)
+    puts "--- on_drained"
+  end
+
+  def on_message(client, data)
+    puts "--- on_message #{data}"
+    client.write("echo: #{data}")
+  end
+
+  # A simple clock publisher of sorts. It writes the current time every second
+  # to the current clients.
+  def start
+    loop do
+      now = Time.now
+      Agoo.publish('time', "%02d:%02d:%02d" % [now.hour, now.min, now.sec])
+      sleep(1)
+    end
+  end
+end
+
+# Reuse the tick_tock instance.
+$clock = Clock.new
+
+# Used for both SSE and WebSocket connections. WebSocket requests are detected
+# by an env['rack.upgrade?'] value of :websocket while an SSE connection is
+# detected by an env['rack.upgrade?'] value of :sse.  In both cases a Push
+# handler should be created and returned by setting env['rack.upgrade'] to the
+# new object or handler. The handler will be extended to have a 'write' method
+# as well as a 'pending', a 'protocol', and a 'close' method.
 class Listen
   # Only used for WebSocket or SSE upgrades.
   def call(env)

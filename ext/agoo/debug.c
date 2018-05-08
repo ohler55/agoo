@@ -44,6 +44,7 @@ atomic_int	mem_req = 0;
 atomic_int	mem_res = 0;
 atomic_int	mem_res_body = 0;
 atomic_int	mem_response = 0;
+atomic_int	mem_subject = 0;
 atomic_int	mem_text = 0;
 atomic_int	mem_to_s = 0;
 atomic_int	mem_upgraded = 0;

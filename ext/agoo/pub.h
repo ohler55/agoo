@@ -9,6 +9,7 @@
 
 struct _Text;
 struct _Upgraded;
+struct _Subject;
 
 typedef enum {
     PUB_SUB	= 'S',
@@ -24,17 +25,14 @@ typedef struct _Pub {
     struct _Pub		*next;
     PubKind		kind;
     struct _Upgraded	*up;
-    char		*subject;
-    union {
-	uint64_t	sid;
-	struct _Text	*msg;
-    };
+    struct _Subject	*subject;
+    struct _Text	*msg;
 } *Pub;
 
 extern Pub	pub_close(struct _Upgraded *up);
-extern Pub	pub_subscribe(struct _Upgraded *up, uint64_t sid, const char *subject);
-extern Pub	pub_unsubscribe(struct _Upgraded *up, uint64_t sid);
-extern Pub	pub_publish(char *subject, const char *message, size_t mlen, bool bin);
+extern Pub	pub_subscribe(struct _Upgraded *up, const char *subject, int slen);
+extern Pub	pub_unsubscribe(struct _Upgraded *up, const char *subject, int slen);
+extern Pub	pub_publish(char *subject, int slen, const char *message, size_t mlen);
 extern Pub	pub_write(struct _Upgraded *up, const char *message, size_t mlen, bool bin);
 extern void	pub_destroy(Pub pub);
 

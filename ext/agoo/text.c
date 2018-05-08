@@ -24,6 +24,22 @@ text_create(const char *str, int len) {
 }
 
 Text
+text_dup(Text t0) {
+    int		len = t0->len;
+    Text	t = (Text)malloc(sizeof(struct _Text) - TEXT_MIN_SIZE + len + 1);
+
+    if (NULL != t) {
+	DEBUG_ALLOC(mem_text, t)
+	t->len = len;
+	t->alen = len;
+	t->bin = false;
+	atomic_init(&t->ref_cnt, 0);
+	memcpy(t->text, t0->text, len + 1);
+    }
+    return t;
+}
+
+Text
 text_allocate(int len) {
     Text	t = (Text)malloc(sizeof(struct _Text) - TEXT_MIN_SIZE + len + 1);
 

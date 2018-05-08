@@ -48,12 +48,10 @@ class Clock
       msg = "%02d:%02d:%02d" % [now.hour, now.min, now.sec]
       @mutex.synchronize {
 	@clients.each { |c|
-	  begin
-	    c.write(msg)
-	  rescue Exception => e
+          unless c.write(msg)
 	    # If the connection is closed while writing this could occur. Just
 	    # the nature of async systems.
-	    puts "--- write failed. #{e.class}: #{e.message}"
+	    puts "--- write failed"
 	  end
 	}
       }

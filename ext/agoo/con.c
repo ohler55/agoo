@@ -12,6 +12,7 @@
 #include "res.h"
 #include "server.h"
 #include "sse.h"
+#include "subject.h"
 #include "upgraded.h"
 #include "websocket.h"
 
@@ -52,11 +53,7 @@ con_destroy(Con c) {
 	request_destroy(c->req);
     }
     if (NULL != c->up) {
-
 	upgraded_release_con(c->up);
-
-	// TBD lock and remove or remove if ref is 0
-	//cc_remove_con(&the_server.con_cache, c->id);
 	c->up = NULL;
     }
     DEBUG_FREE(mem_con, c)
@@ -773,6 +770,42 @@ con_write(Con c) {
 }
 
 static void
+publish_pub(Pub pub) {
+    Upgraded	up;
+    const char	*sub = pub->subject->pattern;
+
+    for (up = the_server.up_list; NULL != up; up = up->next) {
+	if (NULL != up->con && upgraded_match(up, sub)) {
+	    Res	res = res_create(up->con);
+
+	    if (NULL != res) {
+		if (NULL == up->con->res_tail) {
+		    up->con->res_head = res;
+		} else {
+		    up->con->res_tail->next = res;
+		}
+		up->con->res_tail = res;
+		res->con_kind = up->con->kind;
+		res_set_message(res, text_dup(pub->msg));
+	    }
+	}
+    }
+}
+
+static void
+unsubscribe_pub(Pub pub) {
+    if (NULL == pub->up) {
+	Upgraded	up;
+
+	for (up = the_server.up_list; NULL != up; up = up->next) {
+	    upgraded_del_subject(up, pub->subject);
+	}
+    } else {
+	upgraded_del_subject(pub->up, pub->subject);
+    }
+}
+
+static void
 process_pub_con(Pub pub) {
     Upgraded	up = pub->up;
 
@@ -815,13 +848,14 @@ process_pub_con(Pub pub) {
 	}
 	break;
     case PUB_SUB:
-	// TBD handle a subscribe when implementing pub/sub 
+	upgraded_add_subject(pub->up, pub->subject);
+	pub->subject = NULL;
 	break;
     case PUB_UN:
-	// TBD handle a subscribe when implementing pub/sub 
+	unsubscribe_pub(pub);
 	break;
     case PUB_MSG:
-	// TBD handle a subscribe when implementing pub/sub 
+	publish_pub(pub);
 	break;
     }
     default:

@@ -8,6 +8,7 @@
 #include <ruby.h>
 
 struct _Con;
+struct _Subject;
 
 typedef struct _Upgraded {
     struct _Upgraded	*next;
@@ -17,6 +18,7 @@ typedef struct _Upgraded {
     VALUE		wrap;
     atomic_int		pending;
     atomic_int		ref_cnt;
+    struct _Subject	*subjects;
     bool		on_empty;
     bool		on_close;
     bool		on_shut;
@@ -29,5 +31,9 @@ extern void	upgraded_release(Upgraded up);
 extern void	upgraded_release_con(Upgraded up);
 
 extern void	upgraded_ref(Upgraded up);
+
+extern void	upgraded_add_subject(Upgraded up, struct _Subject *subject);
+extern void	upgraded_del_subject(Upgraded up, struct _Subject *subject);
+extern bool	upgraded_match(Upgraded up, const char *subject);
 
 #endif // __AGOO_UPGRADED_H__

@@ -8,11 +8,11 @@
 #include "debug.h"
 #include "error_stream.h"
 #include "log.h"
+#include "pub.h"
 #include "rack_logger.h"
 #include "request.h"
 #include "response.h"
 #include "server.h"
-#include "subscription.h"
 #include "upgraded.h"
 
 void
@@ -31,6 +31,38 @@ static VALUE
 ragoo_shutdown(VALUE self) {
     agoo_shutdown();
     debug_rreport();
+    return Qnil;
+}
+
+/* Document-method: publish
+ *
+ * call-seq: publish(subject, message)
+ *
+ * Publish a message on the given subject.
+ */
+VALUE
+ragoo_publish(VALUE self, VALUE subject, VALUE message) {
+    rb_check_type(subject, T_STRING);
+    rb_check_type(message, T_STRING);
+
+    queue_push(&the_server.pub_queue, pub_publish(StringValuePtr(subject), (int)RSTRING_LEN(subject),
+						  StringValuePtr(message), (int)RSTRING_LEN(message)));
+
+    return Qnil;
+}
+
+/* Document-method: unsubscribe
+ *
+ * call-seq: unsubscribe(subject)
+ *
+ * Unsubscribes on client listeners on the specified subject.
+ */
+static VALUE
+ragoo_unsubscribe(VALUE self, VALUE subject) {
+    rb_check_type(subject, T_STRING);
+
+    queue_push(&the_server.pub_queue, pub_unsubscribe(NULL, StringValuePtr(subject), (int)RSTRING_LEN(subject)));
+
     return Qnil;
 }
 
@@ -60,10 +92,11 @@ Init_agoo() {
     request_init(mod);
     response_init(mod);
     server_init(mod);
-    subscription_init(mod);
     upgraded_init(mod);
 
     rb_define_module_function(mod, "shutdown", ragoo_shutdown, 0);
+    rb_define_module_function(mod, "publish", ragoo_publish, 2);
+    rb_define_module_function(mod, "unsubscribe", ragoo_unsubscribe, 1);
 
     signal(SIGINT, sig_handler);
     signal(SIGTERM, sig_handler);
