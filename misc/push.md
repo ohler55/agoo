@@ -363,7 +363,7 @@ $clock.start
 
 ### pubsub.rb
 
-As a bonus publish and subscribe is possible using string subjects. Instead of
+With Agoo 2.1.0, publish and subscribe is possible using string subjects. Instead of
 setting up the `@clients` array attribute the Agoo server can take care of
 those details. Note the use of `Agoo.publish` and `client.subscribe` in the
 `pubsub.rb` example.
