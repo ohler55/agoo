@@ -16,17 +16,15 @@
 #include "upgraded.h"
 #include "websocket.h"
 
-#define MAX_SOCK	4096
-#define CON_TIMEOUT	5.0
+#define CON_TIMEOUT		5.0
+#define INITIAL_POLL_SIZE	1024
+
+extern void	agoo_shutdown();
 
 Con
 con_create(Err err, int sock, uint64_t id) {
     Con	c;
 
-    if (MAX_SOCK <= sock) {
-	err_set(err, ERR_TOO_MANY, "Too many connections.");
-	return NULL;
-    }
     if (NULL == (c = (Con)malloc(sizeof(struct _Con)))) {
 	err_set(err, ERR_MEMORY, "Failed to allocate memory for a connection.");
     } else {
@@ -865,12 +863,7 @@ process_pub_con(Pub pub) {
 }
 
 static struct pollfd*
-poll_setup(Con *ca, int ccnt, struct pollfd *pp) {
-    Con		*cp;
-    Con		*end = ca + MAX_SOCK;
-    Con		c;
-    int		i;
-
+poll_setup(Con c, struct pollfd *pp) {
     // The first two pollfd are for the con_queue and the pub_queue in that
     // order.
     pp->fd = queue_listen(&the_server.con_queue);
@@ -881,11 +874,10 @@ poll_setup(Con *ca, int ccnt, struct pollfd *pp) {
     pp->events = POLLIN;
     pp->revents = 0;
     pp++;
-    for (i = ccnt, cp = ca; 0 < i && cp < end; cp++) {
-	if (NULL == *cp || (*cp)->dead) {
+    for (; NULL != c; c = c->next) {
+	if (c->dead) {
 	    continue;
 	}
-	c = *cp;
 	c->pp = pp;
 	pp->fd = c->sock;
 	pp->events = 0;
@@ -914,7 +906,6 @@ poll_setup(Con *ca, int ccnt, struct pollfd *pp) {
 	    break;
 	}
 	pp->revents = 0;
-	i--;
 	pp++;
     }
     return pp;
@@ -940,30 +931,42 @@ remove_dead_res(Con c) {
 void*
 con_loop(void *x) {
     Con			c;
-    Con			ca[MAX_SOCK + 2];
-    struct pollfd	pa[MAX_SOCK + 2];
+    Con			prev;
+    Con			next;
+    Con			cons = NULL;
+    size_t		size = sizeof(struct pollfd) * INITIAL_POLL_SIZE;
+    struct pollfd	*pa = (struct pollfd*)malloc(size);
+    struct pollfd	*pend = pa + INITIAL_POLL_SIZE;
     struct pollfd	*pp;
-    Con			*end = ca + MAX_SOCK;
-    Con			*cp;
     int			ccnt = 0;
     int			i;
-    long		mcnt = 0;
     double		now;
     Pub			pub;
     
     atomic_fetch_add(&the_server.running, 1);
-    memset(ca, 0, sizeof(ca));
-    memset(pa, 0, sizeof(pa));
+    memset(pa, 0, size);
     while (the_server.active) {
 	while (NULL != (c = (Con)queue_pop(&the_server.con_queue, 0.0))) {
-	    mcnt++;
-	    ca[c->sock] = c;
+	    c->next = cons;
+	    cons = c;
 	    ccnt++;
+	    if (pend - pa < ccnt + 2) {
+		size_t	cnt = (pend - pa) * 2;
+
+		size = sizeof(struct pollfd) * cnt;
+		if (NULL == (pa = (struct pollfd*)malloc(size))) {
+		    log_cat(&error_cat, "Out of memory.");
+		    agoo_shutdown();
+		    return NULL;
+		}
+		pend = pa + cnt;
+	    }
 	}
 	while (NULL != (pub = (Pub)queue_pop(&the_server.pub_queue, 0.0))) {
 	    process_pub_con(pub);
 	}
-	pp = poll_setup(ca, ccnt, pa);
+	
+	pp = poll_setup(cons, pa);
 	if (0 > (i = poll(pa, (nfds_t)(pp - pa), 100))) {
 	    if (EAGAIN == errno) {
 		continue;
@@ -979,9 +982,20 @@ con_loop(void *x) {
 	    if (0 != (pa->revents & POLLIN)) {
 		queue_release(&the_server.con_queue);
 		while (NULL != (c = (Con)queue_pop(&the_server.con_queue, 0.0))) {
-		    mcnt++;
-		    ca[c->sock] = c;
+		    c->next = cons;
+		    cons = c;
 		    ccnt++;
+		    if (pend - pa < ccnt + 2) {
+			size_t	cnt = (pend - pa) * 2;
+
+			size = sizeof(struct pollfd) * cnt;
+			if (NULL == (pa = (struct pollfd*)malloc(size))) {
+			    log_cat(&error_cat, "Out of memory.");
+			    agoo_shutdown();
+			    return NULL;
+			}
+			pend = pa + cnt;
+		    }
 		}
 	    }
 	    // Check pub_queue if an event is waiting.
@@ -992,12 +1006,12 @@ con_loop(void *x) {
 		}
 	    }
 	}
-	for (i = ccnt, cp = ca; 0 < i && cp < end; cp++) {
-	    if (NULL == *cp || 0 == (*cp)->sock || NULL == (*cp)->pp) {
+	prev = NULL;
+	for (c = cons; NULL != c; c = next) {
+	    next = c->next;
+	    if (0 == c->sock || NULL == c->pp) {
 		continue;
 	    }
-	    c = *cp;
-	    i--;
 	    pp = c->pp;
 	    if (0 != (pp->revents & POLLIN)) {
 		if (con_read(c)) {
@@ -1027,7 +1041,8 @@ con_loop(void *x) {
 		if (remove_dead_res(c)) {
 		    goto CON_RM;
 		}
-	    } else if (0.0 == c->timeout || now < c->timeout) { 
+	    } else if (0.0 == c->timeout || now < c->timeout) {
+		prev = c;
 		continue;
 	    } else if (c->closing) {
 		if (remove_dead_res(c)) {
@@ -1041,20 +1056,25 @@ con_loop(void *x) {
 		c->closing = true;
 		c->timeout = now + 0.5;
 		//wush_text_set(&c->resp, (char*)close_resp, sizeof(close_resp) - 1, false);
+		prev = c;
 		continue;
 	    }
+	    prev = c;
 	    continue;
 	CON_RM:
-	    ca[c->sock] = NULL;
+	    if (NULL == prev) {
+		cons = next;
+	    } else {
+		prev->next = next;
+	    }
 	    ccnt--;
 	    log_cat(&con_cat, "Connection %llu closed.", c->id);
 	    con_destroy(c);
 	}
     }
-    for (i = ccnt, cp = ca; 0 < i && cp < end; cp++) {
-	if (NULL != *cp) {
-	    con_destroy(*cp);
-	}
+    while (NULL != (c = cons)) {
+	cons = c->next;
+	con_destroy(c);
     }
     atomic_fetch_sub(&the_server.running, 1);
     

@@ -12,7 +12,7 @@ subject_create(const char *pattern, int plen) {
     Subject	subject = (Subject)malloc(sizeof(struct _Subject) - 7 + plen);
 
     if (NULL != subject) {
-	DEBUG_ALLOC(mem_subject, p);
+	DEBUG_ALLOC(mem_subject, subject);
 	subject->next = NULL;
 	memcpy(subject->pattern, pattern, plen);
 	subject->pattern[plen] = '\0';
@@ -22,7 +22,7 @@ subject_create(const char *pattern, int plen) {
 
 void
 subject_destroy(Subject subject) {
-    DEBUG_FREE(mem_subject, pub);
+    DEBUG_FREE(mem_subject, subject);
     free(subject);
 }
 

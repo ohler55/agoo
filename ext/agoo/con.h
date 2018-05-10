@@ -18,6 +18,7 @@
 struct _Upgraded;
 
 typedef struct _Con {
+    struct _Con		*next;
     int			sock;
     ConKind		kind;
     struct pollfd	*pp;
