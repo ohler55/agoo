@@ -4,7 +4,7 @@
     <p id="message"> ... waiting ... </p>
 
     <script type="text/javascript">
-    var src = new EventSource('sse');
+    var src = new EventSource('upgrade');
     src.onopen = function() {
         document.getElementById('status').textContent = 'connected';
     }

@@ -7,6 +7,10 @@ rdoc -t Agoo -m README.md -x "test/*" -x "example/*" -x extconf.rb
 
 - todo
 
+- push.md
+ - smaller examples
+ - more description
+ 
 - con connection array
  - change to double linked list?
   - still need way of determining pa size

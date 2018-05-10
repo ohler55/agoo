@@ -77,11 +77,9 @@ class Clock
       msg = "%02d:%02d:%02d" % [now.hour, now.min, now.sec]
       @mutex.synchronize {
 	@clients.each { |c|
-          unless c.write(msg)
-	    # If the connection is closed while writing this could occur. Just
-	    # the nature of async systems.
-	    puts "--- write failed"
-	  end
+          # If the connection is closed while writing this could occur. Just
+          # the nature of async systems.
+          puts "--- write failed" unless c.write(msg)
 	}
       }
       sleep(1)
@@ -114,8 +112,7 @@ end
 # Register the handler before calling start. Agoo allows for de-multiplexing at
 # the server instead of in the call() method.
 Agoo::Server.handle(:GET, "/hello", HelloHandler.new)
-Agoo::Server.handle(:GET, "/listen", Listen.new)
-Agoo::Server.handle(:GET, "/sse", Listen.new)
+Agoo::Server.handle(:GET, "/upgrade", Listen.new)
 
 # With a thread_count greater than 0 the call to start returns after creating
 # a server thread. If the count is 0 then the call only returned when the

@@ -5,7 +5,7 @@
 
     <script type="text/javascript">
       var sock;
-      var url = "ws://" + document.URL.split('/')[2] + '/listen'
+      var url = "ws://" + document.URL.split('/')[2] + '/upgrade'
       if (typeof MozWebSocket != "undefined") {
           sock = new MozWebSocket(url);
       } else {

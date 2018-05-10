@@ -48,11 +48,9 @@ class Clock
       msg = "%02d:%02d:%02d" % [now.hour, now.min, now.sec]
       @mutex.synchronize {
 	@clients.each { |c|
-          unless c.write(msg)
-	    # If the connection is closed while writing this could occur. Just
-	    # the nature of async systems.
-	    puts "--- write failed"
-	  end
+          # If the connection is closed while writing this could occur. Just
+          # the nature of async systems.
+          puts "--- write failed" unless c.write(msg)
 	}
       }
       sleep(1)
@@ -77,11 +75,13 @@ class Listen
     # de-multiplex the call.
     path = env['SCRIPT_NAME'] + env['PATH_INFO']
     case path
+    when '/'
+      return [ 200, { }, [ "hello world" ] ]
     when '/websocket.html'
       return [ 200, { }, [ File.read('websocket.html') ] ]
     when '/sse.html'
       return [ 200, { }, [ File.read('sse.html') ] ]
-    when '/listen', '/sse'
+    when '/upgrade'
       unless env['rack.upgrade?'].nil?
 	env['rack.upgrade'] = $clock
 	return [ 200, { }, [ ] ]

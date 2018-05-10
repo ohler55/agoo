@@ -2,8 +2,8 @@
 
 Realtime websites are essential for some domains. A web site displaying stock
 prices or race progress would not be very useful if the displays were not kept
-up to date. There is of course constant refreshes or polling but that puts a
-heavy demand on the server and it is not real time.
+up to date. It is of course possible to use constant refreshes or polling but
+that puts a heavy demand on the server and it is not real time.
 
 Fortunately there is technology to push data to a web page. WebSocket and SSE
 provide a means to push data to a web page. Coupled with Javascript pages can
@@ -49,26 +49,23 @@ methods `#on_open`, `#on_close`, `#on_message`, `#on_drained`, and
 first argument to each method. This `client` can be used to check connection
 status as well as writing messages to the connection.
 
-The `client` has methods `#write(msg)`, `#pending`, and `#close` method. The
-`#write(msg)` method is used to push data to web pages. The details are
-handled by the server. Just call write and data appears at browser.
+The `client` has methods `#write(msg)`, `#pending`, `#open?`, and `#close`
+method. The `#write(msg)` method is used to push data to web pages. The
+details are handled by the server. Just call write and data appears at
+browser.
 
-## Example
+## Examples
 
 The example is a bit more than a hello world but only enough to make it
 interesting. A browser is used to connect to a Rack server that runs a clock,
 On each tick of the clock the time is sent to the browser. Either an SSE and a
 WebSocket page can be used.
 
-The example makes use of the Agoo server. Some variations in the
-demultiplexing would be needed using the Iodine server but the core Ruby code
-would be the same.
-
-### websocket.html
-
-The websocket.html page is a trivial example of how to use WebSockets.
+First some web pages will be needed. Lets call them `websocket.html` and
+`sse.html`. Notice how similar they look.
 
 ```html
+<!-- websocket.html -->
 <html>
   <body>
     <p id="status"> ... </p>
@@ -76,7 +73,7 @@ The websocket.html page is a trivial example of how to use WebSockets.
 
     <script type="text/javascript">
       var sock;
-      var url = "ws://" + document.URL.split('/')[2] + '/listen'
+      var url = "ws://" + document.URL.split('/')[2] + '/upgrade'
       if (typeof MozWebSocket != "undefined") {
           sock = new MozWebSocket(url);
       } else {
@@ -93,19 +90,15 @@ The websocket.html page is a trivial example of how to use WebSockets.
 </html>
 ```
 
-### sse.html
-
-The sse.html page is a trivial example of how to use SSE. SSE is the preferred
-method for pushing events to mobile devices.
-
 ```html
+<!-- sse.html -->
 <html>
   <body>
     <p id="status"> ... </p>
     <p id="message"> ... waiting ... </p>
 
     <script type="text/javascript">
-    var src = new EventSource('sse');
+    var src = new EventSource('upgrade');
     src.onopen = function() {
         document.getElementById('status').textContent = 'connected';
     }
@@ -121,29 +114,40 @@ method for pushing events to mobile devices.
 </html>
 ```
 
-### config.ru
+With those two files there are a couple ways to implement the Ruby side.
 
-Using rackup to run the example that should work with any Rack server
-supporting WebSocket and SSE with the proposed specification addition the
-`config.ru` file can be used. Note that de-multiplexing is done in the
-`#call(env)` method.
+A pure, `rackup` example works with any of the web server gems the support the
+proposed additions to the Rack spec. Currently there are two gems that support
+the additions. They are [Agoo](https://github.com/ohler55/agoo) and
+[Iodine](https://github.com/boazsegev/iodine). Both are high performance
+servers with some features unique to both.
+
+One example is for Agoo only to demonstrate the use of the Agoo demultiplexing
+but is otherewise identifcal to the pure Rack example.
+
+The third, pub-sub example is also Agoo specific but with a few minor changes
+it would be compatible with Iodine as well. The pub-sub example is a minimal
+example of how publish and subscribe can be used with Rack.
+
+### Pure Rack Example
+
+Lets start with the server agnostic example that is just Rack with the
+proposed extensions to the spec. Of course the file is named `config.ru`. The
+file includes more than is necessary just work but some options methods are
+added to make it clear when they are called. Since it is a 'hello world'
+example there is the obligatory handled for returning that result. Comments
+have been stripped out of the code in favor of explaining the code separately.
+
+First the file then an explanation.
 
 ```ruby
+# config.ru
 require 'rack'
-require 'agoo'
+#require 'agoo'
 
-# The websocket.html and sse.html are used for this example. After starting
-# open a URL of http://localhost:9292/websocket.html or
-# http://localhost:9292/sse.html.
-
-# A class to handle published times. It works with both WebSocket and
-# SSE. Only a single instance is needed as the object keeps track of which
-# connections or clients are open.
 class Clock
   def initialize()
     @clients = []
-    # A mutex is needed if the server uses multiple threads for callbacks so
-    # to be on the safe side one is used here.
     @mutex = Mutex.new
   end
 
@@ -170,88 +174,213 @@ class Clock
     client.write("echo: #{data}")
   end
 
-  # A simple clock publisher of sorts. It writes the current time every second
-  # to the current clients.
   def start
     loop do
       now = Time.now
       msg = "%02d:%02d:%02d" % [now.hour, now.min, now.sec]
       @mutex.synchronize {
-	@clients.each { |c|
-          unless c.write(msg)
-	    # If the connection is closed while writing this could occur. Just
-	    # the nature of async systems.
-	    puts "--- write failed"
-	  end
-	}
+        @clients.each { |c|
+          puts "--- write failed" unless c.write(msg)
+        }
       }
       sleep(1)
     end
   end
 end
 
-# Reuse the tick_tock instance.
 $clock = Clock.new
 
-# The Listen class is used for both SSE and WebSocket connections. WebSocket
-# requests are detected by an env['rack.upgrade?'] value of :websocket while
-# an SSE connection is detected by an env['rack.upgrade?'] value of :sse.  In
-# both cases a Push handler should be created and returned by setting
-# env['rack.upgrade'] to the new object or handler. The handler will be
-# extended to have a 'write' method as well as a 'pending' and a 'close'
-# method.
 class Listen
-  # Used for WebSocket or SSE upgrades as well as for serving the
-  # websocket.html and sse.html.
   def call(env)
-    # de-multiplex the call.
     path = env['SCRIPT_NAME'] + env['PATH_INFO']
     case path
+    when '/'
+      return [ 200, { }, [ "hello world" ] ]
     when '/websocket.html'
       return [ 200, { }, [ File.read('websocket.html') ] ]
     when '/sse.html'
       return [ 200, { }, [ File.read('sse.html') ] ]
-    when '/listen', '/sse'
+    when '/upgrade'
       unless env['rack.upgrade?'].nil?
-	env['rack.upgrade'] = $clock
-	return [ 200, { }, [ ] ]
+        env['rack.upgrade'] = $clock
+        return [ 200, { }, [ ] ]
       end
     end
     [ 404, { }, [ ] ]
   end
 end
 
-# Start the clock.
 Thread.new { $clock.start }
-
 run Listen.new
-
-# A minimal startup of the Agoo rack handle using rackup. Note this does not
-# allow for loading any static assets.
-# $ bundle exec rackup
-
-# Make requests on port 9292 to received responses.
 ```
 
-If using Agoo an alternative also possible as Agoo has built in
-de-multiplexing.
+#### Running
 
-### push.rb
+The example is run with this command.
 
-The push.rb file is an example of how an alternative approach to using push is
-available with the Agoo gem.
+```
+$ bundle exec rackup -r agoo -s agoo
+```
+
+The server to use must be specified to use something other than the
+default. Alternatively the commented out `require` for Agoo or an alternative
+can be used by uncommenting the line.
 
 ```ruby
 require 'agoo'
+```
 
-# The websocket.html and sse.html are used for this example. After starting
-# open a URL of http://localhost:6464/websocket.html or
-# http://localhost:6464/sse.html.
+Once started open a browser and go to `http://localhost:9292/websocket.html`
+or `http://localhost:9292/sse.html` and watch the page show 'connected' and
+then showing the time as it changes every second.
 
-# Setting the thread count to 0 causes the server to use the current
-# thread. Greater than zero runs the server in a separate thread and the
-# current thread can be used for other tasks as long as it does not exit.
-#Agoo::Server.init(6464, '.', thread_count: 0)
+#### Clock
+
+The `Clock` class is the handler for upgraded calls. The `Listener` and
+`Clock` could have been combined into a single class but for clarity they are
+kept separate in this example.
+
+The `Clock` object, `$clock` maintains a list of open connections. The default
+configuration uses one thread but to be safe a mutex is used so that the same
+example can be used with multiple threads configured. It's a good practice
+when writing asynchrous callback code to assume there will be multiple threads
+invoking the callbacks.
+
+```ruby
+  def initialize()
+    @clients = []
+    @mutex = Mutex.new
+  end
+```
+
+The `#on_open` callback is called when a connection has been upgraded to a
+WebSocket or SSE connection. That is the time to add the connection to the
+client `client` to the `@clients` list is used to implement a broadcast write
+or publish to all open connections. There are other options that will be
+explored later.
+
+```ruby
+  def on_open(client)
+    puts "--- on_open"
+    @mutex.synchronize {
+      @clients << client
+    }
+  end
+```
+
+When a connection is closed it should be removed the the `@clients` list. The
+`#on_close` callback handles that. The other callbacks meerly print out a
+statement that they have been invoked so that it is easier to trace what is
+going on.
+
+```ruby
+  def on_close(client)
+    puts "--- on_close"
+    @mutex.synchronize {
+      @clients.delete(client)
+    }
+  end
+```
+
+Finally, the clock is going to publish the time to all connections. The
+`#start` method starts the clock and then every second the time is published
+by writing to each connection.
+
+```ruby
+  def start
+    loop do
+      now = Time.now
+      msg = "%02d:%02d:%02d" % [now.hour, now.min, now.sec]
+      @mutex.synchronize {
+        @clients.each { |c|
+          puts "--- write failed" unless c.write(msg)
+        }
+      }
+      sleep(1)
+    end
+  end
+```
+
+#### Listening
+
+In a rackup started application, all request go to a single handler that has a
+`#call(env)` method. Demultiplexing of the incoming request is done in the
+`#call(env)` itself. Requests for static assets such as web pages have to be
+handled.
+
+```ruby
+  def call(env)
+    path = env['SCRIPT_NAME'] + env['PATH_INFO']
+    case path
+    when '/'
+      return [ 200, { }, [ "hello world" ] ]
+    when '/websocket.html'
+      return [ 200, { }, [ File.read('websocket.html') ] ]
+    when '/sse.html'
+      return [ 200, { }, [ File.read('sse.html') ] ]
+    when '/upgrade'
+      unless env['rack.upgrade?'].nil?
+        env['rack.upgrade'] = $clock
+        return [ 200, { }, [ ] ]
+      end
+    end
+    [ 404, { }, [ ] ]
+  end
+```
+
+The proposed feature is the detection of a connection that wants to be
+upgraded by checking the `env['rack.upgrade?']` variable. If that variables is
+`:websocket` of `sse` then a handle should be provided by setting
+`env['rack.upgrade']` to the upgrade handler. A return code of less than 300
+will indicate to the server that the connection can be upgraded.
+
+```ruby
+    when '/upgrade'
+      unless env['rack.upgrade?'].nil?
+        env['rack.upgrade'] = $clock
+        return [ 200, { }, [ ] ]
+      end
+    end
+```
+
+#### Starting
+
+The last lines start the clock is a separate thread so that it runs in the
+background and then rackup starts the server with a new listener.
+
+```ruby
+Thread.new { $clock.start }
+run Listen.new
+```
+
+### Demultiplex
+
+The `push.rb` is an example of using the Agoo demultiplexing feature. Allowing
+the server to handle the demultiplexing simplifies `#call(env)` method and
+allows each URL path to be handled by a separate object. This approach is
+common among most web server in almost every language. But that is not the
+only advantage. By setting a root directory for static resources Agoo can
+serve up those resources without getting Ruby involved at all. This allows
+those resources to be server many times faster all without creating additional
+Ruby objects. Pages with significant statis resources become snappier and the
+whole users experience is improved.
+
+```ruby
+# push.rb
+require 'agoo'
+Agoo::Log.configure(dir: '',
+		    console: true,
+		    classic: true,
+		    colorize: true,
+		    states: {
+		      INFO: true,
+		      DEBUG: false,
+		      connect: true,
+		      request: true,
+		      response: true,
+		      eval: true,
+		      push: true,
+		    })
 Agoo::Server.init(6464, '.', thread_count: 1)
 
 class HelloHandler
@@ -260,14 +389,9 @@ class HelloHandler
   end
 end
 
-# A class to handle published times. It works with both WebSocket and
-# SSE. Only a single instance is needed as the object keeps track of which
-# connections or clients are open.
 class Clock
   def initialize()
     @clients = []
-    # A mutex is needed if the server uses multiple threads for callbacks so
-    # to be on the safe side one is used here.
     @mutex = Mutex.new
   end
 
@@ -294,19 +418,13 @@ class Clock
     client.write("echo: #{data}")
   end
 
-  # A simple clock publisher of sorts. It writes the current time every second
-  # to the current clients.
   def start
     loop do
       now = Time.now
       msg = "%02d:%02d:%02d" % [now.hour, now.min, now.sec]
       @mutex.synchronize {
 	@clients.each { |c|
-          unless c.write(msg)
-	    # If the connection is closed while writing this could occur. Just
-	    # the nature of async systems.
-	    puts "--- write failed"
-	  end
+          puts "--- write failed" unless c.write(msg)
 	}
       }
       sleep(1)
@@ -314,16 +432,8 @@ class Clock
   end
 end
 
-# Reuse the tick_tock instance.
 $clock = Clock.new
 
-# Used for both SSE and WebSocket connections. WebSocket requests are
-# detected by an env['rack.upgrade?'] value of :websocket while an SSE
-# connection is detected by an env['rack.upgrade?'] value of :sse.  In both
-# cases a Push handler should be created and returned by setting
-# env['rack.upgrade'] to the new object or handler. The handler will be
-# extended to have a 'write' method as well as a 'pending' and a 'close'
-# method.
 class Listen
   # Only used for WebSocket or SSE upgrades.
   def call(env)
@@ -336,133 +446,125 @@ class Listen
   end
 end
 
-# Register the handler before calling start. Agoo allows for de-multiplexing at
-# the server instead of in the call() method.
 Agoo::Server.handle(:GET, "/hello", HelloHandler.new)
-Agoo::Server.handle(:GET, "/listen", Listen.new)
-Agoo::Server.handle(:GET, "/sse", Listen.new)
+Agoo::Server.handle(:GET, "/upgrade", Listen.new)
 
-# With a thread_count greater than 0 the call to start returns after creating
-# a server thread. If the count is 0 then the call only returned when the
-# server is shutdown.
 Agoo::Server.start()
-
-# Start the clock.
 $clock.start
-
-# This example does not use the config.ru approach as the Agoo de-multiplexer
-# is used to support several different connection types instead of
-# de-multiplexing in the #call method.
-
-# To run this example:
-# ruby push.rb
-
-# After starting open a URL of http://localhost:6464/websocket.html or
-# http://localhost:6464/sse.html.
 ```
 
-### pubsub.rb
+The `push.rb` file is similar to the `config.ru` file with the same `Clock`
+class. Running is different but still simple.
 
-With Agoo 2.1.0, publish and subscribe is possible using string subjects. Instead of
-setting up the `@clients` array attribute the Agoo server can take care of
-those details. Note the use of `Agoo.publish` and `client.subscribe` in the
-`pubsub.rb` example.
+```
+$ ruby push.rb
+```
+
+#### Logging
+
+Agoo allows logging to be configured. The log is an asynchronous log so the
+impact of logging on performance is minimal. The log is a feature based
+logger. Most of the features are turned on so that it is clear what is
+happening when running the example. Switch the `true` values to `false` to
+turn off logging of any of the features listed.
 
 ```ruby
+Agoo::Log.configure(dir: '',
+		    console: true,
+		    classic: true,
+		    colorize: true,
+		    states: {
+		      INFO: true,
+		      DEBUG: false,
+		      connect: true,
+		      request: true,
+		      response: true,
+		      eval: true,
+		      push: true,
+		    })
+```
 
+#### Static Assets
+
+The second argument to the Aggo server initializer sets the root directory for
+static assets.
+
+```ruby
+Agoo::Server.init(6464, '.', thread_count: 1)
+```
+
+#### Listening
+
+Listening becomes simplier just handling the upgrade.
+
+```ruby
+  def call(env)
+    unless env['rack.upgrade?'].nil?
+      env['rack.upgrade'] = $clock
+      [ 200, { }, [ ] ]
+    else
+      [ 404, { }, [ ] ]
+    end
+  end
+```
+
+#### Demultiplexing
+
+It is rare to have the behavior on a URL path to change after starting so why
+not let the server handle the switching. The option to let the application
+handle the demultiplexing in the `#call(env)` invocation but defining the
+switching in one place is much easier to follow and manage especially a large
+team of developers are working on a project.
+
+```ruby
+Agoo::Server.handle(:GET, "/hello", HelloHandler.new)
+Agoo::Server.handle(:GET, "/upgrade", Listen.new)
+```
+
+### Simplified Pub-Sub
+
+No reason to stop simplifying. With Agoo 2.1.0, publish and subscribe is
+possible using string subjects. Instead of setting up the `@clients` array
+attribute the Agoo server can take care of those details. This example is
+slimmed down from the earlier example by making use of the Ruby feature that
+classes are also object so the `Clock` class can act as the handler. Methods
+not needed have been removed to leave just what is needed to publish time out
+to all the listeners. Open a few pages with either or both the
+`websocket.html` or `sse.html` files.
+
+Note the use of `Agoo.publish` and `client.subscribe` in the `pubsub.rb`
+example. Those two method are not part of the proposed Rack spec additions but
+make stateless WebSocket and SSE use simple. Us this with the `websocket.html`
+and `sse.html` as with the previous examples.
+
+```ruby
+# pubsub.rb
 require 'agoo'
 
-# The websocket.html and sse.html are used for this example. After starting
-# open a URL of http://localhost:6464/websocket.html or
-# http://localhost:6464/sse.html.
-
-Agoo::Server.init(6464, '.', thread_count: 1)
-
-class HelloHandler
-  def call(env)
-    [ 200, { }, [ "hello world" ] ]
-  end
-end
-
-# A class to handle published times. It works with both WebSocket and
-# SSE. Only a single instance is needed as the object is stateless. Note that
-# publish and subscribe methods are used to push messages to the WebSocket or
-# SSE connections.
 class Clock
-  def initialize()
+  def self.call(env)
+    unless env['rack.upgrade?'].nil?
+      env['rack.upgrade'] = Clock
+      [ 200, { }, [ ] ]
+    else
+      [ 404, { }, [ ] ]
+    end
   end
 
-  def on_open(client)
-    puts "--- on_open"
+  def self.on_open(client)
     client.subscribe('time')
   end
 
-  def on_close(client)
-    puts "--- on_close"
-  end
-
-  def on_drained(client)
-    puts "--- on_drained"
-  end
-
-  def on_message(client, data)
-    puts "--- on_message #{data}"
-    client.write("echo: #{data}")
-  end
-
-  # A simple clock publisher of sorts. It writes the current time every second
-  # to the current clients.
-  def start
+  Thread.new {
     loop do
       now = Time.now
       Agoo.publish('time', "%02d:%02d:%02d" % [now.hour, now.min, now.sec])
       sleep(1)
     end
-  end
+  }
 end
 
-# Reuse the tick_tock instance.
-$clock = Clock.new
-
-# Used for both SSE and WebSocket connections. WebSocket requests are detected
-# by an env['rack.upgrade?'] value of :websocket while an SSE connection is
-# detected by an env['rack.upgrade?'] value of :sse.  In both cases a Push
-# handler should be created and returned by setting env['rack.upgrade'] to the
-# new object or handler. The handler will be extended to have a 'write' method
-# as well as a 'pending', a 'protocol', and a 'close' method.
-class Listen
-  # Only used for WebSocket or SSE upgrades.
-  def call(env)
-    unless env['rack.upgrade?'].nil?
-      env['rack.upgrade'] = $clock
-      [ 200, { }, [ ] ]
-    else
-      [ 404, { }, [ ] ]
-    end
-  end
-end
-
-# Register the handler before calling start. Agoo allows for de-multiplexing at
-# the server instead of in the call() method.
-Agoo::Server.handle(:GET, "/hello", HelloHandler.new)
-Agoo::Server.handle(:GET, "/listen", Listen.new)
-Agoo::Server.handle(:GET, "/sse", Listen.new)
-
-# With a thread_count greater than 0 the call to start returns after creating
-# a server thread. If the count is 0 then the call only returned when the
-# server is shutdown.
+Agoo::Server.init(6464, '.', thread_count: 0)
+Agoo::Server.handle(:GET, '/upgrade', Clock)
 Agoo::Server.start()
-
-# Start the clock.
-$clock.start
-
-# This example does not use the config.ru approach as the Agoo de-multiplexer
-# is used to support several different connection types instead of
-# de-multiplexing in the #call method.
-
-# To run this example:
-# ruby push.rb
-
-# After starting open a URL of http://localhost:6464/websocket.html or
-# http://localhost:6464/sse.html.
 ```
