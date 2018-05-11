@@ -266,6 +266,9 @@ con_header_read(Con c) {
 
 	    b = strstr(c->buf, "\r\n");
 	    res->close = should_close(b, (int)(hend - b));
+	    if (res->close) {
+		c->closing = true;
+	    }
 	    res_set_message(res, p->resp);
 
 	    return -mlen;
@@ -339,7 +342,10 @@ check_upgrade(Con c) {
 static bool
 con_http_read(Con c) {
     ssize_t	cnt;
-    
+
+    if (c->dead || 0 == c->sock || c->closing) {
+	return true;
+    }
     if (NULL != c->req) {
 	cnt = recv(c->sock, c->req->msg + c->bcnt, c->req->mlen - c->bcnt, 0);
     } else {
@@ -402,6 +408,9 @@ con_http_read(Con c) {
 		    }
 		    c->res_tail = res;
 		    res->close = should_close(c->req->header.start, c->req->header.len);
+		    if (res->close) {
+			c->closing = true;
+		    }
 		}
 		c->req->res = res;
 		mlen = c->req->mlen;
@@ -885,14 +894,14 @@ poll_setup(Con c, struct pollfd *pp) {
 	case CON_HTTP:
 	    if (NULL != c->res_head && NULL != res_message(c->res_head)) {
 		pp->events = POLLIN | POLLOUT;
-	    } else {
+	    } else if (!c->closing) {
 		pp->events = POLLIN;
 	    }
 	    break;
 	case CON_WS:
 	    if (NULL != c->res_head && (c->res_head->close || c->res_head->ping || NULL != res_message(c->res_head))) {
 		pp->events = POLLIN | POLLOUT;
-	    } else {
+	    } else if (!c->closing) {
 		pp->events = POLLIN;
 	    }
 	    break;
@@ -914,7 +923,7 @@ poll_setup(Con c, struct pollfd *pp) {
 static bool
 remove_dead_res(Con c) {
     Res	res;
-    
+
     while (NULL != (res = c->res_head)) {
 	if (NULL == res_message(c->res_head) && !c->res_head->close && !c->res_head->ping) {
 	    break;
