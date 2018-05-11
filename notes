@@ -6,18 +6,3 @@
 rdoc -t Agoo -m README.md -x "test/*" -x "example/*" -x extconf.rb
 
 - todo
-
-- push.md
- - smaller examples
- - more description
- 
-- con connection array
- - single linked list
- 
- - change to double linked list?
-  - still need way of determining pa size
-   - realloc as needed, double each time
-   - could just make a large size or maybe use max socket from os, allocate on heap is better
-   - setrlimit to hard limit from getrlimit
-   
-
