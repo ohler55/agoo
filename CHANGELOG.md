@@ -6,6 +6,8 @@
 
 - Fixed bug where publishes from the `#on_open` callback broke the connection.
 
+- Super fast asset loading for Rails and Rack using `Agoo::Server.path_group`
+
 ### 2.1.0 - 2018-05-10
 
 - This is a minor release even though the API has changed. The changed API is the one for Rack based WebSocket and SSE connection upgrades. The PR for the spec addition is currently stalled but some suggestions for a stateless API are implemented in this release. The proposed Rack SPEC is [here](misc/SPEC). The PR is [here](https://github.com/rack/rack/pull/1272)
