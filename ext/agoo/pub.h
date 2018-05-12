@@ -32,7 +32,7 @@ typedef struct _Pub {
 extern Pub	pub_close(struct _Upgraded *up);
 extern Pub	pub_subscribe(struct _Upgraded *up, const char *subject, int slen);
 extern Pub	pub_unsubscribe(struct _Upgraded *up, const char *subject, int slen);
-extern Pub	pub_publish(char *subject, int slen, const char *message, size_t mlen);
+extern Pub	pub_publish(const char *subject, int slen, const char *message, size_t mlen);
 extern Pub	pub_write(struct _Upgraded *up, const char *message, size_t mlen, bool bin);
 extern void	pub_destroy(Pub pub);
 

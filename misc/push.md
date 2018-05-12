@@ -59,7 +59,8 @@ browser.
 The example is a bit more than a hello world but only enough to make it
 interesting. A browser is used to connect to a Rack server that runs a clock,
 On each tick of the clock the time is sent to the browser. Either an SSE and a
-WebSocket page can be used.
+WebSocket page can be used. That means you can connect with your mobile device
+using SSE. Try it to see how easy it is.
 
 First some web pages will be needed. Lets call them `websocket.html` and
 `sse.html`. Notice how similar they look.

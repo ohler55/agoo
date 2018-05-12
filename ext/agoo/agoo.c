@@ -38,15 +38,16 @@ ragoo_shutdown(VALUE self) {
  *
  * call-seq: publish(subject, message)
  *
- * Publish a message on the given subject.
+ * Publish a message on the given subject. A subject is normally a String but
+ * Symbols can also be used as can any other object that responds to #to_s.
  */
 VALUE
 ragoo_publish(VALUE self, VALUE subject, VALUE message) {
-    rb_check_type(subject, T_STRING);
-    rb_check_type(message, T_STRING);
+    int		slen;
+    const char	*subj = extract_subject(subject, &slen);
 
-    queue_push(&the_server.pub_queue, pub_publish(StringValuePtr(subject), (int)RSTRING_LEN(subject),
-						  StringValuePtr(message), (int)RSTRING_LEN(message)));
+    rb_check_type(message, T_STRING);
+    queue_push(&the_server.pub_queue, pub_publish(subj, slen, StringValuePtr(message), (int)RSTRING_LEN(message)));
 
     return Qnil;
 }
@@ -55,7 +56,9 @@ ragoo_publish(VALUE self, VALUE subject, VALUE message) {
  *
  * call-seq: unsubscribe(subject)
  *
- * Unsubscribes on client listeners on the specified subject.
+ * Unsubscribes on client listeners on the specified subject. Subjects are
+ * normally Strings but Symbols can also be used as can any other object that
+ * responds to #to_s.
  */
 static VALUE
 ragoo_unsubscribe(VALUE self, VALUE subject) {

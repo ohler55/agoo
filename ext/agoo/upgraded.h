@@ -36,4 +36,6 @@ extern void	upgraded_add_subject(Upgraded up, struct _Subject *subject);
 extern void	upgraded_del_subject(Upgraded up, struct _Subject *subject);
 extern bool	upgraded_match(Upgraded up, const char *subject);
 
+extern const char*	extract_subject(VALUE subject, int *slen);
+
 #endif // __AGOO_UPGRADED_H__

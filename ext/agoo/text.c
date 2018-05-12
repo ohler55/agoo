@@ -25,16 +25,15 @@ text_create(const char *str, int len) {
 
 Text
 text_dup(Text t0) {
-    int		len = t0->len;
-    Text	t = (Text)malloc(sizeof(struct _Text) - TEXT_MIN_SIZE + len + 1);
+    Text	t = (Text)malloc(sizeof(struct _Text) - TEXT_MIN_SIZE + t0->alen + 1);
 
     if (NULL != t) {
 	DEBUG_ALLOC(mem_text, t)
-	t->len = len;
-	t->alen = len;
+	t->len = t0->len;
+	t->alen = t0->alen;
 	t->bin = false;
 	atomic_init(&t->ref_cnt, 0);
-	memcpy(t->text, t0->text, len + 1);
+	memcpy(t->text, t0->text, t0->len + 1);
     }
     return t;
 }
@@ -99,10 +98,14 @@ text_prepend(Text t, const char *s, int len) {
     if (t->alen <= t->len + len) {
 	long	new_len = t->alen + len + t->alen / 2;
 	size_t	size = sizeof(struct _Text) - TEXT_MIN_SIZE + new_len + 1;
+#ifdef MEM_DEBUG
+	Text	t0 = t;
+#endif	
 
 	if (NULL == (t = (Text)realloc(t, size))) {
 	    return NULL;
 	}
+	DEBUG_REALLOC(mem_text, t0, t);
 	t->alen = new_len;
     }
     memmove(t->text + len, t->text, t->len + 1);

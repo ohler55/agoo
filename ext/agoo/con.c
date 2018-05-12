@@ -620,6 +620,10 @@ con_ws_write(Con c) {
 	    }
 	} else {
 	    ws_req_close(c);
+	    c->res_head = res->next;
+	    if (res == c->res_tail) {
+		c->res_tail = NULL;
+	    }
 	    res_destroy(res);
 	    return true;
 	}
@@ -764,7 +768,7 @@ con_write(Con c) {
     default:
 	break;
     }
-    if (kind != c->kind) {
+    if (kind != c->kind && CON_ANY != kind) {
 	c->kind = kind;
 	/*
 	if (CON_HTTP != kind && !remove) {
@@ -792,7 +796,7 @@ publish_pub(Pub pub) {
 		    up->con->res_tail->next = res;
 		}
 		up->con->res_tail = res;
-		res->con_kind = up->con->kind;
+		res->con_kind = CON_ANY;
 		res_set_message(res, text_dup(pub->msg));
 	    }
 	}
@@ -849,7 +853,7 @@ process_pub_con(Pub pub) {
 		    up->con->res_tail->next = res;
 		}
 		up->con->res_tail = res;
-		res->con_kind = up->con->kind;
+		res->con_kind = CON_ANY;
 		res_set_message(res, pub->msg);
 	    }
 	}

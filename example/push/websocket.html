@@ -13,6 +13,7 @@
       }
       sock.onopen = function() {
           document.getElementById("status").textContent = "connected";
+          sock.send("Connected!")
       }
       sock.onmessage = function(msg) {
           document.getElementById("message").textContent = msg.data;

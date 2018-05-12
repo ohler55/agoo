@@ -66,7 +66,7 @@ class Clock
 
   def on_message(client, data)
     puts "--- on_message #{data}"
-    client.write("echo: #{data}")
+    client.write("Handler says #{data}")
   end
 
   # A simple clock publisher of sorts. It writes the current time every second

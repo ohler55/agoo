@@ -23,6 +23,7 @@ typedef enum {
 } Method;
 
 typedef enum {
+    CON_ANY	= '\0',
     CON_HTTP	= 'H',
     CON_WS	= 'W',
     CON_SSE	= 'S',

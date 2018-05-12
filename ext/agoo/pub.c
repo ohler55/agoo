@@ -60,7 +60,7 @@ pub_unsubscribe(Upgraded up, const char *subject, int slen) {
 }
 
 Pub
-pub_publish(char *subject, int slen, const char *message, size_t mlen) {
+pub_publish(const char *subject, int slen, const char *message, size_t mlen) {
     Pub	p = (Pub)malloc(sizeof(struct _Pub));
 
     if (NULL != p) {

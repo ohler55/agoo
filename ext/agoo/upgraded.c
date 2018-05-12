@@ -46,6 +46,28 @@ destroy(Upgraded up) {
     free(up);
 }
 
+const char*
+extract_subject(VALUE subject, int *slen) {
+    const char	*subj;
+    
+    switch (rb_type(subject)) {
+    case T_STRING:
+	subj = StringValuePtr(subject);
+	*slen = (int)RSTRING_LEN(subject);
+	break;
+    case T_SYMBOL:
+	subj = rb_id2name(rb_sym2id(subject));
+	*slen = strlen(subj);
+	break;
+    default:
+	subject = rb_funcall(subject, to_s_id, 0);
+	subj = StringValuePtr(subject);
+	*slen = (int)RSTRING_LEN(subject);
+	break;
+    }
+    return subj;
+}
+
 void
 upgraded_release(Upgraded up) {
     pthread_mutex_lock(&the_server.up_lock);
@@ -184,15 +206,18 @@ up_write(VALUE self, VALUE msg) {
  * dot delimited string that can include a '*' character as a wild card that
  * matches any set of characters. The '>' character matches all remaining
  * characters. Examples: people.fred.log, people.*.log, people.fred.>
+ *
+ * Symbols can also be used as can any other object that responds to #to_s.
  */
 static VALUE
 up_subscribe(VALUE self, VALUE subject) {
     Upgraded	up;
-    
-    rb_check_type(subject, T_STRING);
+    int		slen;
+    const char	*subj = extract_subject(subject, &slen);
+
     if (NULL != (up = get_upgraded(self))) {
 	atomic_fetch_add(&up->pending, 1);
-	queue_push(&the_server.pub_queue, pub_subscribe(up, StringValuePtr(subject), RSTRING_LEN(subject)));
+	queue_push(&the_server.pub_queue, pub_subscribe(up, subj, slen));
     }
     return Qnil;
 }
@@ -203,6 +228,8 @@ up_subscribe(VALUE self, VALUE subject) {
  *
  * Unsubscribes to messages on the provided subject. If the subject is nil
  * then all subscriptions for the object are removed.
+ *
+ * Symbols can also be used as can any other object that responds to #to_s.
  */
 static VALUE
 up_unsubscribe(int argc, VALUE *argv, VALUE self) {
@@ -211,9 +238,7 @@ up_unsubscribe(int argc, VALUE *argv, VALUE self) {
     int		slen = 0;
 
     if (0 < argc) {
-	rb_check_type(argv[0], T_STRING);
-	subject = StringValuePtr(argv[0]);
-	slen = (int)RSTRING_LEN(argv[0]);
+	subject = extract_subject(argv[0], &slen);
     }
     if (NULL != (up = get_upgraded(self))) {
 	atomic_fetch_add(&up->pending, 1);

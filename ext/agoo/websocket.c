@@ -215,7 +215,6 @@ ws_ping(Con c) {
     if (NULL == (res = res_create(c))) {
 	log_cat(&error_cat, "Memory allocation of response failed on connection %llu.", c->id);
     } else {
-	DEBUG_ALLOC(mem_res, res)
 	if (NULL == c->res_tail) {
 	    c->res_head = res;
 	} else {
@@ -235,7 +234,6 @@ ws_pong(Con c) {
     if (NULL == (res = res_create(c))) {
 	log_cat(&error_cat, "Memory allocation of response failed on connection %llu.", c->id);
     } else {
-	DEBUG_ALLOC(mem_res, res)
 	if (NULL == c->res_tail) {
 	    c->res_head = res;
 	} else {

@@ -1,7 +1,4 @@
 
-require 'rack'
-require 'agoo'
-
 # The websocket.html and sse.html are used for this example. After starting
 # open a URL of http://localhost:9292/websocket.html or
 # http://localhost:9292/sse.html.
@@ -37,7 +34,7 @@ class Clock
 
   def on_message(client, data)
     puts "--- on_message #{data}"
-    client.write("echo: #{data}")
+    client.write("Handler says #{data}")
   end
 
   # A simple clock publisher of sorts. It writes the current time every second
@@ -98,6 +95,6 @@ run Listen.new
 
 # A minimal startup of the Agoo rack handle using rackup. Note this does not
 # allow for loading any static assets.
-# $ bundle exec rackup
+# $ bundle exec rackup -r agoo -s agoo
 
 # Make requests on port 9292 to received responses.
