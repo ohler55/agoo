@@ -6,3 +6,13 @@
 rdoc -t Agoo -m README.md -x "test/*" -x "example/*" -x extconf.rb
 
 - todo
+
+- common code breakout
+- misc/rails.md
+ - setting up and running
+ - asset paths
+ - benchmarks
+  - for assets (2000x or more)
+  - for general use like list of users (2x)
+
+
