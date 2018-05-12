@@ -141,7 +141,10 @@ con_header_read(Con c) {
     size_t	clen = 0;
     long	mlen;
     Hook	hook = NULL;
-
+    Page	p;
+    struct _Err	err = ERR_INIT;
+    Res		res;
+    
     if (NULL == hend) {
 	if (sizeof(c->buf) - 1 <= c->bcnt) {
 	    return bad_request(c, 431, __LINE__);
@@ -239,13 +242,29 @@ con_header_read(Con c) {
 	qend = b;
     }
     mlen = hend - c->buf + 4 + clen;
-    if (NULL == (hook = hook_find(the_server.hooks, method, path, pend))) {
-	if (GET == method) {
-	    struct _Err	err = ERR_INIT;
-	    Page	p = page_get(&err, &the_server.pages, the_server.root, path, (int)(pend - path));
-	    Res		res;
+    if (GET == method &&
+	NULL != (p = group_get(&err, &the_server.pages, path, (int)(pend - path)))) {
+	if (NULL == (res = res_create(c))) {
+	    return bad_request(c, 500, __LINE__);
+	}
+	if (NULL == c->res_tail) {
+	    c->res_head = res;
+	} else {
+	    c->res_tail->next = res;
+	}
+	c->res_tail = res;
 
-	    if (NULL == p) {
+	b = strstr(c->buf, "\r\n");
+	res->close = should_close(b, (int)(hend - b));
+	if (res->close) {
+	    c->closing = true;
+	}
+	res_set_message(res, p->resp);
+
+	return -mlen;
+    } else if (NULL == (hook = hook_find(the_server.hooks, method, path, pend))) {
+	if (GET == method) {
+	    if (NULL == (p = page_get(&err, &the_server.pages, path, (int)(pend - path)))) {
 		if (NULL != the_server.hook404) {
 		    // There would be too many parameters to pass to a
 		    // separate function so just goto the hook processing.

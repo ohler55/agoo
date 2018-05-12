@@ -6,6 +6,50 @@
 #include "debug.h"
 #include "hook.h"
 
+static VALUE
+resolve_classname(VALUE mod, const char *classname) {
+    VALUE	clas;
+    ID		ci = rb_intern(classname);
+
+    if (rb_const_defined_at(mod, ci)) {
+	clas = rb_const_get_at(mod, ci);
+    } else {
+	clas = Qundef;
+    }
+    return clas;
+}
+
+static VALUE
+resolve_classpath(const char *name, size_t len) {
+    char	class_name[1024];
+    VALUE	clas;
+    char	*end = class_name + sizeof(class_name) - 1;
+    char	*s;
+    const char	*n = name;
+
+    clas = rb_cObject;
+    for (s = class_name; 0 < len; n++, len--) {
+	if (':' == *n) {
+	    *s = '\0';
+	    n++;
+	    len--;
+	    if (':' != *n) {
+		return Qundef;
+	    }
+	    if (Qundef == (clas = resolve_classname(clas, class_name))) {
+		return Qundef;
+	    }
+	    s = class_name;
+	} else if (end <= s) {
+	    return Qundef;
+	} else {
+	    *s++ = *n;
+	}
+    }
+    *s = '\0';
+    return resolve_classname(clas, class_name);
+}
+
 Hook
 hook_create(Method method, const char *pattern, VALUE handler) {
     Hook	hook = (Hook)malloc(sizeof(struct _Hook));
@@ -16,6 +60,9 @@ hook_create(Method method, const char *pattern, VALUE handler) {
 	    pattern = "";
 	}
 	hook->next = NULL;
+	if (T_STRING == rb_type(handler)) {
+	    handler = resolve_classpath(StringValuePtr(handler), RSTRING_LEN(handler));
+	}
 	hook->handler = handler;
 	rb_gc_register_address(&handler);
 	hook->pattern = strdup(pattern);

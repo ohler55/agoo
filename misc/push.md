@@ -27,9 +27,9 @@ There is a proposal to extend the Rack spec to include an option for WebSocket
 and SSE. Currently two servers support that proposed
 extension. [Agoo](https://https://github.com/ohler55/agoo) and
 [Iodine](https://github.com/boazsegev/iodine) both high performance web server
-gems that support push and implement the proposed Rack extension. A copy of
-the proposed spec in HTML format is
-[here](http://www.ohler.com/agoo/rack/file.SPEC.html).
+gems that support push and implement the [proposed Rack
+extension](https://github.com/rack/rack/pull/1272). A copy of the proposed
+spec in HTML format is [here](http://www.ohler.com/agoo/rack/file.SPEC.html).
 
 ## Simple Callback Design
 
@@ -124,7 +124,7 @@ the additions. They are [Agoo](https://github.com/ohler55/agoo) and
 servers with some features unique to both.
 
 One example is for Agoo only to demonstrate the use of the Agoo demultiplexing
-but is otherewise identifcal to the pure Rack example.
+but is otherwise identifcal to the pure Rack example.
 
 The third, pub-sub example is also Agoo specific but with a few minor changes
 it would be compatible with Iodine as well. The pub-sub example is a minimal
@@ -365,6 +365,16 @@ serve up those resources without getting Ruby involved at all. This allows
 those resources to be server many times faster all without creating additional
 Ruby objects. Pages with significant statis resources become snappier and the
 whole users experience is improved.
+
+Note: It is possible to set up the demultiplexing using arguments to
+`rackup`. As an example, to set up the handler for `/myhandler` to an instance
+of the `MyHandler` class start `rackup` like this.
+
+```
+$ rackup -r agoo -s agoo -O "/myhandler=MyHandler"
+```
+
+Now the `push.rb` file.
 
 ```ruby
 # push.rb

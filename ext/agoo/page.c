@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/stat.h>
+#include <unistd.h>
 
 #include <ruby.h>
 
@@ -225,7 +226,7 @@ cache_set(Cache cache, const char *key, int klen, Page value) {
 }
 
 void
-cache_init(Cache cache) {
+pages_init(Cache cache) {
     Mime	m;
 
     memset(cache, 0, sizeof(struct _Cache));
@@ -235,7 +236,7 @@ cache_init(Cache cache) {
 }
 
 void
-cache_cleanup(Cache cache) {
+pages_cleanup(Cache cache) {
     Slot	*sp = cache->buckets;
     Slot	s;
     Slot	n;
@@ -262,6 +263,7 @@ cache_cleanup(Cache cache) {
 	}
 	*mp = NULL;
     }
+    free(cache->root);
 }
 
 // The page resp contents point to the page resp msg to save memory and reduce
@@ -400,15 +402,16 @@ update_contents(Cache cache, Page p) {
 }
 
 Page
-page_get(Err err, Cache cache, const char *dir, const char *path, int plen) {
+page_get(Err err, Cache cache, const char *path, int plen) {
     Page	page;
 
+    // TBD check for .. and ~
     if (NULL == (page = cache_get(cache, path, plen))) {
 	Page	old;
 	char	full_path[2048];
-	char	*s = stpcpy(full_path, dir);
+	char	*s = stpcpy(full_path, cache->root);
 
-	if ('/' != *dir && '/' != *path) {
+	if ('/' != *cache->root && '/' != *path) {
 	    *s++ = '/';
 	}
 	if ((int)sizeof(full_path) <= plen + (s - full_path)) {
@@ -447,4 +450,104 @@ page_get(Err err, Cache cache, const char *dir, const char *path, int plen) {
 	}
     }
     return page;
+}
+
+Page
+group_get(Err err, Cache cache, const char *path, int plen) {
+    Page	page = NULL;
+    Group	g = NULL;
+    char	full_path[2048];
+    Page	old;
+    char	*s;
+    Dir		d;
+
+    // TBD check for .. and ~
+    for (g = cache->groups; NULL != g; g = g->next) {
+	if (g->plen < plen && 0 == strncmp(path, g->path, g->plen) && '/' == path[g->plen]) {
+	    break;
+	}
+    }
+    if (NULL == g) {
+	return NULL;
+    }
+    for (d = g->dirs; NULL != d; d = d->next) {
+	if (sizeof(full_path) <= d->plen + plen) {
+	    continue;
+	}
+	s = stpcpy(full_path, d->path);
+	strncpy(s, path + g->plen, plen - g->plen);
+	s += plen - g->plen;
+	*s = '\0';
+	if (0 == access(full_path, R_OK)) {
+	    break;
+	}
+    }
+    if (NULL == d) {
+	return NULL;
+    }
+    plen = s - full_path;
+    path = full_path;
+    if (NULL == (page = cache_get(cache, path, plen))) {
+	Page	old;
+
+	if (NULL == (page = page_create(path))) {
+	    err_set(err, ERR_MEMORY, "Failed to allocate memory for Page.");
+	    return NULL;
+	}
+	if (!update_contents(cache, page) || NULL == page->resp) {
+	    page_destroy(page);
+	    err_set(err, ERR_NOT_FOUND, "not found.");
+	    return NULL;
+	}
+	if (NULL != (old = cache_set(cache, path, plen, page))) {
+	    page_destroy(old);
+	}
+    } else {
+	double	now = dtime();
+
+	if (page->last_check + PAGE_RECHECK_TIME < now) {
+	    struct stat	fattr;
+
+	    if (0 == stat(page->path, &fattr) && page->mtime != fattr.st_mtime) {
+		update_contents(cache, page);
+		if (NULL == page->resp) {
+		    page_destroy(page);
+		    err_set(err, ERR_NOT_FOUND, "not found.");
+		    return NULL;
+		}
+	    }
+	    page->last_check = now;
+	}
+    }
+    return page;
+}
+
+Group
+group_create(Cache cache, const char *path) {
+    Group	g = (Group)malloc(sizeof(struct _Group));
+
+    if (NULL != g) {
+	DEBUG_ALLOC(mem_group, g);
+	g->next = cache->groups;
+	cache->groups = g;
+	g->path = strdup(path);
+	g->plen = strlen(path);
+	DEBUG_ALLOC(mem_group_path, g->path);
+	g->dirs = NULL;
+    }
+    return g;
+}
+
+void
+group_add(Group g, const char *dir) {
+    Dir	d = (Dir)malloc(sizeof(struct _Dir));
+
+    if (NULL != d) {
+	DEBUG_ALLOC(mem_dir, d);
+	d->next = g->dirs;
+	g->dirs = d;
+	d->path = strdup(dir);
+	d->plen = strlen(dir);
+	DEBUG_ALLOC(mem_dir_path, d->path);
+    }
 }

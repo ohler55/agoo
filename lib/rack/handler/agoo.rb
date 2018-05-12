@@ -27,12 +27,15 @@ module Rack
 	  elsif :root == k
 	    root = v
 	    options.delete(k)
-	  elsif k.is_a?(String) && k.start_with?('/')
-	    path_map[k] = v
-	    options.delete(k)
 	  elsif k.nil?
 	    not_found_handler = v
 	    options.delete(k)
+	  elsif
+            k = k.to_s
+            if k.start_with?('/')
+              path_map[k] = v
+              options.delete(k)
+            end
 	  end
 	}
 	options[:thread_count] = 0
@@ -40,6 +43,11 @@ module Rack
 	path_map.each { |path,handler|
 			::Agoo::Server.handle(nil, path, handler)
 	}
+        begin
+          # If Rails is loaded this should work else just ignore.
+          ::Agoo::Server.path_group('/assets', Rails.configuration.assets.paths)
+        rescue Exception
+        end
 	unless default_handler.nil?
 	  ::Agoo::Server.handle(nil, '**', default_handler)
 	end

@@ -40,16 +40,35 @@ typedef struct _MimeSlot {
     int			klen;
 } *MimeSlot;
 
+typedef struct _Dir {
+    struct _Dir		*next;
+    char		*path;
+    int			plen;
+} *Dir;
+
+typedef struct _Group {
+    struct _Group	*next;
+    char		*path;
+    int			plen;
+    Dir			dirs;
+} *Group;
+
 typedef struct _Cache {
     Slot		buckets[PAGE_BUCKET_SIZE];
     MimeSlot		muckets[MIME_BUCKET_SIZE];
+    char		*root;
+    Group		groups;
 } *Cache;
 
-extern void	cache_init(Cache cache);
-extern void	cache_cleanup(Cache cache);
+extern void	pages_init(Cache cache);
+extern void	pages_cleanup(Cache cache);
+
+extern Group	group_create(Cache cache, const char *path);
+extern void	group_add(Group g, const char *dir);
+extern Page	group_get(Err err, Cache cache, const char *path, int plen);
 
 extern void	page_destroy(Page p);
-extern Page	page_get(Err err, Cache cache, const char *dir, const char *path, int plen);
+extern Page	page_get(Err err, Cache cache, const char *path, int plen);
 extern void	mime_set(Cache cache, const char *key, const char *value);
 
 #endif /* __AGOO_PAGE_H__ */

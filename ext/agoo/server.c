@@ -121,7 +121,7 @@ server_shutdown() {
 	queue_cleanup(&the_server.con_queue);
 	queue_cleanup(&the_server.pub_queue);
 	queue_cleanup(&the_server.eval_queue);
-	cache_cleanup(&the_server.pages);
+	pages_cleanup(&the_server.pages);
 	http_cleanup();
     }
 }
@@ -129,7 +129,7 @@ server_shutdown() {
 static int
 configure(Err err, int port, const char *root, VALUE options) {
     the_server.port = port;
-    the_server.root = strdup(root);
+    the_server.pages.root = strdup(root);
     the_server.thread_cnt = 0;
     the_server.running = 0;
     the_server.listen_thread = 0;
@@ -228,15 +228,15 @@ rserver_init(int argc, VALUE *argv, VALUE self) {
 	options = argv[2];
     }
     memset(&the_server, 0, sizeof(struct _Server));
+    pages_init(&the_server.pages);
+    sub_init(&the_server.sub_cache);
+
     if (ERR_OK != configure(&err, port, root, options)) {
 	rb_raise(rb_eArgError, "%s", err.msg);
     }
     queue_multi_init(&the_server.con_queue, 256, false, false);
     queue_multi_init(&the_server.pub_queue, 256, true, false);
     queue_multi_init(&the_server.eval_queue, 1024, false, true);
-
-    cache_init(&the_server.pages);
-    sub_init(&the_server.sub_cache);
 
     pthread_mutex_init(&the_server.up_lock, 0);
     the_server.up_list = NULL;
@@ -609,15 +609,18 @@ handle_push_inner(void *x) {
 
     switch (req->method) {
     case ON_MSG:
-	rb_funcall(req->handler, on_message_id, 2, req->up->wrap, rb_str_new(req->msg, req->mlen));
+	if (req->up->on_msg) { // TBD move this to earlier
+	    rb_funcall(req->handler, on_message_id, 2, req->up->wrap, rb_str_new(req->msg, req->mlen));
+	}
 	break;
-    case ON_BIN: {
-	volatile VALUE	rstr = rb_str_new(req->msg, req->mlen);
+    case ON_BIN:
+	if (req->up->on_msg) { // TBD move this to earlier
+	    volatile VALUE	rstr = rb_str_new(req->msg, req->mlen);
 
-	rb_enc_associate(rstr, rb_ascii8bit_encoding());
-	rb_funcall(req->handler, on_message_id, 2, req->up->wrap, rstr);
+	    rb_enc_associate(rstr, rb_ascii8bit_encoding());
+	    rb_funcall(req->handler, on_message_id, 2, req->up->wrap, rstr);
+	}
 	break;
-    }
     case ON_CLOSE:
 	upgraded_ref(req->up);
 	queue_push(&the_server.pub_queue, pub_close(req->up));
@@ -872,6 +875,37 @@ add_mime(VALUE self, VALUE suffix, VALUE type) {
     return Qnil;
 }
 
+/* Document-method: path_group
+ *
+ * call-seq: path_group(path, dirs)
+ *
+ * Sets up a path group where the path defines a group of directories to
+ * search for a file. For example a path of '/assets' could be mapped to a set
+ * of [ 'home/user/images', '/home/user/app/assets/images' ].
+ */
+static VALUE
+path_group(VALUE self, VALUE path, VALUE dirs) {
+    Group	g;
+
+    rb_check_type(path, T_STRING);
+    rb_check_type(dirs, T_ARRAY);
+
+    if (NULL != (g = group_create(&the_server.pages, StringValuePtr(path)))) {
+	int	i;
+	int	dcnt = (int)RARRAY_LEN(dirs);
+	VALUE	entry;
+	
+	for (i = dcnt - 1; 0 <= i; i--) {
+	    entry = rb_ary_entry(dirs, i);
+	    if (T_STRING != rb_type(entry)) {
+		entry = rb_funcall(entry, rb_intern("to_s"), 0);
+	    }
+	    group_add(g, StringValuePtr(entry));
+	}
+    }
+    return Qnil;
+}
+
 /* Document-class: Agoo::Server
  *
  * An HTTP server that support the rack API as well as some other optimized
@@ -888,6 +922,7 @@ server_init(VALUE mod) {
     rb_define_module_function(server_mod, "handle", handle, 3);
     rb_define_module_function(server_mod, "handle_not_found", handle_not_found, 1);
     rb_define_module_function(server_mod, "add_mime", add_mime, 2);
+    rb_define_module_function(server_mod, "path_group", path_group, 2);
 
     call_id = rb_intern("call");
     each_id = rb_intern("each");

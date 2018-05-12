@@ -50,6 +50,16 @@ limits. Ruby benchmarks driver could not push Agoo hard enough.
 Agoo supports the [Ruby rack API](https://rack.github.io) which allows for the
 use of rack compatible gems such as Hanami and Rails. Agoo also supports WebSockets and SSE.
 
+## News
+
+- WebSocket and SSE are supported and a PR has been submitted to updated the
+  Rack spec. Go over to the [proposed Rack
+  extension](https://github.com/rack/rack/pull/1272) and give it a look and a
+  thumbs-up or heart if you like it.
+
+- Agoo now serves Rails static assets 2000 times faster than the default
+  Puma. Thats right, 2000 times faster.
+
 ## Releases
 
 See [file:CHANGELOG.md](CHANGELOG.md)
