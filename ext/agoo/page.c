@@ -457,7 +457,6 @@ group_get(Err err, Cache cache, const char *path, int plen) {
     Page	page = NULL;
     Group	g = NULL;
     char	full_path[2048];
-    Page	old;
     char	*s;
     Dir		d;
 
@@ -471,7 +470,7 @@ group_get(Err err, Cache cache, const char *path, int plen) {
 	return NULL;
     }
     for (d = g->dirs; NULL != d; d = d->next) {
-	if (sizeof(full_path) <= d->plen + plen) {
+	if ((int)sizeof(full_path) <= d->plen + plen) {
 	    continue;
 	}
 	s = stpcpy(full_path, d->path);
