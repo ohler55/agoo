@@ -506,7 +506,7 @@ Agoo::Server.init(6464, '.', thread_count: 1)
 
 #### Listening
 
-Listening becomes simplier just handling the upgrade.
+Listening becomes simpler just handling the upgrade.
 
 ```ruby
   def call(env)

@@ -401,6 +401,26 @@ update_contents(Cache cache, Page p) {
     return true;
 }
 
+static Page
+page_check(Err err, Cache cache, Page page) {
+    double	now = dtime();
+
+    if (page->last_check + PAGE_RECHECK_TIME < now) {
+	struct stat	fattr;
+
+	if (0 == stat(page->path, &fattr) && page->mtime != fattr.st_mtime) {
+	    update_contents(cache, page);
+	    if (NULL == page->resp) {
+		page_destroy(page);
+		err_set(err, ERR_NOT_FOUND, "not found.");
+		return NULL;
+	    }
+	}
+	page->last_check = now;
+    }
+    return page;
+}
+
 Page
 page_get(Err err, Cache cache, const char *path, int plen) {
     Page	page;
@@ -435,21 +455,7 @@ page_get(Err err, Cache cache, const char *path, int plen) {
 	    page_destroy(old);
 	}
     } else {
-	double	now = dtime();
-
-	if (page->last_check + PAGE_RECHECK_TIME < now) {
-	    struct stat	fattr;
-
-	    if (0 == stat(page->path, &fattr) && page->mtime != fattr.st_mtime) {
-		update_contents(cache, page);
-		if (NULL == page->resp) {
-		    page_destroy(page);
-		    err_set(err, ERR_NOT_FOUND, "not found.");
-		    return NULL;
-		}
-	    }
-	    page->last_check = now;
-	}
+	page = page_check(err, cache, page);
     }
     return page;
 }
@@ -522,22 +528,7 @@ group_get(Err err, Cache cache, const char *path, int plen) {
 	}
 	return page;
     }
-    now = dtime();
-
-    if (page->last_check + PAGE_RECHECK_TIME < now) {
-	struct stat	fattr;
-
-	if (0 == stat(page->path, &fattr) && page->mtime != fattr.st_mtime) {
-	    update_contents(cache, page);
-	    if (NULL == page->resp) {
-		page_destroy(page);
-		err_set(err, ERR_NOT_FOUND, "not found.");
-		return NULL;
-	    }
-	}
-	page->last_check = now;
-    }
-    return page;
+    return page_check(err, cache, page);
 }
 
 Group
