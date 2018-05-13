@@ -401,11 +401,33 @@ update_contents(Cache cache, Page p) {
     return true;
 }
 
+static Page
+page_check(Err err, Cache cache, Page page) {
+    double	now = dtime();
+
+    if (page->last_check + PAGE_RECHECK_TIME < now) {
+	struct stat	fattr;
+
+	if (0 == stat(page->path, &fattr) && page->mtime != fattr.st_mtime) {
+	    update_contents(cache, page);
+	    if (NULL == page->resp) {
+		page_destroy(page);
+		err_set(err, ERR_NOT_FOUND, "not found.");
+		return NULL;
+	    }
+	}
+	page->last_check = now;
+    }
+    return page;
+}
+
 Page
 page_get(Err err, Cache cache, const char *path, int plen) {
     Page	page;
 
-    // TBD check for .. and ~
+    if (NULL != strstr(path, "../")) {
+	return NULL;
+    }
     if (NULL == (page = cache_get(cache, path, plen))) {
 	Page	old;
 	char	full_path[2048];
@@ -433,21 +455,7 @@ page_get(Err err, Cache cache, const char *path, int plen) {
 	    page_destroy(old);
 	}
     } else {
-	double	now = dtime();
-
-	if (page->last_check + PAGE_RECHECK_TIME < now) {
-	    struct stat	fattr;
-
-	    if (0 == stat(page->path, &fattr) && page->mtime != fattr.st_mtime) {
-		update_contents(cache, page);
-		if (NULL == page->resp) {
-		    page_destroy(page);
-		    err_set(err, ERR_NOT_FOUND, "not found.");
-		    return NULL;
-		}
-	    }
-	    page->last_check = now;
-	}
+	page = page_check(err, cache, page);
     }
     return page;
 }
@@ -459,8 +467,11 @@ group_get(Err err, Cache cache, const char *path, int plen) {
     char	full_path[2048];
     char	*s;
     Dir		d;
+    double	now;
 
-    // TBD check for .. and ~
+    if (NULL != strstr(path, "../")) {
+	return NULL;
+    }
     for (g = cache->groups; NULL != g; g = g->next) {
 	if (g->plen < plen && 0 == strncmp(path, g->path, g->plen) && '/' == path[g->plen]) {
 	    break;
@@ -477,48 +488,47 @@ group_get(Err err, Cache cache, const char *path, int plen) {
 	strncpy(s, path + g->plen, plen - g->plen);
 	s += plen - g->plen;
 	*s = '\0';
-	if (0 == access(full_path, R_OK)) {
+	if (NULL != (page = cache_get(cache, full_path, s - full_path))) {
 	    break;
 	}
     }
-    if (NULL == d) {
-	return NULL;
-    }
-    plen = s - full_path;
-    path = full_path;
-    if (NULL == (page = cache_get(cache, path, plen))) {
-	Page	old;
-
-	if (NULL == (page = page_create(path))) {
-	    err_set(err, ERR_MEMORY, "Failed to allocate memory for Page.");
-	    return NULL;
-	}
-	if (!update_contents(cache, page) || NULL == page->resp) {
-	    page_destroy(page);
-	    err_set(err, ERR_NOT_FOUND, "not found.");
-	    return NULL;
-	}
-	if (NULL != (old = cache_set(cache, path, plen, page))) {
-	    page_destroy(old);
-	}
-    } else {
-	double	now = dtime();
-
-	if (page->last_check + PAGE_RECHECK_TIME < now) {
-	    struct stat	fattr;
-
-	    if (0 == stat(page->path, &fattr) && page->mtime != fattr.st_mtime) {
-		update_contents(cache, page);
-		if (NULL == page->resp) {
-		    page_destroy(page);
-		    err_set(err, ERR_NOT_FOUND, "not found.");
-		    return NULL;
-		}
+    if (NULL == page) {
+	for (d = g->dirs; NULL != d; d = d->next) {
+	    if ((int)sizeof(full_path) <= d->plen + plen) {
+		continue;
 	    }
-	    page->last_check = now;
+	    s = stpcpy(full_path, d->path);
+	    strncpy(s, path + g->plen, plen - g->plen);
+	    s += plen - g->plen;
+	    *s = '\0';
+	    if (0 == access(full_path, R_OK)) {
+		break;
+	    }
 	}
+	if (NULL == d) {
+	    return NULL;
+	}
+	plen = s - full_path;
+	path = full_path;
+	if (NULL == (page = cache_get(cache, path, plen))) {
+	    Page	old;
+
+	    if (NULL == (page = page_create(path))) {
+		err_set(err, ERR_MEMORY, "Failed to allocate memory for Page.");
+		return NULL;
+	    }
+	    if (!update_contents(cache, page) || NULL == page->resp) {
+		page_destroy(page);
+		err_set(err, ERR_NOT_FOUND, "not found.");
+		return NULL;
+	    }
+	    if (NULL != (old = cache_set(cache, path, plen, page))) {
+		page_destroy(old);
+	    }
+	}
+	return page;
     }
-    return page;
+    return page_check(err, cache, page);
 }
 
 Group
