@@ -10,7 +10,7 @@ module Rack
     # The Rack::Handler::Agoo module is a handler for common rack config.rb files.
     module Agoo
 
-      # Run the server. Options are the same as for Agoo::Server plus a :prot
+      # Run the server. Options are the same as for Agoo::Server plus a :port
       # and :root option.
       def self.run(handler, options={})
 	port = 9292
