@@ -124,7 +124,7 @@ the additions. They are [Agoo](https://github.com/ohler55/agoo) and
 servers with some features unique to both.
 
 One example is for Agoo only to demonstrate the use of the Agoo demultiplexing
-but is otherwise identifcal to the pure Rack example.
+but is otherwise identical to the pure Rack example.
 
 The third, pub-sub example is also Agoo specific but with a few minor changes
 it would be compatible with Iodine as well. The pub-sub example is a minimal
@@ -244,7 +244,7 @@ kept separate in this example.
 The `Clock` object, `$clock` maintains a list of open connections. The default
 configuration uses one thread but to be safe a mutex is used so that the same
 example can be used with multiple threads configured. It's a good practice
-when writing asynchrous callback code to assume there will be multiple threads
+when writing asynchronous callback code to assume there will be multiple threads
 invoking the callbacks.
 
 ```ruby
@@ -270,7 +270,7 @@ explored later.
 ```
 
 When a connection is closed it should be removed the the `@clients` list. The
-`#on_close` callback handles that. The other callbacks meerly print out a
+`#on_close` callback handles that. The other callbacks merely print out a
 statement that they have been invoked so that it is easier to trace what is
 going on.
 
@@ -363,7 +363,7 @@ common among most web server in almost every language. But that is not the
 only advantage. By setting a root directory for static resources Agoo can
 serve up those resources without getting Ruby involved at all. This allows
 those resources to be server many times faster all without creating additional
-Ruby objects. Pages with significant statis resources become snappier and the
+Ruby objects. Pages with significant static resources become snappier and the
 whole users experience is improved.
 
 Note: It is possible to set up the demultiplexing using arguments to
