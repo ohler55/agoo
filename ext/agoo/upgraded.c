@@ -283,6 +283,24 @@ pending(VALUE self) {
     return INT2NUM(pending);
 }
 
+/* Document-method: open?
+ *
+ * call-seq: open?()
+ *
+ * Returns true if the connection is open and false otherwise.
+ */
+static VALUE
+up_open(VALUE self) {
+    Upgraded	up = get_upgraded(self);
+    int		pending = -1;
+    
+    if (NULL != up) {
+	pending = atomic_load(&up->pending);
+	atomic_fetch_sub(&up->ref_cnt, 1);
+    }
+    return 0 <= pending ? Qtrue : Qfalse;
+}
+
 /* Document-method: protocol
  *
  * call-seq: protocol()
@@ -371,6 +389,7 @@ upgraded_init(VALUE mod) {
     rb_define_method(upgraded_class, "pending", pending, 0);
     rb_define_method(upgraded_class, "protocol", protocol, 0);
     rb_define_method(upgraded_class, "publish", ragoo_publish, 2);
+    rb_define_method(upgraded_class, "open?", up_open, 0);
 
     on_open_id = rb_intern("on_open");
     to_s_id = rb_intern("to_s");

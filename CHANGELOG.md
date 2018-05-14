@@ -1,5 +1,11 @@
 # CHANGELOG
 
+### 2.1.2 - 2018-05-15
+
+- Added `#open?` method to the Upgraded (connection client) class.
+
+- Slight improvement performcance serving static assets for Rails.
+
 ### 2.1.1 - 2018-05-11
 
 - Subject can now be Symbols or any other object that responds top `#to_s`.
