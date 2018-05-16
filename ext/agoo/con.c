@@ -124,6 +124,31 @@ should_close(const char *header, int hlen) {
     return false;
 }
 
+static bool
+page_response(Con c, Page p, char *hend) {
+    Res 	res;
+    char	*b;
+    
+    if (NULL == (res = res_create(c))) {
+	return true;
+    }
+    if (NULL == c->res_tail) {
+	c->res_head = res;
+    } else {
+	c->res_tail->next = res;
+    }
+    c->res_tail = res;
+
+    b = strstr(c->buf, "\r\n");
+    res->close = should_close(b, (int)(hend - b));
+    if (res->close) {
+	c->closing = true;
+    }
+    res_set_message(res, p->resp);
+
+    return false;
+}
+
 // Returns:
 //  0 - when header has not been read
 //  message length - when length can be determined
@@ -244,26 +269,35 @@ con_header_read(Con c) {
     mlen = hend - c->buf + 4 + clen;
     if (GET == method &&
 	NULL != (p = group_get(&err, &the_server.pages, path, (int)(pend - path)))) {
-	if (NULL == (res = res_create(c))) {
+	if (page_response(c, p, hend)) {
 	    return bad_request(c, 500, __LINE__);
 	}
-	if (NULL == c->res_tail) {
-	    c->res_head = res;
-	} else {
-	    c->res_tail->next = res;
-	}
-	c->res_tail = res;
-
-	b = strstr(c->buf, "\r\n");
-	res->close = should_close(b, (int)(hend - b));
-	if (res->close) {
-	    c->closing = true;
-	}
-	res_set_message(res, p->resp);
-
 	return -mlen;
-    } else if (NULL == (hook = hook_find(the_server.hooks, method, path, pend))) {
+
+	// TBD int hook_or_page(method, path, pend, &hook)
+	//  return http status
+	//  0 is not handled
+	//  200 means taken care of
+	//  default (over 200) call bad_request
+    }
+    if (GET == method && the_server.root_first &&
+	       NULL != (p = page_get(&err, &the_server.pages, path, (int)(pend - path)))) {
+	if (page_response(c, p, hend)) {
+	    return bad_request(c, 500, __LINE__);
+	}
+	return -mlen;
+    }
+    if (NULL == (hook = hook_find(the_server.hooks, method, path, pend))) {
 	if (GET == method) {
+	    if (the_server.root_first) { // already checked
+		if (NULL != the_server.hook404) {
+		    // There would be too many parameters to pass to a
+		    // separate function so just goto the hook processing.
+		    hook = the_server.hook404;
+		    goto HOOKED;
+		}
+		return bad_request(c, 404, __LINE__);
+	    }
 	    if (NULL == (p = page_get(&err, &the_server.pages, path, (int)(pend - path)))) {
 		if (NULL != the_server.hook404) {
 		    // There would be too many parameters to pass to a
@@ -273,23 +307,9 @@ con_header_read(Con c) {
 		}
 		return bad_request(c, 404, __LINE__);
 	    }
-    	    if (NULL == (res = res_create(c))) {
+	    if (page_response(c, p, hend)) {
 		return bad_request(c, 500, __LINE__);
 	    }
-	    if (NULL == c->res_tail) {
-		c->res_head = res;
-	    } else {
-		c->res_tail->next = res;
-	    }
-	    c->res_tail = res;
-
-	    b = strstr(c->buf, "\r\n");
-	    res->close = should_close(b, (int)(hend - b));
-	    if (res->close) {
-		c->closing = true;
-	    }
-	    res_set_message(res, p->resp);
-
 	    return -mlen;
 	}
     }

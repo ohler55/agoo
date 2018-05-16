@@ -1,5 +1,9 @@
 # CHANGELOG
 
+### 2.1.3 - 2018-05-16
+
+- Optimized `rackup` to look for files in the root directory before calling rackup as the default. The root is now set to `./public` instead of `.`. The `:rmux` (rack multiplex) turns that off.
+
 ### 2.1.2 - 2018-05-15
 
 - Added `#open?` method to the Upgraded (connection client) class.

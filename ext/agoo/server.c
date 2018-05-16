@@ -135,6 +135,7 @@ configure(Err err, int port, const char *root, VALUE options) {
     the_server.listen_thread = 0;
     the_server.con_thread = 0;
     the_server.max_push_pending = 32;
+    the_server.root_first = false;
     if (Qnil != options) {
 	VALUE	v;
 
@@ -158,6 +159,9 @@ configure(Err err, int port, const char *root, VALUE options) {
 	}
 	if (Qnil != (v = rb_hash_lookup(options, ID2SYM(rb_intern("pedantic"))))) {
 	    the_server.pedantic = (Qtrue == v);
+	}
+	if (Qnil != (v = rb_hash_lookup(options, ID2SYM(rb_intern("root_first"))))) {
+	    the_server.root_first = (Qtrue == v);
 	}
 	if (Qnil != (v = rb_hash_lookup(options, ID2SYM(rb_intern("Port"))))) {
 	    if (rb_cInteger == rb_obj_class(v)) {
@@ -207,7 +211,7 @@ configure(Err err, int port, const char *root, VALUE options) {
  *
  * - *options* [_Hash_] server options
  *
- *   - *:pedantic* [_true_|_false_] if true response header and status codes are check and an exception raised if they violate the rack spec at https://github.com/rack/rack/blob/master/SPEC, https://tools.ietf.org/html/rfc3875#section-4.1.18, or https://tools.ietf.org/html/rfc7230.
+ *   - *:pedantic* [_true_|_false_] if true response header and status codes are checked and an exception raised if they violate the rack spec at https://github.com/rack/rack/blob/master/SPEC, https://tools.ietf.org/html/rfc3875#section-4.1.18, or https://tools.ietf.org/html/rfc7230.
  *
  *   - *:thread_count* [_Integer_] number of ruby worker threads. Defaults to one. If zero then the _start_ function will not return but instead will proess using the thread that called _start_. Usually the default is best unless the workers are making IO calls.
  */

@@ -23,6 +23,7 @@ typedef struct _Server {
     int			max_push_pending;
     int			port;
     bool		pedantic;
+    bool		root_first;
     atomic_int		running;
     pthread_t		listen_thread;
     pthread_t		con_thread;

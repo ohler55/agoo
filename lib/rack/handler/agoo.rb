@@ -14,10 +14,12 @@ module Rack
       # and :root option.
       def self.run(handler, options={})
 	port = 9292
-	root = '.'
+	root = './public'
+        root_set = false
 	default_handler = nil
 	not_found_handler = nil
 	path_map = {}
+        options[:root_first] = true # the default for rack
 
 	default_handler = handler unless handler.nil?
 	options.each { |k,v|
@@ -26,7 +28,10 @@ module Rack
 	    options.delete(k)
 	  elsif :root == k
 	    root = v
+            root_set = true
 	    options.delete(k)
+	  elsif :rmux == k
+            options[:root_first] = false
 	  elsif k.nil?
 	    not_found_handler = v
 	    options.delete(k)
@@ -46,6 +51,8 @@ module Rack
         begin
           # If Rails is loaded this should work else just ignore.
           ::Agoo::Server.path_group('/assets', Rails.configuration.assets.paths)
+          root = Rails.public_path unless root_set
+          Rails.configuration.assets.paths.each { |path| puts path }
         rescue Exception
         end
 	unless default_handler.nil?
