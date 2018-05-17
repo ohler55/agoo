@@ -52,7 +52,6 @@ module Rack
           # If Rails is loaded this should work else just ignore.
           ::Agoo::Server.path_group('/assets', Rails.configuration.assets.paths)
           root = Rails.public_path unless root_set
-          Rails.configuration.assets.paths.each { |path| puts path }
         rescue Exception
         end
 	unless default_handler.nil?
