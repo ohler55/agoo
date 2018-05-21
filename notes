@@ -5,3 +5,33 @@
 
 rdoc -t Agoo -m README.md -x "test/*" -x "example/*" -x extconf.rb
 
+- cluster
+ - make some difference if nice is down on perfer (nice -n19)
+  - use rack, slower ruby make bigger difference
+ - add docs for server options
+ 
+
+ - deal with logging to the same file
+ - maybe children log to log.pid or something
+ 
+
+- remote cluster
+ - worker server
+  - connect, maybe with some kind of security
+  - server feeds to worker
+   - as packets arrive from con
+    - needs to attach a connection id to each ppackets
+    - worker reassemples
+   - or create packet on server and pick a worker to sent it to
+    - maybe based on how many outstanding to that worker and most recent latency
+     - multiple and pick lowest
+    - packet is con id + len + request
+
+- action cable
+
+ - implement spec using actioncable
+  - middleware to grab env[upgrade] and then make the actioncable calls
+  - maybe set up explicit channel for the connection
+  
+ - maybe we can expand to include pub-sub since ac uses it
+ 

@@ -16,6 +16,7 @@ module Rack
 	port = 9292
 	root = './public'
         root_set = false
+	worker_count = 1;
 	default_handler = nil
 	not_found_handler = nil
 	path_map = {}
@@ -29,6 +30,9 @@ module Rack
 	  elsif :root == k
 	    root = v
             root_set = true
+	    options.delete(k)
+	  elsif :wc == k
+	    worker_count = v.to_i
 	    options.delete(k)
 	  elsif :rmux == k
             options[:root_first] = false
@@ -44,6 +48,7 @@ module Rack
 	  end
 	}
 	options[:thread_count] = 0
+	options[:worker_count] = worker_count
 	::Agoo::Server.init(port, root, options)
 	path_map.each { |path,handler|
 			::Agoo::Server.handle(nil, path, handler)

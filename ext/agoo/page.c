@@ -467,7 +467,6 @@ group_get(Err err, Cache cache, const char *path, int plen) {
     char	full_path[2048];
     char	*s;
     Dir		d;
-    double	now;
 
     if (NULL != strstr(path, "../")) {
 	return NULL;

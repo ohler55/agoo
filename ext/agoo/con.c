@@ -168,7 +168,6 @@ con_header_read(Con c) {
     Hook	hook = NULL;
     Page	p;
     struct _Err	err = ERR_INIT;
-    Res		res;
     
     if (NULL == hend) {
 	if (sizeof(c->buf) - 1 <= c->bcnt) {
