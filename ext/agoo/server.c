@@ -792,11 +792,24 @@ server_start(VALUE self) {
     the_server.active = true;
 
     for (i = 1; i < the_server.worker_cnt; i++) {
+#if 0
 	pid = fork();
+#else
+	{
+	    VALUE	rpid = rb_funcall(rb_cObject, rb_intern("fork"), 0);
+
+	    if (Qnil == rpid) {
+		pid = 0;
+	    } else {
+		pid = NUM2INT(rpid);
+	    }
+	}
+#endif
 	if (0 > pid) { // error, use single process
 	    log_cat(&error_cat, "Failed to fork. %s.", strerror(errno));
 	    break;
 	} else if (0 == pid) {
+	    log_start(true);
 	    break;
 	} else {
 	    the_server.worker_pids[i] = pid;
@@ -816,7 +829,7 @@ server_start(VALUE self) {
 	VALUE	agoo = rb_const_get_at(rb_cObject, rb_intern("Agoo"));
 	VALUE	v = rb_const_get_at(agoo, rb_intern("VERSION"));
 					       
-	log_cat(&info_cat, "Agoo %s listening on port %d.", StringValuePtr(v), the_server.port);
+	log_cat(&info_cat, "Agoo %s with pid %d is listening on port %d.", StringValuePtr(v), getpid(), the_server.port);
     }
     if (0 >= the_server.thread_cnt) {
 	Req		req;

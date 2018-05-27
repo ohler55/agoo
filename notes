@@ -6,13 +6,10 @@
 rdoc -t Agoo -m README.md -x "test/*" -x "example/*" -x extconf.rb
 
 - cluster
+ - test logging
  - make some difference if nice is down on perfer (nice -n19)
   - use rack, slower ruby make bigger difference
  - add docs for server options
- 
-
- - deal with logging to the same file
- - maybe children log to log.pid or something
  
 
 - remote cluster
