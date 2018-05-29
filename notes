@@ -6,11 +6,12 @@
 rdoc -t Agoo -m README.md -x "test/*" -x "example/*" -x extconf.rb
 
 - cluster
- - test logging
  - make some difference if nice is down on perfer (nice -n19)
   - use rack, slower ruby make bigger difference
- - add docs for server options
- 
+ - update rails.md
+  - add cluster
+  - redo with faster machine
+  - update README.md if numbers change
 
 - remote cluster
  - worker server

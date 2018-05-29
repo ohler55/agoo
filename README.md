@@ -52,6 +52,10 @@ use of rack compatible gems such as Hanami and Rails. Agoo also supports WebSock
 
 ## News
 
+- Clustered Agoo is ready. For slower application and a machine with multiple
+  cores a significant improvement is performance is realized. The application
+  must be stateless in that no data is shared between workers.
+
 - WebSocket and SSE are supported and a PR has been submitted to updated the
   Rack spec. Go over to the [proposed Rack
   extension](https://github.com/rack/rack/pull/1272) and give it a look and a

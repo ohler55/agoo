@@ -300,8 +300,12 @@ static void
 open_log_file() {
     char	path[1024];
 
-    snprintf(path, sizeof(path), "%s/%s", the_log.dir, log_name);
-
+    
+    if (the_log.with_pid) {
+	snprintf(path, sizeof(path), "%s/%s_%d", the_log.dir, log_name, getpid());
+    } else {
+	snprintf(path, sizeof(path), "%s/%s", the_log.dir, log_name);
+    }
     the_log.file = fopen(path, "a");
     if (NULL == the_log.file) {
 	rb_raise(rb_eIOError, "Failed to create '%s'.", path);
@@ -931,6 +935,13 @@ log_init(VALUE mod) {
 
 void
 log_start(bool with_pid) {
+    if (NULL != the_log.file) {
+	fclose(the_log.file);
+	the_log.file = NULL;
+    }
     the_log.with_pid = with_pid;
+    if (with_pid) {
+	open_log_file();
+    }
     pthread_create(&the_log.thread, NULL, loop, log);
 }

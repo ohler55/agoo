@@ -84,7 +84,7 @@ server_mark(void *ptr) {
 void
 server_shutdown() {
     if (the_server.inited) {
-	log_cat(&info_cat, "Agoo shutting down.");
+	log_cat(&info_cat, "Agoo with pid %d shutting down.", getpid());
 	the_server.inited = false;
 	if (the_server.active) {
 	    double	giveup = dtime() + 1.0;
@@ -266,6 +266,8 @@ configure(Err err, int port, const char *root, VALUE options) {
  *   - *:pedantic* [_true_|_false_] if true response header and status codes are checked and an exception raised if they violate the rack spec at https://github.com/rack/rack/blob/master/SPEC, https://tools.ietf.org/html/rfc3875#section-4.1.18, or https://tools.ietf.org/html/rfc7230.
  *
  *   - *:thread_count* [_Integer_] number of ruby worker threads. Defaults to one. If zero then the _start_ function will not return but instead will proess using the thread that called _start_. Usually the default is best unless the workers are making IO calls.
+ *
+ *   - *:worker_count* [_Integer_] number of workers to fork. Defaults to one which is not to fork.
  */
 static VALUE
 rserver_init(int argc, VALUE *argv, VALUE self) {
@@ -361,9 +363,9 @@ listen_loop(void *x) {
 	}
 	if (0 != (pa->revents & POLLIN)) {
 	    if (0 > (client_sock = accept(pa->fd, (struct sockaddr*)&client_addr, &alen))) {
-		log_cat(&error_cat, "Server accept connection failed. %s.", strerror(errno));
+		log_cat(&error_cat, "Server with pid %d accept connection failed. %s.", getpid(), strerror(errno));
 	    } else if (NULL == (con = con_create(&err, client_sock, ++cnt))) {
-		log_cat(&error_cat, "Server accept connection failed. %s.", err.msg);
+		log_cat(&error_cat, "Server with pid %d accept connection failed. %s.", getpid(), err.msg);
 		close(client_sock);
 		cnt--;
 		err_clear(&err);
@@ -374,15 +376,16 @@ listen_loop(void *x) {
 		fcntl(client_sock, F_SETFL, O_NONBLOCK);
 		setsockopt(client_sock, SOL_SOCKET, SO_KEEPALIVE, &optval, sizeof(optval));
 		setsockopt(client_sock, IPPROTO_TCP, TCP_NODELAY, &optval, sizeof(optval));
-		log_cat(&con_cat, "Server accepted connection %llu on port %d [%d]", (unsigned long long)cnt, the_server.port, con->sock);
+		log_cat(&con_cat, "Server with pid %d accepted connection %llu on port %d [%d]",
+			getpid(), (unsigned long long)cnt, the_server.port, con->sock);
 		queue_push(&the_server.con_queue, (void*)con);
 	    }
 	}
 	if (0 != (pa->revents & (POLLERR | POLLHUP | POLLNVAL))) {
 	    if (0 != (pa->revents & (POLLHUP | POLLNVAL))) {
-		log_cat(&error_cat, "Agoo server socket on port %d closed.", the_server.port);
+		log_cat(&error_cat, "Agoo server with pid %d socket on port %d closed.", getpid(), the_server.port);
 	    } else {
-		log_cat(&error_cat, "Agoo server socket on port %d error.", the_server.port);
+		log_cat(&error_cat, "Agoo server with pid %d socket on port %d error.", getpid(), the_server.port);
 	    }
 	    the_server.active = false;
 	}
