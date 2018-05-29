@@ -300,7 +300,6 @@ static void
 open_log_file() {
     char	path[1024];
 
-    
     if (the_log.with_pid) {
 	snprintf(path, sizeof(path), "%s/%s_%d", the_log.dir, log_name, getpid());
     } else {
@@ -940,7 +939,10 @@ log_start(bool with_pid) {
 	the_log.file = NULL;
     }
     the_log.with_pid = with_pid;
-    if (with_pid) {
+    if (with_pid && '\0' != *the_log.dir) {
+	if (0 != mkdir(the_log.dir, 0770) && EEXIST != errno) {
+	    rb_raise(rb_eIOError, "Failed to create '%s'.", the_log.dir);
+	}
 	open_log_file();
     }
     pthread_create(&the_log.thread, NULL, loop, log);
