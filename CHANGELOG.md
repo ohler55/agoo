@@ -1,5 +1,11 @@
 # CHANGELOG
 
+### 2.2.0 - 2018-05-30
+
+- Clustering now supported with forked workers making Agoo even faster.
+
+- Changed addition header keys to be all uppercase and also replace `-` with `_` to match Rack unit tests instead of the spec.
+
 ### 2.1.3 - 2018-05-16
 
 - Optimized `rackup` to look for files in the root directory before calling rackup as the default. The root is now set to `./public` instead of `.`. The `:rmux` (rack multiplex) turns that off.

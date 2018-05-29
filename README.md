@@ -61,8 +61,8 @@ use of rack compatible gems such as Hanami and Rails. Agoo also supports WebSock
   extension](https://github.com/rack/rack/pull/1272) and give it a look and a
   thumbs-up or heart if you like it.
 
-- Agoo now serves Rails static assets more than 2000 times faster than the
-  default Puma. Thats right, [2000 times faster](misc/rails.md).
+- Agoo now serves Rails static assets more than 8000 times faster than the
+  default Puma. Thats right, [8000 times faster](misc/rails.md).
 
 ## Releases
 
