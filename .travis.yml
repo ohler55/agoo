@@ -8,6 +8,7 @@ rvm:
 matrix:
   include:
     - os: linux
+      dist: trusty
       addons:
         apt:
           sources:
