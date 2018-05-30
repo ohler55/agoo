@@ -8,22 +8,18 @@ rvm:
 matrix:
   include:
     - os: linux
-      dist: trusty
       addons:
         apt:
-          update: true
           sources:
             - ubuntu-toolchain-r-test
           packages:
             - g++-6
-      install:
-        - sudo update-alternative --install /usr/bin/g++ g++ /usr/bin/g++-6 90
       env:
         - MATRIX_EVAL="CC=gcc-6 && CXX=g++-6"
       before_script:
-        #- sudo mv /usr/bin/gcc /usr/bin/gcc.old
-        #- sudo ln -s /usr/bin/gcc-6 /usr/bin/gcc
-        #- eval "${MATRIX_EVAL}"
+        - sudo mv /usr/bin/gcc /usr/bin/gcc.old
+        - sudo ln -s /usr/bin/gcc-6 /usr/bin/gcc
+        - eval "${MATRIX_EVAL}"
         - gem build agoo.gemspec
         - gem install oj
         - gem install agoo-*
@@ -32,7 +28,7 @@ matrix:
         - cd ../..
     - os: osx
       before_script:
-        #- eval "${MATRIX_EVAL}"
+        - eval "${MATRIX_EVAL}"
         - gem build agoo.gemspec
         - gem install oj
         - gem install agoo-*
