@@ -4,9 +4,9 @@
   - http://www.rubydoc.info/github/rack/rack/master/file/SPEC
 
 rdoc -t Agoo -m README.md -x "test/*" -x "example/*" -x extconf.rb
+use nice -n19 perfer when on same machine
 
 - cluster
- - make some difference if nice is down on perfer (nice -n19)
  - change keys in env to all upper and - goes to _
 
 - remote cluster
