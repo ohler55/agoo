@@ -16,12 +16,16 @@
 #include "sub.h"
 #include "upgraded.h"
 
+#define MAX_WORKERS	32
+
 typedef struct _Server {
     volatile bool	inited;
     volatile bool	active;
     int			thread_cnt;
+    int			worker_cnt;
     int			max_push_pending;
     int			port;
+    int			fd;
     bool		pedantic;
     bool		root_first;
     atomic_int		running;
@@ -40,6 +44,7 @@ typedef struct _Server {
     Hook		hook404;
     struct _Queue	eval_queue;
 
+    int			worker_pids[MAX_WORKERS];
     VALUE		*eval_threads; // Qnil terminated
 } *Server;
 

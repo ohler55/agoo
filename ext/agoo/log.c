@@ -25,6 +25,10 @@ static const char	log_name[] = "agoo.log";
 static const char	log_prefix[] = "agoo.log.";
 static const char	log_format[] = "%s/agoo.log.%d";
 
+static const char	log_pid_name[] = "agoo.log_%d";
+static const char	log_pid_prefix[] = "agoo.log_%d.";
+static const char	log_pid_format[] = "%s/agoo.log_%d.%d";
+
 static struct _Color	colors[] = {
     { .name = "black",      .ansi = "\033[30;1m" },
     { .name = "red",        .ansi = "\033[31;1m" },
@@ -174,19 +178,30 @@ remove_old_logs() {
     char		*end;
     char		path[1024];
     DIR			*dir = opendir(the_log.dir);
-    
+    char		prefix[32];
+    int			psize;
+    char		name[32];
+
+    if (the_log.with_pid) {
+	psize = sprintf(prefix, log_pid_prefix, getpid());
+	sprintf(name, log_pid_name, getpid());
+    } else {
+	memcpy(prefix, log_prefix, sizeof(log_prefix));
+	psize = (int)sizeof(log_prefix) - 1;
+	memcpy(name, log_name, sizeof(log_name));
+    }
     while (NULL != (de = readdir(dir))) {
 	if ('.' == *de->d_name || '\0' == *de->d_name) {
 	    continue;
 	}
-	if (0 != strncmp(log_prefix, de->d_name, sizeof(log_prefix) - 1)) {
+	if (0 != strncmp(prefix, de->d_name, psize)) {
 	    continue;
 	}
 	// Don't remove the primary log file.
-	if (0 == strcmp(log_name, de->d_name)) {
+	if (0 == strcmp(name, de->d_name)) {
 	    continue;
 	}
-	seq = strtol(de->d_name + sizeof(log_prefix) - 1, &end, 10);
+	seq = strtol(de->d_name + psize, &end, 10);
 	if (the_log.max_files < seq) {
 	    snprintf(path, sizeof(path), "%s/%s", the_log.dir, de->d_name);
 	    remove(path);
@@ -204,13 +219,26 @@ log_rotate() {
 	fclose(the_log.file);
 	the_log.file = NULL;
     }
-    for (int seq = the_log.max_files; 0 < seq; seq--) {
-	snprintf(to, sizeof(to), log_format, the_log.dir, seq + 1);
-	snprintf(from, sizeof(from), log_format, the_log.dir, seq);
-	rename(from, to);
+    if (the_log.with_pid) {
+	char	name[32];
+
+	sprintf(name, log_pid_name, getpid());
+	for (int seq = the_log.max_files; 0 < seq; seq--) {
+	    snprintf(to, sizeof(to), log_pid_format, the_log.dir, getpid(), seq + 1);
+	    snprintf(from, sizeof(from), log_pid_format, the_log.dir, getpid(), seq);
+	    rename(from, to);
+	}
+	snprintf(to, sizeof(to), log_pid_format, the_log.dir, getpid(), 1);
+	snprintf(from, sizeof(from), "%s/%s", the_log.dir, name);
+    } else {
+	for (int seq = the_log.max_files; 0 < seq; seq--) {
+	    snprintf(to, sizeof(to), log_format, the_log.dir, seq + 1);
+	    snprintf(from, sizeof(from), log_format, the_log.dir, seq);
+	    rename(from, to);
+	}
+	snprintf(to, sizeof(to), log_format, the_log.dir, 1);
+	snprintf(from, sizeof(from), "%s/%s", the_log.dir, log_name);
     }
-    snprintf(to, sizeof(to), log_format, the_log.dir, 1);
-    snprintf(from, sizeof(from), "%s/%s", the_log.dir, log_name);
     rename(from, to);
 
     the_log.file = fopen(from, "w");
@@ -272,8 +300,11 @@ static void
 open_log_file() {
     char	path[1024];
 
-    snprintf(path, sizeof(path), "%s/%s", the_log.dir, log_name);
-
+    if (the_log.with_pid) {
+	snprintf(path, sizeof(path), "%s/%s_%d", the_log.dir, log_name, getpid());
+    } else {
+	snprintf(path, sizeof(path), "%s/%s", the_log.dir, log_name);
+    }
     the_log.file = fopen(path, "a");
     if (NULL == the_log.file) {
 	rb_raise(rb_eIOError, "Failed to create '%s'.", path);
@@ -867,6 +898,7 @@ log_init(VALUE mod) {
     the_log.console = true;
     the_log.classic = true;
     the_log.colorize = true;
+    the_log.with_pid = false;
     the_log.zone = (int)(timegm(tm) - t);
     the_log.day_start = 0;
     the_log.day_end = 0;
@@ -897,5 +929,21 @@ log_init(VALUE mod) {
     log_cat_reg(&eval_cat,  "eval",     INFO,  BLUE, false);
     log_cat_reg(&push_cat,  "push",     INFO,  DARK_CYAN, false);
 
+    log_start(false);
+}
+
+void
+log_start(bool with_pid) {
+    if (NULL != the_log.file) {
+	fclose(the_log.file);
+	the_log.file = NULL;
+    }
+    the_log.with_pid = with_pid;
+    if (with_pid && '\0' != *the_log.dir) {
+	if (0 != mkdir(the_log.dir, 0770) && EEXIST != errno) {
+	    rb_raise(rb_eIOError, "Failed to create '%s'.", the_log.dir);
+	}
+	open_log_file();
+    }
     pthread_create(&the_log.thread, NULL, loop, log);
 }

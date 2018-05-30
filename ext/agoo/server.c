@@ -6,6 +6,7 @@
 #include <netdb.h>
 #include <netinet/tcp.h>
 #include <poll.h>
+#include <signal.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -13,6 +14,8 @@
 #include <sys/select.h>
 #include <sys/socket.h>
 #include <sys/time.h>
+#include <sys/types.h>
+#include <sys/wait.h>
 #include <unistd.h>
 #include <stdatomic.h>
 
@@ -81,17 +84,19 @@ server_mark(void *ptr) {
 void
 server_shutdown() {
     if (the_server.inited) {
-	log_cat(&info_cat, "Agoo shutting down.");
+	log_cat(&info_cat, "Agoo with pid %d shutting down.", getpid());
 	the_server.inited = false;
 	if (the_server.active) {
+	    double	giveup = dtime() + 1.0;
+	    
 	    the_server.active = false;
-	    if (0 != the_server.listen_thread) {
-		pthread_join(the_server.listen_thread, NULL);
-		the_server.listen_thread = 0;
-	    }
-	    if (0 != the_server.con_thread) {
-		pthread_join(the_server.con_thread, NULL);
-		the_server.con_thread = 0;
+	    pthread_detach(the_server.listen_thread);
+	    pthread_detach(the_server.con_thread);
+	    while (0 < atomic_load(&the_server.running)) {
+		dsleep(0.1);
+		if (giveup < dtime()) {
+		    break;
+		}
 	    }
 	    sub_cleanup(&the_server.sub_cache);
 	    // The preferred method to of waiting for the ruby threads would
@@ -123,6 +128,42 @@ server_shutdown() {
 	queue_cleanup(&the_server.eval_queue);
 	pages_cleanup(&the_server.pages);
 	http_cleanup();
+
+	if (1 < the_server.worker_cnt && getpid() == *the_server.worker_pids) {
+	    int	i;
+	    int	status;
+	    int	exit_cnt = 1;
+	    int	j;
+	    
+	    for (i = 1; i < the_server.worker_cnt; i++) {
+		kill(the_server.worker_pids[i], SIGKILL);
+	    }
+	    for (j = 0; j < 20; j++) {
+		for (i = 1; i < the_server.worker_cnt; i++) {
+		    if (0 == the_server.worker_pids[i]) {
+			continue;
+		    }
+		    if (0 < waitpid(the_server.worker_pids[i], &status, WNOHANG)) {
+			if (WIFEXITED(status)) {
+			    //printf("exited, status=%d for %d\n", the_server.worker_pids[i], WEXITSTATUS(status));
+			    the_server.worker_pids[i] = 0;
+			    exit_cnt++;
+			} else if (WIFSIGNALED(status)) {
+			    //printf("*** killed by signal %d for %d\n", the_server.worker_pids[i], WTERMSIG(status));
+			    the_server.worker_pids[i] = 0;
+			    exit_cnt++;
+			}
+		    }
+		}
+		if (the_server.worker_cnt <= exit_cnt) {
+		    break;
+		}
+		dsleep(0.2);
+	    }
+	    if (exit_cnt < the_server.worker_cnt) {
+		printf("*-*-* Some workers did not exit.\n");
+	    }
+	}
     }
 }
 
@@ -131,7 +172,9 @@ configure(Err err, int port, const char *root, VALUE options) {
     the_server.port = port;
     the_server.pages.root = strdup(root);
     the_server.thread_cnt = 0;
+    the_server.worker_cnt = 1;
     the_server.running = 0;
+    the_server.fd = 0;
     the_server.listen_thread = 0;
     the_server.con_thread = 0;
     the_server.max_push_pending = 32;
@@ -146,6 +189,15 @@ configure(Err err, int port, const char *root, VALUE options) {
 		the_server.thread_cnt = tc;
 	    } else {
 		rb_raise(rb_eArgError, "thread_count must be between 1 and 1000.");
+	    }
+	}
+	if (Qnil != (v = rb_hash_lookup(options, ID2SYM(rb_intern("worker_count"))))) {
+	    int	wc = FIX2INT(v);
+
+	    if (1 <= wc || wc < MAX_WORKERS) {
+		the_server.worker_cnt = wc;
+	    } else {
+		rb_raise(rb_eArgError, "thread_count must be between 1 and %d.", MAX_WORKERS);
 	    }
 	}
 	if (Qnil != (v = rb_hash_lookup(options, ID2SYM(rb_intern("max_push_pending"))))) {
@@ -214,6 +266,8 @@ configure(Err err, int port, const char *root, VALUE options) {
  *   - *:pedantic* [_true_|_false_] if true response header and status codes are checked and an exception raised if they violate the rack spec at https://github.com/rack/rack/blob/master/SPEC, https://tools.ietf.org/html/rfc3875#section-4.1.18, or https://tools.ietf.org/html/rfc7230.
  *
  *   - *:thread_count* [_Integer_] number of ruby worker threads. Defaults to one. If zero then the _start_ function will not return but instead will proess using the thread that called _start_. Usually the default is best unless the workers are making IO calls.
+ *
+ *   - *:worker_count* [_Integer_] number of workers to fork. Defaults to one which is not to fork.
  */
 static VALUE
 rserver_init(int argc, VALUE *argv, VALUE self) {
@@ -250,12 +304,37 @@ rserver_init(int argc, VALUE *argv, VALUE self) {
     return Qnil;
 }
 
-static void*
-listen_loop(void *x) {
+static void
+setup_listen() {
     struct sockaddr_in	addr;
     int			optval = 1;
+
+    if (0 >= (the_server.fd = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP))) {
+	log_cat(&error_cat, "Server failed to open server socket. %s.", strerror(errno));
+	atomic_fetch_sub(&the_server.running, 1);
+	rb_raise(rb_eIOError, "Server failed to open server socket. %s.", strerror(errno));
+    }
+#ifdef OSX_OS 
+    setsockopt(the_server.fd, SOL_SOCKET, SO_NOSIGPIPE, &optval, sizeof(optval));
+#endif    
+    memset(&addr, 0, sizeof(addr));
+    addr.sin_family = AF_INET;
+    addr.sin_addr.s_addr = INADDR_ANY;
+    addr.sin_port = htons(the_server.port);
+    setsockopt(the_server.fd, SOL_SOCKET, SO_REUSEPORT, &optval, sizeof(optval));
+    setsockopt(the_server.fd, IPPROTO_TCP, TCP_NODELAY, &optval, sizeof(optval));
+    if (0 > bind(the_server.fd, (struct sockaddr*)&addr, sizeof(addr))) {
+	log_cat(&error_cat, "Server failed to bind server socket. %s.", strerror(errno));
+	atomic_fetch_sub(&the_server.running, 1);
+	rb_raise(rb_eIOError, "Server failed to bind server socket. %s.", strerror(errno));
+    }
+    listen(the_server.fd, 1000);
+}
+
+static void*
+listen_loop(void *x) {
+    int			optval = 1;
     struct pollfd	pa[1];
-    struct pollfd	*fp = pa;
     struct _Err		err = ERR_INIT;
     struct sockaddr_in	client_addr;
     int			client_sock;
@@ -264,26 +343,7 @@ listen_loop(void *x) {
     int			i;
     uint64_t		cnt = 0;
 
-    if (0 >= (pa->fd = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP))) {
-	log_cat(&error_cat, "Server failed to open server socket. %s.", strerror(errno));
-	atomic_fetch_sub(&the_server.running, 1);
-	return NULL;
-    }
-#ifdef OSX_OS 
-    setsockopt(pa->fd, SOL_SOCKET, SO_NOSIGPIPE, &optval, sizeof(optval));
-#endif    
-    memset(&addr, 0, sizeof(addr));
-    addr.sin_family = AF_INET;
-    addr.sin_addr.s_addr = INADDR_ANY;
-    addr.sin_port = htons(the_server.port);
-    setsockopt(pa->fd, SOL_SOCKET, SO_REUSEPORT, &optval, sizeof(optval));
-    setsockopt(pa->fd, IPPROTO_TCP, TCP_NODELAY, &optval, sizeof(optval));
-    if (0 > bind(fp->fd, (struct sockaddr*)&addr, sizeof(addr))) {
-	log_cat(&error_cat, "Server failed to bind server socket. %s.", strerror(errno));
-	atomic_fetch_sub(&the_server.running, 1);
-	return NULL;
-    }
-    listen(pa->fd, 1000);
+    pa->fd = the_server.fd;
     pa->events = POLLIN;
     pa->revents = 0;
 
@@ -303,9 +363,9 @@ listen_loop(void *x) {
 	}
 	if (0 != (pa->revents & POLLIN)) {
 	    if (0 > (client_sock = accept(pa->fd, (struct sockaddr*)&client_addr, &alen))) {
-		log_cat(&error_cat, "Server accept connection failed. %s.", strerror(errno));
+		log_cat(&error_cat, "Server with pid %d accept connection failed. %s.", getpid(), strerror(errno));
 	    } else if (NULL == (con = con_create(&err, client_sock, ++cnt))) {
-		log_cat(&error_cat, "Server accept connection failed. %s.", err.msg);
+		log_cat(&error_cat, "Server with pid %d accept connection failed. %s.", getpid(), err.msg);
 		close(client_sock);
 		cnt--;
 		err_clear(&err);
@@ -316,15 +376,16 @@ listen_loop(void *x) {
 		fcntl(client_sock, F_SETFL, O_NONBLOCK);
 		setsockopt(client_sock, SOL_SOCKET, SO_KEEPALIVE, &optval, sizeof(optval));
 		setsockopt(client_sock, IPPROTO_TCP, TCP_NODELAY, &optval, sizeof(optval));
-		log_cat(&con_cat, "Server accepted connection %llu on port %d [%d]", (unsigned long long)cnt, the_server.port, con->sock);
+		log_cat(&con_cat, "Server with pid %d accepted connection %llu on port %d [%d]",
+			getpid(), (unsigned long long)cnt, the_server.port, con->sock);
 		queue_push(&the_server.con_queue, (void*)con);
 	    }
 	}
 	if (0 != (pa->revents & (POLLERR | POLLHUP | POLLNVAL))) {
 	    if (0 != (pa->revents & (POLLHUP | POLLNVAL))) {
-		log_cat(&error_cat, "Agoo server socket on port %d closed.", the_server.port);
+		log_cat(&error_cat, "Agoo server with pid %d socket on port %d closed.", getpid(), the_server.port);
 	    } else {
-		log_cat(&error_cat, "Agoo server socket on port %d error.", the_server.port);
+		log_cat(&error_cat, "Agoo server with pid %d socket on port %d error.", getpid(), the_server.port);
 	    }
 	    the_server.active = false;
 	}
@@ -727,9 +788,36 @@ server_start(VALUE self) {
     VALUE	*vp;
     int		i;
     double	giveup;
+    int		pid;
     
+    *the_server.worker_pids = getpid();
+    setup_listen();
     the_server.active = true;
 
+    for (i = 1; i < the_server.worker_cnt; i++) {
+#if 0
+	pid = fork();
+#else
+	{
+	    VALUE	rpid = rb_funcall(rb_cObject, rb_intern("fork"), 0);
+
+	    if (Qnil == rpid) {
+		pid = 0;
+	    } else {
+		pid = NUM2INT(rpid);
+	    }
+	}
+#endif
+	if (0 > pid) { // error, use single process
+	    log_cat(&error_cat, "Failed to fork. %s.", strerror(errno));
+	    break;
+	} else if (0 == pid) {
+	    log_start(true);
+	    break;
+	} else {
+	    the_server.worker_pids[i] = pid;
+	}
+    }
     pthread_create(&the_server.listen_thread, NULL, listen_loop, NULL);
     pthread_create(&the_server.con_thread, NULL, con_loop, NULL);
     
@@ -744,7 +832,7 @@ server_start(VALUE self) {
 	VALUE	agoo = rb_const_get_at(rb_cObject, rb_intern("Agoo"));
 	VALUE	v = rb_const_get_at(agoo, rb_intern("VERSION"));
 					       
-	log_cat(&info_cat, "Agoo %s listening on port %d.", StringValuePtr(v), the_server.port);
+	log_cat(&info_cat, "Agoo %s with pid %d is listening on port %d.", StringValuePtr(v), getpid(), the_server.port);
     }
     if (0 >= the_server.thread_cnt) {
 	Req		req;

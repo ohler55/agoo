@@ -75,6 +75,7 @@ struct _Log {
     bool		console;  // if true print log message to stdout
     bool		classic;  // classic in stdout
     bool		colorize; // color in stdout
+    bool		with_pid;
     int			zone;     // timezone offset from GMT in seconds
     int64_t		day_start;
     int64_t		day_end;
@@ -115,5 +116,7 @@ extern LogCat	log_cat_find(const char *label);
 // Function to call to make a log entry.
 extern void	log_cat(LogCat cat, const char *fmt, ...);
 extern void	log_catv(LogCat cat, const char *fmt, va_list ap);
+
+extern void	log_start(bool with_pid);
 
 #endif /* __AGOO_LOG_H__ */

@@ -398,7 +398,11 @@ add_header_value(VALUE hh, const char *key, int klen, const char *val, int vlen)
 	rb_hash_aset(hh, rb_str_new(hkey, klen + 5), sval);
 	// Contrary to the Rack spec, Rails expects all upper case keys so add those as well.
 	for (k = hkey + 5; '\0' != *k; k++) {
-	    *k = toupper(*k);
+	    if ('-' == *k) {
+		*k = '_';
+	    } else {
+		*k = toupper(*k);
+	    }
 	}
 	rb_hash_aset(hh, rb_str_new(hkey, klen + 5), sval);
     }
