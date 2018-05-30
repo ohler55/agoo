@@ -15,14 +15,14 @@ matrix:
           sources:
             - ubuntu-toolchain-r-test
           packages:
-            - g++-6
+            - g++-7
       install:
-        - sudo update-alternative --install /usr/bin/g++ g++ /usr/bin/g++-6 90
+        - sudo update-alternative --install /usr/bin/g++ g++ /usr/bin/g++-7 90
       env:
-        - MATRIX_EVAL="CC=gcc-6 && CXX=g++-6"
+        - MATRIX_EVAL="CC=gcc-7 && CXX=g++-7"
       before_script:
         -# sudo mv /usr/bin/gcc /usr/bin/gcc.old
-        #- sudo ln -s /usr/bin/gcc-6 /usr/bin/gcc
+        #- sudo ln -s /usr/bin/gcc-7 /usr/bin/gcc
         - eval "${MATRIX_EVAL}"
         - gem build agoo.gemspec
         - gem install oj
