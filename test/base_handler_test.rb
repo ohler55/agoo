@@ -95,9 +95,9 @@ class BaseHandlerTest < Minitest::Test
     obj = Oj.load(content, mode: :strict)
 
     expect = {
-      "HTTP_Accept" => "application/json",
-      "HTTP_Accept-Encoding" => "*",
-      "HTTP_User-Agent" => "Ruby",
+      "HTTP_ACCEPT" => "application/json",
+      "HTTP_ACCEPT_ENCODING" => "*",
+      "HTTP_USER_AGENT" => "Ruby",
       "PATH_INFO" => "/tellme",
       "QUERY_STRING" => "a=1",
       "REQUEST_METHOD" => "GET",

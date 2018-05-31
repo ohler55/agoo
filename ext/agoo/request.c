@@ -395,7 +395,7 @@ add_header_value(VALUE hh, const char *key, int klen, const char *val, int vlen)
 	strncpy(k, key, klen);
 	hkey[klen + 5] = '\0';
     
-	rb_hash_aset(hh, rb_str_new(hkey, klen + 5), sval);
+	//rb_hash_aset(hh, rb_str_new(hkey, klen + 5), sval);
 	// Contrary to the Rack spec, Rails expects all upper case keys so add those as well.
 	for (k = hkey + 5; '\0' != *k; k++) {
 	    if ('-' == *k) {
@@ -423,11 +423,14 @@ fill_headers(Req r, VALUE hash) {
     if (NULL == r) {
 	rb_raise(rb_eArgError, "Request is no longer valid.");
     }
+    
     for (; h < end; h++) {
 	switch (*h) {
 	case ':':
-	    kend = h;
-	    val = h + 1;
+	    if (NULL == val) {
+		kend = h;
+		val = h + 1;
+	    }
 	    break;
 	case '\r':
 	    if (NULL != val) {

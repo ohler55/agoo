@@ -1,5 +1,9 @@
 # CHANGELOG
 
+### 2.2.1 - 2018-05-31
+
+- Corrected header bug where a `:` in the value would cause an incorrect header key and value.
+
 ### 2.2.0 - 2018-05-30
 
 - Clustering now supported with forked workers making Agoo even faster.

@@ -79,17 +79,18 @@ class RackHandlerTest < Minitest::Test
     req['Accept-Encoding'] = '*'
     req['Accept'] = 'application/json'
     req['User-Agent'] = 'Ruby'
+    req['Host'] = 'localhost:6467'
 
     res = Net::HTTP.start(uri.hostname, uri.port) { |h|
       h.request(req)
     }
     content = res.body
     obj = Oj.load(content, mode: :strict)
-
     expect = {
-      "HTTP_Accept" => "application/json",
-      "HTTP_Accept-Encoding" => "*",
-      "HTTP_User-Agent" => "Ruby",
+      "HTTP_ACCEPT" => "application/json",
+      "HTTP_ACCEPT_ENCODING" => "*",
+      "HTTP_USER_AGENT" => "Ruby",
+      "HTTP_HOST" => "localhost:6467",
       "PATH_INFO" => "/tellme",
       "QUERY_STRING" => "a=1",
       "REQUEST_METHOD" => "GET",
