@@ -145,8 +145,6 @@ log_queue_pop(double timeout) {
 	if (0 < poll(&pa, 1, WAIT_MSECS)) {
 	    log_release();
 	}
-	// TBD
-	//dsleep((double)WAIT_MSECS / 1000.0);
     }
     atomic_store(&the_log.head, next);
 

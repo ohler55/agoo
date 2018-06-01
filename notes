@@ -7,14 +7,14 @@ rdoc -t Agoo -m README.md -x "test/*" -x "example/*" -x extconf.rb
 use nice -n19 perfer when on same machine
 
 - log.c and queue.c
- - deal with the TBD and use polling instead of busy wait
+ - benchmark on shorty again
 
 - remote cluster
  - worker server
   - connect, maybe with some kind of security
   - server feeds to worker
    - as packets arrive from con
-    - needs to attach a connection id to each ppackets
+    - needs to attach a connection id to each packet
     - worker reassemples
    - or create packet on server and pick a worker to sent it to
     - maybe based on how many outstanding to that worker and most recent latency
