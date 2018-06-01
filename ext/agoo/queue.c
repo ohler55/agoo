@@ -1,6 +1,7 @@
 // Copyright 2015, 2016, 2018 by Peter Ohler, All Rights Reserved
 
 #include <fcntl.h>
+#include <poll.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -14,6 +15,7 @@
 
 // lower gives faster response but burns more CPU. This is a reasonable compromise.
 #define RETRY_SECS	0.0001
+#define WAIT_MSECS	100
 
 #define NOT_WAITING	0
 #define WAITING		1
@@ -126,14 +128,21 @@ queue_pop(Queue q, double timeout) {
 	next = q->q;
     }
     // If the next is the tail then wait for something to be appended.
-    for (int cnt = (int)(timeout / RETRY_SECS); atomic_load(&q->tail) == next; cnt--) {
+    for (int cnt = (int)(timeout / (double)WAIT_MSECS * 1000.0); atomic_load(&q->tail) == next; cnt--) {
+	struct pollfd	pa;
+
 	if (cnt <= 0) {
 	    if (q->multi_pop) {
 		atomic_flag_clear(&q->pop_lock);
 	    }
 	    return NULL;
 	}
-	dsleep(RETRY_SECS);
+	pa.fd = queue_listen(q);
+	pa.events = POLLIN;
+	pa.revents = 0;
+	if (0 < poll(&pa, 1, WAIT_MSECS)) {
+	    queue_release(q);
+	}
     }
     atomic_store(&q->head, next);
 

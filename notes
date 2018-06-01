@@ -6,6 +6,8 @@
 rdoc -t Agoo -m README.md -x "test/*" -x "example/*" -x extconf.rb
 use nice -n19 perfer when on same machine
 
+- log.c and queue.c
+ - deal with the TBD and use polling instead of busy wait
 
 - remote cluster
  - worker server

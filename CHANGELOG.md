@@ -4,6 +4,8 @@
 
 - Corrected header bug where a `:` in the value would cause an incorrect header key and value.
 
+- Improved idle CPU use.
+
 ### 2.2.0 - 2018-05-30
 
 - Clustering now supported with forked workers making Agoo even faster.

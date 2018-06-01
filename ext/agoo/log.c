@@ -1,6 +1,8 @@
 // Copyright 2018 by Peter Ohler, All Rights Reserved
 
 #include <dirent.h>
+#include <fcntl.h>
+#include <poll.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -8,6 +10,7 @@
 #include <sys/time.h>
 #include <sys/types.h>
 #include <time.h>
+#include <unistd.h>
 
 #include "debug.h"
 #include "dtime.h"
@@ -15,6 +18,7 @@
 
 // lower gives faster response but burns more CPU. This is a reasonable compromise.
 #define RETRY_SECS	0.0001
+#define WAIT_MSECS	100
 #define NOT_WAITING	0
 #define WAITING		1
 #define NOTIFIED	2
@@ -90,11 +94,37 @@ log_queue_empty() {
     return false;
 }
 
+static int
+log_listen() {
+    if (0 == the_log.rsock) {
+	int	fd[2];
+
+	if (0 == pipe(fd)) {
+	    fcntl(fd[0], F_SETFL, O_NONBLOCK);
+	    fcntl(fd[1], F_SETFL, O_NONBLOCK);
+	    the_log.rsock = fd[0];
+	    the_log.wsock = fd[1];
+	}
+    }
+    atomic_store(&the_log.wait_state, WAITING);
+    
+    return the_log.rsock;
+}
+
+static void
+log_release() {
+    char	buf[8];
+
+    // clear pipe
+    while (0 < read(the_log.rsock, buf, sizeof(buf))) {
+    }
+    atomic_store(&the_log.wait_state, NOT_WAITING);
+}
+
 static LogEntry
 log_queue_pop(double timeout) {
     LogEntry	e = the_log.head;
     LogEntry	next;
-
     if (e->ready) {
 	return e;
     }
@@ -103,12 +133,20 @@ log_queue_pop(double timeout) {
 	next = the_log.q;
     }
     // If the next is the tail then wait for something to be appended.
-    for (int cnt = (int)(timeout / RETRY_SECS); atomic_load(&the_log.tail) == next; cnt--) {
-	// TBD poll would be better
+    for (int cnt = (int)(timeout / (double)WAIT_MSECS * 1000.0); atomic_load(&the_log.tail) == next; cnt--) {
+	struct pollfd	pa;
+
 	if (cnt <= 0) {
 	    return NULL;
 	}
-	dsleep(RETRY_SECS);
+	pa.fd = log_listen();
+	pa.events = POLLIN;
+	pa.revents = 0;
+	if (0 < poll(&pa, 1, WAIT_MSECS)) {
+	    log_release();
+	}
+	// TBD
+	//dsleep((double)WAIT_MSECS / 1000.0);
     }
     atomic_store(&the_log.head, next);
 
@@ -313,6 +351,7 @@ open_log_file() {
     if (the_log.max_size <= the_log.size) {
 	log_rotate();
     }
+    // TBD open rscok and wsock
 }
 
 void
@@ -937,6 +976,7 @@ log_start(bool with_pid) {
     if (NULL != the_log.file) {
 	fclose(the_log.file);
 	the_log.file = NULL;
+	// TBD close rsock and wsock
     }
     the_log.with_pid = with_pid;
     if (with_pid && '\0' != *the_log.dir) {
