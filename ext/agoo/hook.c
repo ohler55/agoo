@@ -62,6 +62,8 @@ hook_create(Method method, const char *pattern, VALUE handler) {
 	hook->next = NULL;
 	if (T_STRING == rb_type(handler)) {
 	    handler = resolve_classpath(StringValuePtr(handler), RSTRING_LEN(handler));
+	    // TBD does class handle it or should an instance be made?
+	    //  
 	}
 	hook->handler = handler;
 	rb_gc_register_address(&handler);

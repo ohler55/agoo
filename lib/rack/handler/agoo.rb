@@ -15,7 +15,7 @@ module Rack
       #
       #   - *:port [_Integer_] port to listen on
       #   - *:root [_String_] root or public directory for static assets
-      #   - *:rmux [_true_|_false_] if true look in the root directory first before calling Ruby hooks
+      #   - *:root_first [_true_|_false_] if true look in the root directory first before calling Ruby hooks
       #   - *:wc* [_Integer_] number of workers to fork. Defaults to one which is not to fork.
       #   - */path=MyHandler* path and class name to handle requests on that path
       def self.run(handler, options={})
@@ -40,7 +40,7 @@ module Rack
 	  elsif :wc == k
 	    worker_count = v.to_i
 	    options.delete(k)
-	  elsif :rmux == k
+	  elsif :rmux == k || :root_first == k || :f == k
             options[:root_first] = false
 	  elsif k.nil?
 	    not_found_handler = v

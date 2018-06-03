@@ -22,10 +22,17 @@ Usage: agoo [options] [<handler_class>@<path>]...
 
 version #{Agoo::VERSION}
 
-Agoo is a Ruby web server. It can be run as a standalone application using this
-application. The handler/class arguments must have the form of <class>@<path>
-where the class is the Ruby class where the new method takes not arguments and
-has either a call() method or a on_request() method.
+Agoo is a Ruby web server. It can be run as a standalone application using
+this application. The handler/class arguments must have the form of
+<path>@<class> where the class is a Ruby class and the path is the URL path
+that will be directed to the class or an instance of the class provided. If
+the class implements a call() or on_request() method it will be used directly
+otherwise an instance of the class will be created. The new method mut take no
+arguments and have either a call() method or a on_request() method.
+
+Example:
+
+  agoo -I example -r simple /simple@Simple
 
 }
 
@@ -36,47 +43,62 @@ has either a call() method or a on_request() method.
 @classic = true
 @console = true
 @colorize = true
+@threads = 0
+@workers = 0
+@first = false
 
 @opts = OptionParser.new(usage)
-@opts.on('-h', '--help', 'Show this display.')                                 { puts @opts.help; Process.exit!(0) }
-@opts.on('-s', '--silent', 'Silent.')                                          { @verbose = 0 }
-@opts.on('-v', '--verbose', 'Increase verbosity.')                             { @verbose += 1 }
-@opts.on('-p', '--port PORT', Integer, 'Port to listen on.')                   { |p| @port = p }
-@opts.on('-d', '--dir DIR', String, 'Directory to serve static assets from.')  { |d| @root = d }
-@opts.on('-r', '--require FILE', String, 'Ruby require.')                      { |r| require r }
-@opts.on('--log.dir DIR', String, 'Log file directory.')                       { |d| @log_dir = d }
-@opts.on('--[no-]log.classic', 'Classic log entries instead of JSON.')         { |b| @classic = b }
-@opts.on('--[no-]log.console', 'Display log entries on the console.')          { |b| @console = b }
-@opts.on('--[no-]log.colorize', 'Display log entries in color.')               { |b| @colorize = b }
+@opts.on('-h', '--help', 'Show this display.')                                       { puts @opts.help; Process.exit!(0) }
+@opts.on('-s', '--silent', 'Silent.')                                                { @verbose = 0 }
+@opts.on('-v', '--verbose', 'Increase verbosity.')                                   { @verbose += 1 }
+@opts.on('-f', '--root_first', 'Check the root directory before the handle paths.')  { @first = true }
+@opts.on('-p', '--port PORT', Integer, 'Port to listen on.')                         { |p| @port = p }
+@opts.on('-d', '--dir DIR', String, 'Directory to serve static assets from.')        { |d| @root = d }
+@opts.on('-r', '--require FILE', String, 'Ruby require.')                            { |r| require r }
+@opts.on('-t', '--threads COUNT', Integer, 'Number of threads to use.')              { |t| @threads = t }
+@opts.on('-w', '--workers COUNT', Integer, 'Number of workers to use.')              { |w| @workers = w }
+@opts.on('--log.dir DIR', String, 'Log file directory.')                             { |d| @log_dir = d }
+@opts.on('--[no-]log.classic', 'Classic log entries instead of JSON.')               { |b| @classic = b }
+@opts.on('--[no-]log.console', 'Display log entries on the console.')                { |b| @console = b }
+@opts.on('--[no-]log.colorize', 'Display log entries in color.')                     { |b| @colorize = b }
 
 handler_paths = @opts.parse(ARGV)
 
-server = Agoo::Server.new(@port, @root,
-			  log_dir: @log_dir,
-			  thread_count: 0,
-			  log_console: @console,
-			  log_classic: @classic,
-			  log_colorize: @colorize,
-			  log_states: {
-			    INFO: 1 <= @verbose,
-			    DEBUG: 3 <= @verbose,
-			    connect: 2 <= @verbose,
-			    request: 2 <= @verbose,
-			    response: 2 <= @verbose,
-			    eval: 2 <= @verbose,
-			  })
+@threads = 0 if @threads < 0
+@workers = 1 if @workers < 1
+  
+Agoo::Log.configure(dir: @log_dir,
+		    console: @console,
+		    classic: @classic,
+		    colorize: @colorize,
+		    states: {
+		      INFO: 1 <= @verbose,
+		      DEBUG: 3 <= @verbose,
+		      connect: 2 <= @verbose,
+		      request: 2 <= @verbose,
+		      response: 2 <= @verbose,
+		      eval: 2 <= @verbose,
+		      push: 2 <= @verbose,
+		    })
+
+Agoo::Server.init(@port, @root, thread_count: @threads, worker_count: @workers, root_first: @first)
+
 puts "Agoo #{Agoo::VERSION} is listening on port #{@port}. Path mappings are:" if 1 <= @verbose
 
 handler_paths.each { |hp|
-  classname, path = hp.split('@')
+  path, classname = hp.split('@')
   if classname.nil? || path.nil? || classname.empty? || path.empty?
     raise "Invalid handler/path specification. Both a class and path must be present."
   end
   c = Object.const_get(classname)
-  server.handle(nil, path, c.new)
+  if c.respond_to?(:call) || c.respond_to?(:on_request)
+    Agoo::Server.handle(nil, path, c)
+  else
+    Agoo::Server.handle(nil, path, c.new)
+  end
   if 1 <= @verbose
     puts "  #{path} => #{classname}"
   end
 }
 
-server.start()
+Agoo::Server.start()
