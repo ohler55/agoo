@@ -20,13 +20,7 @@ use nice -n19 perfer when on same machine
  - cd example && ruby memx.rb
   - memory and performance with perfer, multiple workers
 
-- fix bin/agoo
 - misc/optimize.md
- - describe de-multiplexing
- - what is already done for rails and rack, option to turn off/on
- - path/handlers
-  - configuring on command line
-  - configuring in ruby file
 
 - remote cluster
  - worker server

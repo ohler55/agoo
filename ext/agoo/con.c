@@ -272,15 +272,9 @@ con_header_read(Con c) {
 	    return bad_request(c, 500, __LINE__);
 	}
 	return -mlen;
-
-	// TBD int hook_or_page(method, path, pend, &hook)
-	//  return http status
-	//  0 is not handled
-	//  200 means taken care of
-	//  default (over 200) call bad_request
     }
     if (GET == method && the_server.root_first &&
-	       NULL != (p = page_get(&err, &the_server.pages, path, (int)(pend - path)))) {
+	NULL != (p = page_get(&err, &the_server.pages, path, (int)(pend - path)))) {
 	if (page_response(c, p, hend)) {
 	    return bad_request(c, 500, __LINE__);
 	}

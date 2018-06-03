@@ -101,4 +101,8 @@ handler_paths.each { |hp|
   end
 }
 
+if handler_paths.empty?
+  puts "Agoo is only serving static files in '#{@root}'."
+end
+
 Agoo::Server.start()

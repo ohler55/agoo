@@ -318,6 +318,9 @@ update_contents(Cache cache, Page p) {
 	    break;
 	}
     }
+    if (suffix <= p->path) {
+	suffix = NULL;
+    }
     if (NULL != suffix) {
 	suffix++;
 	if (NULL == (mime = mime_get(cache, suffix))) {
