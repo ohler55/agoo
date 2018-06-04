@@ -1,5 +1,5 @@
 
-require 'agoo'
+require 'agoo' unless defined?(Agoo)
 
 # Grand parent for the Agoo rack handler.
 module Rack
@@ -56,8 +56,8 @@ module Rack
 	options[:thread_count] = 0
 	options[:worker_count] = worker_count
 	::Agoo::Server.init(port, root, options)
-	path_map.each { |path,handler|
-			::Agoo::Server.handle(nil, path, handler)
+	path_map.each { |path,h|
+			::Agoo::Server.handle(nil, path, h)
 	}
         begin
           # If Rails is loaded this should work else just ignore.
