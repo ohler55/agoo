@@ -157,9 +157,9 @@ mime_set(Cache cache, const char *key, const char *value) {
     }
     for (s = *bucket; NULL != s; s = s->next) {
 	if (h == (int64_t)s->hash && len == s->klen &&
-	    ((0 <= len && len <= MAX_KEY_UNIQ) || 0 == strcmp(s->key, key))) {
+	    ((0 <= len && len <= MAX_KEY_UNIQ) || 0 == strncmp(s->key, key, len))) {
 	    if (h == (int64_t)s->hash && len == s->klen &&
-		((0 <= len && len <= MAX_KEY_UNIQ) || 0 == strcmp(s->key, key))) {
+		((0 <= len && len <= MAX_KEY_UNIQ) || 0 == strncmp(s->key, key, len))) {
 		DEBUG_FREE(mem_mime_slot, s->value)
 		free(s->value);
 		s->value = strdup(value);
@@ -196,9 +196,9 @@ cache_set(Cache cache, const char *key, int klen, Page value) {
     }
     for (s = *bucket; NULL != s; s = s->next) {
 	if (h == (int64_t)s->hash && len == s->klen &&
-	    ((0 <= len && len <= MAX_KEY_UNIQ) || 0 == strcmp(s->key, key))) {
+	    ((0 <= len && len <= MAX_KEY_UNIQ) || 0 == strncmp(s->key, key, len))) {
 	    if (h == (int64_t)s->hash && len == s->klen &&
-		((0 <= len && len <= MAX_KEY_UNIQ) || 0 == strcmp(s->key, key))) {
+		((0 <= len && len <= MAX_KEY_UNIQ) || 0 == strncmp(s->key, key, len))) {
 		old = s->value;
 		// replace
 		s->value = value;
@@ -216,7 +216,8 @@ cache_set(Cache cache, const char *key, int klen, Page value) {
     if (NULL == key) {
 	*s->key = '\0';
     } else {
-	strcpy(s->key, key);
+	strncpy(s->key, key, len);
+	s->key[len] = '\0';
     }
     s->value = value;
     s->next = *bucket;
@@ -372,6 +373,7 @@ update_contents(Cache cache, Page p) {
 	return false;
     }
     rewind(f);
+
     // Format size plus space for the length, the mime type, and some
     // padding. Then add the content length.
     msize = sizeof(page_fmt) + 60 + size;
