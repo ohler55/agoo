@@ -1,10 +1,12 @@
 # CHANGELOG
 
-### 2.2.2 - 2018-06-02
+### 2.2.2 - 2018-06-05
 
 - Fixed `bin/agoo` which had become out of date.
 
 - Added optimization description in `misc/optimize.md`.
+
+- Fixed static file asset page caching bug.
 
 ### 2.2.1 - 2018-05-31
 
