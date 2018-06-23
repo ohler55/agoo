@@ -126,7 +126,7 @@ ws_calc_len(Con c, uint8_t *buf, size_t cnt) {
     uint64_t	plen;
 
     if (0 == (0x80 & *b)) {
-	log_cat(&error_cat, "FIN must be 1. Websocket continuation not implemented on connection %llu.", c->id);
+	log_cat(&error_cat, "FIN must be 1. Websocket continuation not implemented on connection %llu.", (unsigned long long)c->id);
 	return -1;
     }
     b++;
@@ -213,7 +213,7 @@ ws_ping(Con c) {
     Res	res;
     
     if (NULL == (res = res_create(c))) {
-	log_cat(&error_cat, "Memory allocation of response failed on connection %llu.", c->id);
+	log_cat(&error_cat, "Memory allocation of response failed on connection %llu.", (unsigned long long)c->id);
     } else {
 	if (NULL == c->res_tail) {
 	    c->res_head = res;
@@ -232,7 +232,7 @@ ws_pong(Con c) {
     Res	res;
     
     if (NULL == (res = res_create(c))) {
-	log_cat(&error_cat, "Memory allocation of response failed on connection %llu.", c->id);
+	log_cat(&error_cat, "Memory allocation of response failed on connection %llu.", (unsigned long long)c->id);
     } else {
 	if (NULL == c->res_tail) {
 	    c->res_head = res;

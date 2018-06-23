@@ -7,11 +7,11 @@
 
 #include "debug.h"
 #include "error_stream.h"
-#include "log.h"
 #include "pub.h"
 #include "rack_logger.h"
 #include "request.h"
 #include "response.h"
+#include "rlog.h"
 #include "server.h"
 #include "upgraded.h"
 
@@ -89,7 +89,7 @@ void
 Init_agoo() {
     VALUE	mod = rb_define_module("Agoo");
 
-    log_init(mod);
+    rlog_init(mod);
     error_stream_init(mod);
     rack_logger_init(mod);
     request_init(mod);

@@ -3,15 +3,11 @@
 #ifndef __AGOO_LOG_H__
 #define __AGOO_LOG_H__
 
-#include <netdb.h>
 #include <pthread.h>
 #include <stdarg.h>
 #include <stdatomic.h>
 #include <stdbool.h>
 #include <stdint.h>
-#include <stdio.h>
-
-#include <ruby.h>
 
 #include "err.h"
 
@@ -89,6 +85,8 @@ struct _Log {
     atomic_int		wait_state;
     int			rsock;
     int			wsock;
+
+    void		(*on_error)(Err err);
 };
 
 extern struct _Log	the_log;
@@ -103,7 +101,8 @@ extern struct _LogCat	resp_cat;
 extern struct _LogCat	eval_cat;
 extern struct _LogCat	push_cat;
 
-extern void	log_init(VALUE mod);
+extern void	log_init();
+extern void	open_log_file();
 
 extern void	log_close();
 extern bool	log_flush(double timeout);
@@ -118,5 +117,7 @@ extern void	log_cat(LogCat cat, const char *fmt, ...);
 extern void	log_catv(LogCat cat, const char *fmt, va_list ap);
 
 extern void	log_start(bool with_pid);
+
+extern Color	find_color(const char *name);
 
 #endif /* __AGOO_LOG_H__ */

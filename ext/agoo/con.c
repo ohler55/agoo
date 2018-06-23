@@ -1,6 +1,8 @@
 // Copyright (c) 2018, Peter Ohler, All rights reserved.
 
 #include <ctype.h>
+#include <netdb.h>
+#include <stdio.h>
 #include <string.h>
 
 #include "con.h"
@@ -95,7 +97,7 @@ bad_request(Con c, int status, int line) {
     const char *msg = http_code_message(status);
     
     if (NULL == (res = res_create(c))) {
-	log_cat(&error_cat, "memory allocation of response failed on connection %llu @ %d.", c->id, line);
+	log_cat(&error_cat, "memory allocation of response failed on connection %llu @ %d.", (unsigned long long)c->id, line);
     } else {
 	char	buf[256];
 	int	cnt = snprintf(buf, sizeof(buf), "HTTP/1.1 %d %s\r\nConnection: Close\r\nContent-Length: 0\r\n\r\n", status, msg);
@@ -177,7 +179,7 @@ con_header_read(Con c) {
     }
     if (req_cat.on) {
 	*hend = '\0';
-	log_cat(&req_cat, "%llu: %s", c->id, c->buf);
+	log_cat(&req_cat, "%llu: %s", (unsigned long long)c->id, c->buf);
 	*hend = '\r';
     }
     for (b = c->buf; ' ' != *b; b++) {
@@ -388,7 +390,7 @@ con_http_read(Con c) {
 	// If nothing read then no need to complain. Just close.
 	if (0 < c->bcnt) {
 	    if (0 == cnt) {
-		log_cat(&warn_cat, "Nothing to read. Client closed socket on connection %llu.", c->id);
+		log_cat(&warn_cat, "Nothing to read. Client closed socket on connection %llu.", (unsigned long long)c->id);
 	    } else {
 		log_cat(&warn_cat, "Failed to read request. %s.", strerror(errno));
 	    }
@@ -426,11 +428,11 @@ con_http_read(Con c) {
 		long	mlen;
 
 		if (debug_cat.on && NULL != c->req && NULL != c->req->body.start) {
-		    log_cat(&debug_cat, "request on %llu: %s", c->id, c->req->body.start);
+		    log_cat(&debug_cat, "request on %llu: %s", (unsigned long long)c->id, c->req->body.start);
 		}
 		if (NULL == (res = res_create(c))) {
 		    c->req = NULL;
-		    log_cat(&error_cat, "memory allocation of response failed on connection %llu.", c->id);
+		    log_cat(&error_cat, "memory allocation of response failed on connection %llu.", (unsigned long long)c->id);
 		    return bad_request(c, 500, __LINE__);
 		} else {
 		    if (NULL == c->res_tail) {
@@ -483,7 +485,7 @@ con_ws_read(Con c) {
 	// If nothing read then no need to complain. Just close.
 	if (0 < c->bcnt) {
 	    if (0 == cnt) {
-		log_cat(&warn_cat, "Nothing to read. Client closed socket on connection %llu.", c->id);
+		log_cat(&warn_cat, "Nothing to read. Client closed socket on connection %llu.", (unsigned long long)c->id);
 	    } else {
 		log_cat(&warn_cat, "Failed to read WebSocket message. %s.", strerror(errno));
 	    }
@@ -518,7 +520,7 @@ con_ws_read(Con c) {
 		break;
 	    case WS_OP_CONT:
 	    default:
-		log_cat(&error_cat, "WebSocket op 0x%02x not supported on %llu.", op, c->id);
+		log_cat(&error_cat, "WebSocket op 0x%02x not supported on %llu.", op, (unsigned long long)c->id);
 		return true;
 	    }
 	}
@@ -528,9 +530,9 @@ con_ws_read(Con c) {
 	    if (mlen <= (long)c->bcnt) {
 		if (debug_cat.on) {
 		    if (ON_MSG == c->req->method) {
-			log_cat(&debug_cat, "WebSocket message on %llu: %s", c->id, c->req->msg);
+			log_cat(&debug_cat, "WebSocket message on %llu: %s", (unsigned long long)c->id, c->req->msg);
 		    } else {
-			log_cat(&debug_cat, "WebSocket binary message on %llu", c->id);
+			log_cat(&debug_cat, "WebSocket binary message on %llu", (unsigned long long)c->id);
 		    }
 		}
 	    }
@@ -587,17 +589,17 @@ con_http_write(Con c) {
 	    }
 	    memcpy(buf, message->text, hend - message->text);
 	    buf[hend - message->text] = '\0';
-	    log_cat(&resp_cat, "%llu: %s", c->id, buf);
+	    log_cat(&resp_cat, "%llu: %s", (unsigned long long)c->id, buf);
 	}
 	if (debug_cat.on) {
-	    log_cat(&debug_cat, "response on %llu: %s", c->id, message->text);
+	    log_cat(&debug_cat, "response on %llu: %s", (unsigned long long)c->id, message->text);
 	}
     }
     if (0 > (cnt = send(c->sock, message->text + c->wcnt, message->len - c->wcnt, 0))) {
 	if (EAGAIN == errno) {
 	    return false;
 	}
-	log_cat(&error_cat, "Socket error @ %llu.", c->id);
+	log_cat(&error_cat, "Socket error @ %llu.", (unsigned long long)c->id);
 
 	return true;
     }
@@ -633,7 +635,7 @@ con_ws_write(Con c) {
 		if (EAGAIN == errno) {
 		    return false;
 		}
-		log_cat(&error_cat, "Socket error @ %llu.", c->id);
+		log_cat(&error_cat, "Socket error @ %llu.", (unsigned long long)c->id);
 		ws_req_close(c);
 		res_destroy(res);
 	
@@ -644,7 +646,7 @@ con_ws_write(Con c) {
 		if (EAGAIN == errno) {
 		    return false;
 		}
-		log_cat(&error_cat, "Socket error @ %llu.", c->id);
+		log_cat(&error_cat, "Socket error @ %llu.", (unsigned long long)c->id);
 		ws_req_close(c);
 		res_destroy(res);
 	
@@ -671,9 +673,9 @@ con_ws_write(Con c) {
 	
 	if (push_cat.on) {
 	    if (message->bin) {
-		log_cat(&push_cat, "%llu binary", c->id);
+		log_cat(&push_cat, "%llu binary", (unsigned long long)c->id);
 	    } else {
-		log_cat(&push_cat, "%llu: %s", c->id, message->text);
+		log_cat(&push_cat, "%llu: %s", (unsigned long long)c->id, message->text);
 	    }
 	}
 	t = ws_expand(message);
@@ -686,7 +688,7 @@ con_ws_write(Con c) {
 	if (EAGAIN == errno) {
 	    return false;
 	}
-	log_cat(&error_cat, "Socket error @ %llu.", c->id);
+	log_cat(&error_cat, "Socket error @ %llu.", (unsigned long long)c->id);
 	ws_req_close(c);
 	
 	return true;
@@ -736,7 +738,7 @@ con_sse_write(Con c) {
 	Text	t;
 	
 	if (push_cat.on) {
-	    log_cat(&push_cat, "%llu: %s", c->id, message->text);
+	    log_cat(&push_cat, "%llu: %s", (unsigned long long)c->id, message->text);
 	}
 	t = sse_expand(message);
 	if (t != message) {
@@ -748,7 +750,7 @@ con_sse_write(Con c) {
 	if (EAGAIN == errno) {
 	    return false;
 	}
-	log_cat(&error_cat, "Socket error @ %llu.", c->id);
+	log_cat(&error_cat, "Socket error @ %llu.", (unsigned long long)c->id);
 	ws_req_close(c);
 	
 	return true;
@@ -1073,9 +1075,9 @@ con_loop(void *x) {
 	    if (0 != (pp->revents & (POLLERR | POLLHUP | POLLNVAL))) {
 		if (0 < c->bcnt) {
 		    if (0 != (pp->revents & (POLLHUP | POLLNVAL))) {
-			log_cat(&error_cat, "Socket %llu closed.", c->id);
+			log_cat(&error_cat, "Socket %llu closed.", (unsigned long long)c->id);
 		    } else if (!c->closing) {
-			log_cat(&error_cat, "Socket %llu error. %s", c->id, strerror(errno));
+			log_cat(&error_cat, "Socket %llu error. %s", (unsigned long long)c->id, strerror(errno));
 		    }
 		}
 		c->dead = true;
@@ -1113,7 +1115,7 @@ con_loop(void *x) {
 		prev->next = next;
 	    }
 	    ccnt--;
-	    log_cat(&con_cat, "Connection %llu closed.", c->id);
+	    log_cat(&con_cat, "Connection %llu closed.", (unsigned long long)c->id);
 	    con_destroy(c);
 	}
     }
