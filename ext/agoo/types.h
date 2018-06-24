@@ -4,25 +4,6 @@
 #define __AGOO_TYPES_H__
 
 typedef enum {
-    CONNECT	= 'C',
-    DELETE	= 'D',
-    GET		= 'G',
-    HEAD	= 'H',
-    OPTIONS	= 'O',
-    POST	= 'P',
-    PUT		= 'U',
-    PATCH	= 'T',
-    ALL		= 'A',
-    NONE	= '\0',
-
-    ON_MSG	= 'M', // use for on_message callback
-    ON_BIN	= 'B', // use for on_message callback with binary (ASCII8BIT)
-    ON_CLOSE	= 'X', // use for on_close callback
-    ON_SHUTDOWN	= 'S', // use for on_shotdown callback
-    ON_EMPTY	= 'E', // use for on_drained callback
-} Method;
-
-typedef enum {
     CON_ANY	= '\0',
     CON_HTTP	= 'H',
     CON_WS	= 'W',

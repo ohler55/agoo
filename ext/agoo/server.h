@@ -9,7 +9,7 @@
 
 #include <ruby.h>
 
-#include "hook.h"
+#include "rhook.h"
 #include "log.h"
 #include "page.h"
 #include "queue.h"

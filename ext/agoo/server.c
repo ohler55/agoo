@@ -917,7 +917,7 @@ handle(VALUE self, VALUE method, VALUE pattern, VALUE handler) {
     } else {
 	rb_raise(rb_eArgError, "invalid method");
     }
-    if (NULL == (hook = hook_create(meth, pat, handler))) {
+    if (NULL == (hook = rhook_create(meth, pat, handler))) {
 	rb_raise(rb_eStandardError, "out of memory.");
     } else {
 	Hook	h;
@@ -931,7 +931,7 @@ handle(VALUE self, VALUE method, VALUE pattern, VALUE handler) {
 	} else {
 	    the_server.hooks = hook;
 	}
-	rb_gc_register_address(&hook->handler);
+	rb_gc_register_address((VALUE*)&hook->handler);
     }
     return Qnil;
 }
@@ -945,10 +945,10 @@ handle(VALUE self, VALUE method, VALUE pattern, VALUE handler) {
  */
 static VALUE
 handle_not_found(VALUE self, VALUE handler) {
-    if (NULL == (the_server.hook404 = hook_create(GET, "/", handler))) {
+    if (NULL == (the_server.hook404 = rhook_create(GET, "/", handler))) {
 	rb_raise(rb_eStandardError, "out of memory.");
     }
-    rb_gc_register_address(&the_server.hook404->handler);
+    rb_gc_register_address((VALUE*)&the_server.hook404->handler);
     
     return Qnil;
 }

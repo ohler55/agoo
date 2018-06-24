@@ -3,9 +3,10 @@
 #include <pthread.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <stdlib.h>
 
-#include <ruby.h>
-#include <ruby/thread.h>
+//#include <ruby.h>
+//#include <ruby/thread.h>
 
 #include "debug.h"
 

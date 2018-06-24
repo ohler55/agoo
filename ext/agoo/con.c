@@ -12,6 +12,7 @@
 #include "http.h"
 #include "pub.h"
 #include "res.h"
+#include "seg.h"
 #include "server.h"
 #include "sse.h"
 #include "subject.h"
@@ -160,8 +161,7 @@ static long
 con_header_read(Con c) {
     char	*hend = strstr(c->buf, "\r\n\r\n");
     Method	method;
-    char	*path;
-    char	*pend;
+    struct _Seg	path;
     char	*query = NULL;
     char	*qend;
     char	*b;
@@ -247,11 +247,11 @@ con_header_read(Con c) {
 	    return bad_request(c, 400, __LINE__);
 	}
     }
-    path = b;
+    path.start = b;
     for (; ' ' != *b; b++) {
 	switch (*b) {
 	case '?':
-	    pend = b;
+	    path.end = b;
 	    query = b + 1;
 	    break;
 	case '\0':
@@ -261,7 +261,7 @@ con_header_read(Con c) {
 	}
     }
     if (NULL == query) {
-	pend = b;
+	path.end = b;
 	query = b;
 	qend = b;
     } else {
@@ -269,20 +269,20 @@ con_header_read(Con c) {
     }
     mlen = hend - c->buf + 4 + clen;
     if (GET == method &&
-	NULL != (p = group_get(&err, &the_server.pages, path, (int)(pend - path)))) {
+	NULL != (p = group_get(&err, &the_server.pages, path.start, (int)(path.end - path.start)))) {
 	if (page_response(c, p, hend)) {
 	    return bad_request(c, 500, __LINE__);
 	}
 	return -mlen;
     }
     if (GET == method && the_server.root_first &&
-	NULL != (p = page_get(&err, &the_server.pages, path, (int)(pend - path)))) {
+	NULL != (p = page_get(&err, &the_server.pages, path.start, (int)(path.end - path.start)))) {
 	if (page_response(c, p, hend)) {
 	    return bad_request(c, 500, __LINE__);
 	}
 	return -mlen;
     }
-    if (NULL == (hook = hook_find(the_server.hooks, method, path, pend))) {
+    if (NULL == (hook = hook_find(the_server.hooks, method, &path))) {
 	if (GET == method) {
 	    if (the_server.root_first) { // already checked
 		if (NULL != the_server.hook404) {
@@ -293,7 +293,7 @@ con_header_read(Con c) {
 		}
 		return bad_request(c, 404, __LINE__);
 	    }
-	    if (NULL == (p = page_get(&err, &the_server.pages, path, (int)(pend - path)))) {
+	    if (NULL == (p = page_get(&err, &the_server.pages, path.start, (int)(path.end - path.start)))) {
 		if (NULL != the_server.hook404) {
 		    // There would be too many parameters to pass to a
 		    // separate function so just goto the hook processing.
@@ -325,8 +325,8 @@ HOOKED:
     c->req->method = method;
     c->req->upgrade = UP_NONE;
     c->req->up = NULL;
-    c->req->path.start = c->req->msg + (path - c->buf);
-    c->req->path.len = (int)(pend - path);
+    c->req->path.start = c->req->msg + (path.start - c->buf);
+    c->req->path.len = (int)(path.end - path.start);
     c->req->query.start = c->req->msg + (query - c->buf);
     c->req->query.len = (int)(qend - query);
     c->req->body.start = c->req->msg + (hend - c->buf + 4);
@@ -336,7 +336,7 @@ HOOKED:
     c->req->header.len = (unsigned int)(hend - b - 2);
     c->req->res = NULL;
     if (NULL != hook) {
-	c->req->handler = hook->handler;
+	c->req->handler = (VALUE)hook->handler;
 	c->req->handler_type = hook->type;
     } else {
 	c->req->handler = Qnil;
