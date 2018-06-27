@@ -16,6 +16,7 @@ typedef struct _Upgraded {
     struct _Con		*con;
     VALUE		handler;
     VALUE		wrap;
+    VALUE		env;
     atomic_int		pending;
     atomic_int		ref_cnt;
     struct _Subject	*subjects;
@@ -26,7 +27,7 @@ typedef struct _Upgraded {
 } *Upgraded;
 
 extern void	upgraded_init(VALUE mod);
-extern Upgraded	upgraded_create(struct _Con *c, VALUE obj);
+extern Upgraded	upgraded_create(struct _Con *c, VALUE obj, VALUE env);
 extern void	upgraded_release(Upgraded up);
 extern void	upgraded_release_con(Upgraded up);
 

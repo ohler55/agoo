@@ -74,6 +74,9 @@ server_mark(void *ptr) {
 	if (Qnil != up->handler) {
 	    rb_gc_mark(up->handler);
 	}
+	if (Qnil != up->env) {
+	    rb_gc_mark(up->env);
+	}
 	if (Qnil != up->wrap) {
 	    rb_gc_mark(up->wrap);
 	}
@@ -423,6 +426,15 @@ rescue_error(VALUE x) {
 	res_set_message(req->res, message);
 	queue_wakeup(&the_server.con_queue);
     } else {
+	// TBD should the backtrace be included in the log?
+	volatile VALUE	bt = rb_funcall(info, rb_intern("backtrace"), 0);
+	int		blen = RARRAY_LEN(bt);
+	int		i;
+	VALUE		rline;
+	
+	for (i = 0; i < blen; i++) {
+	    rline = rb_ary_entry(bt, i);
+	}
 	log_cat(&error_cat, "%s: %s", classname, ms);
     }
     return Qfalse;
@@ -585,7 +597,7 @@ handle_rack_inner(void *x) {
 		break;
 	    }
 	    req->handler_type = PUSH_HOOK;
-	    upgraded_create(req->res->con, req->handler);
+	    upgraded_create(req->res->con, req->handler, request_env(req));
 	    t->len = snprintf(t->text, 1024, "HTTP/1.1 101 %s\r\n", status_msg);
 	    t = ws_add_headers(req, t);
 	    break;
@@ -597,7 +609,7 @@ handle_rack_inner(void *x) {
 		break;
 	    }
 	    req->handler_type = PUSH_HOOK;
-	    upgraded_create(req->res->con, req->handler);
+	    upgraded_create(req->res->con, req->handler, request_env(req));
 	    t = sse_upgrade(req, t);
 	    res_set_message(req->res, t);
 	    queue_wakeup(&the_server.con_queue);

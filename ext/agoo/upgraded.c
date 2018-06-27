@@ -334,7 +334,7 @@ protocol(VALUE self) {
 }
 
 Upgraded
-upgraded_create(Con c, VALUE obj) {
+upgraded_create(Con c, VALUE obj, VALUE env) {
     Upgraded	up = (Upgraded)malloc(sizeof(struct _Upgraded));
 
     if (!the_server.active) {
@@ -344,13 +344,14 @@ upgraded_create(Con c, VALUE obj) {
 	DEBUG_ALLOC(mem_upgraded, up);
 	up->con = c;
 	up->handler = obj;
+	up->env = env;
 	atomic_init(&up->pending, 0);
 	atomic_init(&up->ref_cnt, 1); // start with 1 for the Con reference
 	up->on_empty = rb_respond_to(obj, rb_intern("on_drained"));
 	up->on_close = rb_respond_to(obj, rb_intern("on_close"));
 	up->on_shut = rb_respond_to(obj, rb_intern("on_shutdown"));
 	up->on_msg = rb_respond_to(obj, rb_intern("on_message"));
-	up->wrap = Data_Wrap_Struct(upgraded_class, NULL, NULL, up);
+	up->wrap = Data_Wrap_Struct(upgraded_class, NULL, NULL, up); // TBD add mark function
 	up->subjects = NULL;
 	up->prev = NULL;
 	pthread_mutex_lock(&the_server.up_lock);
@@ -374,6 +375,16 @@ upgraded_create(Con c, VALUE obj) {
 // Use the publish from the Agoo module.
 extern VALUE	ragoo_publish(VALUE self, VALUE subject, VALUE message);
 
+static VALUE
+env(VALUE self) {
+    Upgraded	up = get_upgraded(self);
+
+    if (NULL != up) {
+	return up->env;
+    }
+    return Qnil;
+}
+
 /* Document-module: Agoo::Upgraded
  *
  * Adds methods to a handler of WebSocket and SSE connections.
@@ -390,6 +401,7 @@ upgraded_init(VALUE mod) {
     rb_define_method(upgraded_class, "protocol", protocol, 0);
     rb_define_method(upgraded_class, "publish", ragoo_publish, 2);
     rb_define_method(upgraded_class, "open?", up_open, 0);
+    rb_define_method(upgraded_class, "env", env, 0);
 
     on_open_id = rb_intern("on_open");
     to_s_id = rb_intern("to_s");
