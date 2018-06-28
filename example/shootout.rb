@@ -2,14 +2,6 @@
 require 'oj'
 require 'agoo'
 
-# The websocket.html and sse.html are used for this example. After starting
-# open a URL of http://localhost:6464/websocket.html or
-# http://localhost:6464/sse.html.
-
-# The log is configured separately from the server. The log is ready without
-# the configuration step but the default values will be used. All the states
-# are set to true for the example but can be set to false to make the example
-# less verbose.
 Agoo::Log.configure(dir: '',
 		    console: true,
 		    classic: true,
@@ -24,91 +16,41 @@ Agoo::Log.configure(dir: '',
 		      push: false,
 		    })
 
-# Setting the thread count to 0 causes the server to use the current
-# thread. Greater than zero runs the server in a separate thread and the
-# current thread can be used for other tasks as long as it does not exit.
-#Agoo::Server.init(6464, '.', thread_count: 0)
 Agoo::Server.init(6464, '.', thread_count: 0)
 
-# A class to handle published times. It works with both WebSocket and
-# SSE. Only a single instance is needed as the object keeps track of which
-# connections or clients are open.
-class Clock
-  def initialize()
-    @open_cnt = 0
-    @close_cnt = 0
-  end
-
-  def on_open(client)
-    #@open_cnt += 1
-    #puts "--- on_open #{@open_cnt}"
-  end
-
-  def on_close(client)
-    #@close_cnt += 1
-    #puts "--- on_close #{@close_cnt}"
-  end
-
-  def on_drained(client)
-    #puts "--- on_drained"
-  end
-
-  def on_message(client, data)
-    #puts "--- on_message #{data}"
-    
-    cmd, payload = Oj.load(data).values_at('type', 'payload')
-    if cmd == 'echo'
-      #write({type: 'echo', payload: payload}.to_json)
-      #client.write(Oj.dump({type: "echo", payload: payload}, mode: :strict))
-      client.write(data)
-    else
-      # data = {type: 'broadcast', payload: payload}.to_json
-      # broadcast :push2client, data
-      #publish(channel: "shootout", message: ({type: 'broadcast', payload: payload}.to_json))
-      client.write(Oj.dump({type: "broadcastResult", payload: payload}, mode: :strict))
-      #client.write(Oj.dump({type: "broadcast", payload: payload}, mode: :strict))
-    end
-  end
-
-end
-
-# Reuse the tick_tock instance.
-$clock = Clock.new
-
-# Used for both SSE and WebSocket connections. WebSocket requests are
-# detected by an env['rack.upgrade?'] value of :websocket while an SSE
-# connection is detected by an env['rack.upgrade?'] value of :sse.  In both
-# cases a Push handler should be created and returned by setting
-# env['rack.upgrade'] to the new object or handler. The handler will be
-# extended to have a 'write' method as well as a 'pending' and a 'close'
-# method.
+# Keep it simple and just use the class since the use is stateless.
 class Listen
-  # Only used for WebSocket or SSE upgrades.
-  def call(env)
+  def self.call(env)
     unless env['rack.upgrade?'].nil?
-      env['rack.upgrade'] = $clock
+      env['rack.upgrade'] = self
       [ 200, { }, [ ] ]
     else
       [ 404, { }, [ ] ]
     end
   end
+
+  def self.on_open(client)
+    client.subscribe('shootout')
+  end
+
+  def self.on_close(client)
+    client.unsubscribe('shootout')
+  end
+
+  def self.on_message(client, data)
+    cmd, payload = Oj.load(data).values_at('type', 'payload')
+    if cmd == 'echo'
+      client.write(data)
+    else
+      # data = {type: 'broadcast', payload: payload}.to_json
+      Agoo.publish('shootout', Oj.dump({type: "broadcast", payload: payload}, mode: :strict))
+      client.write(Oj.dump({type: "broadcastResult", payload: payload}, mode: :strict))
+    end
+  end
 end
 
-# Register the handler before calling start. Agoo allows for de-multiplexing at
-# the server instead of in the call() method.
-Agoo::Server.handle(:GET, "/upgrade", Listen.new)
-
-# With a thread_count greater than 0 the call to start returns after creating
-# a server thread. If the count is 0 then the call only returned when the
-# server is shutdown.
+Agoo::Server.handle(:GET, "/upgrade", Listen)
 Agoo::Server.start()
 
-# This example does not use the config.ru approach as the Agoo de-multiplexer
-# is used to support several different connection types instead of
-# de-multiplexing in the #call method.
-
-# To run this example:
-# ruby push.rb
-
-# After starting open a URL of http://localhost:6464/websocket.html or
-# http://localhost:6464/sse.html.
+# To run this with the shootout benchmarking tool:
+# ruby shootout.rb
