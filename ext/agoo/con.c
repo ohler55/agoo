@@ -513,10 +513,16 @@ con_ws_read(Con c) {
 	    case WS_OP_CLOSE:
 		return true;
 	    case WS_OP_PING:
-		ws_pong(c);
+		if (mlen == (long)c->bcnt) {
+		    ws_pong(c);
+		    c->bcnt = 0;
+		}
 		break;
 	    case WS_OP_PONG:
 		// ignore
+		if (mlen == (long)c->bcnt) {
+		    c->bcnt = 0;
+		}
 		break;
 	    case WS_OP_CONT:
 	    default:
@@ -697,7 +703,6 @@ con_ws_write(Con c) {
     if (c->wcnt == message->len) { // finished
 	Res	res = c->res_head;
 	bool	done = res->close;
-	int	pending;
 	
 	c->res_head = res->next;
 	if (res == c->res_tail) {
@@ -705,18 +710,7 @@ con_ws_write(Con c) {
 	}
 	c->wcnt = 0;
 	res_destroy(res);
-	if (1 == (pending = atomic_fetch_sub(&c->up->pending, 1))) {
-	    if (NULL != c->up && Qnil != c->up->handler && c->up->on_empty) {
-		Req	req = request_create(0);
-	    
-		req->up = c->up;
-		req->method = ON_EMPTY;
-		req->handler_type = PUSH_HOOK;
-		req->handler = c->up->handler;
-		upgraded_ref(c->up);
-		queue_push(&the_server.eval_queue, (void*)req);
-	    }
-	}
+
 	return done;
     }
     return false;
@@ -759,7 +753,6 @@ con_sse_write(Con c) {
     if (c->wcnt == message->len) { // finished
 	Res	res = c->res_head;
 	bool	done = res->close;
-	int	pending;
 	
 	c->res_head = res->next;
 	if (res == c->res_tail) {
@@ -767,18 +760,7 @@ con_sse_write(Con c) {
 	}
 	c->wcnt = 0;
 	res_destroy(res);
-	if (1 == (pending = atomic_fetch_sub(&c->up->pending, 1))) {
-	    if (NULL != c->up && Qnil != c->up->handler && c->up->on_empty) {
-		Req	req = request_create(0);
-	    
-		req->up = c->up;
-		req->method = ON_EMPTY;
-		req->handler_type = PUSH_HOOK;
-		req->handler = c->up->handler;
-		upgraded_ref(c->up);
-		queue_push(&the_server.eval_queue, (void*)req);
-	    }
-	}
+
 	return done;
     }
     return false;
@@ -818,7 +800,8 @@ static void
 publish_pub(Pub pub) {
     Upgraded	up;
     const char	*sub = pub->subject->pattern;
-
+    int	cnt = 0;
+    
     for (up = the_server.up_list; NULL != up; up = up->next) {
 	if (NULL != up->con && upgraded_match(up, sub)) {
 	    Res	res = res_create(up->con);
@@ -832,6 +815,7 @@ publish_pub(Pub pub) {
 		up->con->res_tail = res;
 		res->con_kind = CON_ANY;
 		res_set_message(res, text_dup(pub->msg));
+		cnt++;
 	    }
 	}
     }
@@ -854,6 +838,23 @@ static void
 process_pub_con(Pub pub) {
     Upgraded	up = pub->up;
 
+    if (NULL != up) {
+	int	pending;
+	
+	// TBD Change pending to be based on length of con queue
+	if (1 == (pending = atomic_fetch_sub(&up->pending, 1))) {
+	    if (NULL != up && Qnil != up->handler && up->on_empty) {
+		Req	req = request_create(0);
+	    
+		req->up = up;
+		req->method = ON_EMPTY;
+		req->handler_type = PUSH_HOOK;
+		req->handler = up->handler;
+		upgraded_ref(up);
+		queue_push(&the_server.eval_queue, (void*)req);
+	    }
+	}
+    }
     switch (pub->kind) {
     case PUB_CLOSE:
 	// An close after already closed is used to decrement the reference

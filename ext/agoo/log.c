@@ -350,7 +350,7 @@ open_log_file() {
     if (the_log.max_size <= the_log.size) {
 	log_rotate();
     }
-    // TBD open rscok and wsock
+    // TBD open rsock and wsock
 }
 
 void

@@ -1,5 +1,11 @@
 # CHANGELOG
 
+### 2.3.0 - 2018-06-29
+
+- Added an `env` method to the upgrade (Websocket and SSE) client.
+
+- Fixed Websocket bug where a pong caused a hang on the socket.
+
 ### 2.2.2 - 2018-06-05
 
 - Fixed `bin/agoo` which had become out of date.

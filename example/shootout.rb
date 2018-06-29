@@ -49,7 +49,7 @@ class Listen
   end
 end
 
-Agoo::Server.handle(:GET, "/upgrade", Listen)
+Agoo::Server.handle(:GET, "/ws", Listen)
 Agoo::Server.start()
 
 # To run this with the shootout benchmarking tool:

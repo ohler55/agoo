@@ -427,6 +427,7 @@ rescue_error(VALUE x) {
 	queue_wakeup(&the_server.con_queue);
     } else {
 	// TBD should the backtrace be included in the log?
+/*
 	volatile VALUE	bt = rb_funcall(info, rb_intern("backtrace"), 0);
 	int		blen = RARRAY_LEN(bt);
 	int		i;
@@ -435,6 +436,7 @@ rescue_error(VALUE x) {
 	for (i = 0; i < blen; i++) {
 	    rline = rb_ary_entry(bt, i);
 	}
+*/
 	log_cat(&error_cat, "%s: %s", classname, ms);
     }
     return Qfalse;
@@ -686,12 +688,12 @@ handle_push_inner(void *x) {
 
     switch (req->method) {
     case ON_MSG:
-	if (req->up->on_msg) { // TBD move this to earlier
+	if (req->up->on_msg) {
 	    rb_funcall(req->handler, on_message_id, 2, req->up->wrap, rb_str_new(req->msg, req->mlen));
 	}
 	break;
     case ON_BIN:
-	if (req->up->on_msg) { // TBD move this to earlier
+	if (req->up->on_msg) {
 	    volatile VALUE	rstr = rb_str_new(req->msg, req->mlen);
 
 	    rb_enc_associate(rstr, rb_ascii8bit_encoding());

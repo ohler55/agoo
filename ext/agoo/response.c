@@ -53,7 +53,6 @@ response_free(void *ptr) {
     while (NULL != (h = res->headers)) {
 	res->headers = h->next;
 	DEBUG_FREE(mem_header, h);
-	// TBD
 	xfree(h);
     }
     DEBUG_FREE(mem_res_body, res->body);
