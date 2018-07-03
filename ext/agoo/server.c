@@ -508,7 +508,7 @@ static VALUE
 handle_rack_inner(void *x) {
     Req			req = (Req)x;
     Text		t;
-    volatile VALUE	env = request_env(req);
+    volatile VALUE	env = request_env(req, request_wrap(req));
     volatile VALUE	res = rb_funcall(req->handler, call_id, 1, env);
     volatile VALUE	hv;
     volatile VALUE	bv;
@@ -516,6 +516,10 @@ handle_rack_inner(void *x) {
     const char		*status_msg;
     int			bsize = 0;
 
+    if (req->res->con->hijacked) {
+	queue_wakeup(&the_server.con_queue);
+	return false;
+    }
     rb_check_type(res, T_ARRAY);
     if (3 != RARRAY_LEN(res)) {
 	rb_raise(rb_eArgError, "a rack call() response must be an array of 3 members.");
@@ -599,7 +603,7 @@ handle_rack_inner(void *x) {
 		break;
 	    }
 	    req->handler_type = PUSH_HOOK;
-	    upgraded_create(req->res->con, req->handler, request_env(req));
+	    upgraded_create(req->res->con, req->handler, request_env(req, Qnil));
 	    t->len = snprintf(t->text, 1024, "HTTP/1.1 101 %s\r\n", status_msg);
 	    t = ws_add_headers(req, t);
 	    break;
@@ -611,7 +615,7 @@ handle_rack_inner(void *x) {
 		break;
 	    }
 	    req->handler_type = PUSH_HOOK;
-	    upgraded_create(req->res->con, req->handler, request_env(req));
+	    upgraded_create(req->res->con, req->handler, request_env(req, Qnil));
 	    t = sse_upgrade(req, t);
 	    res_set_message(req->res, t);
 	    queue_wakeup(&the_server.con_queue);

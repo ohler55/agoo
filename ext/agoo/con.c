@@ -923,7 +923,11 @@ poll_setup(Con c, struct pollfd *pp) {
     pp->revents = 0;
     pp++;
     for (; NULL != c; c = c->next) {
-	if (c->dead) {
+	if (c->dead || 0 == c->sock) {
+	    continue;
+	}
+	if (c->hijacked) {
+	    c->sock = 0;
 	    continue;
 	}
 	c->pp = pp;
@@ -1085,7 +1089,7 @@ con_loop(void *x) {
 		goto CON_CHECK;
 	    }
 	CON_CHECK:
-	    if (c->dead) {
+	    if (c->dead || 0 == c->sock) {
 		if (remove_dead_res(c)) {
 		    goto CON_RM;
 		}

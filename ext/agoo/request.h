@@ -44,7 +44,7 @@ typedef struct _Req {
 extern Req	request_create(size_t mlen);
 extern void	request_init(VALUE mod);
 extern VALUE	request_wrap(Req req);
-extern VALUE	request_env(Req req);
+extern VALUE	request_env(Req req, VALUE self);
 extern void	request_destroy(Req req);
 
 #endif // __AGOO_REQUEST_H__

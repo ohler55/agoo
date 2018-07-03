@@ -26,6 +26,9 @@ static VALUE	post_val = Qundef;
 static VALUE	put_val = Qundef;
 static VALUE	query_string_val = Qundef;
 static VALUE	rack_errors_val = Qundef;
+static VALUE	rack_hijack_io_val = Qundef;
+static VALUE	rack_hijack_val = Qundef;
+static VALUE	rack_hijackq_val = Qundef;
 static VALUE	rack_input_val = Qundef;
 static VALUE	rack_logger_val = Qundef;
 static VALUE	rack_multiprocess_val = Qundef;
@@ -546,7 +549,7 @@ rack_logger(VALUE self) {
  * request is a more efficient encapsulation of the rack environment.
  */
 VALUE
-request_env(Req req) {
+request_env(Req req, VALUE self) {
     if (Qnil == req->env) {
 	volatile VALUE	env = rb_hash_new();
     
@@ -570,6 +573,17 @@ request_env(Req req) {
 	rb_hash_aset(env, rack_run_once_val, Qfalse);
 	rb_hash_aset(env, rack_logger_val, req_rack_logger(req));
 	rb_hash_aset(env, rack_upgrade_val, req_rack_upgrade(req));
+	rb_hash_aset(env, rack_hijackq_val, Qtrue);
+
+	// TBD should return IO on #call and set hijack_io on env object that
+	//  has a call method that wraps the req->res->con->sock then set the
+	//  sock to 0 or maybe con. mutex? env[rack.hijack_io] = IO.new(sock,
+	//  "rw") - maybe it works.
+	//
+	// set a flag on con to indicate it has been hijacked
+	// then set sock to 0 in con loop and destroy con
+	rb_hash_aset(env, rack_hijack_val, self);
+	rb_hash_aset(env, rack_hijack_io_val, Qnil);
 
 	req->env = env;
     }
@@ -590,7 +604,7 @@ to_h(VALUE self) {
     if (NULL == r) {
 	rb_raise(rb_eArgError, "Request is no longer valid.");
     }
-    return request_env(r);
+    return request_env(r, self);
 }
 
 /* Document-method: to_s
@@ -606,6 +620,33 @@ to_s(VALUE self) {
     return rb_funcall(h, rb_intern("to_s"), 0);
 }
 
+/* Document-method: call
+ *
+ * call-seq: call()
+ *
+ * Returns an IO like object and hijacks the connection.
+ */
+static VALUE
+call(VALUE self) {
+    Req			r = DATA_PTR(self);
+    VALUE		args[1];
+    volatile VALUE	io;
+
+    if (NULL == r) {
+	rb_raise(rb_eArgError, "Request is no longer valid.");
+    }
+    r->res->con->hijacked = true;
+
+    // TBD try basic IO first. If that fails define a socket class
+    // is a mode needed?
+
+    args[0] = INT2NUM(r->res->con->sock);
+
+    io = rb_class_new_instance(1, args, rb_cIO);
+    rb_hash_aset(r->env, rack_hijack_io_val, io);
+    
+    return io;
+}
 void
 request_destroy(Req req) {
     DEBUG_FREE(mem_req, req)
@@ -649,6 +690,7 @@ request_init(VALUE mod) {
     rb_define_method(req_class, "headers", headers, 0);
     rb_define_method(req_class, "body", body, 0);
     rb_define_method(req_class, "rack_logger", rack_logger, 0);
+    rb_define_method(req_class, "call", call, 0);
 
     new_id = rb_intern("new");
     
@@ -674,6 +716,9 @@ request_init(VALUE mod) {
     put_val = rb_str_new_cstr("PUT");				rb_gc_register_address(&put_val);
     query_string_val = rb_str_new_cstr("QUERY_STRING");		rb_gc_register_address(&query_string_val);
     rack_errors_val = rb_str_new_cstr("rack.errors");		rb_gc_register_address(&rack_errors_val);
+    rack_hijack_io_val = rb_str_new_cstr("rack.hijack_io");	rb_gc_register_address(&rack_hijack_io_val);
+    rack_hijack_val = rb_str_new_cstr("rack.hijack");		rb_gc_register_address(&rack_hijack_val);
+    rack_hijackq_val = rb_str_new_cstr("rack.hijack?");		rb_gc_register_address(&rack_hijackq_val);
     rack_input_val = rb_str_new_cstr("rack.input");		rb_gc_register_address(&rack_input_val);
     rack_logger_val = rb_str_new_cstr("rack.logger");		rb_gc_register_address(&rack_logger_val);
     rack_multiprocess_val = rb_str_new_cstr("rack.multiprocess");rb_gc_register_address(&rack_multiprocess_val);

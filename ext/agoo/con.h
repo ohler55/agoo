@@ -32,6 +32,7 @@ typedef struct _Con {
     double		timeout;
     bool		closing;
     bool		dead;
+    volatile bool	hijacked;
     Req			req;
     Res			res_head;
     Res			res_tail;
