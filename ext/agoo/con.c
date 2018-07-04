@@ -152,6 +152,25 @@ page_response(Con c, Page p, char *hend) {
     return false;
 }
 
+static void
+push_error(Upgraded up, const char *msg, int mlen) {
+    if (NULL != up && Qnil != up->handler && up->on_error) {
+	Req	req = request_create(mlen);
+
+	if (NULL == req) {
+	    return;
+	}
+	memcpy(req->msg, msg, mlen);
+	req->msg[mlen] = '\0';
+	req->up = up;
+	req->method = ON_ERROR;
+	req->handler_type = PUSH_HOOK;
+	req->handler = up->handler;
+	upgraded_ref(up);
+	queue_push(&the_server.eval_queue, (void*)req);
+    }
+}
+
 // Returns:
 //  0 - when header has not been read
 //  message length - when length can be determined
@@ -487,6 +506,9 @@ con_ws_read(Con c) {
 	    if (0 == cnt) {
 		log_cat(&warn_cat, "Nothing to read. Client closed socket on connection %llu.", (unsigned long long)c->id);
 	    } else {
+		char	msg[1024];
+		int	len = snprintf(msg, sizeof(msg) - 1, "Failed to read WebSocket message. %s.", strerror(errno));
+		push_error(c->up, msg, len);
 		log_cat(&warn_cat, "Failed to read WebSocket message. %s.", strerror(errno));
 	    }
 	}
@@ -525,9 +547,15 @@ con_ws_read(Con c) {
 		}
 		break;
 	    case WS_OP_CONT:
-	    default:
+	    default: {
+		char	msg[1024];
+		int	len = snprintf(msg, sizeof(msg) - 1, "WebSocket op 0x%02x not supported on %llu.",
+				       op, (unsigned long long)c->id);
+
+		push_error(c->up, msg, len);
 		log_cat(&error_cat, "WebSocket op 0x%02x not supported on %llu.", op, (unsigned long long)c->id);
 		return true;
+	    }
 	    }
 	}
 	if (NULL != c->req) {
@@ -638,9 +666,15 @@ con_ws_write(Con c) {
     if (NULL == message) {
 	if (res->ping) {
 	    if (0 > (cnt = send(c->sock, ping_msg, sizeof(ping_msg) - 1, 0))) {
+		char	msg[1024];
+		int	len;
+
 		if (EAGAIN == errno) {
 		    return false;
 		}
+		len = snprintf(msg, sizeof(msg) - 1, "Socket error @ %llu.", (unsigned long long)c->id);
+		push_error(c->up, msg, len);
+		
 		log_cat(&error_cat, "Socket error @ %llu.", (unsigned long long)c->id);
 		ws_req_close(c);
 		res_destroy(res);
@@ -649,9 +683,14 @@ con_ws_write(Con c) {
 	    }
 	} else if (res->pong) {
 	    if (0 > (cnt = send(c->sock, pong_msg, sizeof(pong_msg) - 1, 0))) {
+		char	msg[1024];
+		int	len;
+
 		if (EAGAIN == errno) {
 		    return false;
 		}
+		len = snprintf(msg, sizeof(msg) - 1, "Socket error @ %llu.", (unsigned long long)c->id);
+		push_error(c->up, msg, len);
 		log_cat(&error_cat, "Socket error @ %llu.", (unsigned long long)c->id);
 		ws_req_close(c);
 		res_destroy(res);
@@ -691,9 +730,14 @@ con_ws_write(Con c) {
 	}
     }
     if (0 > (cnt = send(c->sock, message->text + c->wcnt, message->len - c->wcnt, 0))) {
+	char	msg[1024];
+	int	len;
+
 	if (EAGAIN == errno) {
 	    return false;
 	}
+	len = snprintf(msg, sizeof(msg) - 1, "Socket error @ %llu.", (unsigned long long)c->id);
+	push_error(c->up, msg, len);
 	log_cat(&error_cat, "Socket error @ %llu.", (unsigned long long)c->id);
 	ws_req_close(c);
 	
@@ -741,9 +785,14 @@ con_sse_write(Con c) {
 	}
     }
     if (0 > (cnt = send(c->sock, message->text + c->wcnt, message->len - c->wcnt, 0))) {
+	char	msg[1024];
+	int	len;
+
 	if (EAGAIN == errno) {
 	    return false;
 	}
+	len = snprintf(msg, sizeof(msg) - 1, "Socket error @ %llu.", (unsigned long long)c->id);
+	push_error(c->up, msg, len);
 	log_cat(&error_cat, "Socket error @ %llu.", (unsigned long long)c->id);
 	ws_req_close(c);
 	

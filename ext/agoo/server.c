@@ -56,6 +56,7 @@ static ID	call_id;
 static ID	each_id;
 static ID	on_close_id;
 static ID	on_drained_id;
+static ID	on_error_id;
 static ID	on_message_id;
 static ID	on_request_id;
 static ID	to_i_id;
@@ -712,6 +713,14 @@ handle_push_inner(void *x) {
     case ON_SHUTDOWN:
 	rb_funcall(req->handler, rb_intern("on_shutdown"), 1, req->up->wrap);
 	break;
+    case ON_ERROR:
+	if (req->up->on_msg) {
+	    volatile VALUE	rstr = rb_str_new(req->msg, req->mlen);
+
+	    rb_enc_associate(rstr, rb_ascii8bit_encoding());
+	    rb_funcall(req->handler, on_error_id, 2, req->up->wrap, rstr);
+	}
+	break;
     case ON_EMPTY:
 	rb_funcall(req->handler, on_drained_id, 1, req->up->wrap);
 	break;
@@ -1038,6 +1047,7 @@ server_init(VALUE mod) {
     each_id = rb_intern("each");
     on_close_id = rb_intern("on_close");
     on_drained_id = rb_intern("on_drained");
+    on_error_id = rb_intern("on_error");
     on_message_id = rb_intern("on_message");
     on_request_id = rb_intern("on_request");
     to_i_id = rb_intern("to_i");

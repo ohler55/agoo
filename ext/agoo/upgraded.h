@@ -24,6 +24,7 @@ typedef struct _Upgraded {
     bool		on_close;
     bool		on_shut;
     bool		on_msg;
+    bool		on_error;
 } *Upgraded;
 
 extern void	upgraded_init(VALUE mod);

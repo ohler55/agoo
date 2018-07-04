@@ -20,6 +20,7 @@ typedef enum {
     ON_CLOSE	= 'X', // use for on_close callback
     ON_SHUTDOWN	= 'S', // use for on_shotdown callback
     ON_EMPTY	= 'E', // use for on_drained callback
+    ON_ERROR	= 'F', // use for on_error callback
 } Method;
 
 #endif // __AGOO_METHOD_H__

@@ -4,6 +4,10 @@
 
 - Rack hijack now supported.
 
+- Upgraded handler `on_error` now supported and called on Websocket or SSE errors.
+
+- Server log callbacks now supported.
+
 ### 2.3.0 - 2018-06-29
 
 - Added an `env` method to the upgrade (Websocket and SSE) client.

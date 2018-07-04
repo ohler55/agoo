@@ -351,6 +351,7 @@ upgraded_create(Con c, VALUE obj, VALUE env) {
 	up->on_close = rb_respond_to(obj, rb_intern("on_close"));
 	up->on_shut = rb_respond_to(obj, rb_intern("on_shutdown"));
 	up->on_msg = rb_respond_to(obj, rb_intern("on_message"));
+	up->on_error = rb_respond_to(obj, rb_intern("on_error"));
 	up->wrap = Data_Wrap_Struct(upgraded_class, NULL, NULL, up);
 	up->subjects = NULL;
 	up->prev = NULL;
