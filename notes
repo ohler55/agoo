@@ -20,12 +20,13 @@ use nice -n19 perfer when on same machine
  - cd example && ruby memx.rb
   - memory and performance with perfer, multiple workers
 
-- support hijack
- - pass off socket and then remove con
- - hijack then ignore return status code
- 
 - add on_error callback support to websocket and sse
- - maybe a server log hook as well
+ - con.c
+  - push error to eval queue
+
+- server log hook as well
+ - log callback grabs gvl
+ 
 
 - remote cluster
  - worker server

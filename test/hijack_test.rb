@@ -18,15 +18,12 @@ class RackHandlerTest < Minitest::Test
 
   class HijackHandler
     def call(env)
-      puts "*** env: #{env}"
-      puts "*** env['rack.hijack?']: #{env['rack.hijack?']}"
-      io = env['rack.hijack'].call()
-      puts "*** io: #{io}"
+      io = env['rack.hijack'].call
+      io.write(%|HTTP/1.1 200 OK
+Content-Length: 11
 
-      # TBD check rack.hijack?
-      # rack.hijack call
-      # rack.hijack_io
-      
+hello world|)
+      io.flush
       [ -1, {}, []]
     end
   end
@@ -73,9 +70,7 @@ class RackHandlerTest < Minitest::Test
     }
     content = res.body
 
-    puts "*** content #{content}"
-
+    assert_equal('hello world', content, 'content mismatch')
   end
-
   
 end

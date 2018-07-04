@@ -1,5 +1,9 @@
 # CHANGELOG
 
+### 2.4.0 - 2018-07-05
+
+- Rack hijack now supported.
+
 ### 2.3.0 - 2018-06-29
 
 - Added an `env` method to the upgrade (Websocket and SSE) client.
