@@ -1,12 +1,10 @@
 # CHANGELOG
 
-### 2.4.0 - 2018-07-05
+### 2.4.0 - 2018-07-04
 
 - Rack hijack now supported.
 
 - Upgraded handler `on_error` now supported and called on Websocket or SSE errors.
-
-- Server log callbacks now supported.
 
 ### 2.3.0 - 2018-06-29
 
