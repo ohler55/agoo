@@ -1,0 +1,35 @@
+// Copyright (c) 2018, Peter Ohler, All rights reserved.
+
+#ifndef __AGOO_BIND_H__
+#define __AGOO_BIND_H__
+
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+
+#include "err.h"
+
+typedef struct _Bind {
+    struct _Bind	*next;
+    int			fd;
+    int			port;
+    sa_family_t		family;
+    union {
+	struct in_addr	addr4;
+	struct in6_addr	addr6;
+    };
+    char		*name; // if set then Unix file
+    char		*key;  // if set then SSL
+    char		*cert;
+    char		*ca;
+    char		*id;
+} *Bind;
+
+extern Bind	bind_url(Err err, const char *url);
+extern Bind	bind_port(Err err, int port);
+extern void	bind_destroy(Bind b);
+
+extern int	bind_listen(Err err, Bind b);
+extern void	bind_close(Bind b);
+
+#endif // __AGOO_BIND_H__

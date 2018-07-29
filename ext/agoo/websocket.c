@@ -6,6 +6,7 @@
 #include "con.h"
 #include "debug.h"
 #include "request.h"
+#include "rserver.h"
 #include "sha1.h"
 #include "text.h"
 #include "websocket.h"
@@ -185,11 +186,8 @@ ws_create_req(Con c, long mlen) {
     c->req->upgrade = UP_NONE;
     c->req->up = c->up;
     c->req->res = NULL;
-    c->req->handler_type = PUSH_HOOK;
     if (c->up->on_msg) {
-	c->req->handler = c->up->handler;
-    } else {
-	c->req->handler = Qnil;
+	c->req->hook = hook_create(NONE, NULL, (void*)c->up->handler, PUSH_HOOK, &the_rserver.eval_queue);
     }
     return false;
 }
@@ -201,10 +199,9 @@ ws_req_close(Con c) {
 	    
 	req->up = c->up;
 	req->method = ON_CLOSE;
-	req->handler_type = PUSH_HOOK;
-	req->handler = c->up->handler;
+	req->hook = hook_create(NONE, NULL, (void*)c->up->handler, PUSH_HOOK, &the_rserver.eval_queue);
 	atomic_fetch_add(&c->up->ref_cnt, 1);
-	queue_push(&the_server.eval_queue, (void*)req);
+	queue_push(&the_rserver.eval_queue, (void*)req);
     }
 }
 

@@ -7,29 +7,39 @@
 #include "hook.h"
 
 Hook
-hook_create(Method method, const char *pattern, void *handler, HookType type) {
+hook_create(Method method, const char *pattern, void *handler, HookType type, Queue q) {
     Hook	hook = (Hook)malloc(sizeof(struct _Hook));
 
     if (NULL != hook) {
-	DEBUG_ALLOC(mem_hook, hook)
+	char	*pat = NULL;
+	
+	DEBUG_ALLOC(mem_hook, hook);
 	if (NULL == pattern) {
-	    pattern = "";
+	    if (NONE != method) {
+		pat = strdup("");
+	    }
+	} else {
+	    pat = strdup(pattern);
 	}
+	hook->pattern = pat;
+
 	hook->next = NULL;
-	hook->pattern = strdup(pattern);
 	DEBUG_ALLOC(mem_hook_pattern, hook->pattern)
 	hook->method = method;
 	hook->handler = handler;
 	hook->type = type;
+	hook->queue = q;
     }
     return hook;
 }
 
 void
 hook_destroy(Hook hook) {
-    DEBUG_FREE(mem_hook_pattern, hook->pattern);
+    if (NULL != hook->pattern) {
+	DEBUG_FREE(mem_hook_pattern, hook->pattern);
+	free(hook->pattern);
+    }
     DEBUG_FREE(mem_hook, hook)
-    free(hook->pattern);
     free(hook);
 }
 

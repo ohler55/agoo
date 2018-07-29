@@ -33,9 +33,8 @@ typedef struct _Req {
     struct _Str		query;
     struct _Str		header;
     struct _Str		body;
-    VALUE		handler;
+    Hook		hook;
     VALUE		env;
-    HookType		handler_type;
     Res			res;
     size_t		mlen;   // allocated msg length
     char		msg[8]; // expanded to be full message

@@ -1,5 +1,17 @@
 # CHANGELOG
 
+### 2.5.0 - 2018-08-10
+
+The binding release with multiple options for connecting to the server.
+
+- Multiple connection bindings now supported
+
+- Binding to Unix named sockets support added.
+
+- IPv6 now supported.
+
+- Connection address now supported to restrict connection requests.
+
 ### 2.4.0 - 2018-07-04
 
 - Rack hijack now supported.

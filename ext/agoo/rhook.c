@@ -54,8 +54,8 @@ resolve_classpath(const char *name, size_t len) {
 }
 
 Hook
-rhook_create(Method method, const char *pattern, VALUE handler) {
-    Hook	hook = hook_create(method,pattern, NULL, RACK_HOOK);
+rhook_create(Method method, const char *pattern, VALUE handler, Queue q) {
+    Hook	hook = hook_create(method,pattern, NULL, RACK_HOOK, q);
 
     if (NULL != hook) {
 	if (T_STRING == rb_type(handler)) {

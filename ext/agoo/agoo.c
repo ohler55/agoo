@@ -12,12 +12,13 @@
 #include "request.h"
 #include "response.h"
 #include "rlog.h"
+#include "rserver.h"
 #include "server.h"
 #include "upgraded.h"
 
 void
 agoo_shutdown() {
-    server_shutdown();
+    rserver_shutdown(Qnil);
     log_close();
 }
 
@@ -47,7 +48,7 @@ ragoo_publish(VALUE self, VALUE subject, VALUE message) {
     const char	*subj = extract_subject(subject, &slen);
 
     rb_check_type(message, T_STRING);
-    queue_push(&the_server.pub_queue, pub_publish(subj, slen, StringValuePtr(message), (int)RSTRING_LEN(message)));
+    queue_push(&the_rserver.pub_queue, pub_publish(subj, slen, StringValuePtr(message), (int)RSTRING_LEN(message)));
 
     return Qnil;
 }
@@ -64,7 +65,7 @@ static VALUE
 ragoo_unsubscribe(VALUE self, VALUE subject) {
     rb_check_type(subject, T_STRING);
 
-    queue_push(&the_server.pub_queue, pub_unsubscribe(NULL, StringValuePtr(subject), (int)RSTRING_LEN(subject)));
+    queue_push(&the_rserver.pub_queue, pub_unsubscribe(NULL, StringValuePtr(subject), (int)RSTRING_LEN(subject)));
 
     return Qnil;
 }

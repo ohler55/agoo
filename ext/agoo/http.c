@@ -4,8 +4,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <ruby.h>
-
 #include "debug.h"
 #include "http.h"
 
@@ -507,8 +505,8 @@ http_cleanup() {
     }
 }
 
-void
-http_header_ok(const char *key, int klen, const char *value, int vlen) {
+int
+http_header_ok(Err err, const char *key, int klen, const char *value, int vlen) {
     int		len = klen;
     int64_t	h = calc_hash(key, &len);
     Slot	*bucket = get_bucketp(h);
@@ -530,21 +528,23 @@ http_header_ok(const char *key, int klen, const char *value, int vlen) {
 	}
 	strncpy(buf, key, klen);
 	buf[klen] = '\0';
-	rb_raise(rb_eArgError, "%s is not a valid HTTP header key.", buf);
+
+	return err_set(err, ERR_ARG, "%s is not a valid HTTP header key.", buf);
     }
     // Now check the value.
     found = false; // reuse as indicator for in a quoted string
     for (; 0 < vlen; vlen--, value++) {
 	if ('o' != header_value_chars[(uint8_t)*value]) {
-	    rb_raise(rb_eArgError, "%02x is not a valid HTTP header value character.", *value);
+	    return err_set(err, ERR_ARG, "%02x is not a valid HTTP header value character.", *value);
 	}
 	if ('"' == *value) {
 	    found = !found;
 	}
     }
     if (found) {
-	rb_raise(rb_eArgError, "HTTP header has unmatched quote.");
+	return err_set(err, ERR_ARG, "HTTP header has unmatched quote.");
     }
+    return ERR_OK;
 }
 
 const char*

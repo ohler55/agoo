@@ -15,6 +15,7 @@
 #define DEBUG_FREE(var, ptr) { }
 #endif
 
+extern atomic_int	mem_bind;
 extern atomic_int	mem_cb;
 extern atomic_int	mem_con;
 extern atomic_int	mem_cslot;

@@ -10,9 +10,11 @@
 #include "dtime.h"
 #include "hook.h"
 #include "http.h"
+#include "page.h"
 #include "pub.h"
 #include "res.h"
 #include "seg.h"
+#include "rserver.h"
 #include "server.h"
 #include "sse.h"
 #include "subject.h"
@@ -152,6 +154,7 @@ page_response(Con c, Page p, char *hend) {
     return false;
 }
 
+// rserver
 static void
 push_error(Upgraded up, const char *msg, int mlen) {
     if (NULL != up && Qnil != up->handler && up->on_error) {
@@ -164,10 +167,9 @@ push_error(Upgraded up, const char *msg, int mlen) {
 	req->msg[mlen] = '\0';
 	req->up = up;
 	req->method = ON_ERROR;
-	req->handler_type = PUSH_HOOK;
-	req->handler = up->handler;
+	req->hook = hook_create(NONE, NULL, (void*)up->handler, PUSH_HOOK, &the_rserver.eval_queue);
 	upgraded_ref(up);
-	queue_push(&the_server.eval_queue, (void*)req);
+	queue_push(&the_rserver.eval_queue, (void*)req);
     }
 }
 
@@ -354,13 +356,8 @@ HOOKED:
     c->req->header.start = c->req->msg + (b + 2 - c->buf);
     c->req->header.len = (unsigned int)(hend - b - 2);
     c->req->res = NULL;
-    if (NULL != hook) {
-	c->req->handler = (VALUE)hook->handler;
-	c->req->handler_type = hook->type;
-    } else {
-	c->req->handler = Qnil;
-	c->req->handler_type = NO_HOOK;
-    }
+    c->req->hook = hook;
+
     return mlen;
 }
 
@@ -368,7 +365,7 @@ static void
 check_upgrade(Con c) {
     const char	*v;
     int		vlen = 0;
-    
+
     if (NULL == c->req) {
 	return;
     }
@@ -470,7 +467,7 @@ con_http_read(Con c) {
 		check_upgrade(c);
 		req = c->req;
 		c->req = NULL;
-		queue_push(&the_server.eval_queue, (void*)req);
+		queue_push(req->hook->queue, (void*)req);
 		if (mlen < (long)c->bcnt) {
 		    memmove(c->buf, c->buf + mlen, c->bcnt - mlen);
 		    c->bcnt -= mlen;
@@ -508,6 +505,7 @@ con_ws_read(Con c) {
 	    } else {
 		char	msg[1024];
 		int	len = snprintf(msg, sizeof(msg) - 1, "Failed to read WebSocket message. %s.", strerror(errno));
+
 		push_error(c->up, msg, len);
 		log_cat(&warn_cat, "Failed to read WebSocket message. %s.", strerror(errno));
 	    }
@@ -571,7 +569,7 @@ con_ws_read(Con c) {
 		}
 	    }
 	    upgraded_ref(c->up);
-	    queue_push(&the_server.eval_queue, (void*)c->req);
+	    queue_push(&the_rserver.eval_queue, (void*)c->req);
 	    if (mlen < (long)c->bcnt) {
 		memmove(c->buf, c->buf + mlen, c->bcnt - mlen);
 		c->bcnt -= mlen;
@@ -851,7 +849,7 @@ publish_pub(Pub pub) {
     const char	*sub = pub->subject->pattern;
     int	cnt = 0;
     
-    for (up = the_server.up_list; NULL != up; up = up->next) {
+    for (up = the_rserver.up_list; NULL != up; up = up->next) {
 	if (NULL != up->con && upgraded_match(up, sub)) {
 	    Res	res = res_create(up->con);
 
@@ -875,7 +873,7 @@ unsubscribe_pub(Pub pub) {
     if (NULL == pub->up) {
 	Upgraded	up;
 
-	for (up = the_server.up_list; NULL != up; up = up->next) {
+	for (up = the_rserver.up_list; NULL != up; up = up->next) {
 	    upgraded_del_subject(up, pub->subject);
 	}
     } else {
@@ -897,10 +895,9 @@ process_pub_con(Pub pub) {
 	    
 		req->up = up;
 		req->method = ON_EMPTY;
-		req->handler_type = PUSH_HOOK;
-		req->handler = up->handler;
+		req->hook = hook_create(NONE, NULL, (void*)up->handler, PUSH_HOOK, &the_rserver.eval_queue);
 		upgraded_ref(up);
-		queue_push(&the_server.eval_queue, (void*)req);
+		queue_push(&the_rserver.eval_queue, (void*)req);
 	    }
 	}
     }
@@ -967,7 +964,7 @@ poll_setup(Con c, struct pollfd *pp) {
     pp->events = POLLIN;
     pp->revents = 0;
     pp++;
-    pp->fd = queue_listen(&the_server.pub_queue);
+    pp->fd = queue_listen(&the_rserver.pub_queue);
     pp->events = POLLIN;
     pp->revents = 0;
     pp++;
@@ -1063,7 +1060,7 @@ con_loop(void *x) {
 		pend = pa + cnt;
 	    }
 	}
-	while (NULL != (pub = (Pub)queue_pop(&the_server.pub_queue, 0.0))) {
+	while (NULL != (pub = (Pub)queue_pop(&the_rserver.pub_queue, 0.0))) {
 	    process_pub_con(pub);
 	}
 	
@@ -1101,8 +1098,8 @@ con_loop(void *x) {
 	    }
 	    // Check pub_queue if an event is waiting.
 	    if (0 != (pa[1].revents & POLLIN)) {
-		queue_release(&the_server.pub_queue);
-		while (NULL != (pub = (Pub)queue_pop(&the_server.pub_queue, 0.0))) {
+		queue_release(&the_rserver.pub_queue);
+		while (NULL != (pub = (Pub)queue_pop(&the_rserver.pub_queue, 0.0))) {
 		    process_pub_con(pub);
 		}
 	    }

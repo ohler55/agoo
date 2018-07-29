@@ -7,49 +7,39 @@
 #include <stdbool.h>
 #include <stdatomic.h>
 
-#include <ruby.h>
-
-#include "rhook.h"
-#include "log.h"
-#include "page.h"
+#include "bind.h"
+#include "err.h"
+#include "hook.h"
 #include "queue.h"
-#include "sub.h"
-#include "upgraded.h"
-
-#define MAX_WORKERS	32
 
 typedef struct _Server {
     volatile bool	inited;
     volatile bool	active;
     int			thread_cnt;
-    int			worker_cnt;
-    int			max_push_pending;
-    int			port;
-    int			fd;
     bool		pedantic;
     bool		root_first;
-    atomic_int		running;
     pthread_t		listen_thread;
     pthread_t		con_thread;
-
-    pthread_mutex_t	up_lock;
-    Upgraded		up_list;
-
     struct _Queue	con_queue;
-    struct _Queue	pub_queue;
-    struct _SubCache	sub_cache; // subscription cache
-
     Hook		hooks;
     Hook		hook404;
-    struct _Queue	eval_queue;
 
-    int			worker_pids[MAX_WORKERS];
-    VALUE		*eval_threads; // Qnil terminated
+    //int			port; // TBD remove
+    //int			fd; // TBD remove
+    Bind		binds;
+
+    // A count of the running threads from the wrapper or the server managed
+    // threads.
+    atomic_int		running;
 } *Server;
 
 extern struct _Server	the_server;
 
-extern void	server_init(VALUE mod);
-extern void	server_shutdown();
+extern void	server_setup();
+extern void	server_shutdown(const char *app_name, void (*stop)());
+extern void	server_bind(Bind b);
+
+extern int	setup_listen(Err err);
+extern int	server_start(Err err, const char *app_name, const char *version);
 
 #endif // __AGOO_SERVER_H__

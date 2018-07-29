@@ -7,6 +7,7 @@
 #include "con.h"
 #include "debug.h"
 #include "pub.h"
+#include "rserver.h"
 #include "server.h"
 #include "subject.h"
 #include "upgraded.h"
@@ -28,7 +29,7 @@ destroy(Upgraded up) {
 	up->wrap = Qnil;
     }
     if (NULL == up->prev) {
-	the_server.up_list = up->next;
+	the_rserver.up_list = up->next;
 	if (NULL != up->next) {
 	    up->next->prev = NULL;
 	}
@@ -70,21 +71,21 @@ extract_subject(VALUE subject, int *slen) {
 
 void
 upgraded_release(Upgraded up) {
-    pthread_mutex_lock(&the_server.up_lock);
+    pthread_mutex_lock(&the_rserver.up_lock);
     if (atomic_fetch_sub(&up->ref_cnt, 1) <= 1) {
 	destroy(up);
     }    
-    pthread_mutex_unlock(&the_server.up_lock);
+    pthread_mutex_unlock(&the_rserver.up_lock);
 }
 
 void
 upgraded_release_con(Upgraded up) {
-    pthread_mutex_lock(&the_server.up_lock);
+    pthread_mutex_lock(&the_rserver.up_lock);
     up->con = NULL;
     if (atomic_fetch_sub(&up->ref_cnt, 1) <= 1) {
 	destroy(up);
     }
-    pthread_mutex_unlock(&the_server.up_lock);
+    pthread_mutex_unlock(&the_rserver.up_lock);
 }
 
 // Called from the con_loop thread, no need to lock, this steals the subject
@@ -151,11 +152,11 @@ get_upgraded(VALUE self) {
     Upgraded	up = NULL;
 
     if (the_server.active) {
-	pthread_mutex_lock(&the_server.up_lock);
+	pthread_mutex_lock(&the_rserver.up_lock);
 	if (NULL != (up = DATA_PTR(self))) {
 	    atomic_fetch_add(&up->ref_cnt, 1);
 	}
-	pthread_mutex_unlock(&the_server.up_lock);
+	pthread_mutex_unlock(&the_rserver.up_lock);
     }
     return up;
 }
@@ -176,7 +177,7 @@ up_write(VALUE self, VALUE msg) {
     if (NULL == up) {
 	return Qfalse;
     }
-    if (0 < the_server.max_push_pending && the_server.max_push_pending <= atomic_load(&up->pending)) {
+    if (0 < the_rserver.max_push_pending && the_rserver.max_push_pending <= atomic_load(&up->pending)) {
 	atomic_fetch_sub(&up->ref_cnt, 1);
 	// Too many pending messages.
 	return Qfalse;
@@ -193,7 +194,7 @@ up_write(VALUE self, VALUE msg) {
 	p = pub_write(up, StringValuePtr(rs), RSTRING_LEN(rs), false);
     }
     atomic_fetch_add(&up->pending, 1);
-    queue_push(&the_server.pub_queue, p);
+    queue_push(&the_rserver.pub_queue, p);
 
     return Qtrue;
 }
@@ -217,7 +218,7 @@ up_subscribe(VALUE self, VALUE subject) {
 
     if (NULL != (up = get_upgraded(self))) {
 	atomic_fetch_add(&up->pending, 1);
-	queue_push(&the_server.pub_queue, pub_subscribe(up, subj, slen));
+	queue_push(&the_rserver.pub_queue, pub_subscribe(up, subj, slen));
     }
     return Qnil;
 }
@@ -242,7 +243,7 @@ up_unsubscribe(int argc, VALUE *argv, VALUE self) {
     }
     if (NULL != (up = get_upgraded(self))) {
 	atomic_fetch_add(&up->pending, 1);
-	queue_push(&the_server.pub_queue, pub_unsubscribe(up, subject, slen));
+	queue_push(&the_rserver.pub_queue, pub_unsubscribe(up, subject, slen));
     }
     return Qnil;
 }
@@ -259,7 +260,7 @@ up_close(VALUE self) {
 
     if (NULL != up) {
 	atomic_fetch_add(&up->pending, 1);
-	queue_push(&the_server.pub_queue, pub_close(up));
+	queue_push(&the_rserver.pub_queue, pub_close(up));
     }
     return Qnil;
 }
@@ -315,7 +316,7 @@ protocol(VALUE self) {
     if (the_server.active) {
 	Upgraded	up;
 	
-	pthread_mutex_lock(&the_server.up_lock);
+	pthread_mutex_lock(&the_rserver.up_lock);
 	if (NULL != (up = DATA_PTR(self)) && NULL != up->con) {
 	    switch (up->con->kind) {
 	    case CON_WS:
@@ -328,7 +329,7 @@ protocol(VALUE self) {
 		break;
 	    }
 	}
-	pthread_mutex_unlock(&the_server.up_lock);
+	pthread_mutex_unlock(&the_rserver.up_lock);
     }
     return pro;
 }
@@ -355,16 +356,16 @@ upgraded_create(Con c, VALUE obj, VALUE env) {
 	up->wrap = Data_Wrap_Struct(upgraded_class, NULL, NULL, up);
 	up->subjects = NULL;
 	up->prev = NULL;
-	pthread_mutex_lock(&the_server.up_lock);
-	if (NULL == the_server.up_list) {
+	pthread_mutex_lock(&the_rserver.up_lock);
+	if (NULL == the_rserver.up_list) {
 	    up->next = NULL;
 	} else {
-	    the_server.up_list->prev = up;
+	    the_rserver.up_list->prev = up;
 	}
-	up->next = the_server.up_list;
-	the_server.up_list = up;
+	up->next = the_rserver.up_list;
+	the_rserver.up_list = up;
 	c->up = up;
-	pthread_mutex_unlock(&the_server.up_lock);
+	pthread_mutex_unlock(&the_rserver.up_lock);
 
 	if (rb_respond_to(obj, on_open_id)) {
 	    rb_funcall(obj, on_open_id, 1, up->wrap);
@@ -376,6 +377,13 @@ upgraded_create(Con c, VALUE obj, VALUE env) {
 // Use the publish from the Agoo module.
 extern VALUE	ragoo_publish(VALUE self, VALUE subject, VALUE message);
 
+/* Document-method: env
+ *
+ * call-seq: env()
+ *
+ * Returns the environment passed to the call method that initiated the
+ * Upgraded Object creation.
+ */
 static VALUE
 env(VALUE self) {
     Upgraded	up = get_upgraded(self);

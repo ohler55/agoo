@@ -8,3 +8,4 @@
 ./base_handler_test.rb
 ./rack_handler_test.rb
 ./hijack_test.rb
+./bind_test.rb

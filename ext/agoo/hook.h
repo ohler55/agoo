@@ -6,6 +6,7 @@
 #include <stdbool.h>
 
 #include "method.h"
+#include "queue.h"
 #include "seg.h"
 
 typedef enum {
@@ -31,9 +32,10 @@ typedef struct _Hook {
     char		*pattern;
     HookType		type;
     void*		handler;
+    Queue		queue;
 } *Hook;
 
-extern Hook	hook_create(Method method, const char *pattern, void *handler, HookType type);
+extern Hook	hook_create(Method method, const char *pattern, void *handler, HookType type, Queue q);
 extern void	hook_destroy(Hook hook);
 
 extern bool	hook_match(Hook hook, Method method, const Seg seg);

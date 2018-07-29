@@ -2,6 +2,7 @@
 
 #include "error_stream.h"
 #include "debug.h"
+#include "log.h"
 #include "text.h"
 
 static VALUE	es_class = Qundef;

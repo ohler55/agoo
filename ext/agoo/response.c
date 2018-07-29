@@ -228,7 +228,11 @@ head_set(VALUE self, VALUE key, VALUE val) {
     vlen = (int)RSTRING_LEN(val);
 
     if (the_server.pedantic) {
-	http_header_ok(ks, klen, vs, vlen);
+	struct _Err	err = ERR_INIT;
+
+	if (ERR_OK != http_header_ok(&err, ks, klen, vs, vlen)) {
+	    rb_raise(rb_eArgError, "%s", err.msg);
+	}
     }
     hlen = klen + vlen + 4;
     h = (Header)ALLOC_N(char, sizeof(struct _Header) - 8 + hlen + 1);

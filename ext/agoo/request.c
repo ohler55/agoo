@@ -69,6 +69,7 @@ request_create(size_t mlen) {
 	memset(req, 0, size);
 	req->env = Qnil;
 	req->mlen = mlen;
+	req->hook = NULL;
     }
     return req;
 }
@@ -649,7 +650,10 @@ call(VALUE self) {
 }
 void
 request_destroy(Req req) {
-    DEBUG_FREE(mem_req, req)
+    DEBUG_FREE(mem_req, req);
+    if (NULL != req->hook && PUSH_HOOK == req->hook->type) {
+	free(req->hook);
+    }
     free(req);
 }
 

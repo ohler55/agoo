@@ -21,6 +21,7 @@ typedef struct _Rec {
 static pthread_mutex_t	lock = PTHREAD_MUTEX_INITIALIZER;
 static Rec		recs = NULL;
 
+atomic_int	mem_bind = 0;
 atomic_int	mem_cb = 0;
 atomic_int	mem_con = 0;
 atomic_int	mem_cslot = 0;
@@ -89,6 +90,7 @@ print_stats() {
     printf("********************************************************************************\n");
 #if 0
     printf("memory statistics\n");
+    printf("  mem_bind:         %d\n", mem_bind);
     printf("  mem_cb:           %d\n", mem_cb);
     printf("  mem_con:          %d\n", mem_con);
     printf("  mem_cslot:        %d\n", mem_cslot);
