@@ -9,36 +9,13 @@
 #include "err.h"
 #include "text.h"
 
-#define MAX_KEY_LEN		1024
-#define PAGE_BUCKET_SIZE	1024
-#define PAGE_BUCKET_MASK	1023
-
-#define MAX_MIME_KEY_LEN	15
-#define MIME_BUCKET_SIZE	64
-#define MIME_BUCKET_MASK	63
-
 typedef struct _Page {
     Text		resp;
     char		*path;
     time_t		mtime;
     double		last_check;
+    bool		immutable;
 } *Page;
-
-typedef struct _Slot {
-    struct _Slot	*next;
-    char		key[MAX_KEY_LEN + 1];
-    Page		value;
-    uint64_t		hash;
-    int			klen;
-} *Slot;
-
-typedef struct _MimeSlot {
-    struct _MimeSlot	*next;
-    char		key[MAX_MIME_KEY_LEN + 1];
-    char		*value;
-    uint64_t		hash;
-    int			klen;
-} *MimeSlot;
 
 typedef struct _Dir {
     struct _Dir		*next;
@@ -53,22 +30,17 @@ typedef struct _Group {
     Dir			dirs;
 } *Group;
 
-typedef struct _Cache {
-    Slot		buckets[PAGE_BUCKET_SIZE];
-    MimeSlot		muckets[MIME_BUCKET_SIZE];
-    char		*root;
-    Group		groups;
-} *Cache;
+extern void	pages_init();
+extern void	pages_set_root(const char *root);
+extern void	pages_cleanup();
 
-extern void	pages_init(Cache cache);
-extern void	pages_cleanup(Cache cache);
-
-extern Group	group_create(Cache cache, const char *path);
+extern Group	group_create(const char *path);
 extern void	group_add(Group g, const char *dir);
-extern Page	group_get(Err err, Cache cache, const char *path, int plen);
+extern Page	group_get(Err err, const char *path, int plen);
 
-extern void	page_destroy(Page p);
-extern Page	page_get(Err err, Cache cache, const char *path, int plen);
-extern int	mime_set(Err err, Cache cache, const char *key, const char *value);
+extern Page	page_create(const char *path);
+extern Page	page_immutable(Err err, const char *path, const char *content, int clen);
+extern Page	page_get(Err err, const char *path, int plen);
+extern int	mime_set(Err err, const char *key, const char *value);
 
 #endif /* __AGOO_PAGE_H__ */

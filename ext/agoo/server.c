@@ -130,7 +130,7 @@ server_shutdown() {
 	queue_cleanup(&the_server.con_queue);
 	queue_cleanup(&the_server.pub_queue);
 	queue_cleanup(&the_server.eval_queue);
-	pages_cleanup(&the_server.pages);
+	pages_cleanup();
 	http_cleanup();
 
 	if (1 < the_server.worker_cnt && getpid() == *the_server.worker_pids) {
@@ -174,7 +174,7 @@ server_shutdown() {
 static int
 configure(Err err, int port, const char *root, VALUE options) {
     the_server.port = port;
-    the_server.pages.root = strdup(root);
+    pages_set_root(root);
     the_server.thread_cnt = 0;
     the_server.worker_cnt = 1;
     the_server.running = 0;
@@ -290,7 +290,7 @@ rserver_init(int argc, VALUE *argv, VALUE self) {
 	options = argv[2];
     }
     memset(&the_server, 0, sizeof(struct _Server));
-    pages_init(&the_server.pages);
+    pages_init();
     sub_init(&the_server.sub_cache);
 
     if (ERR_OK != configure(&err, port, root, options)) {
@@ -991,7 +991,7 @@ static VALUE
 add_mime(VALUE self, VALUE suffix, VALUE type) {
     struct _Err	err = ERR_INIT;
     
-    if (ERR_OK != mime_set(&err, &the_server.pages, StringValuePtr(suffix), StringValuePtr(type))) {
+    if (ERR_OK != mime_set(&err, StringValuePtr(suffix), StringValuePtr(type))) {
 	rb_raise(rb_eArgError, "%s", err.msg);
     }
     return Qnil;
@@ -1012,7 +1012,7 @@ path_group(VALUE self, VALUE path, VALUE dirs) {
     rb_check_type(path, T_STRING);
     rb_check_type(dirs, T_ARRAY);
 
-    if (NULL != (g = group_create(&the_server.pages, StringValuePtr(path)))) {
+    if (NULL != (g = group_create(StringValuePtr(path)))) {
 	int	i;
 	int	dcnt = (int)RARRAY_LEN(dirs);
 	VALUE	entry;

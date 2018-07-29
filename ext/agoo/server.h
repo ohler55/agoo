@@ -37,7 +37,6 @@ typedef struct _Server {
 
     struct _Queue	con_queue;
     struct _Queue	pub_queue;
-    struct _Cache	pages;
     struct _SubCache	sub_cache; // subscription cache
 
     Hook		hooks;

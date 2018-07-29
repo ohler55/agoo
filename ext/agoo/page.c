@@ -11,7 +11,38 @@
 #include "page.h"
 
 #define PAGE_RECHECK_TIME	5.0
+
 #define MAX_KEY_UNIQ		9
+#define MAX_KEY_LEN		1024
+#define PAGE_BUCKET_SIZE	1024
+#define PAGE_BUCKET_MASK	1023
+
+#define MAX_MIME_KEY_LEN	15
+#define MIME_BUCKET_SIZE	64
+#define MIME_BUCKET_MASK	63
+
+typedef struct _Slot {
+    struct _Slot	*next;
+    char		key[MAX_KEY_LEN + 1];
+    Page		value;
+    uint64_t		hash;
+    int			klen;
+} *Slot;
+
+typedef struct _MimeSlot {
+    struct _MimeSlot	*next;
+    char		key[MAX_MIME_KEY_LEN + 1];
+    char		*value;
+    uint64_t		hash;
+    int			klen;
+} *MimeSlot;
+
+typedef struct _Cache {
+    Slot		buckets[PAGE_BUCKET_SIZE];
+    MimeSlot		muckets[MIME_BUCKET_SIZE];
+    char		*root;
+    Group		groups;
+} *Cache;
 
 typedef struct _Mime {
     const char	*suffix;
@@ -68,6 +99,13 @@ static struct _Mime	mime_map[] = {
 
 static const char	page_fmt[] = "HTTP/1.1 200 OK\r\nContent-Type: %s\r\nContent-Length: %ld\r\n\r\n";
 
+static struct _Cache	cache = {
+    .buckets = {0},
+    .muckets = {0},
+    .root = NULL,
+    .groups = NULL,
+};
+
 static uint64_t
 calc_hash(const char *key, int *lenp) {
     int			len = 0;
@@ -96,21 +134,21 @@ calc_hash(const char *key, int *lenp) {
 
 // Buckets are a twist on the hash to mix it up a bit. Odd shifts and XORs.
 static Slot*
-get_bucketp(Cache cache, uint64_t h) {
-    return cache->buckets + (PAGE_BUCKET_MASK & (h ^ (h << 5) ^ (h >> 7)));
+get_bucketp(uint64_t h) {
+    return cache.buckets + (PAGE_BUCKET_MASK & (h ^ (h << 5) ^ (h >> 7)));
 }
 
 static MimeSlot*
-get_mime_bucketp(Cache cache, uint64_t h) {
-    return cache->muckets + (MIME_BUCKET_MASK & (h ^ (h << 5) ^ (h >> 7)));
+get_mime_bucketp(uint64_t h) {
+    return cache.muckets + (MIME_BUCKET_MASK & (h ^ (h << 5) ^ (h >> 7)));
 }
 
 const char*
-mime_get(Cache cache, const char *key) {
+mime_get(const char *key) {
     int		klen = (int)strlen(key);
     int		len = klen;
     int64_t	h = calc_hash(key, &len);
-    MimeSlot	*bucket = get_mime_bucketp(cache, h);
+    MimeSlot	*bucket = get_mime_bucketp(h);
     MimeSlot	s;
     const char	*v = NULL;
 
@@ -125,10 +163,10 @@ mime_get(Cache cache, const char *key) {
 }
 
 Page
-cache_get(Cache cache, const char *key, int klen) {
+cache_get(const char *key, int klen) {
     int		len = klen;
     int64_t	h = calc_hash(key, &len);
-    Slot	*bucket = get_bucketp(cache, h);
+    Slot	*bucket = get_bucketp(h);
     Slot	s;
     Page	v = NULL;
 
@@ -143,11 +181,11 @@ cache_get(Cache cache, const char *key, int klen) {
 }
 
 int
-mime_set(Err err, Cache cache, const char *key, const char *value) {
+mime_set(Err err, const char *key, const char *value) {
     int		klen = (int)strlen(key);
     int		len = klen;
     int64_t	h = calc_hash(key, &len);
-    MimeSlot	*bucket = get_mime_bucketp(cache, h);
+    MimeSlot	*bucket = get_mime_bucketp(h);
     MimeSlot	s;
     
     if (MAX_MIME_KEY_LEN < len) {
@@ -156,19 +194,17 @@ mime_set(Err err, Cache cache, const char *key, const char *value) {
     for (s = *bucket; NULL != s; s = s->next) {
 	if (h == (int64_t)s->hash && len == s->klen &&
 	    ((0 <= len && len <= MAX_KEY_UNIQ) || 0 == strncmp(s->key, key, len))) {
-	    if (h == (int64_t)s->hash && len == s->klen &&
-		((0 <= len && len <= MAX_KEY_UNIQ) || 0 == strncmp(s->key, key, len))) {
-		DEBUG_FREE(mem_mime_slot, s->value)
-		free(s->value);
-		s->value = strdup(value);
-		return ERR_OK;
-	    }
+
+	    DEBUG_FREE(mem_mime_slot, s->value);
+	    free(s->value);
+	    s->value = strdup(value);
+	    return ERR_OK;
 	}
     }
     if (NULL == (s = (MimeSlot)malloc(sizeof(struct _MimeSlot)))) {
 	return err_set(err, ERR_ARG, "out of memory adding %s", key);
     }
-    DEBUG_ALLOC(mem_mime_slot, s)
+    DEBUG_ALLOC(mem_mime_slot, s);
     s->hash = h;
     s->klen = len;
     if (NULL == key) {
@@ -184,10 +220,10 @@ mime_set(Err err, Cache cache, const char *key, const char *value) {
 }
 
 static Page
-cache_set(Cache cache, const char *key, int klen, Page value) {
+cache_set(const char *key, int klen, Page value) {
     int		len = klen;
     int64_t	h = calc_hash(key, &len);
-    Slot	*bucket = get_bucketp(cache, h);
+    Slot	*bucket = get_bucketp(h);
     Slot	s;
     Page	old = NULL;
     
@@ -197,14 +233,12 @@ cache_set(Cache cache, const char *key, int klen, Page value) {
     for (s = *bucket; NULL != s; s = s->next) {
 	if (h == (int64_t)s->hash && len == s->klen &&
 	    ((0 <= len && len <= MAX_KEY_UNIQ) || 0 == strncmp(s->key, key, len))) {
-	    if (h == (int64_t)s->hash && len == s->klen &&
-		((0 <= len && len <= MAX_KEY_UNIQ) || 0 == strncmp(s->key, key, len))) {
-		old = s->value;
-		// replace
-		s->value = value;
 
-		return old;
-	    }
+	    old = s->value;
+	    // replace
+	    s->value = value;
+
+	    return old;
 	}
     }
     if (NULL == (s = (Slot)malloc(sizeof(struct _Slot)))) {
@@ -227,22 +261,41 @@ cache_set(Cache cache, const char *key, int klen, Page value) {
 }
 
 void
-pages_init(Cache cache) {
+pages_init() {
     Mime	m;
     struct _Err	err = ERR_INIT;
     
-    memset(cache, 0, sizeof(struct _Cache));
+    memset(&cache, 0, sizeof(struct _Cache));
+    cache.root = strdup(".");
     for (m = mime_map; NULL != m->suffix; m++) {
-	mime_set(&err, cache, m->suffix, m->type);
+	mime_set(&err, m->suffix, m->type);
     }
 }
 
 void
-pages_cleanup(Cache cache) {
-    Slot	*sp = cache->buckets;
+pages_set_root(const char *root) {
+    free(cache.root);
+    cache.root = strdup(root);
+}
+
+static void
+page_destroy(Page p) {
+    if (NULL != p->resp) {
+	text_release(p->resp);
+	p->resp = NULL;
+    }
+    DEBUG_FREE(mem_page_path, p->path);
+    DEBUG_FREE(mem_page, p);
+    free(p->path);
+    free(p);
+}
+
+void
+pages_cleanup() {
+    Slot	*sp = cache.buckets;
     Slot	s;
     Slot	n;
-    MimeSlot	*mp = cache->muckets;
+    MimeSlot	*mp = cache.muckets;
     MimeSlot	sm;
     MimeSlot	m;
     int		i;
@@ -256,7 +309,6 @@ pages_cleanup(Cache cache) {
 	}
 	*sp = NULL;
     }
-
     for (i = MIME_BUCKET_SIZE; 0 < i; i--, mp++) {
 	for (sm = *mp; NULL != sm; sm = m) {
 	    m = sm->next;
@@ -265,47 +317,107 @@ pages_cleanup(Cache cache) {
 	}
 	*mp = NULL;
     }
-    free(cache->root);
+    free(cache.root);
 }
 
-// The page resp contents point to the page resp msg to save memory and reduce
+static const char*
+path_mime(const char *path) {
+    const char	*suffix = path + strlen(path) - 1;
+    const char	*mime = NULL;
+
+    for (; '.' != *suffix; suffix--) {
+	if (suffix <= path) {
+	    suffix = NULL;
+	    break;
+	}
+    }
+    if (suffix <= path) {
+	suffix = NULL;
+    }
+    if (NULL != suffix) {
+	suffix++;
+	mime = mime_get(suffix);
+    }
+    return mime;
+}
+
+// The page resp points to the page resp msg to save memory and reduce
 // allocations.
 Page
 page_create(const char *path) {
     Page	p = (Page)malloc(sizeof(struct _Page));
 
     if (NULL != p) {
-	DEBUG_ALLOC(mem_page, p)
+	DEBUG_ALLOC(mem_page, p);
 	p->resp = NULL;
 	if (NULL == path) {
 	    p->path = NULL;
 	} else {
 	    p->path = strdup(path);
-	    DEBUG_ALLOC(mem_page_path, p->path)
+	    DEBUG_ALLOC(mem_page_path, p->path);
 	}
 	p->mtime = 0;
 	p->last_check = 0.0;
+	p->immutable = false;
     }
     return p;
 }
 
-void
-page_destroy(Page p) {
-    if (NULL != p->resp) {
-	text_release(p->resp);
-	p->resp = NULL;
+Page
+page_immutable(Err err, const char *path, const char *content, int clen) {
+    Page	p = (Page)malloc(sizeof(struct _Page));
+    const char	*mime = path_mime(path);
+    long	msize;
+    int		cnt;
+    int		plen = 0;
+    
+    if (NULL == p) {
+	err_set(err, ERR_MEMORY, "Failed to allocate memory for page.");
+	return NULL;     
     }
-    DEBUG_FREE(mem_page_path, p->path);
-    DEBUG_FREE(mem_page, p);
-    free(p->path);
-    free(p);
+    DEBUG_ALLOC(mem_page, p);
+    if (NULL == path) {
+	p->path = NULL;
+    } else {
+	p->path = strdup(path);
+	plen = strlen(path);
+	DEBUG_ALLOC(mem_page_path, p->path);
+    }
+    p->mtime = 0;
+    p->last_check = 0.0;
+    p->immutable = true;
+
+    if (NULL == mime) {
+	mime = "text/html";
+    }
+    if (0 == clen) {
+	clen = (int)strlen(content);
+    }
+    // Format size plus space for the length, the mime type, and some
+    // padding. Then add the content length.
+    msize = sizeof(page_fmt) + 60 + clen;
+    if (NULL == (p->resp = text_allocate((int)msize))) {
+	DEBUG_FREE(mem_page, p);
+	free(p);
+	err_set(err, ERR_MEMORY, "Failed to allocate memory for page content.");
+	return NULL;
+    }
+    cnt = sprintf(p->resp->text, page_fmt, mime, (long)clen);
+    msize = cnt + clen;
+    memcpy(p->resp->text + cnt, content, clen);
+    p->resp->text[msize] = '\0';
+    p->resp->len = msize;
+    text_ref(p->resp);
+
+    cache_set(path, plen, p);
+
+    return p;
 }
 
 static bool
-update_contents(Cache cache, Page p) {
-    const char	*mime = NULL;
+update_contents(Page p) {
+    const char	*mime = path_mime(p->path);
     int		plen = (int)strlen(p->path);
-    const char	*suffix = p->path + plen - 1;
     FILE	*f;
     long	size;
     struct stat	fattr;
@@ -314,24 +426,6 @@ update_contents(Cache cache, Page p) {
     struct stat	fs;
     Text	t;
     
-    for (; '.' != *suffix; suffix--) {
-	if (suffix <= p->path) {
-	    suffix = NULL;
-	    break;
-	}
-    }
-    if (suffix <= p->path) {
-	suffix = NULL;
-    }
-    if (NULL != suffix) {
-	suffix++;
-	if (NULL == (mime = mime_get(cache, suffix))) {
-	    mime = "text/plain";
-	}
-    } else {
-	mime = "text/plain";
-    }
-
     f = fopen(p->path, "rb");
     // On linux a directory is opened by fopen (sometimes? all the time?) so
     // fstat is called to get the file mode and verify it is a regular file or
@@ -345,7 +439,7 @@ update_contents(Cache cache, Page p) {
     }
     if (NULL == f) {
 	// If not found how about with a /index.html added?
-	if (NULL == suffix) {
+	if (NULL == mime) {
 	    char	path[1024];
 	    int		cnt;
 
@@ -364,6 +458,9 @@ update_contents(Cache cache, Page p) {
 	} else {
 	    return false;
 	}
+    }
+    if (NULL == mime) {
+	mime = "text/html";
     }
     if (0 != fseek(f, 0, SEEK_END)) {
 	fclose(f);
@@ -407,39 +504,68 @@ update_contents(Cache cache, Page p) {
     return true;
 }
 
-static Page
-page_check(Err err, Cache cache, Page page) {
-    double	now = dtime();
+static void
+page_remove(Page p) {
+    int		len = strlen(p->path);
+    int64_t	h = calc_hash(p->path, &len);
+    Slot	*bucket = get_bucketp(h);
+    Slot	s;
+    Slot	prev = NULL;
 
-    if (page->last_check + PAGE_RECHECK_TIME < now) {
-	struct stat	fattr;
+    for (s = *bucket; NULL != s; s = s->next) {
+	if (h == (int64_t)s->hash && len == (int)s->klen &&
+	    ((0 <= len && len <= MAX_KEY_UNIQ) || 0 == strncmp(s->key, p->path, len))) {
 
-	if (0 == stat(page->path, &fattr) && page->mtime != fattr.st_mtime) {
-	    update_contents(cache, page);
-	    if (NULL == page->resp) {
-		page_destroy(page);
-		err_set(err, ERR_NOT_FOUND, "not found.");
-		return NULL;
+	    if (NULL == prev) {
+		*bucket = s->next;
+	    } else {
+		prev->next = s->next;
 	    }
+	    DEBUG_FREE(mem_page_slot, s);
+	    page_destroy(s->value);
+	    free(s);
+
+	    break;
 	}
-	page->last_check = now;
+	prev = s;
+    }
+}
+
+static Page
+page_check(Err err, Page page) {
+    if (!page->immutable) {
+	double	now = dtime();
+
+	if (page->last_check + PAGE_RECHECK_TIME < now) {
+	    struct stat	fattr;
+
+	    if (0 == stat(page->path, &fattr) && page->mtime != fattr.st_mtime) {
+		update_contents(page);
+		if (NULL == page->resp) {
+		    page_remove(page);
+		    err_set(err, ERR_NOT_FOUND, "not found.");
+		    return NULL;
+		}
+	    }
+	    page->last_check = now;
+	}
     }
     return page;
 }
 
 Page
-page_get(Err err, Cache cache, const char *path, int plen) {
+page_get(Err err, const char *path, int plen) {
     Page	page;
 
     if (NULL != strstr(path, "../")) {
 	return NULL;
     }
-    if (NULL == (page = cache_get(cache, path, plen))) {
+    if (NULL == (page = cache_get(path, plen))) {
 	Page	old;
 	char	full_path[2048];
-	char	*s = stpcpy(full_path, cache->root);
+	char	*s = stpcpy(full_path, cache.root);
 
-	if ('/' != *cache->root && '/' != *path) {
+	if ('/' != *cache.root && '/' != *path) {
 	    *s++ = '/';
 	}
 	if ((int)sizeof(full_path) <= plen + (s - full_path)) {
@@ -452,22 +578,22 @@ page_get(Err err, Cache cache, const char *path, int plen) {
 	    err_set(err, ERR_MEMORY, "Failed to allocate memory for Page.");
 	    return NULL;
 	}
-	if (!update_contents(cache, page) || NULL == page->resp) {
+	if (!update_contents(page) || NULL == page->resp) {
 	    page_destroy(page);
 	    err_set(err, ERR_NOT_FOUND, "not found.");
 	    return NULL;
 	}
-	if (NULL != (old = cache_set(cache, path, plen, page))) {
+	if (NULL != (old = cache_set(path, plen, page))) {
 	    page_destroy(old);
 	}
     } else {
-	page = page_check(err, cache, page);
+	page = page_check(err, page);
     }
     return page;
 }
 
 Page
-group_get(Err err, Cache cache, const char *path, int plen) {
+group_get(Err err, const char *path, int plen) {
     Page	page = NULL;
     Group	g = NULL;
     char	full_path[2048];
@@ -477,7 +603,7 @@ group_get(Err err, Cache cache, const char *path, int plen) {
     if (NULL != strstr(path, "../")) {
 	return NULL;
     }
-    for (g = cache->groups; NULL != g; g = g->next) {
+    for (g = cache.groups; NULL != g; g = g->next) {
 	if (g->plen < plen && 0 == strncmp(path, g->path, g->plen) && '/' == path[g->plen]) {
 	    break;
 	}
@@ -493,7 +619,7 @@ group_get(Err err, Cache cache, const char *path, int plen) {
 	strncpy(s, path + g->plen, plen - g->plen);
 	s += plen - g->plen;
 	*s = '\0';
-	if (NULL != (page = cache_get(cache, full_path, s - full_path))) {
+	if (NULL != (page = cache_get(full_path, s - full_path))) {
 	    break;
 	}
     }
@@ -515,35 +641,35 @@ group_get(Err err, Cache cache, const char *path, int plen) {
 	}
 	plen = s - full_path;
 	path = full_path;
-	if (NULL == (page = cache_get(cache, path, plen))) {
+	if (NULL == (page = cache_get(path, plen))) {
 	    Page	old;
 
 	    if (NULL == (page = page_create(path))) {
 		err_set(err, ERR_MEMORY, "Failed to allocate memory for Page.");
 		return NULL;
 	    }
-	    if (!update_contents(cache, page) || NULL == page->resp) {
+	    if (!update_contents(page) || NULL == page->resp) {
 		page_destroy(page);
 		err_set(err, ERR_NOT_FOUND, "not found.");
 		return NULL;
 	    }
-	    if (NULL != (old = cache_set(cache, path, plen, page))) {
+	    if (NULL != (old = cache_set(path, plen, page))) {
 		page_destroy(old);
 	    }
 	}
 	return page;
     }
-    return page_check(err, cache, page);
+    return page_check(err, page);
 }
 
 Group
-group_create(Cache cache, const char *path) {
+group_create(const char *path) {
     Group	g = (Group)malloc(sizeof(struct _Group));
 
     if (NULL != g) {
 	DEBUG_ALLOC(mem_group, g);
-	g->next = cache->groups;
-	cache->groups = g;
+	g->next = cache.groups;
+	cache.groups = g;
 	g->path = strdup(path);
 	g->plen = strlen(path);
 	DEBUG_ALLOC(mem_group_path, g->path);

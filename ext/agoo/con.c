@@ -288,14 +288,14 @@ con_header_read(Con c) {
     }
     mlen = hend - c->buf + 4 + clen;
     if (GET == method &&
-	NULL != (p = group_get(&err, &the_server.pages, path.start, (int)(path.end - path.start)))) {
+	NULL != (p = group_get(&err, path.start, (int)(path.end - path.start)))) {
 	if (page_response(c, p, hend)) {
 	    return bad_request(c, 500, __LINE__);
 	}
 	return -mlen;
     }
     if (GET == method && the_server.root_first &&
-	NULL != (p = page_get(&err, &the_server.pages, path.start, (int)(path.end - path.start)))) {
+	NULL != (p = page_get(&err, path.start, (int)(path.end - path.start)))) {
 	if (page_response(c, p, hend)) {
 	    return bad_request(c, 500, __LINE__);
 	}
@@ -312,7 +312,7 @@ con_header_read(Con c) {
 		}
 		return bad_request(c, 404, __LINE__);
 	    }
-	    if (NULL == (p = page_get(&err, &the_server.pages, path.start, (int)(path.end - path.start)))) {
+	    if (NULL == (p = page_get(&err, path.start, (int)(path.end - path.start)))) {
 		if (NULL != the_server.hook404) {
 		    // There would be too many parameters to pass to a
 		    // separate function so just goto the hook processing.
