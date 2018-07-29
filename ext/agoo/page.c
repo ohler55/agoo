@@ -6,8 +6,6 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-#include <ruby.h>
-
 #include "debug.h"
 #include "dtime.h"
 #include "page.h"
@@ -144,8 +142,8 @@ cache_get(Cache cache, const char *key, int klen) {
     return v;
 }
 
-void
-mime_set(Cache cache, const char *key, const char *value) {
+int
+mime_set(Err err, Cache cache, const char *key, const char *value) {
     int		klen = (int)strlen(key);
     int		len = klen;
     int64_t	h = calc_hash(key, &len);
@@ -153,7 +151,7 @@ mime_set(Cache cache, const char *key, const char *value) {
     MimeSlot	s;
     
     if (MAX_MIME_KEY_LEN < len) {
-	rb_raise(rb_eArgError, "%s is too long for a file extension. Maximum is %d", key, MAX_MIME_KEY_LEN);
+	return err_set(err, ERR_ARG, "%s is too long for a file extension. Maximum is %d", key, MAX_MIME_KEY_LEN);
     }
     for (s = *bucket; NULL != s; s = s->next) {
 	if (h == (int64_t)s->hash && len == s->klen &&
@@ -163,12 +161,12 @@ mime_set(Cache cache, const char *key, const char *value) {
 		DEBUG_FREE(mem_mime_slot, s->value)
 		free(s->value);
 		s->value = strdup(value);
-		return;
+		return ERR_OK;
 	    }
 	}
     }
     if (NULL == (s = (MimeSlot)malloc(sizeof(struct _MimeSlot)))) {
-	rb_raise(rb_eArgError, "out of memory adding %s", key);
+	return err_set(err, ERR_ARG, "out of memory adding %s", key);
     }
     DEBUG_ALLOC(mem_mime_slot, s)
     s->hash = h;
@@ -181,6 +179,8 @@ mime_set(Cache cache, const char *key, const char *value) {
     s->value = strdup(value);
     s->next = *bucket;
     *bucket = s;
+
+    return ERR_OK;
 }
 
 static Page
@@ -229,10 +229,11 @@ cache_set(Cache cache, const char *key, int klen, Page value) {
 void
 pages_init(Cache cache) {
     Mime	m;
-
+    struct _Err	err = ERR_INIT;
+    
     memset(cache, 0, sizeof(struct _Cache));
     for (m = mime_map; NULL != m->suffix; m++) {
-	mime_set(cache, m->suffix, m->type);
+	mime_set(&err, cache, m->suffix, m->type);
     }
 }
 

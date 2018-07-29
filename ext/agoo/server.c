@@ -989,8 +989,11 @@ handle_not_found(VALUE self, VALUE handler) {
  */
 static VALUE
 add_mime(VALUE self, VALUE suffix, VALUE type) {
-    mime_set(&the_server.pages, StringValuePtr(suffix), StringValuePtr(type));
-
+    struct _Err	err = ERR_INIT;
+    
+    if (ERR_OK != mime_set(&err, &the_server.pages, StringValuePtr(suffix), StringValuePtr(type))) {
+	rb_raise(rb_eArgError, "%s", err.msg);
+    }
     return Qnil;
 }
 

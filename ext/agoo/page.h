@@ -69,6 +69,6 @@ extern Page	group_get(Err err, Cache cache, const char *path, int plen);
 
 extern void	page_destroy(Page p);
 extern Page	page_get(Err err, Cache cache, const char *path, int plen);
-extern void	mime_set(Cache cache, const char *key, const char *value);
+extern int	mime_set(Err err, Cache cache, const char *key, const char *value);
 
 #endif /* __AGOO_PAGE_H__ */
