@@ -4,6 +4,7 @@
 #include <netdb.h>
 #include <netinet/tcp.h>
 #include <poll.h>
+#include <string.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -13,6 +14,7 @@
 #include "http.h"
 #include "log.h"
 #include "page.h"
+#include "upgraded.h"
 
 #include "server.h"
 
@@ -21,8 +23,13 @@ struct _Server	the_server = {false};
 void
 server_setup() {
     memset(&the_server, 0, sizeof(struct _Server));
+    pthread_mutex_init(&the_server.up_lock, 0);
+    the_server.up_list = NULL;
+    the_server.max_push_pending = 32;
     pages_init();
     queue_multi_init(&the_server.con_queue, 256, false, false);
+    queue_multi_init(&the_server.pub_queue, 256, true, false);
+    queue_multi_init(&the_server.eval_queue, 1024, false, true);
 }
 
 static void*
@@ -62,7 +69,6 @@ listen_loop(void *x) {
 	    continue;
 	}
 	for (b = the_server.binds, p = pa; NULL != b; b = b->next, p++) {
-	    // TBD instead of b->port use b->id
 	    if (0 != (p->revents & POLLIN)) {
 		if (0 > (client_sock = accept(p->fd, (struct sockaddr*)&client_addr, &alen))) {
 		    log_cat(&error_cat, "Server with pid %d accept connection failed. %s.", getpid(), strerror(errno));
@@ -173,6 +179,8 @@ server_shutdown(const char *app_name, void (*stop)()) {
 	    bind_destroy(b);
 	}
 	queue_cleanup(&the_server.con_queue);
+	queue_cleanup(&the_server.pub_queue);
+	queue_cleanup(&the_server.eval_queue);
 
 	pages_cleanup();
 	http_cleanup();
@@ -184,3 +192,18 @@ server_bind(Bind b) {
     b->next = the_server.binds;
     the_server.binds = b;
 }
+
+void
+server_add_upgraded(Upgraded up) {
+    pthread_mutex_lock(&the_server.up_lock);
+    if (NULL == the_server.up_list) {
+	up->next = NULL;
+    } else {
+	the_server.up_list->prev = up;
+    }
+    up->next = the_server.up_list;
+    the_server.up_list = up;
+    up->con->up = up;
+    pthread_mutex_unlock(&the_server.up_lock);
+}
+

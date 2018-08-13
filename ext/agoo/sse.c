@@ -1,5 +1,7 @@
 // Copyright (c) 2018, Peter Ohler, All rights reserved.
 
+#include <stdlib.h>
+
 #include "request.h"
 #include "sse.h"
 #include "text.h"

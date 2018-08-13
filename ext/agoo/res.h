@@ -6,10 +6,8 @@
 #include <stdatomic.h>
 #include <stdbool.h>
 
-#include <ruby.h>
-
 #include "text.h"
-#include "types.h"
+#include "con.h"
 
 struct _Con;
 

@@ -8,14 +8,23 @@
 #include <stdint.h>
 
 #include "err.h"
-#include "request.h"
+#include "req.h"
 #include "response.h"
 #include "server.h"
 #include "types.h"
 
 #define MAX_HEADER_SIZE	8192
 
+typedef enum {
+    CON_ANY	= '\0',
+    CON_HTTP	= 'H',
+    CON_WS	= 'W',
+    CON_SSE	= 'S',
+} ConKind;
+
 struct _Upgraded;
+struct _Req;
+struct _Res;
 
 typedef struct _Con {
     struct _Con		*next;
@@ -33,9 +42,9 @@ typedef struct _Con {
     bool		closing;
     bool		dead;
     volatile bool	hijacked;
-    Req			req;
-    Res			res_head;
-    Res			res_tail;
+    struct _Req		*req;
+    struct _Res		*res_head;
+    struct _Res		*res_tail;
 
     struct _Upgraded	*up; // only set for push connections
 } *Con;

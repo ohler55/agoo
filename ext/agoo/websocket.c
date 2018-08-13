@@ -5,10 +5,12 @@
 #include "base64.h"
 #include "con.h"
 #include "debug.h"
+#include "log.h"
 #include "request.h"
 #include "rserver.h"
 #include "sha1.h"
 #include "text.h"
+#include "upgraded.h"
 #include "websocket.h"
 
 #define MAX_KEY_LEN	1024
@@ -164,11 +166,11 @@ bool
 ws_create_req(Con c, long mlen) {
     uint8_t	op = 0x0F & *c->buf;
     
-    if (NULL == (c->req = request_create(mlen))) {
+    if (NULL == (c->req = req_create(mlen))) {
 	log_cat(&error_cat, "Out of memory attempting to allocate request.");
 	return true;
     }
-    if (NULL == c->up || Qnil == c->up->handler) {
+    if (NULL == c->up || Qnil == (VALUE)c->up->ctx) {
 	return true;
     }
     memset(c->req, 0, sizeof(struct _Req));
@@ -187,21 +189,21 @@ ws_create_req(Con c, long mlen) {
     c->req->up = c->up;
     c->req->res = NULL;
     if (c->up->on_msg) {
-	c->req->hook = hook_create(NONE, NULL, (void*)c->up->handler, PUSH_HOOK, &the_rserver.eval_queue);
+	c->req->hook = hook_create(NONE, NULL, c->up->ctx, PUSH_HOOK, &the_server.eval_queue);
     }
     return false;
 }
 
 void
 ws_req_close(Con c) {
-    if (NULL != c->up && Qnil != c->up->handler && c->up->on_close) {
-	Req	req = request_create(0);
+    if (NULL != c->up && Qnil != (VALUE)c->up->ctx && c->up->on_close) {
+	Req	req = req_create(0);
 	    
 	req->up = c->up;
 	req->method = ON_CLOSE;
-	req->hook = hook_create(NONE, NULL, (void*)c->up->handler, PUSH_HOOK, &the_rserver.eval_queue);
+	req->hook = hook_create(NONE, NULL, c->up->ctx, PUSH_HOOK, &the_server.eval_queue);
 	atomic_fetch_add(&c->up->ref_cnt, 1);
-	queue_push(&the_rserver.eval_queue, (void*)req);
+	queue_push(&the_server.eval_queue, (void*)req);
     }
 }
 

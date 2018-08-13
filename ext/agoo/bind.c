@@ -40,8 +40,10 @@ url_tcp(Err err, const char *url) {
     if (NULL == colon) {
 	port = 80;
     } else if (15 < colon - url) {
-	err_set(err, ERR_ARG, "tcp/http bind address is not valid. (%s)", url);
+	err_set(err, ERR_ARG, "tcp/http bind address is not valid, too long. (%s)", url);
 	return NULL;
+    } else if (':' == *url) {
+	port = atoi(colon + 1);
     } else {
 	char	buf[32];
 

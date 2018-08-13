@@ -1,6 +1,7 @@
 // Copyright (c) 2018, Peter Ohler, All rights reserved.
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <ctype.h>
 
 #include "debug.h"
@@ -58,21 +59,6 @@ static const char	upgrade_key[] = "Upgrade";
 static const char	websocket_val[] = "websocket";
 static const char	accept_key[] = "Accept";
 static const char	event_stream_val[] = "text/event-stream";
-
-Req
-request_create(size_t mlen) {
-    size_t	size = mlen + sizeof(struct _Req) - 7;
-    Req		req = (Req)malloc(size);
-    
-    if (NULL != req) {
-	DEBUG_ALLOC(mem_req, req);
-	memset(req, 0, size);
-	req->env = Qnil;
-	req->mlen = mlen;
-	req->hook = NULL;
-    }
-    return req;
-}
 
 static VALUE
 req_method(Req r) {
@@ -185,23 +171,14 @@ static VALUE
 req_server_name(Req r) {
     int		len;
     const char	*host;
-    const char	*colon;
 
     if (NULL == r) {
 	rb_raise(rb_eArgError, "Request is no longer valid.");
     }
-    if (NULL == (host = con_header_value(r->header.start, r->header.len, "Host", &len))) {
+    if (NULL == (host = req_host(r, &len))) {
 	return rb_str_new2("unknown");
     }
-    for (colon = host + len - 1; host < colon; colon--) {
-	if (':' == *colon) {
-	    break;
-	}
-    }
-    if (host == colon) {
-	return rb_str_new(host, len);
-    }
-    return rb_str_new(host, colon - host);
+    return rb_str_new(host, len);
 }
 
 /* Document-method: server_name
@@ -381,6 +358,7 @@ rack_run_once(VALUE self) {
     return Qfalse;
 }
 
+// TBD req.c
 static void
 add_header_value(VALUE hh, const char *key, int klen, const char *val, int vlen) {
     if (sizeof(content_type) - 1 == klen && 0 == strncasecmp(key, content_type, sizeof(content_type) - 1)) {
@@ -413,6 +391,7 @@ add_header_value(VALUE hh, const char *key, int klen, const char *val, int vlen)
     }
 }
 
+// TBD req.c
 static void
 fill_headers(Req r, VALUE hash) {
     char	*h = r->header.start;
@@ -551,7 +530,7 @@ rack_logger(VALUE self) {
  */
 VALUE
 request_env(Req req, VALUE self) {
-    if (Qnil == req->env) {
+    if (Qnil == (VALUE)req->env) {
 	volatile VALUE	env = rb_hash_new();
     
 	// As described by
@@ -586,9 +565,9 @@ request_env(Req req, VALUE self) {
 	rb_hash_aset(env, rack_hijack_val, self);
 	rb_hash_aset(env, rack_hijack_io_val, Qnil);
 
-	req->env = env;
+	req->env = (void*)env;
     }
-    return req->env;
+    return (VALUE)req->env;
 }
 
 /* Document-method: to_h
@@ -644,17 +623,9 @@ call(VALUE self) {
     args[0] = INT2NUM(r->res->con->sock);
 
     io = rb_class_new_instance(1, args, rb_cIO);
-    rb_hash_aset(r->env, rack_hijack_io_val, io);
+    rb_hash_aset((VALUE)r->env, rack_hijack_io_val, io);
     
     return io;
-}
-void
-request_destroy(Req req) {
-    DEBUG_FREE(mem_req, req);
-    if (NULL != req->hook && PUSH_HOOK == req->hook->type) {
-	free(req->hook);
-    }
-    free(req);
 }
 
 VALUE

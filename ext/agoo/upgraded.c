@@ -1,35 +1,24 @@
 // Copyright (c) 2018, Peter Ohler, All rights reserved.
 
 #include <stdio.h>
-
-#include <ruby/encoding.h>
+#include <string.h>
 
 #include "con.h"
 #include "debug.h"
 #include "pub.h"
-#include "rserver.h"
 #include "server.h"
 #include "subject.h"
 #include "upgraded.h"
-
-static VALUE	upgraded_class = Qundef;
-
-static VALUE	sse_sym;
-static VALUE	websocket_sym;
-
-static ID	on_open_id = 0;
-static ID	to_s_id = 0;
 
 static void
 destroy(Upgraded up) {
     Subject	subject;
 
-    if (Qnil != up->wrap) {
-	DATA_PTR(up->wrap) = NULL;
-	up->wrap = Qnil;
+    if (NULL != up->on_destroy) {
+	up->on_destroy(up);
     }
     if (NULL == up->prev) {
-	the_rserver.up_list = up->next;
+	the_server.up_list = up->next;
 	if (NULL != up->next) {
 	    up->next->prev = NULL;
 	}
@@ -47,45 +36,23 @@ destroy(Upgraded up) {
     free(up);
 }
 
-const char*
-extract_subject(VALUE subject, int *slen) {
-    const char	*subj;
-    
-    switch (rb_type(subject)) {
-    case T_STRING:
-	subj = StringValuePtr(subject);
-	*slen = (int)RSTRING_LEN(subject);
-	break;
-    case T_SYMBOL:
-	subj = rb_id2name(rb_sym2id(subject));
-	*slen = strlen(subj);
-	break;
-    default:
-	subject = rb_funcall(subject, to_s_id, 0);
-	subj = StringValuePtr(subject);
-	*slen = (int)RSTRING_LEN(subject);
-	break;
-    }
-    return subj;
-}
-
 void
 upgraded_release(Upgraded up) {
-    pthread_mutex_lock(&the_rserver.up_lock);
+    pthread_mutex_lock(&the_server.up_lock);
     if (atomic_fetch_sub(&up->ref_cnt, 1) <= 1) {
 	destroy(up);
     }    
-    pthread_mutex_unlock(&the_rserver.up_lock);
+    pthread_mutex_unlock(&the_server.up_lock);
 }
 
 void
 upgraded_release_con(Upgraded up) {
-    pthread_mutex_lock(&the_rserver.up_lock);
+    pthread_mutex_lock(&the_server.up_lock);
     up->con = NULL;
     if (atomic_fetch_sub(&up->ref_cnt, 1) <= 1) {
 	destroy(up);
     }
-    pthread_mutex_unlock(&the_rserver.up_lock);
+    pthread_mutex_unlock(&the_server.up_lock);
 }
 
 // Called from the con_loop thread, no need to lock, this steals the subject
@@ -147,274 +114,69 @@ upgraded_ref(Upgraded up) {
     atomic_fetch_add(&up->ref_cnt, 1);
 }
 
-static Upgraded
-get_upgraded(VALUE self) {
-    Upgraded	up = NULL;
+bool
+upgraded_write(Upgraded up, const char *message, size_t mlen, bool bin, bool inc_ref) {
+    Pub	p;
 
-    if (the_server.active) {
-	pthread_mutex_lock(&the_rserver.up_lock);
-	if (NULL != (up = DATA_PTR(self))) {
-	    atomic_fetch_add(&up->ref_cnt, 1);
-	}
-	pthread_mutex_unlock(&the_rserver.up_lock);
-    }
-    return up;
-}
-
-/* Document-method: write
- *
- * call-seq: write(msg)
- *
- * Writes a message to the WebSocket or SSE connection. Returns true if the
- * message has been queued and false otherwise. A closed connection or too
- * many pending messages could cause a value of false to be returned.
- */
-static VALUE
-up_write(VALUE self, VALUE msg) {
-    Upgraded	up = get_upgraded(self);
-    Pub		p;
-
-    if (NULL == up) {
-	return Qfalse;
-    }
-    if (0 < the_rserver.max_push_pending && the_rserver.max_push_pending <= atomic_load(&up->pending)) {
+    if (0 < the_server.max_push_pending && the_server.max_push_pending <= atomic_load(&up->pending)) {
 	atomic_fetch_sub(&up->ref_cnt, 1);
 	// Too many pending messages.
-	return Qfalse;
+	return false;
     }
-    if (T_STRING == rb_type(msg)) {
-	if (RB_ENCODING_IS_ASCII8BIT(msg)) {
-	    p = pub_write(up, StringValuePtr(msg), RSTRING_LEN(msg), true);
-	} else {
-	    p = pub_write(up, StringValuePtr(msg), RSTRING_LEN(msg), false);
-	}
-    } else {
-	volatile VALUE	rs = rb_funcall(msg, to_s_id, 0);
-	
-	p = pub_write(up, StringValuePtr(rs), RSTRING_LEN(rs), false);
+    if (inc_ref) {
+	atomic_fetch_add(&up->ref_cnt, 1);
+    }
+    p = pub_write(up, message, mlen, bin);
+    atomic_fetch_add(&up->pending, 1);
+    queue_push(&the_server.pub_queue, p);
+
+    return true;
+}
+
+void
+upgraded_subscribe(Upgraded up, const char *subject, int slen, bool inc_ref) {
+    if (inc_ref) {
+	atomic_fetch_add(&up->ref_cnt, 1);
     }
     atomic_fetch_add(&up->pending, 1);
-    queue_push(&the_rserver.pub_queue, p);
-
-    return Qtrue;
+    queue_push(&the_server.pub_queue, pub_subscribe(up, subject, slen));
 }
 
-/* Document-method: subscribe
- *
- * call-seq: subscribe(subject)
- *
- * Subscribes to messages published on the specified subject. The subject is a
- * dot delimited string that can include a '*' character as a wild card that
- * matches any set of characters. The '>' character matches all remaining
- * characters. Examples: people.fred.log, people.*.log, people.fred.>
- *
- * Symbols can also be used as can any other object that responds to #to_s.
- */
-static VALUE
-up_subscribe(VALUE self, VALUE subject) {
-    Upgraded	up;
-    int		slen;
-    const char	*subj = extract_subject(subject, &slen);
-
-    if (NULL != (up = get_upgraded(self))) {
-	atomic_fetch_add(&up->pending, 1);
-	queue_push(&the_rserver.pub_queue, pub_subscribe(up, subj, slen));
+void
+upgraded_unsubscribe(Upgraded up, const char *subject, int slen, bool inc_ref) {
+    if (inc_ref) {
+	atomic_fetch_add(&up->ref_cnt, 1);
     }
-    return Qnil;
+    atomic_fetch_add(&up->pending, 1);
+    queue_push(&the_server.pub_queue, pub_unsubscribe(up, subject, slen));
 }
 
-/* Document-method: unsubscribe
- *
- * call-seq: unsubscribe(subject=nil)
- *
- * Unsubscribes to messages on the provided subject. If the subject is nil
- * then all subscriptions for the object are removed.
- *
- * Symbols can also be used as can any other object that responds to #to_s.
- */
-static VALUE
-up_unsubscribe(int argc, VALUE *argv, VALUE self) {
-    Upgraded	up;
-    const char	*subject = NULL;
-    int		slen = 0;
-
-    if (0 < argc) {
-	subject = extract_subject(argv[0], &slen);
+void
+upgraded_close(Upgraded up, bool inc_ref) {
+    if (inc_ref) {
+	atomic_fetch_add(&up->ref_cnt, 1);
     }
-    if (NULL != (up = get_upgraded(self))) {
-	atomic_fetch_add(&up->pending, 1);
-	queue_push(&the_rserver.pub_queue, pub_unsubscribe(up, subject, slen));
-    }
-    return Qnil;
+    atomic_fetch_add(&up->pending, 1);
+    queue_push(&the_server.pub_queue, pub_close(up));
 }
 
-/* Document-method: close
- *
- * call-seq: close()
- *
- * Closes the connections associated with the handler.
- */
-static VALUE
-up_close(VALUE self) {
-    Upgraded	up = get_upgraded(self);
-
-    if (NULL != up) {
-	atomic_fetch_add(&up->pending, 1);
-	queue_push(&the_rserver.pub_queue, pub_close(up));
-    }
-    return Qnil;
-}
-
-/* Document-method: pending
- *
- * call-seq: pending()
- *
- * Returns the number of pending WebSocket or SSE writes. If the connection is
- * closed then -1 is returned.
- */
-static VALUE
-pending(VALUE self) {
-    Upgraded	up = get_upgraded(self);
-    int		pending = -1;
-    
-    if (NULL != up) {
-	pending = atomic_load(&up->pending);
-	atomic_fetch_sub(&up->ref_cnt, 1);
-    }
-    return INT2NUM(pending);
-}
-
-/* Document-method: open?
- *
- * call-seq: open?()
- *
- * Returns true if the connection is open and false otherwise.
- */
-static VALUE
-up_open(VALUE self) {
-    Upgraded	up = get_upgraded(self);
-    int		pending = -1;
-    
-    if (NULL != up) {
-	pending = atomic_load(&up->pending);
-	atomic_fetch_sub(&up->ref_cnt, 1);
-    }
-    return 0 <= pending ? Qtrue : Qfalse;
-}
-
-/* Document-method: protocol
- *
- * call-seq: protocol()
- *
- * Returns the protocol of the upgraded connection as either :websocket or
- * :sse. If not longer connected nil is returned.
- */
-static VALUE
-protocol(VALUE self) {
-    VALUE	pro = Qnil;
-
-    if (the_server.active) {
-	Upgraded	up;
-	
-	pthread_mutex_lock(&the_rserver.up_lock);
-	if (NULL != (up = DATA_PTR(self)) && NULL != up->con) {
-	    switch (up->con->kind) {
-	    case CON_WS:
-		pro = websocket_sym;
-		break;
-	    case CON_SSE:
-		pro = sse_sym;
-		break;
-	    default:
-		break;
-	    }
-	}
-	pthread_mutex_unlock(&the_rserver.up_lock);
-    }
-    return pro;
+int
+upgraded_pending(Upgraded up) {
+    return atomic_load(&up->pending);
 }
 
 Upgraded
-upgraded_create(Con c, VALUE obj, VALUE env) {
+upgraded_create(Con c, void * ctx, void *env) {
     Upgraded	up = (Upgraded)malloc(sizeof(struct _Upgraded));
 
-    if (!the_server.active) {
-	rb_raise(rb_eIOError, "Server shutdown.");
-    }
     if (NULL != up) {
 	DEBUG_ALLOC(mem_upgraded, up);
+	memset(up, 0, sizeof(struct _Upgraded));
 	up->con = c;
-	up->handler = obj;
+	up->ctx = ctx;
 	up->env = env;
 	atomic_init(&up->pending, 0);
 	atomic_init(&up->ref_cnt, 1); // start with 1 for the Con reference
-	up->on_empty = rb_respond_to(obj, rb_intern("on_drained"));
-	up->on_close = rb_respond_to(obj, rb_intern("on_close"));
-	up->on_shut = rb_respond_to(obj, rb_intern("on_shutdown"));
-	up->on_msg = rb_respond_to(obj, rb_intern("on_message"));
-	up->on_error = rb_respond_to(obj, rb_intern("on_error"));
-	up->wrap = Data_Wrap_Struct(upgraded_class, NULL, NULL, up);
-	up->subjects = NULL;
-	up->prev = NULL;
-	pthread_mutex_lock(&the_rserver.up_lock);
-	if (NULL == the_rserver.up_list) {
-	    up->next = NULL;
-	} else {
-	    the_rserver.up_list->prev = up;
-	}
-	up->next = the_rserver.up_list;
-	the_rserver.up_list = up;
-	c->up = up;
-	pthread_mutex_unlock(&the_rserver.up_lock);
-
-	if (rb_respond_to(obj, on_open_id)) {
-	    rb_funcall(obj, on_open_id, 1, up->wrap);
-	}
     }
     return up;
-}
-
-// Use the publish from the Agoo module.
-extern VALUE	ragoo_publish(VALUE self, VALUE subject, VALUE message);
-
-/* Document-method: env
- *
- * call-seq: env()
- *
- * Returns the environment passed to the call method that initiated the
- * Upgraded Object creation.
- */
-static VALUE
-env(VALUE self) {
-    Upgraded	up = get_upgraded(self);
-
-    if (NULL != up) {
-	return up->env;
-    }
-    return Qnil;
-}
-
-/* Document-module: Agoo::Upgraded
- *
- * Adds methods to a handler of WebSocket and SSE connections.
- */
-void
-upgraded_init(VALUE mod) {
-    upgraded_class = rb_define_class_under(mod, "Upgraded", rb_cObject);
-
-    rb_define_method(upgraded_class, "write", up_write, 1);
-    rb_define_method(upgraded_class, "subscribe", up_subscribe, 1);
-    rb_define_method(upgraded_class, "unsubscribe", up_unsubscribe, -1);
-    rb_define_method(upgraded_class, "close", up_close, 0);
-    rb_define_method(upgraded_class, "pending", pending, 0);
-    rb_define_method(upgraded_class, "protocol", protocol, 0);
-    rb_define_method(upgraded_class, "publish", ragoo_publish, 2);
-    rb_define_method(upgraded_class, "open?", up_open, 0);
-    rb_define_method(upgraded_class, "env", env, 0);
-
-    on_open_id = rb_intern("on_open");
-    to_s_id = rb_intern("to_s");
-
-    sse_sym = ID2SYM(rb_intern("sse"));				rb_gc_register_address(&sse_sym);
-    websocket_sym = ID2SYM(rb_intern("websocket"));		rb_gc_register_address(&websocket_sym);
 }

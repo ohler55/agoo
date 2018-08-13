@@ -31,7 +31,7 @@ class BindTest < Minitest::Test
 			    eval: true,
 			  })
 
-      addr = ''
+      addr = '127.0.0.1'
       Socket.ip_address_list.each { |ai|
 	if ai.ipv4? && '127.0.0.1' != ai.ip_address
 	  addr = ai.ip_address
@@ -52,7 +52,7 @@ class BindTest < Minitest::Test
       localhost_test
       ipv4_test(addr)
       ipv6_test(addr6)
-      restrict_test
+      restrict_test unless '127.0.0.1' == addr
       named_test(name)
     ensure
       Agoo::shutdown

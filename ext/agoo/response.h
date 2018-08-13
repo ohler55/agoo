@@ -6,8 +6,6 @@
 #include <stdatomic.h>
 #include <stdbool.h>
 
-#include <ruby.h>
-
 #include "server.h"
 #include "text.h"
 
@@ -24,9 +22,7 @@ typedef struct _Response {
     char	*body;
 } *Response;
 
-extern void	response_init(VALUE mod);
-
-extern VALUE	response_new();
-extern Text	response_text(VALUE self);
+extern int	response_len(Response res);
+extern void	response_fill(Response res, char *buf);
 
 #endif // __AGOO_RESPONSE_H__

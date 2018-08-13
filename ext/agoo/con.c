@@ -4,17 +4,18 @@
 #include <netdb.h>
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "con.h"
 #include "debug.h"
 #include "dtime.h"
 #include "hook.h"
 #include "http.h"
+#include "log.h"
 #include "page.h"
 #include "pub.h"
 #include "res.h"
 #include "seg.h"
-#include "rserver.h"
 #include "server.h"
 #include "sse.h"
 #include "subject.h"
@@ -53,7 +54,7 @@ con_destroy(Con c) {
 	c->sock = 0;
     }
     if (NULL != c->req) {
-	request_destroy(c->req);
+	req_destroy(c->req);
     }
     if (NULL != c->up) {
 	upgraded_release_con(c->up);
@@ -157,8 +158,8 @@ page_response(Con c, Page p, char *hend) {
 // rserver
 static void
 push_error(Upgraded up, const char *msg, int mlen) {
-    if (NULL != up && Qnil != up->handler && up->on_error) {
-	Req	req = request_create(mlen);
+    if (NULL != up && the_server.ctx_nil_value != up->ctx && up->on_error) {
+	Req	req = req_create(mlen);
 
 	if (NULL == req) {
 	    return;
@@ -167,9 +168,9 @@ push_error(Upgraded up, const char *msg, int mlen) {
 	req->msg[mlen] = '\0';
 	req->up = up;
 	req->method = ON_ERROR;
-	req->hook = hook_create(NONE, NULL, (void*)up->handler, PUSH_HOOK, &the_rserver.eval_queue);
+	req->hook = hook_create(NONE, NULL, up->ctx, PUSH_HOOK, &the_server.eval_queue);
 	upgraded_ref(up);
-	queue_push(&the_rserver.eval_queue, (void*)req);
+	queue_push(&the_server.eval_queue, (void*)req);
     }
 }
 
@@ -331,7 +332,7 @@ con_header_read(Con c) {
     }
 HOOKED:
     // Create request and populate.
-    if (NULL == (c->req = request_create(mlen))) {
+    if (NULL == (c->req = req_create(mlen))) {
 	return bad_request(c, 413, __LINE__);
     }
     if ((long)c->bcnt <= mlen) {
@@ -569,7 +570,7 @@ con_ws_read(Con c) {
 		}
 	    }
 	    upgraded_ref(c->up);
-	    queue_push(&the_rserver.eval_queue, (void*)c->req);
+	    queue_push(&the_server.eval_queue, (void*)c->req);
 	    if (mlen < (long)c->bcnt) {
 		memmove(c->buf, c->buf + mlen, c->bcnt - mlen);
 		c->bcnt -= mlen;
@@ -849,7 +850,7 @@ publish_pub(Pub pub) {
     const char	*sub = pub->subject->pattern;
     int	cnt = 0;
     
-    for (up = the_rserver.up_list; NULL != up; up = up->next) {
+    for (up = the_server.up_list; NULL != up; up = up->next) {
 	if (NULL != up->con && upgraded_match(up, sub)) {
 	    Res	res = res_create(up->con);
 
@@ -873,7 +874,7 @@ unsubscribe_pub(Pub pub) {
     if (NULL == pub->up) {
 	Upgraded	up;
 
-	for (up = the_rserver.up_list; NULL != up; up = up->next) {
+	for (up = the_server.up_list; NULL != up; up = up->next) {
 	    upgraded_del_subject(up, pub->subject);
 	}
     } else {
@@ -890,14 +891,14 @@ process_pub_con(Pub pub) {
 	
 	// TBD Change pending to be based on length of con queue
 	if (1 == (pending = atomic_fetch_sub(&up->pending, 1))) {
-	    if (NULL != up && Qnil != up->handler && up->on_empty) {
-		Req	req = request_create(0);
+	    if (NULL != up && the_server.ctx_nil_value != up->ctx && up->on_empty) {
+		Req	req = req_create(0);
 	    
 		req->up = up;
 		req->method = ON_EMPTY;
-		req->hook = hook_create(NONE, NULL, (void*)up->handler, PUSH_HOOK, &the_rserver.eval_queue);
+		req->hook = hook_create(NONE, NULL, up->ctx, PUSH_HOOK, &the_server.eval_queue);
 		upgraded_ref(up);
-		queue_push(&the_rserver.eval_queue, (void*)req);
+		queue_push(&the_server.eval_queue, (void*)req);
 	    }
 	}
     }
@@ -964,7 +965,7 @@ poll_setup(Con c, struct pollfd *pp) {
     pp->events = POLLIN;
     pp->revents = 0;
     pp++;
-    pp->fd = queue_listen(&the_rserver.pub_queue);
+    pp->fd = queue_listen(&the_server.pub_queue);
     pp->events = POLLIN;
     pp->revents = 0;
     pp++;
@@ -1060,7 +1061,7 @@ con_loop(void *x) {
 		pend = pa + cnt;
 	    }
 	}
-	while (NULL != (pub = (Pub)queue_pop(&the_rserver.pub_queue, 0.0))) {
+	while (NULL != (pub = (Pub)queue_pop(&the_server.pub_queue, 0.0))) {
 	    process_pub_con(pub);
 	}
 	
@@ -1098,8 +1099,8 @@ con_loop(void *x) {
 	    }
 	    // Check pub_queue if an event is waiting.
 	    if (0 != (pa[1].revents & POLLIN)) {
-		queue_release(&the_rserver.pub_queue);
-		while (NULL != (pub = (Pub)queue_pop(&the_rserver.pub_queue, 0.0))) {
+		queue_release(&the_server.pub_queue);
+		while (NULL != (pub = (Pub)queue_pop(&the_server.pub_queue, 0.0))) {
 		    process_pub_con(pub);
 		}
 	    }
