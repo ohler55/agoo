@@ -1,14 +1,16 @@
 // Copyright (c) 2018, Peter Ohler, All rights reserved.
 
 #include <stdint.h>
+#include <string.h>
 
 #include "base64.h"
 #include "con.h"
 #include "debug.h"
 #include "log.h"
-#include "request.h"
-#include "rserver.h"
+#include "req.h"
+#include "res.h"
 #include "sha1.h"
+#include "server.h"
 #include "text.h"
 #include "upgraded.h"
 #include "websocket.h"
@@ -170,7 +172,7 @@ ws_create_req(Con c, long mlen) {
 	log_cat(&error_cat, "Out of memory attempting to allocate request.");
 	return true;
     }
-    if (NULL == c->up || Qnil == (VALUE)c->up->ctx) {
+    if (NULL == c->up || the_server.ctx_nil_value == c->up->ctx) {
 	return true;
     }
     memset(c->req, 0, sizeof(struct _Req));
@@ -196,7 +198,7 @@ ws_create_req(Con c, long mlen) {
 
 void
 ws_req_close(Con c) {
-    if (NULL != c->up && Qnil != (VALUE)c->up->ctx && c->up->on_close) {
+    if (NULL != c->up && the_server.ctx_nil_value != c->up->ctx && c->up->on_close) {
 	Req	req = req_create(0);
 	    
 	req->up = c->up;

@@ -58,6 +58,8 @@ typedef struct _LogEntry {
     char		*whatp;
     char		what[104];
     volatile bool	ready;
+    char		*tidp;
+    char		tid[40];
 } *LogEntry;
 	
 struct _Log {
@@ -115,7 +117,8 @@ extern LogCat	log_cat_find(const char *label);
 
 // Function to call to make a log entry.
 extern void	log_cat(LogCat cat, const char *fmt, ...);
-extern void	log_catv(LogCat cat, const char *fmt, va_list ap);
+extern void	log_tid_cat(LogCat cat, const char *tid, const char *fmt, ...);
+extern void	log_catv(LogCat cat, const char *tid, const char *fmt, va_list ap);
 
 extern void	log_start(bool with_pid);
 

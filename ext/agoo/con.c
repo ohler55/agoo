@@ -25,8 +25,6 @@
 #define CON_TIMEOUT		5.0
 #define INITIAL_POLL_SIZE	1024
 
-extern void	agoo_shutdown();
-
 Con
 con_create(Err err, int sock, uint64_t id) {
     Con	c;
@@ -1055,7 +1053,9 @@ con_loop(void *x) {
 		size = sizeof(struct pollfd) * cnt;
 		if (NULL == (pa = (struct pollfd*)malloc(size))) {
 		    log_cat(&error_cat, "Out of memory.");
-		    agoo_shutdown();
+		    log_close();
+		    exit(EXIT_FAILURE);
+
 		    return NULL;
 		}
 		pend = pa + cnt;
@@ -1090,7 +1090,9 @@ con_loop(void *x) {
 			size = sizeof(struct pollfd) * cnt;
 			if (NULL == (pa = (struct pollfd*)malloc(size))) {
 			    log_cat(&error_cat, "Out of memory.");
-			    agoo_shutdown();
+			    log_close();
+			    exit(EXIT_FAILURE);
+
 			    return NULL;
 			}
 			pend = pa + cnt;

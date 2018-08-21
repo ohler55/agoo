@@ -153,15 +153,26 @@ log_queue_pop(double timeout) {
 static int
 jwrite(LogEntry e, FILE *file) {
     // TBD make e->what JSON friendly
-    return fprintf(file, "{\"when\":%lld.%09lld,\"where\":\"%s\",\"level\":%d,\"what\":\"%s\"}\n",
-		   (long long)(e->when / 1000000000LL),
-		   (long long)(e->when % 1000000000LL),
-		   e->cat->label,
-		   e->cat->level,
-		   (NULL == e->whatp ? e->what : e->whatp));
+    if (NULL == e->tidp && '\0' == *e->tid) {
+	return fprintf(file, "{\"when\":%lld.%09lld,\"where\":\"%s\",\"level\":%d,\"what\":\"%s\"}\n",
+		       (long long)(e->when / 1000000000LL),
+		       (long long)(e->when % 1000000000LL),
+		       e->cat->label,
+		       e->cat->level,
+		       (NULL == e->whatp ? e->what : e->whatp));
+    } else {
+	return fprintf(file, "{\"when\":%lld.%09lld,\"tid\":\"%s\",\"where\":\"%s\",\"level\":%d,\"what\":\"%s\"}\n",
+		       (long long)(e->when / 1000000000LL),
+		       (long long)(e->when % 1000000000LL),
+		       (NULL == e->tidp ? e->tid : e->tidp),
+		       e->cat->label,
+		       e->cat->level,
+		       (NULL == e->whatp ? e->what : e->whatp));
+    }
 }
 
-//I 2015/05/23 11:22:33.123456789 label: The contents of the what field.
+// I 2015/05/23 11:22:33.123456789 label: The contents of the what field.
+// I 2015/05/23 11:22:33.123456789 [tid] label: The contents of the what field.
 static int
 classic_write(LogEntry e, FILE *file) {
     time_t	t = (time_t)(e->when / 1000000000LL);
@@ -189,16 +200,33 @@ classic_write(LogEntry e, FILE *file) {
 	the_log.day_end = the_log.day_start + 86400;
     }
     if (the_log.colorize) {
-	cnt = fprintf(file, "%s%c %s%02d:%02d:%02d.%09lld %s: %s%s\n",
-		      e->cat->color->ansi, levelc, the_log.day_buf, hour, min, sec, frac,
-		      e->cat->label,
-		      (NULL == e->whatp ? e->what : e->whatp),
-		      RESET_COLOR);
+	if (NULL == e->tidp && '\0' == *e->tid) {
+	    cnt = fprintf(file, "%s%c %s%02d:%02d:%02d.%09lld %s: %s%s\n",
+			  e->cat->color->ansi, levelc, the_log.day_buf, hour, min, sec, frac,
+			  e->cat->label,
+			  (NULL == e->whatp ? e->what : e->whatp),
+			  RESET_COLOR);
+	} else {
+	    cnt = fprintf(file, "%s%c %s%02d:%02d:%02d.%09lld [%s] %s: %s%s\n",
+			  e->cat->color->ansi, levelc, the_log.day_buf, hour, min, sec, frac,
+			  (NULL == e->tidp ? e->tid : e->tidp),
+			  e->cat->label,
+			  (NULL == e->whatp ? e->what : e->whatp),
+			  RESET_COLOR);
+	}
     } else {
-	cnt += fprintf(file, "%c %s%02d:%02d:%02d.%09lld %s: %s\n",
-		       levelc, the_log.day_buf, hour, min, sec, frac,
-		       e->cat->label,
-		       (NULL == e->whatp ? e->what : e->whatp));
+	if (NULL == e->tidp && '\0' == *e->tid) {
+	    cnt += fprintf(file, "%c %s%02d:%02d:%02d.%09lld %s: %s\n",
+			   levelc, the_log.day_buf, hour, min, sec, frac,
+			   e->cat->label,
+			   (NULL == e->whatp ? e->what : e->whatp));
+	} else {
+	    cnt += fprintf(file, "%c %s%02d:%02d:%02d.%09lld [%s] %s: %s\n",
+			   levelc, the_log.day_buf, hour, min, sec, frac,
+			   (NULL == e->tidp ? e->tid : e->tidp),
+			   e->cat->label,
+			   (NULL == e->whatp ? e->what : e->whatp));
+	}
     }
     return cnt;
 }
@@ -308,6 +336,10 @@ loop(void *ctx) {
 		free(e->whatp);
 		DEBUG_FREE(mem_log_what, e->whatp)
 	    }
+	    if (NULL != e->tidp) {
+		free(e->tidp);
+		DEBUG_FREE(mem_log_tid, e->tidp)
+	    }
 	    e->ready = false;
 	}
     }
@@ -380,13 +412,17 @@ log_close() {
 
 void
 log_cat_reg(LogCat cat, const char *label, LogLevel level, const char *color, bool on) {
+    LogCat	xcat = log_cat_find(label);
+    
     strncpy(cat->label, label, sizeof(cat->label));
     cat->label[sizeof(cat->label) - 1] = '\0';
     cat->level = level;
     cat->color = find_color(color);
     cat->on = on;
-    cat->next = the_log.cats;
-    the_log.cats = cat;
+    if (NULL == xcat) {
+	cat->next = the_log.cats;
+	the_log.cats = cat;
+    }
 }
 
 void
@@ -414,7 +450,7 @@ log_cat_find(const char *label) {
 }
 
 void
-log_catv(LogCat cat, const char *fmt, va_list ap) {
+log_catv(LogCat cat, const char *tid, const char *fmt, va_list ap) {
     if (cat->on && !the_log.done) {
 	LogEntry	e;
 	LogEntry	tail;
@@ -456,6 +492,18 @@ log_catv(LogCat cat, const char *fmt, va_list ap) {
 		vsnprintf(e->whatp, cnt + 1, fmt, ap2);
 	    }
 	}
+	if (NULL != tid) {
+	    if (strlen(tid) < sizeof(e->tid)) {
+		strcpy(e->tid, tid);
+		e->tidp = NULL;
+	    } else {
+		e->tidp = strdup(tid);
+		*e->tid = '\0';
+	    }
+	} else {
+	    e->tidp = NULL;
+	    *e->tid = '\0';
+	}
 	tail = the_log.tail + 1;
 	if (the_log.end <= tail) {
 	    tail = the_log.q;
@@ -476,7 +524,16 @@ log_cat(LogCat cat, const char *fmt, ...) {
     va_list	ap;
 
     va_start(ap, fmt);
-    log_catv(cat, fmt, ap);
+    log_catv(cat, NULL, fmt, ap);
+    va_end(ap);
+}
+
+void
+log_tid_cat(LogCat cat, const char *tid, const char *fmt, ...) {
+    va_list	ap;
+
+    va_start(ap, fmt);
+    log_catv(cat, tid, fmt, ap);
     va_end(ap);
 }
 
