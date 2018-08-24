@@ -25,14 +25,6 @@
 #define RESET_COLOR	"\033[0m"
 #define RESET_SIZE	4
 
-static const char	log_name[] = "agoo.log";
-static const char	log_prefix[] = "agoo.log.";
-static const char	log_format[] = "%s/agoo.log.%d";
-
-static const char	log_pid_name[] = "agoo.log_%d";
-static const char	log_pid_prefix[] = "agoo.log_%d.";
-static const char	log_pid_format[] = "%s/agoo.log_%d.%d";
-
 static struct _Color	colors[] = {
     { .name = "black",      .ansi = "\033[30;1m" },
     { .name = "red",        .ansi = "\033[31;1m" },
@@ -240,17 +232,16 @@ remove_old_logs() {
     char		*end;
     char		path[1500];
     DIR			*dir = opendir(the_log.dir);
-    char		prefix[32];
+    char		prefix[64];
     int			psize;
-    char		name[32];
+    char		name[64];
 
     if (the_log.with_pid) {
-	psize = sprintf(prefix, log_pid_prefix, getpid());
-	sprintf(name, log_pid_name, getpid());
+	psize = sprintf(prefix, "%s_%d.log.", the_log.app, getpid());
+	sprintf(name, "%s_%d.log", the_log.app, getpid());
     } else {
-	memcpy(prefix, log_prefix, sizeof(log_prefix));
-	psize = (int)sizeof(log_prefix) - 1;
-	memcpy(name, log_name, sizeof(log_name));
+	psize = sprintf(prefix, "%s.log.", the_log.app);
+	sprintf(name, "%s.log", the_log.app);
     }
     while (NULL != (de = readdir(dir))) {
 	if ('.' == *de->d_name || '\0' == *de->d_name) {
@@ -284,22 +275,22 @@ log_rotate() {
     if (the_log.with_pid) {
 	char	name[32];
 
-	sprintf(name, log_pid_name, getpid());
+	sprintf(name, "%s_%d.log", the_log.app, getpid());
 	for (int seq = the_log.max_files; 0 < seq; seq--) {
-	    snprintf(to, sizeof(to) - 1, log_pid_format, the_log.dir, getpid(), seq + 1);
-	    snprintf(from, sizeof(from) - 1, log_pid_format, the_log.dir, getpid(), seq);
+	    snprintf(to, sizeof(to) - 1, "%s/%s_%d.log.%d", the_log.dir, the_log.app, getpid(), seq + 1);
+	    snprintf(from, sizeof(from) - 1, "%s/%s_%d.log.%d", the_log.dir, the_log.app, getpid(), seq);
 	    rename(from, to);
 	}
-	snprintf(to, sizeof(to) - 1, log_pid_format, the_log.dir, getpid(), 1);
+	snprintf(to, sizeof(to) - 1, "%s/%s_%d.log.%d", the_log.dir, the_log.app, getpid(), 1);
 	snprintf(from, sizeof(from) - 1, "%s/%s", the_log.dir, name);
     } else {
 	for (int seq = the_log.max_files; 0 < seq; seq--) {
-	    snprintf(to, sizeof(to) - 1, log_format, the_log.dir, seq + 1);
-	    snprintf(from, sizeof(from) - 1, log_format, the_log.dir, seq);
+	    snprintf(to, sizeof(to) - 1, "%s/%s.log.%d", the_log.dir, the_log.app, seq + 1);
+	    snprintf(from, sizeof(from) - 1, "%s/%s.log.%d", the_log.dir, the_log.app, seq);
 	    rename(from, to);
 	}
-	snprintf(to, sizeof(to) - 1, log_format, the_log.dir, 1);
-	snprintf(from, sizeof(from) - 1, "%s/%s", the_log.dir, log_name);
+	snprintf(to, sizeof(to) - 1, "%s/%s.log.%d", the_log.dir, the_log.app, 1);
+	snprintf(from, sizeof(from) - 1, "%s/%s.log", the_log.dir, the_log.app);
     }
     rename(from, to);
 
@@ -367,9 +358,9 @@ open_log_file() {
     char	path[1500];
 
     if (the_log.with_pid) {
-	snprintf(path, sizeof(path), "%s/%s_%d", the_log.dir, log_name, getpid());
+	snprintf(path, sizeof(path), "%s/%s_%d.log", the_log.dir, the_log.app, getpid());
     } else {
-	snprintf(path, sizeof(path), "%s/%s", the_log.dir, log_name);
+	snprintf(path, sizeof(path), "%s/%s.log", the_log.dir, the_log.app);
     }
     the_log.file = fopen(path, "a");
     if (NULL == the_log.file) {
@@ -404,9 +395,11 @@ log_close() {
     the_log.end = NULL;
     if (0 < the_log.wsock) {
 	close(the_log.wsock);
+	the_log.wsock = 0;
     }
     if (0 < the_log.rsock) {
 	close(the_log.rsock);
+	the_log.rsock = 0;
     }
 }
 
@@ -414,6 +407,9 @@ void
 log_cat_reg(LogCat cat, const char *label, LogLevel level, const char *color, bool on) {
     LogCat	xcat = log_cat_find(label);
     
+    if (NULL != xcat) {
+	cat = xcat;
+    }
     strncpy(cat->label, label, sizeof(cat->label));
     cat->label[sizeof(cat->label) - 1] = '\0';
     cat->level = level;
@@ -539,13 +535,17 @@ log_tid_cat(LogCat cat, const char *tid, const char *fmt, ...) {
 
 void
 log_start(bool with_pid) {
+    if (0 != the_log.thread) {
+	// Already started.
+	return;
+    }
     if (NULL != the_log.file) {
 	fclose(the_log.file);
 	the_log.file = NULL;
 	// TBD close rsock and wsock
     }
     the_log.with_pid = with_pid;
-    if (with_pid && '\0' != *the_log.dir) {
+    if ('\0' != *the_log.dir) {
 	if (0 != mkdir(the_log.dir, 0770) && EEXIST != errno) {
 	    struct _Err	err;
 
@@ -558,11 +558,13 @@ log_start(bool with_pid) {
 }
 
 void
-log_init() {
+log_init(const char *app) {
     time_t	t = time(NULL);
     struct tm	*tm = localtime(&t);
     int		qsize = 1024;
-    
+
+    strncpy(the_log.app, app, sizeof(the_log.app));
+    the_log.app[sizeof(the_log.app) - 1] = '\0';
     the_log.cats = NULL;
     *the_log.dir = '\0';
     the_log.file = NULL;
@@ -604,5 +606,5 @@ log_init() {
     log_cat_reg(&eval_cat,  "eval",     INFO,  BLUE, false);
     log_cat_reg(&push_cat,  "push",     INFO,  DARK_CYAN, false);
 
-    log_start(false);
+    //log_start(false);
 }

@@ -465,5 +465,6 @@ rlog_init(VALUE mod) {
 
     the_log.on_error = on_error;
     
-    log_init();
+    log_init("agoo");
+    log_start(false);
 }

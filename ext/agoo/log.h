@@ -65,6 +65,7 @@ typedef struct _LogEntry {
 struct _Log {
     LogCat		cats;
     char		dir[1024];
+    char		app[16];
     FILE		*file;    // current output file
     int			max_files;
     int			max_size;
@@ -104,7 +105,7 @@ extern struct _LogCat	resp_cat;
 extern struct _LogCat	eval_cat;
 extern struct _LogCat	push_cat;
 
-extern void	log_init();
+extern void	log_init(const char *app);
 extern void	open_log_file();
 
 extern void	log_close();
