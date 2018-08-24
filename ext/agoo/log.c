@@ -389,10 +389,12 @@ log_close() {
 	fclose(the_log.file);
 	the_log.file = NULL;
     }
-    DEBUG_FREE(mem_log_entry, the_log.q)
-    free(the_log.q);
-    the_log.q = NULL;
-    the_log.end = NULL;
+    if (NULL != the_log.q) {
+	DEBUG_FREE(mem_log_entry, the_log.q);
+	free(the_log.q);
+	the_log.q = NULL;
+	the_log.end = NULL;
+    }
     if (0 < the_log.wsock) {
 	close(the_log.wsock);
 	the_log.wsock = 0;
@@ -445,68 +447,92 @@ log_cat_find(const char *label) {
     return NULL;
 }
 
+#ifdef CLOCK_REALTIME
+static int64_t
+now_nano() {
+    struct timespec	ts;
+	    
+    clock_gettime(CLOCK_REALTIME, &ts);
+
+    return (int64_t)ts.tv_sec * 1000000000LL + (int64_t)ts.tv_nsec;
+}
+#else
+static int64_t
+now_nano() {
+    struct timeval	tv;
+    struct timezone	tz;
+
+    gettimeofday(&tv, &tz);
+    return (int64_t)tv.tv_sec * 1000000000LL + (int64_t)tv.tv_usec * 1000.0;
+}
+#endif
+
+static void
+set_entry(LogEntry e, LogCat cat, const char *tid, const char *fmt, va_list ap) {
+    int		cnt;
+    va_list	ap2;
+
+    va_copy(ap2, ap);
+
+    e->cat = cat;
+    e->when = now_nano();
+    e->whatp = NULL;
+    if ((int)sizeof(e->what) <= (cnt = vsnprintf(e->what, sizeof(e->what), fmt, ap))) {
+	e->whatp = (char*)malloc(cnt + 1);
+
+	DEBUG_ALLOC(mem_log_what, e->whatp)
+    
+	    if (NULL != e->whatp) {
+		vsnprintf(e->whatp, cnt + 1, fmt, ap2);
+	    }
+    }
+    if (NULL != tid) {
+	if (strlen(tid) < sizeof(e->tid)) {
+	    strcpy(e->tid, tid);
+	    e->tidp = NULL;
+	} else {
+	    e->tidp = strdup(tid);
+	    *e->tid = '\0';
+	}
+    } else {
+	e->tidp = NULL;
+	*e->tid = '\0';
+    }
+    va_end(ap2);
+}
+
 void
 log_catv(LogCat cat, const char *tid, const char *fmt, va_list ap) {
     if (cat->on && !the_log.done) {
 	LogEntry	e;
 	LogEntry	tail;
-	int		cnt;
-	va_list		ap2;
-
-	va_copy(ap2, ap);
 	
 	while (atomic_flag_test_and_set(&the_log.push_lock)) {
 	    dsleep(RETRY_SECS);
+	}
+	if (0 == the_log.thread) {
+	    struct _LogEntry	entry;
+	    
+	    set_entry(&entry, cat, tid, fmt, ap);
+	    if (the_log.classic) {
+		classic_write(&entry, stdout);
+	    } else {
+		jwrite(&entry, stdout);
+	    }
+	    atomic_flag_clear(&the_log.push_lock);
 	}
 	// Wait for head to move on.
 	while (atomic_load(&the_log.head) == the_log.tail) {
 	    dsleep(RETRY_SECS);
 	}
 	e = the_log.tail;
-	e->cat = cat;
-	{
-#ifdef CLOCK_REALTIME
-	    struct timespec	ts;
-	    
-	    clock_gettime(CLOCK_REALTIME, &ts);
-	    e->when = (int64_t)ts.tv_sec * 1000000000LL + (int64_t)ts.tv_nsec;
-#else
-	    struct timeval	tv;
-	    struct timezone	tz;
-
-	    gettimeofday(&tv, &tz);
-	    e->when = (int64_t)tv.tv_sec * 1000000000LL + (int64_t)tv.tv_usec * 1000.0;
-#endif
-	}
-	e->whatp = NULL;
-	if ((int)sizeof(e->what) <= (cnt = vsnprintf(e->what, sizeof(e->what), fmt, ap))) {
-	    e->whatp = (char*)malloc(cnt + 1);
-
-	    DEBUG_ALLOC(mem_log_what, e->whatp)
-    
-	    if (NULL != e->whatp) {
-		vsnprintf(e->whatp, cnt + 1, fmt, ap2);
-	    }
-	}
-	if (NULL != tid) {
-	    if (strlen(tid) < sizeof(e->tid)) {
-		strcpy(e->tid, tid);
-		e->tidp = NULL;
-	    } else {
-		e->tidp = strdup(tid);
-		*e->tid = '\0';
-	    }
-	} else {
-	    e->tidp = NULL;
-	    *e->tid = '\0';
-	}
+	set_entry(e, cat, tid, fmt, ap);
 	tail = the_log.tail + 1;
 	if (the_log.end <= tail) {
 	    tail = the_log.q;
 	}
 	atomic_store(&the_log.tail, tail);
 	atomic_flag_clear(&the_log.push_lock);
-	va_end(ap2);
 
 	if (0 != the_log.wsock && WAITING == atomic_load(&the_log.wait_state)) {
 	    if (write(the_log.wsock, ".", 1)) {}
