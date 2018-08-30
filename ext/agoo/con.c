@@ -327,7 +327,8 @@ con_header_read(Con c) {
 	    }
 	    return -mlen;
 	}
-    }
+ 	return bad_request(c, 404, __LINE__);
+   }
 HOOKED:
     // Create request and populate.
     if (NULL == (c->req = req_create(mlen))) {
