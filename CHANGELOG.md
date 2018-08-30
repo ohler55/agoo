@@ -1,5 +1,11 @@
 # CHANGELOG
 
+### 2.5.1 - 2018-08-30
+
+Bug fix.
+
+- Sending a POST request that was not hanlded cause a segfault. Fixed.	
+
 ### 2.5.0 - 2018-08-10
 
 The binding release with multiple options for connecting to the server.
