@@ -189,6 +189,22 @@ server_shutdown(const char *app_name, void (*stop)()) {
 
 void
 server_bind(Bind b) {
+    // If a bind with the same port already exists, replace it.
+    Bind	prev = NULL;
+
+    for (Bind bx = the_server.binds; NULL != bx; bx = bx->next) {
+	if (bx->port == b->port) {
+	    b->next = bx->next;
+	    if (NULL == prev) {
+		the_server.binds = b;
+	    } else {
+		prev->next = b;
+	    }
+	    bind_destroy(bx);
+	    return;
+	}
+	prev = bx;
+    }
     b->next = the_server.binds;
     the_server.binds = b;
 }

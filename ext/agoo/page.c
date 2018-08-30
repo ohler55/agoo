@@ -275,7 +275,11 @@ pages_init() {
 void
 pages_set_root(const char *root) {
     free(cache.root);
-    cache.root = strdup(root);
+    if (NULL == root) {
+	cache.root = NULL;
+    } else {
+	cache.root = strdup(root);
+    }
 }
 
 static void
@@ -561,30 +565,32 @@ page_get(Err err, const char *path, int plen) {
 	return NULL;
     }
     if (NULL == (page = cache_get(path, plen))) {
-	Page	old;
-	char	full_path[2048];
-	char	*s = stpcpy(full_path, cache.root);
+	if (NULL != cache.root) {
+	    Page	old;
+	    char	full_path[2048];
+	    char	*s = stpcpy(full_path, cache.root);
 
-	if ('/' != *cache.root && '/' != *path) {
-	    *s++ = '/';
-	}
-	if ((int)sizeof(full_path) <= plen + (s - full_path)) {
-	    err_set(err, ERR_MEMORY, "Failed to allocate memory for page path.");
-	    return NULL;
-	}
-	strncpy(s, path, plen);
-	s[plen] = '\0';
-	if (NULL == (page = page_create(full_path))) {
-	    err_set(err, ERR_MEMORY, "Failed to allocate memory for Page.");
-	    return NULL;
-	}
-	if (!update_contents(page) || NULL == page->resp) {
-	    page_destroy(page);
-	    err_set(err, ERR_NOT_FOUND, "not found.");
-	    return NULL;
-	}
-	if (NULL != (old = cache_set(path, plen, page))) {
-	    page_destroy(old);
+	    if ('/' != *cache.root && '/' != *path) {
+		*s++ = '/';
+	    }
+	    if ((int)sizeof(full_path) <= plen + (s - full_path)) {
+		err_set(err, ERR_MEMORY, "Failed to allocate memory for page path.");
+		return NULL;
+	    }
+	    strncpy(s, path, plen);
+	    s[plen] = '\0';
+	    if (NULL == (page = page_create(full_path))) {
+		err_set(err, ERR_MEMORY, "Failed to allocate memory for Page.");
+		return NULL;
+	    }
+	    if (!update_contents(page) || NULL == page->resp) {
+		page_destroy(page);
+		err_set(err, ERR_NOT_FOUND, "not found.");
+		return NULL;
+	    }
+	    if (NULL != (old = cache_set(path, plen, page))) {
+		page_destroy(old);
+	    }
 	}
     } else {
 	page = page_check(err, page);
