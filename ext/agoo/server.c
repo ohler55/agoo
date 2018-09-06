@@ -12,6 +12,7 @@
 #include "con.h"
 #include "dtime.h"
 #include "http.h"
+#include "hook.h"
 #include "log.h"
 #include "page.h"
 #include "upgraded.h"
@@ -223,3 +224,26 @@ server_add_upgraded(Upgraded up) {
     pthread_mutex_unlock(&the_server.up_lock);
 }
 
+int
+server_add_func_hook(Err	err,
+		     Method	method,
+		     const char	*pattern,
+		     void	(*func)(Req req),
+		     Queue	queue) {
+    Hook	h;
+    Hook	prev = NULL;
+    Hook	hook = hook_func_create(method, pattern, func, queue);
+
+    if (NULL == hook) {
+	return err_set(err, ERR_MEMORY, "failed to allocate memory for HTTP server Hook.");
+    }
+    for (h = the_server.hooks; NULL != h; h = h->next) {
+	prev = h;
+    }
+    if (NULL != prev) {
+	prev->next = hook;
+    } else {
+	the_server.hooks = hook;
+    }
+    return ERR_OK;
+}

@@ -13,6 +13,7 @@
 #include "queue.h"
 
 struct _Upgraded;
+struct _Req;
 
 typedef struct _Server {
     volatile bool	inited;
@@ -51,5 +52,10 @@ extern int	setup_listen(Err err);
 extern int	server_start(Err err, const char *app_name, const char *version);
 
 extern void	server_add_upgraded(struct _Upgraded *up);
+extern int	server_add_func_hook(Err	err,
+				     Method	method,
+				     const char	*pattern,
+				     void	(*func)(struct _Req *req),
+				     Queue	queue);
 
 #endif // __AGOO_SERVER_H__

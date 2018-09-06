@@ -42,5 +42,6 @@ extern Req		req_create(size_t mlen);
 extern void		req_destroy(Req req);
 extern const char*	req_host(Req r, int *lenp);
 extern int		req_port(Req r);
+extern const char*	req_query_value(Req r, const char *key, int klen, int *vlenp);
 
 #endif // __AGOO_REQ_H__

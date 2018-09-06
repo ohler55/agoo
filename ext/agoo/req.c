@@ -73,3 +73,23 @@ req_port(Req r) {
     return (int)strtol(colon + 1, NULL, 10);
 }
 
+const char*
+req_query_value(Req r, const char *key, int klen, int *vlenp) {
+    const char	*value;
+
+    if (NULL != (value = strstr(r->query.start, key))) {
+	char	*end;
+
+	if (0 >= klen) {
+	    klen = strlen(key);
+	}
+	value += klen + 1;
+	if (NULL == (end = index(value, '&'))) {
+	    *vlenp = strlen(value);
+	} else {
+	    *vlenp = (int)(end - value);
+	}
+    }
+    return value;
+}
+

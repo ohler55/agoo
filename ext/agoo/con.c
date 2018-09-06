@@ -350,6 +350,7 @@ HOOKED:
     c->req->path.len = (int)(path.end - path.start);
     c->req->query.start = c->req->msg + (query - c->buf);
     c->req->query.len = (int)(qend - query);
+    c->req->query.start[c->req->query.len] = '\0';
     c->req->body.start = c->req->msg + (hend - c->buf + 4);
     c->req->body.len = (unsigned int)clen;
     b = strstr(b, "\r\n");
