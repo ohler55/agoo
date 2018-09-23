@@ -73,7 +73,7 @@ listen_loop(void *x) {
 	    if (0 != (p->revents & POLLIN)) {
 		if (0 > (client_sock = accept(p->fd, (struct sockaddr*)&client_addr, &alen))) {
 		    log_cat(&error_cat, "Server with pid %d accept connection failed. %s.", getpid(), strerror(errno));
-		} else if (NULL == (con = con_create(&err, client_sock, ++cnt))) {
+		} else if (NULL == (con = con_create(&err, client_sock, ++cnt, b))) {
 		    log_cat(&error_cat, "Server with pid %d accept connection failed. %s.", getpid(), err.msg);
 		    close(client_sock);
 		    cnt--;
@@ -193,6 +193,15 @@ server_bind(Bind b) {
     // If a bind with the same port already exists, replace it.
     Bind	prev = NULL;
 
+    if (NULL == b->read) {
+	b->read = con_http_read;
+    }
+    if (NULL == b->write) {
+	b->write = con_http_write;
+    }
+    if (NULL == b->events) {
+	b->events = con_http_events;
+    }
     for (Bind bx = the_server.binds; NULL != bx; bx = bx->next) {
 	if (bx->port == b->port) {
 	    b->next = bx->next;

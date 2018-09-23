@@ -7,10 +7,7 @@
 
 #include <ruby.h>
 
-#include "hook.h"
 #include "req.h"
-#include "res.h"
-#include "types.h"
 
 extern void	request_init(VALUE mod);
 extern VALUE	request_wrap(Req req);

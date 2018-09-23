@@ -18,17 +18,7 @@ typedef enum {
     WAB_HOOK		= 'W',
     PUSH_HOOK		= 'P',
     FUNC_HOOK		= 'F',
-/*
-    STDIO_HOOK		= 'S', // for OpO
-    FAST_HOOK		= 'F', // for OpO
-    GET_HOOK		= 'G', // for OpO
-    TNEW_HOOK		= 'c', // for OpO
-    TGET_HOOK		= 'r', // for OpO
-    TUP_HOOK		= 'u', // for OpO
-    TDEL_HOOK		= 'd', // for OpO
-    TQL_HOOK		= 'T', // for OpO
-    GRAPHQL_HOOK	= 'Q', // for OpO
-*/
+    FAST_HOOK		= 'O', // for OpO
 } HookType;
 
 typedef struct _Hook {

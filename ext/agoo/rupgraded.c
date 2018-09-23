@@ -206,7 +206,7 @@ rup_protocol(VALUE self) {
 	
 	pthread_mutex_lock(&the_server.up_lock);
 	if (NULL != (up = DATA_PTR(self)) && NULL != up->con) {
-	    switch (up->con->kind) {
+	    switch (up->con->bind->kind) {
 	    case CON_WS:
 		pro = websocket_sym;
 		break;

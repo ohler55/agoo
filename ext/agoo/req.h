@@ -6,7 +6,7 @@
 #include <stdint.h>
 
 #include "hook.h"
-#include "types.h"
+#include "kinds.h"
 
 struct _Server;
 struct _Upgraded;
@@ -25,15 +25,16 @@ typedef struct _Str {
 
 typedef struct _Req {
     Method		method;
+    struct _Res		*res;
+
     Upgrade		upgrade;
     struct _Upgraded	*up;
     struct _Str		path;
     struct _Str		query;
     struct _Str		header;
     struct _Str		body;
-    Hook		hook;
     void		*env;
-    struct _Res		*res;
+    Hook		hook;
     size_t		mlen;   // allocated msg length
     char		msg[8]; // expanded to be full message
 } *Req;

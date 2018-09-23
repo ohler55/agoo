@@ -9,6 +9,7 @@
 #include "error_stream.h"
 #include "rack_logger.h"
 #include "request.h"
+#include "res.h"
 
 static VALUE	req_class = Qundef;
 
