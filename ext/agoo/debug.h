@@ -29,6 +29,7 @@ extern atomic_int	mem_hook_pattern;
 extern atomic_int	mem_http_slot;
 extern atomic_int	mem_log_entry;
 extern atomic_int	mem_log_what;
+extern atomic_int	mem_log_tid;
 extern atomic_int	mem_mime_slot;
 extern atomic_int	mem_page;
 extern atomic_int	mem_page_msg;

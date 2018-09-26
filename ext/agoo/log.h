@@ -58,11 +58,14 @@ typedef struct _LogEntry {
     char		*whatp;
     char		what[104];
     volatile bool	ready;
+    char		*tidp;
+    char		tid[40];
 } *LogEntry;
 	
 struct _Log {
     LogCat		cats;
     char		dir[1024];
+    char		app[16];
     FILE		*file;    // current output file
     int			max_files;
     int			max_size;
@@ -102,7 +105,7 @@ extern struct _LogCat	resp_cat;
 extern struct _LogCat	eval_cat;
 extern struct _LogCat	push_cat;
 
-extern void	log_init();
+extern void	log_init(const char *app);
 extern void	open_log_file();
 
 extern void	log_close();
@@ -115,7 +118,8 @@ extern LogCat	log_cat_find(const char *label);
 
 // Function to call to make a log entry.
 extern void	log_cat(LogCat cat, const char *fmt, ...);
-extern void	log_catv(LogCat cat, const char *fmt, va_list ap);
+extern void	log_tid_cat(LogCat cat, const char *tid, const char *fmt, ...);
+extern void	log_catv(LogCat cat, const char *tid, const char *fmt, va_list ap);
 
 extern void	log_start(bool with_pid);
 

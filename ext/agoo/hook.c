@@ -5,6 +5,7 @@
 
 #include "debug.h"
 #include "hook.h"
+#include "req.h"
 
 Hook
 hook_create(Method method, const char *pattern, void *handler, HookType type, Queue q) {
@@ -33,6 +34,33 @@ hook_create(Method method, const char *pattern, void *handler, HookType type, Qu
     return hook;
 }
 
+Hook
+hook_func_create(Method method, const char *pattern, void (*func)(Req req), Queue q) {
+    Hook	hook = (Hook)malloc(sizeof(struct _Hook));
+
+    if (NULL != hook) {
+	char	*pat = NULL;
+	
+	DEBUG_ALLOC(mem_hook, hook);
+	if (NULL == pattern) {
+	    if (NONE != method) {
+		pat = strdup("");
+	    }
+	} else {
+	    pat = strdup(pattern);
+	}
+	hook->pattern = pat;
+
+	hook->next = NULL;
+	DEBUG_ALLOC(mem_hook_pattern, hook->pattern)
+	hook->method = method;
+	hook->func = func;
+	hook->type = FUNC_HOOK;
+	hook->queue = q;
+    }
+    return hook;
+}
+
 void
 hook_destroy(Hook hook) {
     if (NULL != hook->pattern) {
@@ -49,6 +77,9 @@ hook_match(Hook hook, Method method, const Seg path) {
     char	*p = path->start;
     char	*end = path->end;
 
+    if (1 < end - p && '/' == *(end - 1)) {
+	end--;
+    }
     if (method != hook->method && ALL != hook->method) {
 	return false;
     }

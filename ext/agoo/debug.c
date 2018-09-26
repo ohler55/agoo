@@ -35,6 +35,7 @@ atomic_int	mem_hook_pattern = 0;
 atomic_int	mem_http_slot = 0;
 atomic_int	mem_log_entry = 0;
 atomic_int	mem_log_what = 0;
+atomic_int	mem_log_tid = 0;
 atomic_int	mem_mime_slot = 0;
 atomic_int	mem_page = 0;
 atomic_int	mem_page_msg = 0;
@@ -102,6 +103,7 @@ print_stats() {
     printf("  mem_http_slot:    %d\n", mem_http_slot);
     printf("  mem_log_entry:    %d\n", mem_log_entry);
     printf("  mem_log_what:     %d\n", mem_log_what);
+    printf("  mem_log_tid:      %d\n", mem_log_tid);
     printf("  mem_mime_slot:    %d\n", mem_mime_slot);
     printf("  mem_page:         %d\n", mem_page);
     printf("  mem_page_msg:     %d\n", mem_page_msg);

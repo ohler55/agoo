@@ -4,17 +4,19 @@
 #include <netdb.h>
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
 
+#include "bind.h"
 #include "con.h"
 #include "debug.h"
 #include "dtime.h"
 #include "hook.h"
 #include "http.h"
+#include "log.h"
 #include "page.h"
 #include "pub.h"
 #include "res.h"
 #include "seg.h"
-#include "rserver.h"
 #include "server.h"
 #include "sse.h"
 #include "subject.h"
@@ -24,10 +26,28 @@
 #define CON_TIMEOUT		5.0
 #define INITIAL_POLL_SIZE	1024
 
-extern void	agoo_shutdown();
+static bool	con_ws_read(Con c);
+static bool	con_ws_write(Con c);
+static short	con_ws_events(Con c);
+static bool	con_sse_write(Con c);
+static short	con_sse_events(Con c);
+
+static struct _Bind	ws_bind = {
+    .kind = CON_WS,
+    .read = con_ws_read,
+    .write = con_ws_write,
+    .events = con_ws_events,
+};
+
+static struct _Bind	sse_bind = {
+    .kind = CON_SSE,
+    .read = NULL,
+    .write = con_sse_write,
+    .events = con_sse_events,
+};
 
 Con
-con_create(Err err, int sock, uint64_t id) {
+con_create(Err err, int sock, uint64_t id, Bind b) {
     Con	c;
 
     if (NULL == (c = (Con)malloc(sizeof(struct _Con)))) {
@@ -37,15 +57,15 @@ con_create(Err err, int sock, uint64_t id) {
 	memset(c, 0, sizeof(struct _Con));
 	c->sock = sock;
 	c->id = id;
-	c->kind = CON_HTTP;
 	c->timeout = dtime() + CON_TIMEOUT;
+	c->bind = b;
     }
     return c;
 }
 
 void
 con_destroy(Con c) {
-    if (CON_WS == c->kind || CON_SSE == c->kind) {
+    if (CON_WS == c->bind->kind || CON_SSE == c->bind->kind) {
 	ws_req_close(c);
     }
     if (0 < c->sock) {
@@ -53,7 +73,7 @@ con_destroy(Con c) {
 	c->sock = 0;
     }
     if (NULL != c->req) {
-	request_destroy(c->req);
+	req_destroy(c->req);
     }
     if (NULL != c->up) {
 	upgraded_release_con(c->up);
@@ -157,8 +177,8 @@ page_response(Con c, Page p, char *hend) {
 // rserver
 static void
 push_error(Upgraded up, const char *msg, int mlen) {
-    if (NULL != up && Qnil != up->handler && up->on_error) {
-	Req	req = request_create(mlen);
+    if (NULL != up && the_server.ctx_nil_value != up->ctx && up->on_error) {
+	Req	req = req_create(mlen);
 
 	if (NULL == req) {
 	    return;
@@ -167,9 +187,9 @@ push_error(Upgraded up, const char *msg, int mlen) {
 	req->msg[mlen] = '\0';
 	req->up = up;
 	req->method = ON_ERROR;
-	req->hook = hook_create(NONE, NULL, (void*)up->handler, PUSH_HOOK, &the_rserver.eval_queue);
+	req->hook = hook_create(NONE, NULL, up->ctx, PUSH_HOOK, &the_server.eval_queue);
 	upgraded_ref(up);
-	queue_push(&the_rserver.eval_queue, (void*)req);
+	queue_push(&the_server.eval_queue, (void*)req);
     }
 }
 
@@ -332,7 +352,7 @@ con_header_read(Con c) {
    }
 HOOKED:
     // Create request and populate.
-    if (NULL == (c->req = request_create(mlen))) {
+    if (NULL == (c->req = req_create(mlen))) {
 	return bad_request(c, 413, __LINE__);
     }
     if ((long)c->bcnt <= mlen) {
@@ -351,6 +371,7 @@ HOOKED:
     c->req->path.len = (int)(path.end - path.start);
     c->req->query.start = c->req->msg + (query - c->buf);
     c->req->query.len = (int)(qend - query);
+    c->req->query.start[c->req->query.len] = '\0';
     c->req->body.start = c->req->msg + (hend - c->buf + 4);
     c->req->body.len = (unsigned int)clen;
     b = strstr(b, "\r\n");
@@ -390,7 +411,7 @@ check_upgrade(Con c) {
     }
 }
 
-static bool
+bool
 con_http_read(Con c) {
     ssize_t	cnt;
 
@@ -570,7 +591,7 @@ con_ws_read(Con c) {
 		}
 	    }
 	    upgraded_ref(c->up);
-	    queue_push(&the_rserver.eval_queue, (void*)c->req);
+	    queue_push(&the_server.eval_queue, (void*)c->req);
 	    if (mlen < (long)c->bcnt) {
 		memmove(c->buf, c->buf + mlen, c->bcnt - mlen);
 		c->bcnt -= mlen;
@@ -591,19 +612,14 @@ con_ws_read(Con c) {
 // return true to remove/close connection
 static bool
 con_read(Con c) {
-    switch (c->kind) {
-    case CON_HTTP:
-	return con_http_read(c);
-    case CON_WS:
-	return con_ws_read(c);
-    default:
-	break;
+    if (NULL != c->bind->read) {
+	return c->bind->read(c);
     }
     return true;
 }
 
 // return true to remove/close connection
-static bool
+bool
 con_http_write(Con c) {
     Text	message = res_message(c->res_head);
     ssize_t	cnt;
@@ -819,27 +835,21 @@ con_write(Con c) {
     bool	remove = true;
     ConKind	kind = c->res_head->con_kind;
 
-    switch (c->kind) {
-    case CON_HTTP:
-	remove = con_http_write(c);
-	break;
-    case CON_WS:
-	remove = con_ws_write(c);
-	break;
-    case CON_SSE:
-	remove = con_sse_write(c);
-	break;
-    default:
-	break;
+    if (NULL != c->bind->write) {
+	remove = c->bind->write(c);
     }
-    if (kind != c->kind && CON_ANY != kind) {
-	c->kind = kind;
-	/*
-	if (CON_HTTP != kind && !remove) {
-	    // TBD add to up_list now or later?
-	    //c->slot = cc_set_con(&the_server.con_cache, c);
+    //if (kind != c->kind && CON_ANY != kind) {
+    if (CON_ANY != kind) {
+	switch (kind) {
+	case CON_WS:
+	    c->bind = &ws_bind;
+	    break;
+	case CON_SSE:
+	    c->bind = &sse_bind;
+	    break;
+	default:
+	    break;
 	}
-	*/
     }
     return remove;
 }
@@ -850,7 +860,7 @@ publish_pub(Pub pub) {
     const char	*sub = pub->subject->pattern;
     int	cnt = 0;
     
-    for (up = the_rserver.up_list; NULL != up; up = up->next) {
+    for (up = the_server.up_list; NULL != up; up = up->next) {
 	if (NULL != up->con && upgraded_match(up, sub)) {
 	    Res	res = res_create(up->con);
 
@@ -874,7 +884,7 @@ unsubscribe_pub(Pub pub) {
     if (NULL == pub->up) {
 	Upgraded	up;
 
-	for (up = the_rserver.up_list; NULL != up; up = up->next) {
+	for (up = the_server.up_list; NULL != up; up = up->next) {
 	    upgraded_del_subject(up, pub->subject);
 	}
     } else {
@@ -891,20 +901,20 @@ process_pub_con(Pub pub) {
 	
 	// TBD Change pending to be based on length of con queue
 	if (1 == (pending = atomic_fetch_sub(&up->pending, 1))) {
-	    if (NULL != up && Qnil != up->handler && up->on_empty) {
-		Req	req = request_create(0);
+	    if (NULL != up && the_server.ctx_nil_value != up->ctx && up->on_empty) {
+		Req	req = req_create(0);
 	    
 		req->up = up;
 		req->method = ON_EMPTY;
-		req->hook = hook_create(NONE, NULL, (void*)up->handler, PUSH_HOOK, &the_rserver.eval_queue);
+		req->hook = hook_create(NONE, NULL, up->ctx, PUSH_HOOK, &the_server.eval_queue);
 		upgraded_ref(up);
-		queue_push(&the_rserver.eval_queue, (void*)req);
+		queue_push(&the_server.eval_queue, (void*)req);
 	    }
 	}
     }
     switch (pub->kind) {
     case PUB_CLOSE:
-	// An close after already closed is used to decrement the reference
+	// A close after already closed is used to decrement the reference
 	// count on the upgraded so it can be destroyed in the con loop
 	// threads.
 	if (NULL != up->con) {
@@ -917,7 +927,7 @@ process_pub_con(Pub pub) {
 		    up->con->res_tail->next = res;
 		}
 		up->con->res_tail = res;
-		res->con_kind = up->con->kind;
+		res->con_kind = up->con->bind->kind;
 		res->close = true;
 	    }
 	}
@@ -957,6 +967,40 @@ process_pub_con(Pub pub) {
     pub_destroy(pub);	
 }
 
+short
+con_http_events(Con c) {
+    short	events = 0;
+    
+    if (NULL != c->res_head && NULL != res_message(c->res_head)) {
+	events = POLLIN | POLLOUT;
+    } else if (!c->closing) {
+	events = POLLIN;
+    }
+    return events;
+}
+
+static short
+con_ws_events(Con c) {
+    short	events = 0;
+
+    if (NULL != c->res_head && (c->res_head->close || c->res_head->ping || NULL != res_message(c->res_head))) {
+	events = POLLIN | POLLOUT;
+    } else if (!c->closing) {
+	events = POLLIN;
+    }
+    return events;
+}
+
+static short
+con_sse_events(Con c) {
+    short	events = 0;
+
+    if (NULL != c->res_head && NULL != res_message(c->res_head)) {
+	events = POLLOUT;
+    }
+    return events;
+}
+
 static struct pollfd*
 poll_setup(Con c, struct pollfd *pp) {
     // The first two pollfd are for the con_queue and the pub_queue in that
@@ -965,7 +1009,7 @@ poll_setup(Con c, struct pollfd *pp) {
     pp->events = POLLIN;
     pp->revents = 0;
     pp++;
-    pp->fd = queue_listen(&the_rserver.pub_queue);
+    pp->fd = queue_listen(&the_server.pub_queue);
     pp->events = POLLIN;
     pp->revents = 0;
     pp++;
@@ -979,31 +1023,7 @@ poll_setup(Con c, struct pollfd *pp) {
 	}
 	c->pp = pp;
 	pp->fd = c->sock;
-	pp->events = 0;
-	switch (c->kind) {
-	case CON_HTTP:
-	    if (NULL != c->res_head && NULL != res_message(c->res_head)) {
-		pp->events = POLLIN | POLLOUT;
-	    } else if (!c->closing) {
-		pp->events = POLLIN;
-	    }
-	    break;
-	case CON_WS:
-	    if (NULL != c->res_head && (c->res_head->close || c->res_head->ping || NULL != res_message(c->res_head))) {
-		pp->events = POLLIN | POLLOUT;
-	    } else if (!c->closing) {
-		pp->events = POLLIN;
-	    }
-	    break;
-	case CON_SSE:
-	    if (NULL != c->res_head && NULL != res_message(c->res_head)) {
-		pp->events = POLLOUT;
-	    }
-	    break;
-	default:
-	    continue; // should never get here
-	    break;
-	}
+	pp->events = c->bind->events(c);
 	pp->revents = 0;
 	pp++;
     }
@@ -1055,13 +1075,15 @@ con_loop(void *x) {
 		size = sizeof(struct pollfd) * cnt;
 		if (NULL == (pa = (struct pollfd*)malloc(size))) {
 		    log_cat(&error_cat, "Out of memory.");
-		    agoo_shutdown();
+		    log_close();
+		    exit(EXIT_FAILURE);
+
 		    return NULL;
 		}
 		pend = pa + cnt;
 	    }
 	}
-	while (NULL != (pub = (Pub)queue_pop(&the_rserver.pub_queue, 0.0))) {
+	while (NULL != (pub = (Pub)queue_pop(&the_server.pub_queue, 0.0))) {
 	    process_pub_con(pub);
 	}
 	
@@ -1090,7 +1112,9 @@ con_loop(void *x) {
 			size = sizeof(struct pollfd) * cnt;
 			if (NULL == (pa = (struct pollfd*)malloc(size))) {
 			    log_cat(&error_cat, "Out of memory.");
-			    agoo_shutdown();
+			    log_close();
+			    exit(EXIT_FAILURE);
+
 			    return NULL;
 			}
 			pend = pa + cnt;
@@ -1099,8 +1123,8 @@ con_loop(void *x) {
 	    }
 	    // Check pub_queue if an event is waiting.
 	    if (0 != (pa[1].revents & POLLIN)) {
-		queue_release(&the_rserver.pub_queue);
-		while (NULL != (pub = (Pub)queue_pop(&the_rserver.pub_queue, 0.0))) {
+		queue_release(&the_server.pub_queue);
+		while (NULL != (pub = (Pub)queue_pop(&the_server.pub_queue, 0.0))) {
 		    process_pub_con(pub);
 		}
 	    }
@@ -1147,7 +1171,7 @@ con_loop(void *x) {
 		if (remove_dead_res(c)) {
 		    goto CON_RM;
 		}
-	    } else if (CON_WS == c->kind || CON_SSE == c->kind) {
+	    } else if (CON_WS == c->bind->kind || CON_SSE == c->bind->kind) {
 		c->timeout = dtime() + CON_TIMEOUT;
 		ws_ping(c);
 		continue;

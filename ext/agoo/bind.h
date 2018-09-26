@@ -3,11 +3,15 @@
 #ifndef __AGOO_BIND_H__
 #define __AGOO_BIND_H__
 
+#include <stdbool.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
 #include "err.h"
+#include "kinds.h"
+
+struct _Con;
 
 typedef struct _Bind {
     struct _Bind	*next;
@@ -18,6 +22,11 @@ typedef struct _Bind {
 	struct in_addr	addr4;
 	struct in6_addr	addr6;
     };
+    ConKind		kind;
+    bool		(*read)(struct _Con *c);
+    bool		(*write)(struct _Con *c);
+    short		(*events)(struct _Con *c);
+    char		scheme[8];
     char		*name; // if set then Unix file
     char		*key;  // if set then SSL
     char		*cert;

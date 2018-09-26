@@ -9,21 +9,16 @@
 #include "queue.h"
 #include "seg.h"
 
+struct _Req;
+
 typedef enum {
     NO_HOOK		= '\0',
     RACK_HOOK		= 'R',
     BASE_HOOK		= 'B',
     WAB_HOOK		= 'W',
     PUSH_HOOK		= 'P',
-    STDIO_HOOK		= 'S', // for OpO
-    FAST_HOOK		= 'F', // for OpO
-    GET_HOOK		= 'G', // for OpO
-    TNEW_HOOK		= 'c', // for OpO
-    TGET_HOOK		= 'r', // for OpO
-    TUP_HOOK		= 'u', // for OpO
-    TDEL_HOOK		= 'd', // for OpO
-    TQL_HOOK		= 'T', // for OpO
-    GRAPHQL_HOOK	= 'Q', // for OpO
+    FUNC_HOOK		= 'F',
+    FAST_HOOK		= 'O', // for OpO
 } HookType;
 
 typedef struct _Hook {
@@ -31,11 +26,15 @@ typedef struct _Hook {
     Method		method;
     char		*pattern;
     HookType		type;
-    void*		handler;
+    union {
+	void		*handler;
+	void		(*func)(struct _Req *req);
+    };
     Queue		queue;
 } *Hook;
 
 extern Hook	hook_create(Method method, const char *pattern, void *handler, HookType type, Queue q);
+extern Hook	hook_func_create(Method method, const char *pattern, void (*func)(struct _Req *req), Queue q);
 extern void	hook_destroy(Hook hook);
 
 extern bool	hook_match(Hook hook, Method method, const Seg seg);

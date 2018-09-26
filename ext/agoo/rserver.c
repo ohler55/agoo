@@ -16,12 +16,16 @@
 #include "dtime.h"
 #include "err.h"
 #include "http.h"
+#include "log.h"
 #include "page.h"
 #include "pub.h"
-#include "response.h"
 #include "request.h"
+#include "res.h"
+#include "response.h"
 #include "rhook.h"
+#include "rresponse.h"
 #include "rserver.h"
+#include "rupgraded.h"
 #include "server.h"
 #include "sse.h"
 #include "sub.h"
@@ -61,19 +65,19 @@ server_mark(void *ptr) {
     Upgraded	up;
 
     rb_gc_mark(rserver);
-    pthread_mutex_lock(&the_rserver.up_lock);
-    for (up = the_rserver.up_list; NULL != up; up = up->next) {
-	if (Qnil != up->handler) {
-	    rb_gc_mark(up->handler);
+    pthread_mutex_lock(&the_server.up_lock);
+    for (up = the_server.up_list; NULL != up; up = up->next) {
+	if (Qnil != (VALUE)up->ctx) {
+	    rb_gc_mark((VALUE)up->ctx);
 	}
-	if (Qnil != up->env) {
-	    rb_gc_mark(up->env);
+	if (Qnil != (VALUE)up->env) {
+	    rb_gc_mark((VALUE)up->env);
 	}
-	if (Qnil != up->wrap) {
-	    rb_gc_mark(up->wrap);
+	if (Qnil != (VALUE)up->wrap) {
+	    rb_gc_mark((VALUE)up->wrap);
 	}
     }
-    pthread_mutex_unlock(&the_rserver.up_lock);
+    pthread_mutex_unlock(&the_server.up_lock);
 }
 
 static void
@@ -95,7 +99,6 @@ configure(Err err, int port, const char *root, VALUE options) {
     the_server.running = 0;
     the_server.listen_thread = 0;
     the_server.con_thread = 0;
-    the_rserver.max_push_pending = 32;
     the_server.root_first = false;
     the_server.binds = NULL;
 
@@ -121,12 +124,12 @@ configure(Err err, int port, const char *root, VALUE options) {
 	    }
 	}
 	if (Qnil != (v = rb_hash_lookup(options, ID2SYM(rb_intern("max_push_pending"))))) {
-	    int	tc = FIX2INT(v);
+	    int	mpp = FIX2INT(v);
 
-	    if (0 <= tc || tc < 1000) {
-		the_server.thread_cnt = tc;
+	    if (0 <= mpp || mpp < 1000) {
+		the_server.max_push_pending = mpp;
 	    } else {
-		rb_raise(rb_eArgError, "thread_count must be between 0 and 1000.");
+		rb_raise(rb_eArgError, "max_push_pending must be between 0 and 1000.");
 	    }
 	}
 	if (Qnil != (v = rb_hash_lookup(options, ID2SYM(rb_intern("pedantic"))))) {
@@ -236,17 +239,12 @@ rserver_init(int argc, VALUE *argv, VALUE self) {
 	options = argv[2];
     }
     server_setup();
-    sub_init(&the_rserver.sub_cache);
+    the_server.ctx_nil_value = (void*)Qnil;
+    the_server.env_nil_value = (void*)Qnil;
 
     if (ERR_OK != configure(&err, port, root, options)) {
 	rb_raise(rb_eArgError, "%s", err.msg);
     }
-    queue_multi_init(&the_rserver.pub_queue, 256, true, false);
-    queue_multi_init(&the_rserver.eval_queue, 1024, false, true);
-
-    pthread_mutex_init(&the_rserver.up_lock, 0);
-    the_rserver.up_list = NULL;
-    
     the_server.inited = true;
 
     return Qnil;
@@ -463,8 +461,8 @@ handle_rack_inner(void *x) {
 		t->len = sizeof(err500) - 1;
 		break;
 	    }
-	    req->hook = hook_create(NONE, NULL, (void*)handler, PUSH_HOOK, &the_rserver.eval_queue);
-	    upgraded_create(req->res->con, handler, request_env(req, Qnil));
+	    req->hook = hook_create(NONE, NULL, (void*)handler, PUSH_HOOK, &the_server.eval_queue);
+	    rupgraded_create(req->res->con, handler, request_env(req, Qnil));
 
 	    t->len = snprintf(t->text, 1024, "HTTP/1.1 101 %s\r\n", status_msg);
 	    t = ws_add_headers(req, t);
@@ -476,8 +474,8 @@ handle_rack_inner(void *x) {
 		t->len = sizeof(err500) - 1;
 		break;
 	    }
-	    req->hook = hook_create(NONE, NULL, (void*)handler, PUSH_HOOK, &the_rserver.eval_queue);
-	    upgraded_create(req->res->con, handler, request_env(req, Qnil));
+	    req->hook = hook_create(NONE, NULL, (void*)handler, PUSH_HOOK, &the_server.eval_queue);
+	    rupgraded_create(req->res->con, handler, request_env(req, Qnil));
 	    t = sse_upgrade(req, t);
 	    res_set_message(req->res, t);
 	    queue_wakeup(&the_server.con_queue);
@@ -556,7 +554,7 @@ handle_push_inner(void *x) {
     switch (req->method) {
     case ON_MSG:
 	if (req->up->on_msg && NULL != req->hook) {
-	    rb_funcall((VALUE)req->hook->handler, on_message_id, 2, req->up->wrap, rb_str_new(req->msg, req->mlen));
+	    rb_funcall((VALUE)req->hook->handler, on_message_id, 2, (VALUE)req->up->wrap, rb_str_new(req->msg, req->mlen));
 	}
 	break;
     case ON_BIN:
@@ -564,19 +562,19 @@ handle_push_inner(void *x) {
 	    volatile VALUE	rstr = rb_str_new(req->msg, req->mlen);
 
 	    rb_enc_associate(rstr, rb_ascii8bit_encoding());
-	    rb_funcall((VALUE)req->hook->handler, on_message_id, 2, req->up->wrap, rstr);
+	    rb_funcall((VALUE)req->hook->handler, on_message_id, 2, (VALUE)req->up->wrap, rstr);
 	}
 	break;
     case ON_CLOSE:
 	upgraded_ref(req->up);
-	queue_push(&the_rserver.pub_queue, pub_close(req->up));
+	queue_push(&the_server.pub_queue, pub_close(req->up));
 	if (req->up->on_close && NULL != req->hook) {
-	    rb_funcall((VALUE)req->hook->handler, on_close_id, 1, req->up->wrap);
+	    rb_funcall((VALUE)req->hook->handler, on_close_id, 1, (VALUE)req->up->wrap);
 	}
 	break;
     case ON_SHUTDOWN:
 	if (NULL != req->hook) {
-	    rb_funcall((VALUE)req->hook->handler, rb_intern("on_shutdown"), 1, req->up->wrap);
+	    rb_funcall((VALUE)req->hook->handler, rb_intern("on_shutdown"), 1, (VALUE)req->up->wrap);
 	}
 	break;
     case ON_ERROR:
@@ -584,12 +582,12 @@ handle_push_inner(void *x) {
 	    volatile VALUE	rstr = rb_str_new(req->msg, req->mlen);
 
 	    rb_enc_associate(rstr, rb_ascii8bit_encoding());
-	    rb_funcall((VALUE)req->hook->handler, on_error_id, 2, req->up->wrap, rstr);
+	    rb_funcall((VALUE)req->hook->handler, on_error_id, 2, (VALUE)req->up->wrap, rstr);
 	}
 	break;
     case ON_EMPTY:
 	if (req->up->on_empty && NULL != req->hook) {
-	    rb_funcall((VALUE)req->hook->handler, on_drained_id, 1, req->up->wrap);
+	    rb_funcall((VALUE)req->hook->handler, on_drained_id, 1, (VALUE)req->up->wrap);
 	}
 	break;
     default:
@@ -659,9 +657,9 @@ process_loop(void *ptr) {
     
     atomic_fetch_add(&the_server.running, 1);
     while (the_server.active) {
-	if (NULL != (req = (Req)queue_pop(&the_rserver.eval_queue, 0.1))) {
+	if (NULL != (req = (Req)queue_pop(&the_server.eval_queue, 0.1))) {
 	    handle_protected(req, true);
-	    request_destroy(req);
+	    req_destroy(req);
 	}
     }
     atomic_fetch_sub(&the_server.running, 1);
@@ -721,9 +719,9 @@ rserver_start(VALUE self) {
 	Req		req;
 
 	while (the_server.active) {
-	    if (NULL != (req = (Req)queue_pop(&the_rserver.eval_queue, 0.1))) {
+	    if (NULL != (req = (Req)queue_pop(&the_server.eval_queue, 0.1))) {
 		handle_protected(req, false);
-		request_destroy(req);
+		req_destroy(req);
 	    } else {
 		rb_thread_schedule();
 	    }
@@ -754,7 +752,6 @@ rserver_start(VALUE self) {
 
 static void
 stop_runners() {
-    sub_cleanup(&the_rserver.sub_cache);
     // The preferred method of waiting for the ruby threads would be either a
     // join or even a kill but since we may not have the gvl here that would
     // cause a segfault. Instead we set a timeout and wait for the running
@@ -784,9 +781,6 @@ VALUE
 rserver_shutdown(VALUE self) {
     if (the_server.inited) {
 	server_shutdown("Agoo", stop_runners);
-
-	queue_cleanup(&the_rserver.pub_queue);
-	queue_cleanup(&the_rserver.eval_queue);
 
 	if (1 < the_rserver.worker_cnt && getpid() == *the_rserver.worker_pids) {
 	    int	i;
@@ -863,7 +857,7 @@ handle(VALUE self, VALUE method, VALUE pattern, VALUE handler) {
     } else {
 	rb_raise(rb_eArgError, "invalid method");
     }
-    if (NULL == (hook = rhook_create(meth, pat, handler, &the_rserver.eval_queue))) {
+    if (NULL == (hook = rhook_create(meth, pat, handler, &the_server.eval_queue))) {
 	rb_raise(rb_eStandardError, "out of memory.");
     } else {
 	Hook	h;
@@ -891,7 +885,7 @@ handle(VALUE self, VALUE method, VALUE pattern, VALUE handler) {
  */
 static VALUE
 handle_not_found(VALUE self, VALUE handler) {
-    if (NULL == (the_server.hook404 = rhook_create(GET, "/", handler, &the_rserver.eval_queue))) {
+    if (NULL == (the_server.hook404 = rhook_create(GET, "/", handler, &the_server.eval_queue))) {
 	rb_raise(rb_eStandardError, "out of memory.");
     }
     rb_gc_register_address((VALUE*)&the_server.hook404->handler);

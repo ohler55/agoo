@@ -25,13 +25,18 @@ bind_port(Err err, int port) {
 	b->port = port;
 	b->family = AF_INET;
 	snprintf(id, sizeof(id) - 1, "http://:%d", port);
+	strcpy(b->scheme, "http");
 	b->id = strdup(id);
+	b->kind = CON_HTTP;
+	b->read = NULL;
+	b->write = NULL;
+	b->events = NULL;
     }
     return b;
 }
 
 static Bind
-url_tcp(Err err, const char *url) {
+url_tcp(Err err, const char *url, const char *scheme) {
     char		*colon = index(url, ':');
     struct in_addr	addr = { .s_addr = 0 };
     int			port;
@@ -40,15 +45,17 @@ url_tcp(Err err, const char *url) {
     if (NULL == colon) {
 	port = 80;
     } else if (15 < colon - url) {
-	err_set(err, ERR_ARG, "tcp/http bind address is not valid. (%s)", url);
+	err_set(err, ERR_ARG, "%s bind address is not valid, too long. (%s)", scheme, url);
 	return NULL;
+    } else if (':' == *url) {
+	port = atoi(colon + 1);
     } else {
 	char	buf[32];
 
 	strncpy(buf, url, colon - url);
 	buf[colon - url] = '\0';
 	if (0 == inet_aton(buf, &addr)) {
-	    err_set(err, ERR_ARG, "tcp/http bind address is not valid. (%s)", url);
+	    err_set(err, ERR_ARG, "%s bind address is not valid. (%s)", scheme, url);
 	    return NULL;
 	}
 	port = atoi(colon + 1);
@@ -62,8 +69,14 @@ url_tcp(Err err, const char *url) {
 	b->port = port;
 	b->addr4 = addr;
 	b->family = AF_INET;
-	snprintf(id, sizeof(id), "http://%s:%d", inet_ntoa(addr), port);
+	snprintf(id, sizeof(id), "%s://%s:%d", scheme, inet_ntoa(addr), port);
 	b->id = strdup(id);
+	strncpy(b->scheme, scheme, sizeof(b->scheme));
+	b->scheme[sizeof(b->scheme) - 1] = '\0';
+	b->kind = CON_HTTP;
+	b->read = NULL;
+	b->write = NULL;
+	b->events = NULL;
 
 	return b;
     }
@@ -73,7 +86,7 @@ url_tcp(Err err, const char *url) {
 }
 
 static Bind
-url_tcp6(Err err, const char *url) {
+url_tcp6(Err err, const char *url, const char *scheme) {
     struct in6_addr	addr;
     char		*end = index(url, ']');
     int			port = 80;
@@ -87,7 +100,7 @@ url_tcp6(Err err, const char *url) {
     buf[end - url - 1] = '\0';
     memset(&addr, 0, sizeof(addr));
     if (0 == inet_pton(AF_INET6, buf, &addr)) {
-	err_set(err, ERR_ARG, "tcp/http bind address is not valid. (%s)", url);
+	err_set(err, ERR_ARG, "%s bind address is not valid. (%s)", scheme, url);
 	return NULL;
     }
     if (NULL != (b = (Bind)malloc(sizeof(struct _Bind)))) {
@@ -99,8 +112,14 @@ url_tcp6(Err err, const char *url) {
 	b->port = port;
 	b->addr6 = addr;
 	b->family = AF_INET6;
-	snprintf(buf, sizeof(buf), "http://[%s]:%d", inet_ntop(AF_INET6, &addr, str, INET6_ADDRSTRLEN), port);
+	snprintf(buf, sizeof(buf), "%s://[%s]:%d", scheme, inet_ntop(AF_INET6, &addr, str, INET6_ADDRSTRLEN), port);
 	b->id = strdup(buf);
+	strncpy(b->scheme, scheme, sizeof(b->scheme));
+	b->scheme[sizeof(b->scheme) - 1] = '\0';
+	b->kind = CON_HTTP;
+	b->read = NULL;
+	b->write = NULL;
+	b->events = NULL;
 
 	return b;
     }
@@ -126,6 +145,11 @@ url_named(Err err, const char *url) {
 	    b->name = strdup(url);
 	    snprintf(id, sizeof(id) - 1, fmt, url);
 	    b->id = strdup(id);
+	    strcpy(b->scheme, "unix");
+	    b->kind = CON_HTTP;
+	    b->read = NULL;
+	    b->write = NULL;
+	    b->events = NULL;
 	}
 	return b;
     }
@@ -144,15 +168,15 @@ Bind
 bind_url(Err err, const char *url) {
     if (0 == strncmp("tcp://", url, 6)) {
 	if ('[' == url[6]) {
-	    return url_tcp6(err, url + 6);
+	    return url_tcp6(err, url + 6, "tcp");
 	}
-	return url_tcp(err, url + 6);
+	return url_tcp(err, url + 6, "tcp");
     }
     if (0 == strncmp("http://", url, 7)) {
 	if ('[' == url[7]) {
-	    return url_tcp6(err, url + 7);
+	    return url_tcp6(err, url + 7, "http");
 	}
-	return url_tcp(err, url + 7);
+	return url_tcp(err, url + 7, "http");
     }
     if (0 == strncmp("unix://", url, 7)) {
 	return url_named(err, url + 7);
@@ -162,6 +186,22 @@ bind_url(Err err, const char *url) {
     }
     if (0 == strncmp("ssl://", url, 6)) {
 	return url_ssl(err, url + 6);
+    }
+    // All others assume
+    {
+	char	*colon = index(url, ':');
+	char	scheme[8];
+
+	if (NULL != colon && colon - url < (int)sizeof(scheme)) {
+	    int	slen = colon - url;
+
+	    memcpy(scheme, url, slen);
+	    scheme[slen] = '\0';
+	    if ('[' == url[slen + 3]) {
+		return url_tcp6(err, url + slen + 3, scheme);
+	    }
+	    return url_tcp(err, url + slen + 3, scheme);
+	}
     }
     return NULL;
 }

@@ -25,14 +25,6 @@
 #define RESET_COLOR	"\033[0m"
 #define RESET_SIZE	4
 
-static const char	log_name[] = "agoo.log";
-static const char	log_prefix[] = "agoo.log.";
-static const char	log_format[] = "%s/agoo.log.%d";
-
-static const char	log_pid_name[] = "agoo.log_%d";
-static const char	log_pid_prefix[] = "agoo.log_%d.";
-static const char	log_pid_format[] = "%s/agoo.log_%d.%d";
-
 static struct _Color	colors[] = {
     { .name = "black",      .ansi = "\033[30;1m" },
     { .name = "red",        .ansi = "\033[31;1m" },
@@ -153,15 +145,26 @@ log_queue_pop(double timeout) {
 static int
 jwrite(LogEntry e, FILE *file) {
     // TBD make e->what JSON friendly
-    return fprintf(file, "{\"when\":%lld.%09lld,\"where\":\"%s\",\"level\":%d,\"what\":\"%s\"}\n",
-		   (long long)(e->when / 1000000000LL),
-		   (long long)(e->when % 1000000000LL),
-		   e->cat->label,
-		   e->cat->level,
-		   (NULL == e->whatp ? e->what : e->whatp));
+    if (NULL == e->tidp && '\0' == *e->tid) {
+	return fprintf(file, "{\"when\":%lld.%09lld,\"where\":\"%s\",\"level\":%d,\"what\":\"%s\"}\n",
+		       (long long)(e->when / 1000000000LL),
+		       (long long)(e->when % 1000000000LL),
+		       e->cat->label,
+		       e->cat->level,
+		       (NULL == e->whatp ? e->what : e->whatp));
+    } else {
+	return fprintf(file, "{\"when\":%lld.%09lld,\"tid\":\"%s\",\"where\":\"%s\",\"level\":%d,\"what\":\"%s\"}\n",
+		       (long long)(e->when / 1000000000LL),
+		       (long long)(e->when % 1000000000LL),
+		       (NULL == e->tidp ? e->tid : e->tidp),
+		       e->cat->label,
+		       e->cat->level,
+		       (NULL == e->whatp ? e->what : e->whatp));
+    }
 }
 
-//I 2015/05/23 11:22:33.123456789 label: The contents of the what field.
+// I 2015/05/23 11:22:33.123456789 label: The contents of the what field.
+// I 2015/05/23 11:22:33.123456789 [tid] label: The contents of the what field.
 static int
 classic_write(LogEntry e, FILE *file) {
     time_t	t = (time_t)(e->when / 1000000000LL);
@@ -189,16 +192,33 @@ classic_write(LogEntry e, FILE *file) {
 	the_log.day_end = the_log.day_start + 86400;
     }
     if (the_log.colorize) {
-	cnt = fprintf(file, "%s%c %s%02d:%02d:%02d.%09lld %s: %s%s\n",
-		      e->cat->color->ansi, levelc, the_log.day_buf, hour, min, sec, frac,
-		      e->cat->label,
-		      (NULL == e->whatp ? e->what : e->whatp),
-		      RESET_COLOR);
+	if (NULL == e->tidp && '\0' == *e->tid) {
+	    cnt = fprintf(file, "%s%c %s%02d:%02d:%02d.%09lld %s: %s%s\n",
+			  e->cat->color->ansi, levelc, the_log.day_buf, hour, min, sec, frac,
+			  e->cat->label,
+			  (NULL == e->whatp ? e->what : e->whatp),
+			  RESET_COLOR);
+	} else {
+	    cnt = fprintf(file, "%s%c %s%02d:%02d:%02d.%09lld [%s] %s: %s%s\n",
+			  e->cat->color->ansi, levelc, the_log.day_buf, hour, min, sec, frac,
+			  (NULL == e->tidp ? e->tid : e->tidp),
+			  e->cat->label,
+			  (NULL == e->whatp ? e->what : e->whatp),
+			  RESET_COLOR);
+	}
     } else {
-	cnt += fprintf(file, "%c %s%02d:%02d:%02d.%09lld %s: %s\n",
-		       levelc, the_log.day_buf, hour, min, sec, frac,
-		       e->cat->label,
-		       (NULL == e->whatp ? e->what : e->whatp));
+	if (NULL == e->tidp && '\0' == *e->tid) {
+	    cnt += fprintf(file, "%c %s%02d:%02d:%02d.%09lld %s: %s\n",
+			   levelc, the_log.day_buf, hour, min, sec, frac,
+			   e->cat->label,
+			   (NULL == e->whatp ? e->what : e->whatp));
+	} else {
+	    cnt += fprintf(file, "%c %s%02d:%02d:%02d.%09lld [%s] %s: %s\n",
+			   levelc, the_log.day_buf, hour, min, sec, frac,
+			   (NULL == e->tidp ? e->tid : e->tidp),
+			   e->cat->label,
+			   (NULL == e->whatp ? e->what : e->whatp));
+	}
     }
     return cnt;
 }
@@ -212,17 +232,16 @@ remove_old_logs() {
     char		*end;
     char		path[1500];
     DIR			*dir = opendir(the_log.dir);
-    char		prefix[32];
+    char		prefix[64];
     int			psize;
-    char		name[32];
+    char		name[64];
 
     if (the_log.with_pid) {
-	psize = sprintf(prefix, log_pid_prefix, getpid());
-	sprintf(name, log_pid_name, getpid());
+	psize = sprintf(prefix, "%s_%d.log.", the_log.app, getpid());
+	sprintf(name, "%s_%d.log", the_log.app, getpid());
     } else {
-	memcpy(prefix, log_prefix, sizeof(log_prefix));
-	psize = (int)sizeof(log_prefix) - 1;
-	memcpy(name, log_name, sizeof(log_name));
+	psize = sprintf(prefix, "%s.log.", the_log.app);
+	sprintf(name, "%s.log", the_log.app);
     }
     while (NULL != (de = readdir(dir))) {
 	if ('.' == *de->d_name || '\0' == *de->d_name) {
@@ -256,22 +275,22 @@ log_rotate() {
     if (the_log.with_pid) {
 	char	name[32];
 
-	sprintf(name, log_pid_name, getpid());
+	sprintf(name, "%s_%d.log", the_log.app, getpid());
 	for (int seq = the_log.max_files; 0 < seq; seq--) {
-	    snprintf(to, sizeof(to) - 1, log_pid_format, the_log.dir, getpid(), seq + 1);
-	    snprintf(from, sizeof(from) - 1, log_pid_format, the_log.dir, getpid(), seq);
+	    snprintf(to, sizeof(to) - 1, "%s/%s_%d.log.%d", the_log.dir, the_log.app, getpid(), seq + 1);
+	    snprintf(from, sizeof(from) - 1, "%s/%s_%d.log.%d", the_log.dir, the_log.app, getpid(), seq);
 	    rename(from, to);
 	}
-	snprintf(to, sizeof(to) - 1, log_pid_format, the_log.dir, getpid(), 1);
+	snprintf(to, sizeof(to) - 1, "%s/%s_%d.log.%d", the_log.dir, the_log.app, getpid(), 1);
 	snprintf(from, sizeof(from) - 1, "%s/%s", the_log.dir, name);
     } else {
 	for (int seq = the_log.max_files; 0 < seq; seq--) {
-	    snprintf(to, sizeof(to) - 1, log_format, the_log.dir, seq + 1);
-	    snprintf(from, sizeof(from) - 1, log_format, the_log.dir, seq);
+	    snprintf(to, sizeof(to) - 1, "%s/%s.log.%d", the_log.dir, the_log.app, seq + 1);
+	    snprintf(from, sizeof(from) - 1, "%s/%s.log.%d", the_log.dir, the_log.app, seq);
 	    rename(from, to);
 	}
-	snprintf(to, sizeof(to) - 1, log_format, the_log.dir, 1);
-	snprintf(from, sizeof(from) - 1, "%s/%s", the_log.dir, log_name);
+	snprintf(to, sizeof(to) - 1, "%s/%s.log.%d", the_log.dir, the_log.app, 1);
+	snprintf(from, sizeof(from) - 1, "%s/%s.log", the_log.dir, the_log.app);
     }
     rename(from, to);
 
@@ -308,6 +327,10 @@ loop(void *ctx) {
 		free(e->whatp);
 		DEBUG_FREE(mem_log_what, e->whatp)
 	    }
+	    if (NULL != e->tidp) {
+		free(e->tidp);
+		DEBUG_FREE(mem_log_tid, e->tidp)
+	    }
 	    e->ready = false;
 	}
     }
@@ -335,9 +358,9 @@ open_log_file() {
     char	path[1500];
 
     if (the_log.with_pid) {
-	snprintf(path, sizeof(path), "%s/%s_%d", the_log.dir, log_name, getpid());
+	snprintf(path, sizeof(path), "%s/%s_%d.log", the_log.dir, the_log.app, getpid());
     } else {
-	snprintf(path, sizeof(path), "%s/%s", the_log.dir, log_name);
+	snprintf(path, sizeof(path), "%s/%s.log", the_log.dir, the_log.app);
     }
     the_log.file = fopen(path, "a");
     if (NULL == the_log.file) {
@@ -366,27 +389,38 @@ log_close() {
 	fclose(the_log.file);
 	the_log.file = NULL;
     }
-    DEBUG_FREE(mem_log_entry, the_log.q)
-    free(the_log.q);
-    the_log.q = NULL;
-    the_log.end = NULL;
+    if (NULL != the_log.q) {
+	DEBUG_FREE(mem_log_entry, the_log.q);
+	free(the_log.q);
+	the_log.q = NULL;
+	the_log.end = NULL;
+    }
     if (0 < the_log.wsock) {
 	close(the_log.wsock);
+	the_log.wsock = 0;
     }
     if (0 < the_log.rsock) {
 	close(the_log.rsock);
+	the_log.rsock = 0;
     }
 }
 
 void
 log_cat_reg(LogCat cat, const char *label, LogLevel level, const char *color, bool on) {
+    LogCat	xcat = log_cat_find(label);
+    
+    if (NULL != xcat) {
+	cat = xcat;
+    }
     strncpy(cat->label, label, sizeof(cat->label));
     cat->label[sizeof(cat->label) - 1] = '\0';
     cat->level = level;
     cat->color = find_color(color);
     cat->on = on;
-    cat->next = the_log.cats;
-    the_log.cats = cat;
+    if (NULL == xcat) {
+	cat->next = the_log.cats;
+	the_log.cats = cat;
+    }
 }
 
 void
@@ -413,56 +447,92 @@ log_cat_find(const char *label) {
     return NULL;
 }
 
+#ifdef CLOCK_REALTIME
+static int64_t
+now_nano() {
+    struct timespec	ts;
+	    
+    clock_gettime(CLOCK_REALTIME, &ts);
+
+    return (int64_t)ts.tv_sec * 1000000000LL + (int64_t)ts.tv_nsec;
+}
+#else
+static int64_t
+now_nano() {
+    struct timeval	tv;
+    struct timezone	tz;
+
+    gettimeofday(&tv, &tz);
+    return (int64_t)tv.tv_sec * 1000000000LL + (int64_t)tv.tv_usec * 1000.0;
+}
+#endif
+
+static void
+set_entry(LogEntry e, LogCat cat, const char *tid, const char *fmt, va_list ap) {
+    int		cnt;
+    va_list	ap2;
+
+    va_copy(ap2, ap);
+
+    e->cat = cat;
+    e->when = now_nano();
+    e->whatp = NULL;
+    if ((int)sizeof(e->what) <= (cnt = vsnprintf(e->what, sizeof(e->what), fmt, ap))) {
+	e->whatp = (char*)malloc(cnt + 1);
+
+	DEBUG_ALLOC(mem_log_what, e->whatp)
+    
+	    if (NULL != e->whatp) {
+		vsnprintf(e->whatp, cnt + 1, fmt, ap2);
+	    }
+    }
+    if (NULL != tid) {
+	if (strlen(tid) < sizeof(e->tid)) {
+	    strcpy(e->tid, tid);
+	    e->tidp = NULL;
+	} else {
+	    e->tidp = strdup(tid);
+	    *e->tid = '\0';
+	}
+    } else {
+	e->tidp = NULL;
+	*e->tid = '\0';
+    }
+    va_end(ap2);
+}
+
 void
-log_catv(LogCat cat, const char *fmt, va_list ap) {
+log_catv(LogCat cat, const char *tid, const char *fmt, va_list ap) {
     if (cat->on && !the_log.done) {
 	LogEntry	e;
 	LogEntry	tail;
-	int		cnt;
-	va_list		ap2;
-
-	va_copy(ap2, ap);
 	
 	while (atomic_flag_test_and_set(&the_log.push_lock)) {
 	    dsleep(RETRY_SECS);
+	}
+	if (0 == the_log.thread) {
+	    struct _LogEntry	entry;
+	    
+	    set_entry(&entry, cat, tid, fmt, ap);
+	    if (the_log.classic) {
+		classic_write(&entry, stdout);
+	    } else {
+		jwrite(&entry, stdout);
+	    }
+	    atomic_flag_clear(&the_log.push_lock);
 	}
 	// Wait for head to move on.
 	while (atomic_load(&the_log.head) == the_log.tail) {
 	    dsleep(RETRY_SECS);
 	}
 	e = the_log.tail;
-	e->cat = cat;
-	{
-#ifdef CLOCK_REALTIME
-	    struct timespec	ts;
-	    
-	    clock_gettime(CLOCK_REALTIME, &ts);
-	    e->when = (int64_t)ts.tv_sec * 1000000000LL + (int64_t)ts.tv_nsec;
-#else
-	    struct timeval	tv;
-	    struct timezone	tz;
-
-	    gettimeofday(&tv, &tz);
-	    e->when = (int64_t)tv.tv_sec * 1000000000LL + (int64_t)tv.tv_usec * 1000.0;
-#endif
-	}
-	e->whatp = NULL;
-	if ((int)sizeof(e->what) <= (cnt = vsnprintf(e->what, sizeof(e->what), fmt, ap))) {
-	    e->whatp = (char*)malloc(cnt + 1);
-
-	    DEBUG_ALLOC(mem_log_what, e->whatp)
-    
-	    if (NULL != e->whatp) {
-		vsnprintf(e->whatp, cnt + 1, fmt, ap2);
-	    }
-	}
+	set_entry(e, cat, tid, fmt, ap);
 	tail = the_log.tail + 1;
 	if (the_log.end <= tail) {
 	    tail = the_log.q;
 	}
 	atomic_store(&the_log.tail, tail);
 	atomic_flag_clear(&the_log.push_lock);
-	va_end(ap2);
 
 	if (0 != the_log.wsock && WAITING == atomic_load(&the_log.wait_state)) {
 	    if (write(the_log.wsock, ".", 1)) {}
@@ -476,19 +546,32 @@ log_cat(LogCat cat, const char *fmt, ...) {
     va_list	ap;
 
     va_start(ap, fmt);
-    log_catv(cat, fmt, ap);
+    log_catv(cat, NULL, fmt, ap);
+    va_end(ap);
+}
+
+void
+log_tid_cat(LogCat cat, const char *tid, const char *fmt, ...) {
+    va_list	ap;
+
+    va_start(ap, fmt);
+    log_catv(cat, tid, fmt, ap);
     va_end(ap);
 }
 
 void
 log_start(bool with_pid) {
+    if (0 != the_log.thread) {
+	// Already started.
+	return;
+    }
     if (NULL != the_log.file) {
 	fclose(the_log.file);
 	the_log.file = NULL;
 	// TBD close rsock and wsock
     }
     the_log.with_pid = with_pid;
-    if (with_pid && '\0' != *the_log.dir) {
+    if ('\0' != *the_log.dir) {
 	if (0 != mkdir(the_log.dir, 0770) && EEXIST != errno) {
 	    struct _Err	err;
 
@@ -501,11 +584,13 @@ log_start(bool with_pid) {
 }
 
 void
-log_init() {
+log_init(const char *app) {
     time_t	t = time(NULL);
     struct tm	*tm = localtime(&t);
     int		qsize = 1024;
-    
+
+    strncpy(the_log.app, app, sizeof(the_log.app));
+    the_log.app[sizeof(the_log.app) - 1] = '\0';
     the_log.cats = NULL;
     *the_log.dir = '\0';
     the_log.file = NULL;
@@ -547,5 +632,5 @@ log_init() {
     log_cat_reg(&eval_cat,  "eval",     INFO,  BLUE, false);
     log_cat_reg(&push_cat,  "push",     INFO,  DARK_CYAN, false);
 
-    log_start(false);
+    //log_start(false);
 }

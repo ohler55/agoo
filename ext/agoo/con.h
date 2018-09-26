@@ -8,19 +8,22 @@
 #include <stdint.h>
 
 #include "err.h"
-#include "request.h"
+#include "req.h"
 #include "response.h"
 #include "server.h"
-#include "types.h"
+#include "kinds.h"
 
 #define MAX_HEADER_SIZE	8192
 
 struct _Upgraded;
+struct _Req;
+struct _Res;
+struct _Bind;
 
 typedef struct _Con {
     struct _Con		*next;
     int			sock;
-    ConKind		kind;
+    struct _Bind	*bind;
     struct pollfd	*pp;
     uint64_t		id;
     char		buf[MAX_HEADER_SIZE];
@@ -33,17 +36,20 @@ typedef struct _Con {
     bool		closing;
     bool		dead;
     volatile bool	hijacked;
-    Req			req;
-    Res			res_head;
-    Res			res_tail;
+    struct _Req		*req;
+    struct _Res		*res_head;
+    struct _Res		*res_tail;
 
     struct _Upgraded	*up; // only set for push connections
 } *Con;
 
-extern Con		con_create(Err err, int sock, uint64_t id);
+extern Con		con_create(Err err, int sock, uint64_t id, struct _Bind *b);
 extern void		con_destroy(Con c);
 extern const char*	con_header_value(const char *header, int hlen, const char *key, int *vlen);
 
 extern void*		con_loop(void *ctx);
+extern bool		con_http_read(Con c);
+extern bool		con_http_write(Con c);
+extern short		con_http_events(Con c);
 
 #endif /* __AGOO_CON_H__ */
