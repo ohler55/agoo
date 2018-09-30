@@ -2,7 +2,7 @@
 
 [![Build Status](https://img.shields.io/travis/ohler55/agoo/master.svg)](http://travis-ci.org/ohler55/agoo?branch=master)
 [![Gem Version](https://badge.fury.io/rb/agoo.svg)](https://badge.fury.io/rb/agoo)
-![Gem](https://img.shields.io/gem/dt/agoo.svg)
+![Gem](https://img.shields.io/gem/dt/agoo.svg) [![TideLift](https://tidelift.com/badges/github/ohler55/agoo)](https://tidelift.com/subscription/pkg/rubygems-agoo?utm_source=rubygems-agoo&utm_medium=referral&utm_campaign=readme)
 
 A High Performance HTTP Server for Ruby
 
