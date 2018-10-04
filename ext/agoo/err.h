@@ -5,10 +5,7 @@
 
 #include <errno.h>
 
-#ifndef ELAST
-#define ELAST 300
-#endif
-
+#define ERR_START	300
 #define ERR_INIT	{ 0, { 0 } }
 
 typedef enum {
@@ -16,7 +13,7 @@ typedef enum {
     ERR_MEMORY	= ENOMEM,
     ERR_DENIED	= EACCES,
     ERR_IMPL	= ENOSYS,
-    ERR_PARSE	= ELAST + 1,
+    ERR_PARSE	= ERR_START,
     ERR_READ,
     ERR_WRITE,
     ERR_OVERFLOW,

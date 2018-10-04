@@ -54,7 +54,7 @@ const char*
 err_str(ErrCode code) {
     const char	*str = NULL;
     
-    if (code <= ELAST) {
+    if (code < ERR_START) {
 	str = strerror(code);
     }
     if (NULL == str) {
