@@ -1178,7 +1178,6 @@ con_loop(void *x) {
 	    } else {
 		c->closing = true;
 		c->timeout = now + 0.5;
-		//wush_text_set(&c->resp, (char*)close_resp, sizeof(close_resp) - 1, false);
 		prev = c;
 		continue;
 	    }

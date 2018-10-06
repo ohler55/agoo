@@ -603,7 +603,7 @@ group_get(Err err, const char *path, int plen) {
     Page	page = NULL;
     Group	g = NULL;
     char	full_path[2048];
-    char	*s;
+    char	*s = NULL;
     Dir		d;
 
     if (NULL != strstr(path, "../")) {
