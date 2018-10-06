@@ -4,7 +4,7 @@
 
 Bug fix.
 
-- Sending a POST request that was not hanlded cause a segfault. Fixed.	
+- Sending a POST request that was not handled and caused a segfault. Fixed.
 
 ### 2.5.0 - 2018-08-10
 
