@@ -21,6 +21,7 @@ extern atomic_int	mem_con;
 extern atomic_int	mem_cslot;
 extern atomic_int	mem_err_stream;
 extern atomic_int	mem_eval_threads;
+extern atomic_int	mem_graphql_slot;
 extern atomic_int	mem_group;
 extern atomic_int	mem_group_path;
 extern atomic_int	mem_header;

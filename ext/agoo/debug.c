@@ -28,6 +28,7 @@ atomic_int	mem_cslot = 0;
 atomic_int	mem_err_stream = 0;
 atomic_int	mem_eval_threads = 0;
 atomic_int	mem_group = 0;
+atomic_int	mem_graphql_slot = 0;
 atomic_int	mem_group_path = 0;
 atomic_int	mem_header = 0;
 atomic_int	mem_hook = 0;
