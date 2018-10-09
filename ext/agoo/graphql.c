@@ -171,7 +171,7 @@ static struct _gqlField	directives_field = {
 };
 
 static struct _gqlField	subscription_field = {
-    .next = directive_field,
+    .next = &directives_field,
     .name = "subscriptionType",
     .desc = "Root level subscription.",
     .type = &type_type,
@@ -204,7 +204,7 @@ static struct _gqlField	query_field = {
 };
 
 static struct _gqlField	types_field = {
-    .next = query_field,
+    .next = &query_field,
     .name = "types",
     .desc = "Root level subscription.",
     .type = &type_type,
