@@ -38,11 +38,7 @@ static uint8_t	name_chars[256] = "\
 \x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\
 ";
 
-
-static int	coerce_int(Err err, gqlValue src, gqlType type);
-
 static Text	object_to_text(Text text, gqlValue value);
-static Text	int_to_text(Text text, gqlValue value);
 
 static uint64_t
 calc_hash(const char *name) {
@@ -74,7 +70,7 @@ gql_type_get(const char *name) {
 	Slot	s;
 
 	for (s = *bucket; NULL != s; s = s->next) {
-	    if (h == (int64_t)s->hash && 0 == strcmp(s->type->name, name)) {
+	    if (h == s->hash && 0 == strcmp(s->type->name, name)) {
 		type = s->type;
 		break;
 	    }
@@ -89,92 +85,28 @@ gql_type_set(Err err, gqlType type) {
 
     if (h <= 0) {
 	return err_set(err, ERR_ARG, "%s is not a valid GraphQL type name.", type->name);
-    }
-    Slot	*bucket = get_bucketp(h);
-    Slot	s;
+    } else {
+	Slot	*bucket = get_bucketp(h);
+	Slot	s;
     
-    for (s = *bucket; NULL != s; s = s->next) {
-	if (h == (int64_t)s->hash && 0 == strcmp(s->type->name, type->name)) {
-	    gql_type_destroy(s->type);
-	    s->type = type;
-	    return ERR_OK;
+	for (s = *bucket; NULL != s; s = s->next) {
+	    if (h == s->hash && 0 == strcmp(s->type->name, type->name)) {
+		gql_type_destroy(s->type);
+		s->type = type;
+		return ERR_OK;
+	    }
 	}
+	if (NULL == (s = (Slot)malloc(sizeof(struct _Slot)))) {
+	    return err_set(err, ERR_MEMORY, "Failed to allocation memory for a GraphQL type.");
+	}
+	DEBUG_ALLOC(mem_graphql_slot, s)
+	    s->hash = h;
+	s->type = type;
+	s->next = *bucket;
+	*bucket = s;
     }
-    if (NULL == (s = (Slot)malloc(sizeof(struct _Slot)))) {
-	return err_set(err, ERR_MEMORY, "Failed to allocation memory for a GraphQL type.");
-    }
-    DEBUG_ALLOC(mem_graphql_slot, s)
-    s->hash = h;
-    s->type = type;
-    s->next = *bucket;
-    *bucket = s;
-
     return ERR_OK;
 }
-
-
-
-
-
-#if 0
-// Scalar types
-struct _gqlType	gql_int = {
-    .name = "Int",
-    .desc = "Int scalar.",
-    .kind = GQL_INT,
-    .locked = true,
-};
-
-struct _gqlType	gql_string = {
-    .name = "String",
-    .desc = "String scalar.",
-    .kind = GQL_STRING,
-    .locked = true,
-};
-
-struct _gqlType	gql_float = {
-    .name = "Float",
-    .desc = "Float scalar.",
-    .kind = GQL_FLOAT,
-    .locked = true,
-};
-
-struct _gqlType	gql_boolean = {
-    .name = "Boolean",
-    .desc = "Boolean scalar.",
-    .kind = GQL_BOOL,
-    .locked = true,
-};
-
-struct _gqlType	gql_id = {
-    .name = "ID",
-    .desc = "ID scalar.",
-    .kind = GQL_ID,
-    .locked = true,
-};
-
-struct _gqlType	gql_time = {
-    .name = "Time",
-    .desc = "Time scalar.",
-    .kind = GQL_TIME,
-    .locked = true,
-};
-
-struct _gqlType	gql_url = {
-    .name = "Url",
-    .desc = "Url scalar.",
-    .kind = GQL_URL,
-    .locked = true,
-};
-
-struct _gqlType	gql_uuid = {
-    .name = "Uuid",
-    .desc = "Uuid scalar.",
-    .kind = GQL_UUID,
-    .locked = true,
-};
-
-#endif
 
 // Second level objects.
 static struct _gqlType	type_type = {
@@ -239,7 +171,7 @@ static struct _gqlField	directives_field = {
 };
 
 static struct _gqlField	subscription_field = {
-    .next = NULL,
+    .next = directive_field,
     .name = "subscriptionType",
     .desc = "Root level subscription.",
     .type = &type_type,
@@ -272,7 +204,7 @@ static struct _gqlField	query_field = {
 };
 
 static struct _gqlField	types_field = {
-    .next = NULL,
+    .next = query_field,
     .name = "types",
     .desc = "Root level subscription.",
     .type = &type_type,
