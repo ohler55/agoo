@@ -60,6 +60,55 @@ get_bucketp(uint64_t h) {
     return buckets + (BUCKET_MASK & (h ^ (h << 5) ^ (h >> 7)));
 }
 
+static void
+type_destroy(gqlType type) {
+    if (!type->core) {
+	free((char*)type->name);
+	free((char*)type->desc);
+	switch (type->kind) {
+	case GQL_OBJECT:
+	case GQL_FRAG: {
+	    gqlField	f;
+	    gqlArg	a;
+	
+	    while (NULL != (f = type->fields)) {
+		type->fields = f->next;
+		while (NULL != (a = f->args)) {
+		    f->args = a->next;
+		    free((char*)a->name);
+		    free((char*)a->desc);
+		    gql_value_destroy(a->default_value);
+		    DEBUG_FREE(mem_graphql_arg, a);
+		    free(a);
+		}
+		free((char*)f->name);
+		free((char*)f->desc);
+		DEBUG_FREE(mem_graphql_field, f);
+		free(f);
+	    }
+	    free(type->interfaces);
+	    break;
+	}
+	case GQL_UNION:
+	    free(type->utypes);
+	    break;
+	case GQL_ENUM: {
+	    char	**cp;
+	    
+	    for (cp = (char**)type->choices; NULL != *cp; cp++) {
+		free(*cp);
+	    }
+	    free(type->choices);
+	    break;
+	}
+	default:
+	    break;
+	}
+	DEBUG_FREE(mem_graphql_type, type);
+	free(type);
+    }
+}
+
 gqlType
 gql_type_get(const char *name) {
     gqlType	type = NULL;
@@ -91,7 +140,7 @@ gql_type_set(Err err, gqlType type) {
     
 	for (s = *bucket; NULL != s; s = s->next) {
 	    if (h == s->hash && 0 == strcmp(s->type->name, type->name)) {
-		gql_type_destroy(s->type);
+		type_destroy(s->type);
 		s->type = type;
 		return ERR_OK;
 	    }
@@ -99,13 +148,39 @@ gql_type_set(Err err, gqlType type) {
 	if (NULL == (s = (Slot)malloc(sizeof(struct _Slot)))) {
 	    return err_set(err, ERR_MEMORY, "Failed to allocation memory for a GraphQL type.");
 	}
-	DEBUG_ALLOC(mem_graphql_slot, s)
-	    s->hash = h;
+	DEBUG_ALLOC(mem_graphql_slot, s);
+	s->hash = h;
 	s->type = type;
 	s->next = *bucket;
 	*bucket = s;
     }
     return ERR_OK;
+}
+
+static void
+type_remove(gqlType type) {
+    uint64_t	h = calc_hash(type->name);
+
+    if (0 < h) {
+	Slot	*bucket = get_bucketp(h);
+	Slot	s;
+	Slot	prev = NULL;
+
+	for (s = *bucket; NULL != s; s = s->next) {
+	    if (h == s->hash && 0 == strcmp(s->type->name, type->name)) {
+		if (NULL == prev) {
+		    *bucket = s->next;
+		} else {
+		    prev->next = s->next;
+		}
+		DEBUG_FREE(mem_graphql_slot, s);
+		free(s);
+
+		break;
+	    }
+	    prev = s;
+	}
+    }
 }
 
 // Second level objects.
@@ -252,7 +327,10 @@ gql_destroy() {
     int		i;
 
     for (i = BUCKET_SIZE; 0 < i; i--, sp++) {
-	for (s = *sp; NULL != s; s = n) {
+	Slot	*b = sp;
+
+	*sp = NULL;
+	for (s = *b; NULL != s; s = n) {
 	    n = s->next;
 	    DEBUG_FREE(mem_graphql_slot, s);
 	    gql_type_destroy(s->type);
@@ -268,57 +346,185 @@ object_to_text(Text text, gqlValue value) {
     return text;
 }
 
-int
-gql_field_create(Err err, const char *name, gqlType type, const char *desc, bool required, bool list) {
-    // TBD
-    return ERR_OK;
+gqlType
+type_create(Err err, const char *name, const char *desc, bool locked) {
+    gqlType	type = (gqlType)malloc(sizeof(struct _gqlType));
+
+    if (NULL == type) {
+	err_set(err, ERR_MEMORY, "Failed to allocation memory for a GraphQL Type.");
+    } else {
+	DEBUG_ALLOC(mem_graphql_type, type);
+	type->name = strdup(name);
+	type->desc = strdup(desc);
+	type->locked = locked;
+	type->core = false;
+    }
+    return type;
 }
 
-int
-gql_arg_create(Err err, const char *name, gqlType type, const char *desc, struct _gqlValue *def_value, gqlArg next) {
-    // TBD
-    return ERR_OK;
+gqlType
+gql_type_create(Err err, const char *name, const char *desc, bool locked, gqlType *interfaces) {
+    gqlType	type = type_create(err, name, desc, locked);
+
+    if (NULL != type) {
+	type->kind = GQL_OBJECT;
+	type->to_text = object_to_text;
+	type->fields = NULL;
+	type->interfaces = NULL;
+	if (NULL != interfaces) {
+	    gqlType	*tp = interfaces;
+	    gqlType	*np;
+	    int		cnt = 0;
+
+	    for (; NULL != *tp; tp++) {
+		cnt++;
+	    }
+	    if (0 < cnt) {
+		if (NULL == (type->interfaces = (gqlType*)malloc(sizeof(gqlType) * (cnt + 1)))) {
+		    err_set(err, ERR_MEMORY, "Failed to allocation memory for a GraphQL type interfaces.");
+		    free(type);
+		    return NULL;
+		}
+		for (np = type->interfaces, tp = interfaces; NULL != *tp; np++, tp++) {
+		    *np = *tp;
+		}
+		*np = NULL;
+	    }
+	}
+    }
+    return type;
 }
 
-int
-gql_op_create(Err err, const char *name, gqlType return_type, const char *desc, gqlArg args) {
+gqlField
+gql_type_field(Err err, gqlType type, const char *name, gqlType return_type, const char *desc, bool required, bool list) {
     // TBD
-    return ERR_OK;
+    return NULL;
 }
 
-int
-gql_type_create(Err err, const char *name, const char *desc, bool locked, gqlField fields, gqlType interfaces) {
+gqlArg
+gql_field_arg(Err err, gqlField field, const char *name, gqlType type, const char *desc, struct _gqlValue *def_value, bool required) {
     // TBD
-    return ERR_OK;
+    return NULL;
 }
 
-int
-gql_union_create(Err err, const char *name, const char *desc, bool locked, gqlType types) {
+static Text
+union_to_text(Text text, gqlValue value) {
     // TBD
-    return ERR_OK;
+    return text;
 }
 
-int
+gqlType
+gql_union_create(Err err, const char *name, const char *desc, bool locked, gqlType *types) {
+    gqlType	type = type_create(err, name, desc, locked);
+
+    if (NULL != type) {
+	type->kind = GQL_UNION;
+	type->to_text = union_to_text;
+	type->utypes = NULL;
+	if (NULL != types) {
+	    gqlType	*tp = types;
+	    gqlType	*np;
+	    int		cnt = 0;
+
+	    for (; NULL != *tp; tp++) {
+		cnt++;
+	    }
+	    if (0 < cnt) {
+		if (NULL == (type->utypes = (gqlType*)malloc(sizeof(gqlType) * (cnt + 1)))) {
+		    err_set(err, ERR_MEMORY, "Failed to allocation memory for a GraphQL Union.");
+		    free(type);
+		    return NULL;
+		}
+		for (np = type->utypes, tp = types; NULL != *tp; np++, tp++) {
+		    *np = *tp;
+		}
+		*np = NULL;
+	    }
+	}
+    }
+    return type;
+}
+
+static Text
+enum_to_text(Text text, gqlValue value) {
+    // TBD
+    return text;
+}
+
+gqlType
 gql_enum_create(Err err, const char *name, const char *desc, bool locked, const char **choices) {
-    // TBD
-    return ERR_OK;
+    gqlType	type = type_create(err, name, desc, locked);
+
+    if (NULL != type) {
+	type->kind = GQL_ENUM;
+	type->to_text = enum_to_text;
+	type->choices = NULL;
+	if (NULL != choices) {
+	    const char	**cp = choices;
+	    const char	**dp;
+	    int		cnt = 0;
+
+	    for (; NULL != *cp; cp++) {
+		cnt++;
+	    }
+	    if (0 < cnt) {
+		if (NULL == (type->choices = (const char**)malloc(sizeof(const char*) * (cnt + 1)))) {
+		    err_set(err, ERR_MEMORY, "Failed to allocation memory for a GraphQL Enum.");
+		    free(type);
+		    return NULL;
+		}
+		for (dp = type->choices, cp = choices; NULL != *cp; dp++, cp++) {
+		    *dp = strdup(*cp);
+		}
+		*dp = NULL;
+	    }
+	}
+    }
+    return type;
 }
 
-int
-gql_fragment_create(Err err, const char *name, const char *desc, bool locked, gqlField fields) {
+static Text
+fragment_to_text(Text text, gqlValue value) {
     // TBD
-    return ERR_OK;
+    return text;
 }
 
-int
+gqlType
+gql_fragment_create(Err err, const char *name, const char *desc, bool locked, gqlType on) {
+    gqlType	type = type_create(err, name, desc, locked);
+
+    if (NULL != type) {
+	type->kind = GQL_FRAG;
+	type->to_text = fragment_to_text;
+	type->fields = NULL;
+	type->on = on;
+    }
+    return type;
+}
+
+static Text
+scalar_to_text(Text text, gqlValue value) {
+    // TBD
+    return text;
+}
+
+gqlType
 gql_scalar_create(Err err, const char *name, const char *desc, bool locked) {
-    // TBD
-    return ERR_OK;
+    gqlType	type = type_create(err, name, desc, locked);
+
+    if (NULL != type) {
+	type->kind = GQL_SCALAR;
+	type->to_text = scalar_to_text;
+	type->coerce = NULL;
+	type->destroy = NULL;
+    }
+    return type;
 }
 
 void
 gql_type_destroy(gqlType type) {
-    // TBD
+    type_destroy(type);
+    type_remove(type);
 }
 
 Text

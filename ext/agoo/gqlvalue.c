@@ -3,23 +3,24 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "debug.h"
 #include "gqlvalue.h"
 #include "graphql.h"
 
 static int	coerce_int(Err err, gqlValue src, gqlType type);
 static int	coerce_i64(Err err, gqlValue src, gqlType type);
-static int	coerce_string(Err err, gqlValue src, gqlType type);
 
 static Text	int_to_text(Text text, gqlValue value);
 static Text	i64_to_text(Text text, gqlValue value);
-static Text	string_to_text(Text text, gqlValue value);
 
 static struct _gqlType	int_type = {
     .name = "Int",
     .desc = "Int scalar.",
     .kind = GQL_SCALAR,
     .locked = true,
+    .core = true,
     .coerce = coerce_int,
+    .destroy = NULL,
     .to_text = int_to_text,
 };
 
@@ -28,16 +29,37 @@ static struct _gqlType	i64_type = {
     .desc = "64 bit integer scalar.",
     .kind = GQL_SCALAR,
     .locked = true,
+    .core = true,
     .coerce = coerce_i64,
+    .destroy = NULL,
     .to_text = i64_to_text,
 };
+
+static void
+string_destroy(gqlValue value) {
+    free((char*)value->str);
+}
+
+static int
+coerce_string(Err err, gqlValue src, gqlType type) {
+    // TBD
+    return ERR_OK;
+}
+
+static Text
+string_to_text(Text text, gqlValue value) {
+    // TBD
+    return text;
+}
 
 static struct _gqlType	string_type = {
     .name = "String",
     .desc = "String scalar.",
     .kind = GQL_SCALAR,
     .locked = true,
+    .core = true,
     .coerce = coerce_string,
+    .destroy = string_destroy,
     .to_text = string_to_text,
 };
 
@@ -46,7 +68,9 @@ static struct _gqlType	str16_type = { // unregistered
     .desc = NULL,
     .kind = GQL_SCALAR,
     .locked = true,
+    .core = true,
     .coerce = coerce_string,
+    .destroy = NULL,
     .to_text = string_to_text,
 };
 
@@ -58,7 +82,11 @@ gql_value_create(Err err) {
 
 void
 gql_value_destroy(gqlValue value) {
-    // TBD
+    if (NULL != value->type->destroy) {
+	value->type->destroy(value);
+    }
+    DEBUG_ALLOC(mem_graphql_value, value);
+    free(value);
 }
 
 int
@@ -246,12 +274,6 @@ coerce_i64(Err err, gqlValue src, gqlType type) {
     return ERR_OK;
 }
 
-static int
-coerce_string(Err err, gqlValue src, gqlType type) {
-    // TBD
-    return ERR_OK;
-}
-
 /// to_text functions /////////////////////////////////////////////////////////
 static Text
 int_to_text(Text text, gqlValue value) {
@@ -261,12 +283,6 @@ int_to_text(Text text, gqlValue value) {
 
 static Text
 i64_to_text(Text text, gqlValue value) {
-    // TBD
-    return text;
-}
-
-static Text
-string_to_text(Text text, gqlValue value) {
     // TBD
     return text;
 }
