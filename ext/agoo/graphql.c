@@ -1,5 +1,6 @@
 // Copyright (c) 2018, Peter Ohler, All rights reserved.
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -7,8 +8,8 @@
 #include "graphql.h"
 #include "gqlvalue.h"
 
-#define BUCKET_SIZE	256
-#define BUCKET_MASK	255
+#define BUCKET_SIZE	64
+#define BUCKET_MASK	63
 #define BAD_NAME	(uint64_t)-1
 
 typedef struct _Slot {
@@ -50,7 +51,7 @@ calc_hash(const char *name) {
 	if (0 == (x = name_chars[*k])) {
 	    return BAD_NAME;
 	}
-	h = 17 * h + x; // fast, just spread it out
+	h = 37 * h + x; // fast, just spread it out
     }
     return h;
 }
@@ -184,39 +185,10 @@ type_remove(gqlType type) {
 }
 
 // Second level objects.
+#if 0
 static struct _gqlType	type_type = {
     .name = "__Type",
     .desc = "The root Type.",
-    .kind = GQL_OBJECT,
-    .locked = true,
-    .fields = NULL,
-    .interfaces = NULL,
-    .to_text = object_to_text,
-};
-
-static struct _gqlType	query_type = {
-    .name = "Query",
-    .desc = "The root Query type.",
-    .kind = GQL_OBJECT,
-    .locked = true,
-    .fields = NULL,
-    .interfaces = NULL,
-    .to_text = object_to_text,
-};
-
-static struct _gqlType	mutation_type = {
-    .name = "Mutation",
-    .desc = "The root Mutation type.",
-    .kind = GQL_OBJECT,
-    .locked = true,
-    .fields = NULL,
-    .interfaces = NULL,
-    .to_text = object_to_text,
-};
-
-static struct _gqlType	subscription_type = {
-    .name = "Subscription",
-    .desc = "The root Subscription type.",
     .kind = GQL_OBJECT,
     .locked = true,
     .fields = NULL,
@@ -245,39 +217,6 @@ static struct _gqlField	directives_field = {
     .args = NULL,
 };
 
-static struct _gqlField	subscription_field = {
-    .next = &directives_field,
-    .name = "subscriptionType",
-    .desc = "Root level subscription.",
-    .type = &type_type,
-    .required = false,
-    .list = false,
-    .operation = false,
-    .args = NULL,
-};
-
-static struct _gqlField	mutation_field = {
-    .next = &subscription_field,
-    .name = "mutationType",
-    .desc = "Root level mutation.",
-    .type = &type_type,
-    .required = false,
-    .list = false,
-    .operation = false,
-    .args = NULL,
-};
-
-static struct _gqlField	query_field = {
-    .next = &mutation_field,
-    .name = "queryType",
-    .desc = "Root level query.",
-    .type = &type_type,
-    .required = true,
-    .list = false,
-    .operation = false,
-    .args = NULL,
-};
-
 static struct _gqlField	types_field = {
     .next = &query_field,
     .name = "types",
@@ -288,13 +227,77 @@ static struct _gqlField	types_field = {
     .operation = false,
     .args = NULL,
 };
+#endif
+
+static struct _gqlType	subscription_type = {
+    .name = "Subscription",
+    .desc = "The root Subscription type.",
+    .kind = GQL_OBJECT,
+    .locked = true,
+    .fields = NULL,
+    .interfaces = NULL,
+    .to_text = object_to_text,
+};
+
+static struct _gqlType	mutation_type = {
+    .name = "Mutation",
+    .desc = "The root Mutation type.",
+    .kind = GQL_OBJECT,
+    .locked = true,
+    .fields = NULL,
+    .interfaces = NULL,
+    .to_text = object_to_text,
+};
+
+static struct _gqlType	query_type = {
+    .name = "Query",
+    .desc = "The root Query type.",
+    .kind = GQL_OBJECT,
+    .locked = true,
+    .fields = NULL,
+    .interfaces = NULL,
+    .to_text = object_to_text,
+};
+
+static struct _gqlField	subscription_field = {
+    .next = NULL,
+    .name = "subscription",
+    .desc = "Root level subscription.",
+    .type = &subscription_type,
+    .required = false,
+    .list = false,
+    .operation = false,
+    .args = NULL,
+};
+
+static struct _gqlField	mutation_field = {
+    .next = &subscription_field,
+    .name = "mutation",
+    .desc = "Root level mutation.",
+    .type = &mutation_type,
+    .required = false,
+    .list = false,
+    .operation = false,
+    .args = NULL,
+};
+
+static struct _gqlField	query_field = {
+    .next = &mutation_field,
+    .name = "query",
+    .desc = "Root level query.",
+    .type = &query_type,
+    .required = true,
+    .list = false,
+    .operation = false,
+    .args = NULL,
+};
 
 static struct _gqlType	schema_type = {
-    .name = "__Schema",
+    .name = "schema",
     .desc = "The GraphQL root Object.",
     .kind = GQL_OBJECT,
     .locked = true,
-    .fields = &types_field,
+    .fields = &query_field,
     .interfaces = NULL,
     .to_text = object_to_text,
 };
@@ -309,7 +312,7 @@ gql_init(Err err) {
     memset(buckets, 0, sizeof(buckets));
 
     if (ERR_OK != gql_value_init(err) ||
-	ERR_OK != gql_type_set(err, &type_type) ||
+	//ERR_OK != gql_type_set(err, &type_type) ||
 	ERR_OK != gql_type_set(err, &query_type) ||
 	ERR_OK != gql_type_set(err, &mutation_type) ||
 	ERR_OK != gql_type_set(err, &subscription_type) ||
@@ -528,8 +531,114 @@ gql_type_destroy(gqlType type) {
 }
 
 Text
-gql_type_text(Text text, gqlType value, int indent) {
+field_text(Text text, gqlField f, int indent) {
     // TBD
     return text;
 }
 
+Text
+gql_type_text(Text text, gqlType type, int indent, bool comments) {
+    if (comments && NULL != type->desc) {
+	text = text_append(text, "\"\"\"\n", 4);
+	text = text_append(text, type->desc, -1);
+	text = text_append(text, "\n\"\"\"\n", 5);
+    }
+    switch (type->kind) {
+    case GQL_OBJECT:
+    case GQL_FRAG: {
+	gqlField	f;
+
+	text = text_append(text, "type ", 5);
+	text = text_append(text, type->name, -1);
+	// TBD interfaces
+	text = text_append(text, " {\n", 3);
+
+	for (f = type->fields; NULL != f; f = f->next) {
+	    text = field_text(text, f, indent);
+	}
+	text = text_append(text, "}\n", 2);
+	break;
+    }
+    case GQL_UNION: {
+	text = text_append(text, "union ", 6);
+	text = text_append(text, type->name, -1);
+	text = text_append(text, " = ", 3);
+	// TBD type separated by |
+	break;
+    }
+    case GQL_ENUM: {
+	text = text_append(text, "enum ", 5);
+	text = text_append(text, type->name, -1);
+	text = text_append(text, " {\n", 3);
+	// TBD choices
+	text = text_append(text, "}\n", 2);
+	break;
+    }
+    case GQL_SCALAR:
+	text = text_append(text, "scalar ", 7);
+	text = text_append(text, type->name, -1);
+	text = text_append(text, "\n", 1);
+	break;
+    default:
+	break;
+    }
+
+    return text;
+}
+
+static int
+type_cmp(const void *v0, const void *v1) {
+    gqlType	t0 = *(gqlType*)v0;
+    gqlType	t1 = *(gqlType*)v1;
+
+    if (t0->kind == t1->kind) {
+	if (0 == strcmp("schema", t0->name)) {
+	    return -1;
+	}
+	if (0 == strcmp("schema", t1->name)) {
+	    return 1;
+	}
+	return strcmp(t0->name, t1->name);
+    }
+    return t0->kind - t1->kind;
+}
+
+Text
+gql_schema_text(Text text, int indent, bool comments) {
+    Slot	*bucket;
+    Slot	s;
+    gqlType	type;
+    int		i;
+    int		cnt = 0;
+
+    for (bucket = buckets, i = 0; i < BUCKET_SIZE; bucket++, i++) {
+	for (s = *bucket; NULL != s; s = s->next) {
+	    type = s->type;
+	    if ('_' == *type->name && '_' == type->name[1]) {
+		continue;
+	    }
+	    cnt++;
+	}
+    }
+    text = text_append(text, "\n", 1);
+    {
+	gqlType	types[cnt];
+	gqlType	*tp = types;
+	
+	for (bucket = buckets, i = 0; i < BUCKET_SIZE; bucket++, i++) {
+	    for (s = *bucket; NULL != s; s = s->next) {
+		type = s->type;
+		if ('_' == *type->name && '_' == type->name[1]) {
+		    continue;
+		}
+		*tp++ = type;
+	    }
+	}
+	qsort(types, cnt, sizeof(gqlType), type_cmp);
+	for (i = 0, tp = types; i < cnt; i++, tp++) {
+	    text = gql_type_text(text, *tp, indent, comments);
+	    text = text_append(text, "\n", 1);
+	}
+    }
+    return text;
+}

@@ -10,11 +10,11 @@
 #include "text.h"
 
 typedef enum {
-    GQL_OBJECT	= 'O',
-    GQL_UNION	= 'U',
-    GQL_ENUM	= 'E',
-    GQL_FRAG	= 'F',
-    GQL_SCALAR	= 'S',
+    GQL_OBJECT	= (int8_t)1,
+    GQL_FRAG	= (int8_t)2,
+    GQL_UNION	= (int8_t)3,
+    GQL_ENUM	= (int8_t)4,
+    GQL_SCALAR	= (int8_t)5,
 
 /*
     // scalars
@@ -101,6 +101,8 @@ extern gqlType	gql_scalar_create(Err err, const char *name, const char *desc, bo
 extern int	gql_type_set(Err err, gqlType type);
 extern gqlType	gql_type_get(const char *name);
 extern void	gql_type_destroy(gqlType type);
-extern Text	gql_type_text(Text text, gqlType value, int indent);
+
+extern Text	gql_type_text(Text text, gqlType type, int indent, bool comments);
+extern Text	gql_schema_text(Text text, int indent, bool comments);
 
 #endif // __AGOO_GRAPHQL_H__
