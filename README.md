@@ -71,6 +71,10 @@ See [file:CHANGELOG.md](CHANGELOG.md)
 Releases are made from the master branch. The default branch for checkout is
 the develop branch. Pull requests should be made against the develop branch.
 
+## Support
+
+[Get supported Agoo with a Tidelift Subscription.](https://tidelift.com/subscription/pkg/rubygems-agoo?utm_source=rubygems-agoo&utm_medium=referral&utm_campaign=readme)
+
 ## Links
 
  - *Documentation*: http://rubydoc.info/gems/agoo or http://www.ohler.com/agoo/doc/index.html
