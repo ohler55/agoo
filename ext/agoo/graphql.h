@@ -26,8 +26,22 @@ struct _gqlValue;
 struct _gqlLink;
 struct _gqlField;
 
-typedef void	(*gqlBuildFunc)(); // TBD what should this look like
-typedef void	(*gqlFieldOp)(struct _gqlValue *target, struct _gqlField *field, struct _gqlLink *args, gqlBuildFunc builder, void *ctx);
+// Used for references to implemenation entities.
+typedef void*	gqlRef;
+typedef struct _gqlQuery {
+    struct _gqlQuery	*next;
+    struct _gqlValue	*result;
+    // TBD data about a query, mutation, or subscription
+} *gqlQuery;
+
+// Resolve field on a target to a child reference.
+typedef gqlRef			(*gqlResolveFunc)(gqlRef target, const char *fieldName);
+
+// Coerce an implemenation reference into a gqlValue.
+typedef struct _gqlValue*	(*gqlCoerceFunc)(gqlRef ref, struct _gqlType *type);
+
+typedef void			(*gqlIterCb)(gqlRef ref, gqlQuery query);
+typedef void			(*gqlIterateFunc)(gqlRef ref, gqlIterCb cb, gqlQuery query);
 
 typedef struct _gqlArg {
     struct _gqlArg	*next;
@@ -43,11 +57,12 @@ typedef struct _gqlField {
     const char		*name;
     struct _gqlType	*type; // return type
     const char		*desc;
+    const char		*reason; // deprecationReason
     gqlArg		args;
-    gqlFieldOp		op;
+    gqlResolveFunc	resolve;
     bool		required;
     bool		list;
-    bool		operation;
+    bool		list_required;
     bool		deprecated;
 } *gqlField;
 
@@ -84,7 +99,16 @@ extern gqlType	gql_fragment_create(Err err, const char *name, const char *desc, 
 extern gqlType	gql_input_create(Err err, const char *name, const char *desc, bool locked);
 extern gqlType	gql_interface_create(Err err, const char *name, const char *desc, bool locked);
 
-extern gqlField	gql_type_field(Err err, gqlType type, const char *name, gqlType return_type, const char *desc, bool required, bool list, gqlFieldOp op, void *ctx);
+extern gqlField	gql_type_field(Err		err,
+			       gqlType		type,
+			       const char	*name,
+			       gqlType		return_type,
+			       const char	*desc,
+			       bool 		required,
+			       bool 		list,
+			       bool 		list_required,
+			       gqlResolveFunc	resolve);
+
 extern gqlArg	gql_field_arg(Err err, gqlField field, const char *name, gqlType type, const char *desc, struct _gqlValue *def_value, bool required);
 
 // TBD maybe create then add fields
@@ -99,9 +123,10 @@ extern gqlType	gql_type_get(const char *name);
 extern void	gql_type_destroy(gqlType type);
 
 extern Text	gql_type_text(Text text, gqlType type, bool comments);
-extern Text	gql_schema_text(Text text, bool comments);
+extern Text	gql_schema_text(Text text, bool comments, bool all);
 extern Text	gql_object_to_text(Text text, struct _gqlValue *value);
 extern Text	gql_union_to_text(Text text, struct _gqlValue *value);
 extern Text	gql_enum_to_text(Text text, struct _gqlValue *value);
 
 #endif // __AGOO_GRAPHQL_H__
+

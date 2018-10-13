@@ -11,7 +11,7 @@ static gqlType	schema_type;
 static gqlType	type_type;
 static gqlType	type_kind_type;
 static gqlType	field_type;
-static gqlType	input_object_type;
+static gqlType	input_value_type;
 static gqlType	enum_value_type;
 static gqlType	directive_type;
 static gqlType	directive_location_type;
@@ -23,20 +23,29 @@ static gqlType	directive_location_type;
 //   subscriptionType: __Type
 //   directives: [__Directive!]!
 // }
-static void
-schema_types_op(gqlValue target, gqlField field, gqlLink args, gqlBuildFunc builder, void *ctx) {
-    // TBD iterate over types cache
-    //  this doesn't work well for getting just the desired fields
+static gqlRef
+schema_types_resolve(gqlRef target, const char *fieldName) {
+    // TBD 
+    return NULL;
+}
+
+static gqlRef
+schema_query_type_resolve(gqlRef target, const char *fieldName) {
+    // TBD return schema_type.query.type
+    //  lookup "schema" type
+    //  get query field
+    //  get return type of field
+    return NULL;
 }
 
 static int
 create_schema_type(Err err) {
     if (NULL == (schema_type = gql_type_create(err, "__Schema", NULL, true, NULL)) ||
-	NULL == gql_type_field(err, schema_type, "types", type_type, NULL, true, true, schema_types_op, NULL) ||
-	NULL == gql_type_field(err, schema_type, "queryType", type_type, NULL, true, false, NULL, NULL) ||
-	NULL == gql_type_field(err, schema_type, "mutationType", type_type, NULL, false, false, NULL, NULL) ||
-	NULL == gql_type_field(err, schema_type, "subscriptionType", type_type, NULL, false, false, NULL, NULL) ||
-	NULL == gql_type_field(err, schema_type, "directives", directive_type, NULL, true, true, NULL, NULL)) {
+	NULL == gql_type_field(err, schema_type, "types", type_type, NULL, true, true, true, schema_types_resolve) ||
+	NULL == gql_type_field(err, schema_type, "queryType", type_type, NULL, true, false, false, schema_query_type_resolve) ||
+	NULL == gql_type_field(err, schema_type, "mutationType", type_type, NULL, false, false, false, NULL) ||
+	NULL == gql_type_field(err, schema_type, "subscriptionType", type_type, NULL, false, false, false, NULL) ||
+	NULL == gql_type_field(err, schema_type, "directives", directive_type, NULL, true, true, true, NULL)) {
 
 	return err->code;
     }
@@ -56,13 +65,22 @@ create_schema_type(Err err) {
 // }
 static int
 create_type_type(Err err) {
-    type_type = gql_type_create(err, "__Type", NULL, true, NULL);
+    gqlField	fields = NULL;
+    gqlField	enum_values = NULL;
+    
+    if (NULL == (type_type = gql_type_create(err, "__Type", NULL, true, NULL)) ||
+	NULL == gql_type_field(err, type_type, "kind", type_kind_type, NULL, true, false, false, NULL) ||
+	NULL == gql_type_field(err, type_type, "name", &gql_string_type, NULL, false, false, false, NULL) ||
+	NULL == gql_type_field(err, type_type, "description", &gql_string_type, NULL, false, false, false, NULL) ||
+	NULL == (fields = gql_type_field(err, type_type, "fields", field_type, NULL, true, true, false, NULL)) ||
+	NULL == gql_type_field(err, type_type, "interfaces", type_type, NULL, true, true, false, NULL) ||
+	NULL == gql_type_field(err, type_type, "possibleTypes", type_type, NULL, true, true, false, NULL) ||
+	NULL == (enum_values = gql_type_field(err, type_type, "enumValues", enum_value_type, NULL, true, true, false, NULL)) ||
+	NULL == gql_type_field(err, type_type, "inputFields", input_value_type, NULL, true, true, false, NULL) ||
+	NULL == gql_type_field(err, type_type, "ofType", type_type, NULL, false, false, false, NULL)) {
 
-    if (NULL == type_type) {
 	return err->code;
     }
-    // TBD add fields
-    
     return ERR_OK;
 }
 
@@ -103,9 +121,9 @@ create_field_type(Err err) {
 // }
 static int
 create_input_type(Err err) {
-    input_object_type = gql_type_create(err, "__InputValue", NULL, true, NULL);
+    input_value_type = gql_type_create(err, "__InputValue", NULL, true, NULL);
 
-    if (NULL == input_object_type) {
+    if (NULL == input_value_type) {
 	return err->code;
     }
     // TBD add fields

@@ -224,7 +224,7 @@ static struct _gqlField	subscription_field = {
     .type = &subscription_type,
     .required = false,
     .list = false,
-    .operation = false,
+    .resolve = NULL,
     .args = NULL,
 };
 
@@ -235,7 +235,7 @@ static struct _gqlField	mutation_field = {
     .type = &mutation_type,
     .required = false,
     .list = false,
-    .operation = false,
+    .resolve = NULL,
     .args = NULL,
 };
 
@@ -246,7 +246,7 @@ static struct _gqlField	query_field = {
     .type = &query_type,
     .required = true,
     .list = false,
-    .operation = false,
+    .resolve = NULL,
     .args = NULL,
 };
 
@@ -313,6 +313,11 @@ type_create(Err err, const char *name, const char *desc, bool locked) {
 	}
 	type->locked = locked;
 	type->core = false;
+
+	if (ERR_OK != gql_type_set(err, type)) {
+	    gql_type_destroy(type);
+	    type = NULL;
+	}
     }
     return type;
 }
@@ -357,7 +362,15 @@ gql_type_create(Err err, const char *name, const char *desc, bool locked, gqlTyp
 }
 
 gqlField
-gql_type_field(Err err, gqlType type, const char *name, gqlType return_type, const char *desc, bool required, bool list, gqlFieldOp op, void *ctx) {
+gql_type_field(Err err,
+	       gqlType type,
+	       const char *name,
+	       gqlType return_type,
+	       const char *desc,
+	       bool required,
+	       bool list,
+	       bool list_required,
+	       gqlResolveFunc resolve) {
     // TBD
     return NULL;
 }
@@ -561,10 +574,16 @@ gql_type_text(Text text, gqlType type, bool comments) {
 	break;
     }
     case GQL_ENUM: {
+	const char	**cp;
+	
 	text = text_append(text, "enum ", 5);
 	text = text_append(text, type->name, -1);
 	text = text_append(text, " {\n", 3);
-	// TBD choices
+	for (cp = type->choices; NULL != *cp; cp++) {
+	    text = text_append(text, "  ", 2);
+	    text = text_append(text, *cp, -1);
+	    text = text_append(text, "\n", 1);
+	}
 	text = text_append(text, "}\n", 2);
 	break;
     }
@@ -624,7 +643,7 @@ type_cmp(const void *v0, const void *v1) {
 }
 
 Text
-gql_schema_text(Text text, bool comments) {
+gql_schema_text(Text text, bool comments, bool all) {
     Slot	*bucket;
     Slot	s;
     gqlType	type;
@@ -634,7 +653,7 @@ gql_schema_text(Text text, bool comments) {
     for (bucket = buckets, i = 0; i < BUCKET_SIZE; bucket++, i++) {
 	for (s = *bucket; NULL != s; s = s->next) {
 	    type = s->type;
-	    if ('_' == *type->name && '_' == type->name[1]) {
+	    if (!all && '_' == *type->name && '_' == type->name[1]) {
 		continue;
 	    }
 	    cnt++;
@@ -648,7 +667,7 @@ gql_schema_text(Text text, bool comments) {
 	for (bucket = buckets, i = 0; i < BUCKET_SIZE; bucket++, i++) {
 	    for (s = *bucket; NULL != s; s = s->next) {
 		type = s->type;
-		if ('_' == *type->name && '_' == type->name[1]) {
+		if (!all && '_' == *type->name && '_' == type->name[1]) {
 		    continue;
 		}
 		*tp++ = type;

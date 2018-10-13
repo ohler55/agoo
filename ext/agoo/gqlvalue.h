@@ -32,7 +32,10 @@ typedef struct _gqlValue {
 	    uint64_t	hi;
 	    uint64_t	lo;
 	} uuid;
-	struct _gqlLink	*members; // linked list for List and Object types
+	struct {
+	    struct _gqlLink	*members; // linked list for List and Object types
+	    struct _gqlType	*member_type;
+	};
     };
 } *gqlValue;
 
