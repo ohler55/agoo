@@ -72,4 +72,13 @@ extern void	gql_null_set(gqlValue value);
 
 extern Text	gql_value_text(Text text, gqlValue value, int indent);
 
+extern struct _gqlType	gql_int_type;
+extern struct _gqlType	gql_i64_type;
+extern struct _gqlType	gql_bool_type;
+extern struct _gqlType	gql_float_type;
+extern struct _gqlType	gql_time_type;
+extern struct _gqlType	gql_uuid_type;
+extern struct _gqlType	gql_url_type;
+extern struct _gqlType	gql_string_type;
+
 #endif // __AGOO_GQLVALUE_H__

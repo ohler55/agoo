@@ -10,29 +10,24 @@
 #include "text.h"
 
 typedef enum {
-    GQL_OBJECT	= (int8_t)1,
-    GQL_FRAG	= (int8_t)2,
-    GQL_UNION	= (int8_t)3,
-    GQL_ENUM	= (int8_t)4,
-    GQL_SCALAR	= (int8_t)5,
-
-/*
-    // scalars
-    GQL_INT	= 'i',
-    GQL_I64	= 'I',
-    GQL_FLOAT	= 'f',
-    GQL_STRING	= 's',
-    GQL_STR16	= 'S', // string less than 16 characters
-    GQL_BOOL	= 'b',
-    GQL_TIME	= 't',
-    GQL_ID	= 'I',
-    GQL_UUID	= 'u',
-    GQL_URL	= 'L',
-*/
+    GQL_OBJECT		= (int8_t)1,
+    GQL_FRAG		= (int8_t)2,
+    GQL_INPUT		= (int8_t)3,
+    GQL_UNION		= (int8_t)4,
+    GQL_INTERFACE	= (int8_t)5,
+    GQL_ENUM		= (int8_t)6,
+    GQL_SCALAR		= (int8_t)7,
+    // LIST
+    // NON_NULL
 } gqlKind;
 
 struct _gqlType;
 struct _gqlValue;
+struct _gqlLink;
+struct _gqlField;
+
+typedef void	(*gqlBuildFunc)(); // TBD what should this look like
+typedef void	(*gqlFieldOp)(struct _gqlValue *target, struct _gqlField *field, struct _gqlLink *args, gqlBuildFunc builder, void *ctx);
 
 typedef struct _gqlArg {
     struct _gqlArg	*next;
@@ -46,15 +41,14 @@ typedef struct _gqlArg {
 typedef struct _gqlField {
     struct _gqlField	*next;
     const char		*name;
-    struct _gqlType	*type;
+    struct _gqlType	*type; // return type
     const char		*desc;
     gqlArg		args;
-    // TBD should all field have an eval function returns some data item (type?) or just fill in text
-    //   if just filling in text then what about lists unless func build and takes args for children
-    //   if to gqlValues then other output options are possible (does this matter?)
+    gqlFieldOp		op;
     bool		required;
     bool		list;
     bool		operation;
+    bool		deprecated;
 } *gqlField;
 
 typedef struct _gqlType {
@@ -65,7 +59,7 @@ typedef struct _gqlType {
     bool	locked; // set by app
     bool	core;
     union {
-	struct { // Objects and Fragments
+	struct { // Objects, Fragments, interfaces, and input_objects
 	    gqlField		fields;
 	    union {
 		struct _gqlType	**interfaces; // Objects, null terminated array if not NULL.
@@ -87,8 +81,10 @@ extern void	gql_destroy(); // clear out all
 
 extern gqlType	gql_type_create(Err err, const char *name, const char *desc, bool locked, gqlType *interfaces);
 extern gqlType	gql_fragment_create(Err err, const char *name, const char *desc, bool locked, gqlType on);
+extern gqlType	gql_input_create(Err err, const char *name, const char *desc, bool locked);
+extern gqlType	gql_interface_create(Err err, const char *name, const char *desc, bool locked);
 
-extern gqlField	gql_type_field(Err err, gqlType type, const char *name, gqlType return_type, const char *desc, bool required, bool list);
+extern gqlField	gql_type_field(Err err, gqlType type, const char *name, gqlType return_type, const char *desc, bool required, bool list, gqlFieldOp op, void *ctx);
 extern gqlArg	gql_field_arg(Err err, gqlField field, const char *name, gqlType type, const char *desc, struct _gqlValue *def_value, bool required);
 
 // TBD maybe create then add fields
@@ -102,7 +98,10 @@ extern int	gql_type_set(Err err, gqlType type);
 extern gqlType	gql_type_get(const char *name);
 extern void	gql_type_destroy(gqlType type);
 
-extern Text	gql_type_text(Text text, gqlType type, int indent, bool comments);
-extern Text	gql_schema_text(Text text, int indent, bool comments);
+extern Text	gql_type_text(Text text, gqlType type, bool comments);
+extern Text	gql_schema_text(Text text, bool comments);
+extern Text	gql_object_to_text(Text text, struct _gqlValue *value);
+extern Text	gql_union_to_text(Text text, struct _gqlValue *value);
+extern Text	gql_enum_to_text(Text text, struct _gqlValue *value);
 
 #endif // __AGOO_GRAPHQL_H__

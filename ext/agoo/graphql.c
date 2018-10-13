@@ -6,6 +6,7 @@
 
 #include "debug.h"
 #include "graphql.h"
+#include "gqlintro.h"
 #include "gqlvalue.h"
 
 #define BUCKET_SIZE	64
@@ -39,8 +40,6 @@ static uint8_t	name_chars[256] = "\
 \x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\
 ";
 
-static Text	object_to_text(Text text, gqlValue value);
-
 static uint64_t
 calc_hash(const char *name) {
     uint64_t		h = 0;
@@ -68,7 +67,9 @@ type_destroy(gqlType type) {
 	free((char*)type->desc);
 	switch (type->kind) {
 	case GQL_OBJECT:
-	case GQL_FRAG: {
+	case GQL_FRAG:
+	case GQL_INTERFACE:
+	case GQL_INPUT: {
 	    gqlField	f;
 	    gqlArg	a;
 	
@@ -102,6 +103,7 @@ type_destroy(gqlType type) {
 	    free(type->choices);
 	    break;
 	}
+	    // TBD INTERFACE, INPUT
 	default:
 	    break;
 	}
@@ -185,50 +187,6 @@ type_remove(gqlType type) {
 }
 
 // Second level objects.
-#if 0
-static struct _gqlType	type_type = {
-    .name = "__Type",
-    .desc = "The root Type.",
-    .kind = GQL_OBJECT,
-    .locked = true,
-    .fields = NULL,
-    .interfaces = NULL,
-    .to_text = object_to_text,
-};
-
-static struct _gqlType	directive_type = {
-    .name = "__Directive",
-    .desc = "The root Directive type.",
-    .kind = GQL_OBJECT, // TBD scalar?
-    .locked = true,
-    .fields = NULL,
-    .interfaces = NULL,
-    .to_text = object_to_text,
-};
-
-static struct _gqlField	directives_field = {
-    .next = NULL,
-    .name = "directives",
-    .desc = "Root level directives.",
-    .type = &directive_type,
-    .required = true,
-    .list = true,
-    .operation = false,
-    .args = NULL,
-};
-
-static struct _gqlField	types_field = {
-    .next = &query_field,
-    .name = "types",
-    .desc = "Root level subscription.",
-    .type = &type_type,
-    .required = true,
-    .list = true,
-    .operation = false,
-    .args = NULL,
-};
-#endif
-
 static struct _gqlType	subscription_type = {
     .name = "Subscription",
     .desc = "The root Subscription type.",
@@ -236,7 +194,7 @@ static struct _gqlType	subscription_type = {
     .locked = true,
     .fields = NULL,
     .interfaces = NULL,
-    .to_text = object_to_text,
+    .to_text = gql_object_to_text,
 };
 
 static struct _gqlType	mutation_type = {
@@ -246,7 +204,7 @@ static struct _gqlType	mutation_type = {
     .locked = true,
     .fields = NULL,
     .interfaces = NULL,
-    .to_text = object_to_text,
+    .to_text = gql_object_to_text,
 };
 
 static struct _gqlType	query_type = {
@@ -256,7 +214,7 @@ static struct _gqlType	query_type = {
     .locked = true,
     .fields = NULL,
     .interfaces = NULL,
-    .to_text = object_to_text,
+    .to_text = gql_object_to_text,
 };
 
 static struct _gqlField	subscription_field = {
@@ -297,22 +255,18 @@ static struct _gqlType	schema_type = {
     .desc = "The GraphQL root Object.",
     .kind = GQL_OBJECT,
     .locked = true,
+    .core = true, // TBD define using type create and set core to false
     .fields = &query_field,
     .interfaces = NULL,
-    .to_text = object_to_text,
+    .to_text = gql_object_to_text,
 };
-
-// TBD gqlValue for schema root
-//  set fields with functions on the __Schema type
-//  on introspect call those functions to build response
-
 
 int
 gql_init(Err err) {
     memset(buckets, 0, sizeof(buckets));
 
     if (ERR_OK != gql_value_init(err) ||
-	//ERR_OK != gql_type_set(err, &type_type) ||
+	ERR_OK != gql_intro_init(err) ||
 	ERR_OK != gql_type_set(err, &query_type) ||
 	ERR_OK != gql_type_set(err, &mutation_type) ||
 	ERR_OK != gql_type_set(err, &subscription_type) ||
@@ -343,12 +297,6 @@ gql_destroy() {
     }
 }
 
-static Text
-object_to_text(Text text, gqlValue value) {
-    // TBD
-    return text;
-}
-
 gqlType
 type_create(Err err, const char *name, const char *desc, bool locked) {
     gqlType	type = (gqlType)malloc(sizeof(struct _gqlType));
@@ -358,11 +306,21 @@ type_create(Err err, const char *name, const char *desc, bool locked) {
     } else {
 	DEBUG_ALLOC(mem_graphql_type, type);
 	type->name = strdup(name);
-	type->desc = strdup(desc);
+	if (NULL == desc) {
+	    type->desc = NULL;
+	} else {
+	    type->desc = strdup(desc);
+	}
 	type->locked = locked;
 	type->core = false;
     }
     return type;
+}
+
+Text
+gql_object_to_text(Text text, gqlValue value) {
+    // TBD
+    return text;
 }
 
 gqlType
@@ -371,7 +329,7 @@ gql_type_create(Err err, const char *name, const char *desc, bool locked, gqlTyp
 
     if (NULL != type) {
 	type->kind = GQL_OBJECT;
-	type->to_text = object_to_text;
+	type->to_text = gql_object_to_text;
 	type->fields = NULL;
 	type->interfaces = NULL;
 	if (NULL != interfaces) {
@@ -399,7 +357,7 @@ gql_type_create(Err err, const char *name, const char *desc, bool locked, gqlTyp
 }
 
 gqlField
-gql_type_field(Err err, gqlType type, const char *name, gqlType return_type, const char *desc, bool required, bool list) {
+gql_type_field(Err err, gqlType type, const char *name, gqlType return_type, const char *desc, bool required, bool list, gqlFieldOp op, void *ctx) {
     // TBD
     return NULL;
 }
@@ -410,8 +368,8 @@ gql_field_arg(Err err, gqlField field, const char *name, gqlType type, const cha
     return NULL;
 }
 
-static Text
-union_to_text(Text text, gqlValue value) {
+Text
+gql_union_to_text(Text text, gqlValue value) {
     // TBD
     return text;
 }
@@ -422,7 +380,7 @@ gql_union_create(Err err, const char *name, const char *desc, bool locked, gqlTy
 
     if (NULL != type) {
 	type->kind = GQL_UNION;
-	type->to_text = union_to_text;
+	type->to_text = gql_union_to_text;
 	type->utypes = NULL;
 	if (NULL != types) {
 	    gqlType	*tp = types;
@@ -448,8 +406,8 @@ gql_union_create(Err err, const char *name, const char *desc, bool locked, gqlTy
     return type;
 }
 
-static Text
-enum_to_text(Text text, gqlValue value) {
+Text
+gql_enum_to_text(Text text, gqlValue value) {
     // TBD
     return text;
 }
@@ -460,7 +418,7 @@ gql_enum_create(Err err, const char *name, const char *desc, bool locked, const 
 
     if (NULL != type) {
 	type->kind = GQL_ENUM;
-	type->to_text = enum_to_text;
+	type->to_text = gql_enum_to_text;
 	type->choices = NULL;
 	if (NULL != choices) {
 	    const char	**cp = choices;
@@ -506,6 +464,42 @@ gql_fragment_create(Err err, const char *name, const char *desc, bool locked, gq
 }
 
 static Text
+input_to_text(Text text, gqlValue value) {
+    // TBD
+    return text;
+}
+
+gqlType
+gql_input_create(Err err, const char *name, const char *desc, bool locked) {
+    gqlType	type = type_create(err, name, desc, locked);
+
+    if (NULL != type) {
+	type->kind = GQL_INPUT;
+	type->to_text = input_to_text;
+	type->fields = NULL;
+    }
+    return type;
+}
+
+static Text
+interface_to_text(Text text, gqlValue value) {
+    // TBD
+    return text;
+}
+
+gqlType
+gql_interface_create(Err err, const char *name, const char *desc, bool locked) {
+    gqlType	type = type_create(err, name, desc, locked);
+
+    if (NULL != type) {
+	type->kind = GQL_INTERFACE;
+	type->to_text = interface_to_text;
+	type->fields = NULL;
+    }
+    return type;
+}
+
+static Text
 scalar_to_text(Text text, gqlValue value) {
     // TBD
     return text;
@@ -531,13 +525,13 @@ gql_type_destroy(gqlType type) {
 }
 
 Text
-field_text(Text text, gqlField f, int indent) {
+field_text(Text text, gqlField f) {
     // TBD
     return text;
 }
 
 Text
-gql_type_text(Text text, gqlType type, int indent, bool comments) {
+gql_type_text(Text text, gqlType type, bool comments) {
     if (comments && NULL != type->desc) {
 	text = text_append(text, "\"\"\"\n", 4);
 	text = text_append(text, type->desc, -1);
@@ -554,7 +548,7 @@ gql_type_text(Text text, gqlType type, int indent, bool comments) {
 	text = text_append(text, " {\n", 3);
 
 	for (f = type->fields; NULL != f; f = f->next) {
-	    text = field_text(text, f, indent);
+	    text = field_text(text, f);
 	}
 	text = text_append(text, "}\n", 2);
 	break;
@@ -579,6 +573,32 @@ gql_type_text(Text text, gqlType type, int indent, bool comments) {
 	text = text_append(text, type->name, -1);
 	text = text_append(text, "\n", 1);
 	break;
+    case GQL_INTERFACE: {
+	gqlField	f;
+
+	text = text_append(text, "interface ", 10);
+	text = text_append(text, type->name, -1);
+	text = text_append(text, " {\n", 3);
+
+	for (f = type->fields; NULL != f; f = f->next) {
+	    text = field_text(text, f);
+	}
+	text = text_append(text, "}\n", 2);
+	break;
+    }
+    case GQL_INPUT: {
+	gqlField	f;
+
+	text = text_append(text, "input ", 6);
+	text = text_append(text, type->name, -1);
+	text = text_append(text, " {\n", 3);
+
+	for (f = type->fields; NULL != f; f = f->next) {
+	    text = field_text(text, f);
+	}
+	text = text_append(text, "}\n", 2);
+	break;
+    }
     default:
 	break;
     }
@@ -604,7 +624,7 @@ type_cmp(const void *v0, const void *v1) {
 }
 
 Text
-gql_schema_text(Text text, int indent, bool comments) {
+gql_schema_text(Text text, bool comments) {
     Slot	*bucket;
     Slot	s;
     gqlType	type;
@@ -636,7 +656,7 @@ gql_schema_text(Text text, int indent, bool comments) {
 	}
 	qsort(types, cnt, sizeof(gqlType), type_cmp);
 	for (i = 0, tp = types; i < cnt; i++, tp++) {
-	    text = gql_type_text(text, *tp, indent, comments);
+	    text = gql_type_text(text, *tp, comments);
 	    text = text_append(text, "\n", 1);
 	}
     }

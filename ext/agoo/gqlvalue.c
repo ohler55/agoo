@@ -7,13 +7,21 @@
 #include "gqlvalue.h"
 #include "graphql.h"
 
-static int	coerce_int(Err err, gqlValue src, gqlType type);
-static int	coerce_i64(Err err, gqlValue src, gqlType type);
 
-static Text	int_to_text(Text text, gqlValue value);
-static Text	i64_to_text(Text text, gqlValue value);
+// Int type
+static int
+coerce_int(Err err, gqlValue src, gqlType type) {
+    // TBD
+    return ERR_OK;
+}
 
-static struct _gqlType	int_type = {
+static Text
+int_to_text(Text text, gqlValue value) {
+    // TBD
+    return text;
+}
+
+struct _gqlType	gql_int_type = {
     .name = "Int",
     .desc = "Int scalar.",
     .kind = GQL_SCALAR,
@@ -24,7 +32,20 @@ static struct _gqlType	int_type = {
     .to_text = int_to_text,
 };
 
-static struct _gqlType	i64_type = {
+// I64 type, add on type.
+static int
+coerce_i64(Err err, gqlValue src, gqlType type) {
+    // TBD
+    return ERR_OK;
+}
+
+static Text
+i64_to_text(Text text, gqlValue value) {
+    // TBD
+    return text;
+}
+
+struct _gqlType	gql_i64_type = {
     .name = "I64",
     .desc = "64 bit integer scalar.",
     .kind = GQL_SCALAR,
@@ -35,6 +56,7 @@ static struct _gqlType	i64_type = {
     .to_text = i64_to_text,
 };
 
+// String type
 static void
 string_destroy(gqlValue value) {
     free((char*)value->str);
@@ -52,7 +74,7 @@ string_to_text(Text text, gqlValue value) {
     return text;
 }
 
-static struct _gqlType	string_type = {
+struct _gqlType	gql_string_type = {
     .name = "String",
     .desc = "String scalar.",
     .kind = GQL_SCALAR,
@@ -63,7 +85,8 @@ static struct _gqlType	string_type = {
     .to_text = string_to_text,
 };
 
-static struct _gqlType	str16_type = { // unregistered
+// Alternative to String but with no destroy needed.
+struct _gqlType	gql_str16_type = { // unregistered
     .name = "str16",
     .desc = NULL,
     .kind = GQL_SCALAR,
@@ -74,6 +97,132 @@ static struct _gqlType	str16_type = { // unregistered
     .to_text = string_to_text,
 };
 
+// Bool type
+static int
+coerce_bool(Err err, gqlValue src, gqlType type) {
+    // TBD
+    return ERR_OK;
+}
+
+static Text
+bool_to_text(Text text, gqlValue value) {
+    // TBD
+    return text;
+}
+
+struct _gqlType	gql_bool_type = {
+    .name = "Bool",
+    .desc = "Bool scalar.",
+    .kind = GQL_SCALAR,
+    .locked = true,
+    .core = true,
+    .coerce = coerce_bool,
+    .destroy = NULL,
+    .to_text = bool_to_text,
+};
+
+// Float type
+static int
+coerce_float(Err err, gqlValue src, gqlType type) {
+    // TBD
+    return ERR_OK;
+}
+
+static Text
+float_to_text(Text text, gqlValue value) {
+    // TBD
+    return text;
+}
+
+struct _gqlType	gql_float_type = {
+    .name = "Float",
+    .desc = "Float scalar.",
+    .kind = GQL_SCALAR,
+    .locked = true,
+    .core = true,
+    .coerce = coerce_float,
+    .destroy = NULL,
+    .to_text = float_to_text,
+};
+
+// Time type
+static int
+coerce_time(Err err, gqlValue src, gqlType type) {
+    // TBD
+    return ERR_OK;
+}
+
+static Text
+time_to_text(Text text, gqlValue value) {
+    // TBD
+    return text;
+}
+
+struct _gqlType	gql_time_type = {
+    .name = "Time",
+    .desc = "Time zulu scalar.",
+    .kind = GQL_SCALAR,
+    .locked = true,
+    .core = true,
+    .coerce = coerce_time,
+    .destroy = NULL,
+    .to_text = time_to_text,
+};
+
+// Uuid type
+static int
+coerce_uuid(Err err, gqlValue src, gqlType type) {
+    // TBD
+    return ERR_OK;
+}
+
+static Text
+uuid_to_text(Text text, gqlValue value) {
+    // TBD
+    return text;
+}
+
+struct _gqlType	gql_uuid_type = {
+    .name = "Uuid",
+    .desc = "UUID scalar.",
+    .kind = GQL_SCALAR,
+    .locked = true,
+    .core = true,
+    .coerce = coerce_uuid,
+    .destroy = NULL,
+    .to_text = uuid_to_text,
+};
+
+// Url type
+static void
+url_destroy(gqlValue value) {
+    free((char*)value->url);
+}
+
+static int
+coerce_url(Err err, gqlValue src, gqlType type) {
+    // TBD
+    return ERR_OK;
+}
+
+static Text
+url_to_text(Text text, gqlValue value) {
+    // TBD
+    return text;
+}
+
+struct _gqlType	gql_url_type = {
+    .name = "Url",
+    .desc = "URL scalar.",
+    .kind = GQL_SCALAR,
+    .locked = true,
+    .core = true,
+    .coerce = coerce_url,
+    .destroy = url_destroy,
+    .to_text = url_to_text,
+};
+
+////////////////////////////////////////////////////////////////////////////////
 gqlValue
 gql_value_create(Err err) {
     // TBD
@@ -91,9 +240,14 @@ gql_value_destroy(gqlValue value) {
 
 int
 gql_value_init(Err err) {
-    if (ERR_OK != gql_type_set(err, &int_type) ||
-	ERR_OK != gql_type_set(err, &i64_type) ||
-	ERR_OK != gql_type_set(err, &string_type)) {
+    if (ERR_OK != gql_type_set(err, &gql_int_type) ||
+	ERR_OK != gql_type_set(err, &gql_i64_type) ||
+	ERR_OK != gql_type_set(err, &gql_bool_type) ||
+	ERR_OK != gql_type_set(err, &gql_float_type) ||
+	ERR_OK != gql_type_set(err, &gql_time_type) ||
+	ERR_OK != gql_type_set(err, &gql_uuid_type) ||
+	ERR_OK != gql_type_set(err, &gql_url_type) ||
+	ERR_OK != gql_type_set(err, &gql_string_type)) {
 	return err->code;
     }
     return ERR_OK;
@@ -102,26 +256,26 @@ gql_value_init(Err err) {
 /// set functions /////////////////////////////////////////////////////////////
 void
 gql_int_set(gqlValue value, int32_t i) {
-    value->type = &int_type;
+    value->type = &gql_int_type;
     value->i = i;
 }
 
 void
 gql_i64_set(gqlValue value, int64_t i) {
-    value->type = &i64_type;
+    value->type = &gql_i64_type;
     value->i = i;
 }
 
 void
 gql_string_set(gqlValue value, const char *str) {
-    value->type = &string_type;
+    value->type = &gql_string_type;
     if (NULL == str) {
 	value->str = NULL;
     } else {
 	size_t	len = strlen(str);
 
 	if (len < sizeof(value->str16)) {
-	    value->type = &str16_type;
+	    value->type = &gql_str16_type;
 	    strcpy(value->str16, str);
 	} else {
 	    value->str = strdup(str);
@@ -260,34 +414,6 @@ gql_object_create(Err err) {
     // TBD
     return NULL;
 }
-
-/// coerce functions //////////////////////////////////////////////////////////
-static int
-coerce_int(Err err, gqlValue src, gqlType type) {
-    // TBD
-    return ERR_OK;
-}
-
-static int
-coerce_i64(Err err, gqlValue src, gqlType type) {
-    // TBD
-    return ERR_OK;
-}
-
-/// to_text functions /////////////////////////////////////////////////////////
-static Text
-int_to_text(Text text, gqlValue value) {
-    // TBD
-    return text;
-}
-
-static Text
-i64_to_text(Text text, gqlValue value) {
-    // TBD
-    return text;
-}
-
-
 
 Text
 gql_value_text(Text text, gqlValue value, int indent) {
