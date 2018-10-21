@@ -103,7 +103,6 @@ type_destroy(gqlType type) {
 	    free(type->choices);
 	    break;
 	}
-	    // TBD INTERFACE, INPUT
 	default:
 	    break;
 	}
@@ -297,7 +296,7 @@ gql_destroy() {
     }
 }
 
-gqlType
+static gqlType
 type_create(Err err, const char *name, const char *desc, bool locked) {
     gqlType	type = (gqlType)malloc(sizeof(struct _gqlType));
 
@@ -369,16 +368,72 @@ gql_type_field(Err err,
 	       const char *desc,
 	       bool required,
 	       bool list,
-	       bool list_required,
+	       bool not_empty,
 	       gqlResolveFunc resolve) {
-    // TBD
-    return NULL;
+    gqlField	f = (gqlField)malloc(sizeof(struct _gqlField));
+    
+    if (NULL == f) {
+	err_set(err, ERR_MEMORY, "Failed to allocation memory for a GraphQL field.");
+    } else {
+	DEBUG_ALLOC(mem_graphql_field, f);
+	f->next = NULL;
+	f->name = strdup(name);
+	f->type = return_type;
+	if (NULL == desc) {
+	    f->desc = NULL;
+	} else {
+	    f->desc = strdup(desc);
+	}
+	f->reason = NULL;
+	f->args = NULL;
+	f->resolve = resolve;
+	f->required = required;
+	f->list = list;
+	f->not_empty = not_empty;
+	f->deprecated = false;
+	if (NULL == type->fields) {
+	    type->fields = f;
+	} else {
+	    gqlField	fend;
+
+	    for (fend = type->fields; NULL != fend->next; fend = fend->next) {
+	    }
+	    fend->next = f;
+	}
+    }
+    return f;
 }
 
 gqlArg
 gql_field_arg(Err err, gqlField field, const char *name, gqlType type, const char *desc, struct _gqlValue *def_value, bool required) {
-    // TBD
-    return NULL;
+    gqlArg	a = (gqlArg)malloc(sizeof(struct _gqlArg));
+    
+    printf("*** add arg %s to field %s\n", name, field->name);
+    if (NULL == a) {
+	err_set(err, ERR_MEMORY, "Failed to allocation memory for a GraphQL field argument.");
+    } else {
+	DEBUG_ALLOC(mem_graphql_arg, a);
+	a->next = NULL;
+	a->name = strdup(name);
+	a->type = type;
+	if (NULL == desc) {
+	    a->desc = NULL;
+	} else {
+	    a->desc = strdup(desc);
+	}
+	a->default_value = def_value;
+	a->required = required;
+	if (NULL == field->args) {
+	    field->args = a;
+	} else {
+	    gqlArg	end;
+
+	    for (end = field->args; NULL != end->next; end = end->next) {
+	    }
+	    end->next = a;
+	}
+    }
+    return a;
 }
 
 Text
@@ -537,18 +592,91 @@ gql_type_destroy(gqlType type) {
     type_remove(type);
 }
 
-Text
-field_text(Text text, gqlField f) {
-    // TBD
+static Text
+arg_text(Text text, gqlArg a, bool with_desc, bool last) {
+    if (with_desc && NULL != a->desc) {
+	if (NULL == index(a->desc, '\n')) {
+	    text = text_append(text, "\n    \"", 6);
+	    text = text_append(text, a->desc, -1);
+	    text = text_append(text, "\"\n    ", 6);
+	} else {
+	    text = text_append(text, "\n    \"\"\"\n", 9);
+	    text = text_append(text, a->desc, -1);
+	    text = text_append(text, "\n    \"\"\"\n    ", 13);
+	}
+    }
+    text = text_append(text, a->name, -1);
+    if (a->required) {
+	text = text_append(text, "!: ", 3);
+    } else {
+	text = text_append(text, ": ", 2);
+    }
+    text = text_append(text, a->type->name, -1);
+    if (NULL != a->default_value) {
+	text = text_append(text, " = ", 3);
+	text = gql_value_text(text, a->default_value);
+    }
+    if (!last) {
+	text = text_append(text, ", ", 2);
+    }
+    return text;
+}
+
+static Text
+field_text(Text text, gqlField f, bool with_desc) {
+    if (with_desc && NULL != f->desc) {
+	if (NULL == index(f->desc, '\n')) {
+	    text = text_append(text, "  \"", 3);
+	    text = text_append(text, f->desc, -1);
+	    text = text_append(text, "\"\n", 2);
+	} else {
+	    text = text_append(text, "  \"\"\"\n", 6);
+	    text = text_append(text, f->desc, -1);
+	    text = text_append(text, "\n  \"\"\"\n", 7);
+	}
+    }
+    text = text_append(text, "  ", 2);
+    text = text_append(text, f->name, -1);
+    if (NULL != f->args) {
+	gqlArg	a;
+
+	text = text_append(text, "(", 1);
+	for (a = f->args; NULL != a; a = a->next) {
+	    text = arg_text(text, a, with_desc, NULL == a->next);
+	}
+	text = text_append(text, ")", 1);
+    }
+    text = text_append(text, ": ", 2);
+    if (f->list) {
+	text = text_append(text, "[", 1);
+	text = text_append(text, f->type->name, -1);
+	if (f->not_empty) {
+	    text = text_append(text, "!", 1);
+	}
+	text = text_append(text, "]", 1);
+    } else {
+	text = text_append(text, f->type->name, -1);
+    }
+    if (f->required) {
+	text = text_append(text, "!", 1);
+    }
+    text = text_append(text, "\n", 1);
+
     return text;
 }
 
 Text
-gql_type_text(Text text, gqlType type, bool comments) {
-    if (comments && NULL != type->desc) {
-	text = text_append(text, "\"\"\"\n", 4);
-	text = text_append(text, type->desc, -1);
-	text = text_append(text, "\n\"\"\"\n", 5);
+gql_type_text(Text text, gqlType type, bool with_desc) {
+    if (with_desc && NULL != type->desc) {
+	if (NULL == index(type->desc, '\n')) {
+	    text = text_append(text, "\"", 1);
+	    text = text_append(text, type->desc, -1);
+	    text = text_append(text, "\"\n", 2);
+	} else {
+	    text = text_append(text, "\"\"\"\n", 4);
+	    text = text_append(text, type->desc, -1);
+	    text = text_append(text, "\n\"\"\"\n", 5);
+	}
     }
     switch (type->kind) {
     case GQL_OBJECT:
@@ -557,11 +685,20 @@ gql_type_text(Text text, gqlType type, bool comments) {
 
 	text = text_append(text, "type ", 5);
 	text = text_append(text, type->name, -1);
-	// TBD interfaces
-	text = text_append(text, " {\n", 3);
+	if (NULL != type->interfaces) {
+	    gqlType	*tp = type->interfaces;
 
+	    text = text_append(text, " implements ", 12);
+	    for (; NULL != *tp; tp++) {
+		text = text_append(text, (*tp)->name, -1);
+		if (NULL != *(tp + 1)) {
+		    text = text_append(text, ", ", 2);
+		}
+	    }
+	}
+	text = text_append(text, " {\n", 3);
 	for (f = type->fields; NULL != f; f = f->next) {
-	    text = field_text(text, f);
+	    text = field_text(text, f, with_desc);
 	}
 	text = text_append(text, "}\n", 2);
 	break;
@@ -570,7 +707,16 @@ gql_type_text(Text text, gqlType type, bool comments) {
 	text = text_append(text, "union ", 6);
 	text = text_append(text, type->name, -1);
 	text = text_append(text, " = ", 3);
-	// TBD type separated by |
+	if (NULL != type->utypes) {
+	    gqlType	*tp = type->utypes;
+
+	    for (; NULL != *tp; tp++) {
+		text = text_append(text, (*tp)->name, -1);
+		if (NULL != *(tp + 1)) {
+		    text = text_append(text, " | ", 3);
+		}
+	    }
+	}
 	break;
     }
     case GQL_ENUM: {
@@ -600,7 +746,7 @@ gql_type_text(Text text, gqlType type, bool comments) {
 	text = text_append(text, " {\n", 3);
 
 	for (f = type->fields; NULL != f; f = f->next) {
-	    text = field_text(text, f);
+	    text = field_text(text, f, with_desc);
 	}
 	text = text_append(text, "}\n", 2);
 	break;
@@ -611,9 +757,8 @@ gql_type_text(Text text, gqlType type, bool comments) {
 	text = text_append(text, "input ", 6);
 	text = text_append(text, type->name, -1);
 	text = text_append(text, " {\n", 3);
-
 	for (f = type->fields; NULL != f; f = f->next) {
-	    text = field_text(text, f);
+	    text = field_text(text, f, with_desc);
 	}
 	text = text_append(text, "}\n", 2);
 	break;
@@ -621,7 +766,6 @@ gql_type_text(Text text, gqlType type, bool comments) {
     default:
 	break;
     }
-
     return text;
 }
 
@@ -643,7 +787,7 @@ type_cmp(const void *v0, const void *v1) {
 }
 
 Text
-gql_schema_text(Text text, bool comments, bool all) {
+gql_schema_text(Text text, bool with_desc, bool all) {
     Slot	*bucket;
     Slot	s;
     gqlType	type;
@@ -675,7 +819,7 @@ gql_schema_text(Text text, bool comments, bool all) {
 	}
 	qsort(types, cnt, sizeof(gqlType), type_cmp);
 	for (i = 0, tp = types; i < cnt; i++, tp++) {
-	    text = gql_type_text(text, *tp, comments);
+	    text = gql_type_text(text, *tp, with_desc);
 	    text = text_append(text, "\n", 1);
 	}
     }

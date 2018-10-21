@@ -73,7 +73,7 @@ extern void	gql_uuid_set(gqlValue value, uint64_t hi, uint64_t lo);
 extern int	gql_uuid_str_set(Err err, gqlValue value, const char *str);
 extern void	gql_null_set(gqlValue value);
 
-extern Text	gql_value_text(Text text, gqlValue value, int indent);
+extern Text	gql_value_text(Text text, gqlValue value);
 
 extern struct _gqlType	gql_int_type;
 extern struct _gqlType	gql_i64_type;

@@ -62,7 +62,7 @@ typedef struct _gqlField {
     gqlResolveFunc	resolve;
     bool		required;
     bool		list;
-    bool		list_required;
+    bool		not_empty; // list can not be empty, member is required
     bool		deprecated;
 } *gqlField;
 
@@ -106,10 +106,16 @@ extern gqlField	gql_type_field(Err		err,
 			       const char	*desc,
 			       bool 		required,
 			       bool 		list,
-			       bool 		list_required,
+			       bool 		not_empty,
 			       gqlResolveFunc	resolve);
 
-extern gqlArg	gql_field_arg(Err err, gqlField field, const char *name, gqlType type, const char *desc, struct _gqlValue *def_value, bool required);
+extern gqlArg	gql_field_arg(Err 		err,
+			      gqlField 		field,
+			      const char 	*name,
+			      gqlType 		type,
+			      const char 	*desc,
+			      struct _gqlValue	*def_value,
+			      bool 		required);
 
 // TBD maybe create then add fields
 // TBD same with op? create then add args
@@ -123,7 +129,8 @@ extern gqlType	gql_type_get(const char *name);
 extern void	gql_type_destroy(gqlType type);
 
 extern Text	gql_type_text(Text text, gqlType type, bool comments);
-extern Text	gql_schema_text(Text text, bool comments, bool all);
+extern Text	gql_schema_text(Text text, bool with_desc, bool all);
+
 extern Text	gql_object_to_text(Text text, struct _gqlValue *value);
 extern Text	gql_union_to_text(Text text, struct _gqlValue *value);
 extern Text	gql_enum_to_text(Text text, struct _gqlValue *value);

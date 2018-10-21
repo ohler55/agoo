@@ -106,7 +106,11 @@ coerce_bool(Err err, gqlValue src, gqlType type) {
 
 static Text
 bool_to_text(Text text, gqlValue value) {
-    // TBD
+    if (value->b) {
+	text = text_append(text, "true", 4);
+    } else {
+	text = text_append(text, "false", 5);
+    }
     return text;
 }
 
@@ -337,8 +341,21 @@ gql_object_append(Err err, gqlValue list, const char *key, gqlValue item) {
 
 /// create functions //////////////////////////////////////////////////////////
 
+static gqlValue
+value_create(gqlType type) {
+    gqlValue	v = (gqlValue)malloc(sizeof(struct _gqlValue));
+    
+    if (NULL != v) {
+	DEBUG_ALLOC(mem_graphql_value, v);
+	memset(v, 0, sizeof(struct _gqlValue));
+	v->type = type;
+    }
+    return v;
+}
+
 gqlValue
 gql_int_create(Err err, int32_t i) {
+
     // TBD
     return NULL;
 }
@@ -363,8 +380,12 @@ gql_url_create(Err err, const char *url) {
 
 gqlValue
 gql_bool_create(Err err, bool b) {
-    // TBD
-    return NULL;
+    gqlValue	v = value_create(&gql_bool_type);
+    
+    if (NULL != v) {
+	v->b = b;
+    }
+    return v;
 }
 
 gqlValue
@@ -416,8 +437,7 @@ gql_object_create(Err err) {
 }
 
 Text
-gql_value_text(Text text, gqlValue value, int indent) {
-    // TBD
-    return text;
+gql_value_text(Text text, gqlValue value) {
+    return value->type->to_text(text, value);
 }
 
