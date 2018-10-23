@@ -8,6 +8,7 @@
 #include "graphql.h"
 #include "gqlintro.h"
 #include "gqlvalue.h"
+#include "req.h"
 
 #define BUCKET_SIZE	64
 #define BUCKET_MASK	63
@@ -824,4 +825,9 @@ gql_schema_text(Text text, bool with_desc, bool all) {
 	}
     }
     return text;
+}
+
+void
+gql_dump_hook(Req req) {
+    // TBD
 }

@@ -15,6 +15,7 @@
 #include "debug.h"
 #include "dtime.h"
 #include "err.h"
+#include "graphql.h"
 #include "http.h"
 #include "log.h"
 #include "page.h"
@@ -172,6 +173,16 @@ configure(Err err, int port, const char *root, VALUE options) {
 		rb_raise(rb_eArgError, "bind option must be a String or Array of Strings.");
 		break;
 	    }
+	}
+	if (Qnil != (v = rb_hash_lookup(options, ID2SYM(rb_intern("graphql"))))) {
+	    const char	*path;
+	    Hook	hook;
+	    
+	    rb_check_type(v, T_STRING);
+	    path = StringValuePtr(v);
+	    hook = hook_func_create(GET, path, gql_dump_hook, &the_server.eval_queue);
+	    hook->next = the_server.hooks;
+	    the_server.hooks = hook;
 	}
 	if (Qnil != (v = rb_hash_lookup(options, ID2SYM(rb_intern("quiet"))))) {
 	    if (Qtrue == v) {
@@ -637,6 +648,9 @@ handle_protected(Req req, bool gvi) {
 	} else {
 	    handle_push(req);
 	}
+	break;
+    case FUNC_HOOK:
+	req->hook->func(req);
 	break;
     default: {
 	char	buf[256];

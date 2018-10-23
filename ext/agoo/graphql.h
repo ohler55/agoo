@@ -25,6 +25,7 @@ struct _gqlType;
 struct _gqlValue;
 struct _gqlLink;
 struct _gqlField;
+struct _Req;
 
 // Used for references to implemenation entities.
 typedef void*	gqlRef;
@@ -134,6 +135,8 @@ extern Text	gql_schema_text(Text text, bool with_desc, bool all);
 extern Text	gql_object_to_text(Text text, struct _gqlValue *value);
 extern Text	gql_union_to_text(Text text, struct _gqlValue *value);
 extern Text	gql_enum_to_text(Text text, struct _gqlValue *value);
+
+extern void	gql_dump_hook(struct _Req *req);
 
 #endif // __AGOO_GRAPHQL_H__
 
