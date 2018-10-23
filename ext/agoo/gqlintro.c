@@ -49,6 +49,8 @@ create_schema_type(Err err) {
 
 	return err->code;
     }
+    schema_type->core = true;
+    
     return ERR_OK;
 }
 
@@ -82,6 +84,8 @@ create_type_type(Err err) {
 
 	return err->code;
     }
+    type_type->core = true;
+
     if (NULL == (dv = gql_bool_create(err, false)) ||
 	NULL == gql_field_arg(err, fields, "includeDeprecated", &gql_bool_type, "A comment.", dv, false) ||
 	NULL == (dv = gql_bool_create(err, false)) ||
@@ -105,8 +109,8 @@ create_type_kind_type(Err err) {
 	"NON_NULL",
 	NULL
     };
-
     type_kind_type = gql_enum_create(err, "__TypeKind", NULL, true, choices);
+    type_kind_type->core = true;
     
     return err->code;
 }
@@ -131,6 +135,8 @@ create_field_type(Err err) {
 
 	return err->code;
     }
+    field_type->core = true;
+    
     return ERR_OK;
 }
 
@@ -150,6 +156,8 @@ create_input_type(Err err) {
 
 	return err->code;
     }
+    input_value_type->core = true;
+    
     return ERR_OK;
 }
 
@@ -169,6 +177,8 @@ create_enum_type(Err err) {
 
 	return err->code;
     }
+    enum_value_type->core = true;
+    
     return ERR_OK;
 }
 
@@ -188,6 +198,8 @@ create_directive_type(Err err) {
 
 	return err->code;
     }
+    directive_type->core = true;
+    
     return ERR_OK;
 }
 
@@ -215,6 +227,7 @@ create_directive_location_type(Err err) {
 	NULL };
 
     directive_location_type = gql_enum_create(err, "__DirectiveLocation", NULL, true, choices);
+    directive_location_type->core = true;
     
     return err->code;
 }

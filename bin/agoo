@@ -46,6 +46,7 @@ Example:
 @threads = 0
 @workers = 0
 @first = false
+@graphql = nil
 
 @opts = OptionParser.new(usage)
 @opts.on('-h', '--help', 'Show this display.')                                       { puts @opts.help; Process.exit!(0) }
@@ -54,6 +55,7 @@ Example:
 @opts.on('-f', '--root_first', 'Check the root directory before the handle paths.')  { @first = true }
 @opts.on('-p', '--port PORT', Integer, 'Port to listen on.')                         { |p| @port = p }
 @opts.on('-d', '--dir DIR', String, 'Directory to serve static assets from.')        { |d| @root = d }
+@opts.on('-g', '--graphql PATH', String, 'URL path for GraphQL requests.')           { |g| @graphql = g }
 @opts.on('-r', '--require FILE', String, 'Ruby require.')                            { |r| require r }
 @opts.on('-t', '--threads COUNT', Integer, 'Number of threads to use.')              { |t| @threads = t }
 @opts.on('-w', '--workers COUNT', Integer, 'Number of workers to use.')              { |w| @workers = w }
@@ -81,7 +83,7 @@ Agoo::Log.configure(dir: @log_dir,
 		      push: 2 <= @verbose,
 		    })
 
-Agoo::Server.init(@port, @root, thread_count: @threads, worker_count: @workers, root_first: @first)
+Agoo::Server.init(@port, @root, thread_count: @threads, worker_count: @workers, root_first: @first, graphql: @graphql)
 
 puts "Agoo #{Agoo::VERSION} is listening on port #{@port}. Path mappings are:" if 1 <= @verbose
 

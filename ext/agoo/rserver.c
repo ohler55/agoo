@@ -177,10 +177,26 @@ configure(Err err, int port, const char *root, VALUE options) {
 	if (Qnil != (v = rb_hash_lookup(options, ID2SYM(rb_intern("graphql"))))) {
 	    const char	*path;
 	    Hook	hook;
-	    
+	    char	schema_path[256];
+	    long	plen;
+
 	    rb_check_type(v, T_STRING);
+	    if (ERR_OK != gql_init(err)) {
+		return err->code;
+	    }
 	    path = StringValuePtr(v);
-	    hook = hook_func_create(GET, path, gql_dump_hook, &the_server.eval_queue);
+	    plen = (long)RSTRING_LEN(v);
+	    if (sizeof(schema_path) - 8 < plen) {
+		rb_raise(rb_eArgError, "A graphql schema path is limited to %d characters.", (int)(sizeof(schema_path) - 8));
+	    }
+	    memcpy(schema_path, path, plen);
+	    memcpy(schema_path + plen, "/schema", 8);
+
+	    hook = hook_func_create(GET, schema_path, gql_dump_hook, &the_server.eval_queue);
+	    hook->next = the_server.hooks;
+	    the_server.hooks = hook;
+
+	    hook = hook_func_create(GET, path, gql_eval_hook, &the_server.eval_queue);
 	    hook->next = the_server.hooks;
 	    the_server.hooks = hook;
 	}
@@ -651,6 +667,7 @@ handle_protected(Req req, bool gvi) {
 	break;
     case FUNC_HOOK:
 	req->hook->func(req);
+	queue_wakeup(&the_server.con_queue);
 	break;
     default: {
 	char	buf[256];

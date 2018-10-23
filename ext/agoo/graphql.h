@@ -137,6 +137,7 @@ extern Text	gql_union_to_text(Text text, struct _gqlValue *value);
 extern Text	gql_enum_to_text(Text text, struct _gqlValue *value);
 
 extern void	gql_dump_hook(struct _Req *req);
+extern void	gql_eval_hook(struct _Req *req);
 
 #endif // __AGOO_GRAPHQL_H__
 

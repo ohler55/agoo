@@ -9,6 +9,7 @@
 #include "gqlintro.h"
 #include "gqlvalue.h"
 #include "req.h"
+#include "res.h"
 
 #define BUCKET_SIZE	64
 #define BUCKET_MASK	63
@@ -409,7 +410,6 @@ gqlArg
 gql_field_arg(Err err, gqlField field, const char *name, gqlType type, const char *desc, struct _gqlValue *def_value, bool required) {
     gqlArg	a = (gqlArg)malloc(sizeof(struct _gqlArg));
     
-    printf("*** add arg %s to field %s\n", name, field->name);
     if (NULL == a) {
 	err_set(err, ERR_MEMORY, "Failed to allocation memory for a GraphQL field argument.");
     } else {
@@ -798,21 +798,21 @@ gql_schema_text(Text text, bool with_desc, bool all) {
     for (bucket = buckets, i = 0; i < BUCKET_SIZE; bucket++, i++) {
 	for (s = *bucket; NULL != s; s = s->next) {
 	    type = s->type;
-	    if (!all && '_' == *type->name && '_' == type->name[1]) {
+	    if (!all && type->core) {
 		continue;
 	    }
 	    cnt++;
 	}
     }
     text = text_append(text, "\n", 1);
-    {
+    if (0 < cnt) {
 	gqlType	types[cnt];
 	gqlType	*tp = types;
 	
 	for (bucket = buckets, i = 0; i < BUCKET_SIZE; bucket++, i++) {
 	    for (s = *bucket; NULL != s; s = s->next) {
 		type = s->type;
-		if (!all && '_' == *type->name && '_' == type->name[1]) {
+		if (!all && type->core) {
 		    continue;
 		}
 		*tp++ = type;
@@ -829,5 +829,18 @@ gql_schema_text(Text text, bool with_desc, bool all) {
 
 void
 gql_dump_hook(Req req) {
+    char	buf[256];
+    int		cnt;
+    Text	text = text_allocate(4094);
+
+    // TBD pull with_desc and all from req query parameters 
+    text = gql_schema_text(text, false, false);
+    cnt = snprintf(buf, sizeof(buf), "HTTP/1.1 200 Okay\r\nContent-Type: application/graphql\r\nContent-Length: %ld\r\n\r\n", text->len);
+    text = text_prepend(text, buf, cnt);
+    res_set_message(req->res, text);
+}
+
+void
+gql_eval_hook(Req req) {
     // TBD
 }

@@ -45,7 +45,9 @@ module Rack
 	  elsif k.nil?
 	    not_found_handler = v
 	    options.delete(k)
-	  elsif
+	  elsif :graphql == k
+	    # leave as is
+	  else
             k = k.to_s
             if k.start_with?('/')
               path_map[k] = v
