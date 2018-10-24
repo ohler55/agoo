@@ -42,6 +42,11 @@ static uint8_t	name_chars[256] = "\
 \x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\
 ";
 
+static gqlType	query_type = NULL;
+static gqlType	mutation_type = NULL;
+static gqlType	subscription_type = NULL;
+static gqlType	schema_type = NULL;
+
 static uint64_t
 calc_hash(const char *name) {
     uint64_t		h = 0;
@@ -187,91 +192,24 @@ type_remove(gqlType type) {
     }
 }
 
-// Second level objects.
-static struct _gqlType	subscription_type = {
-    .name = "Subscription",
-    .desc = "The root Subscription type.",
-    .kind = GQL_OBJECT,
-    .locked = true,
-    .fields = NULL,
-    .interfaces = NULL,
-    .to_text = gql_object_to_text,
-};
-
-static struct _gqlType	mutation_type = {
-    .name = "Mutation",
-    .desc = "The root Mutation type.",
-    .kind = GQL_OBJECT,
-    .locked = true,
-    .fields = NULL,
-    .interfaces = NULL,
-    .to_text = gql_object_to_text,
-};
-
-static struct _gqlType	query_type = {
-    .name = "Query",
-    .desc = "The root Query type.",
-    .kind = GQL_OBJECT,
-    .locked = true,
-    .fields = NULL,
-    .interfaces = NULL,
-    .to_text = gql_object_to_text,
-};
-
-static struct _gqlField	subscription_field = {
-    .next = NULL,
-    .name = "subscription",
-    .desc = "Root level subscription.",
-    .type = &subscription_type,
-    .required = false,
-    .list = false,
-    .resolve = NULL,
-    .args = NULL,
-};
-
-static struct _gqlField	mutation_field = {
-    .next = &subscription_field,
-    .name = "mutation",
-    .desc = "Root level mutation.",
-    .type = &mutation_type,
-    .required = false,
-    .list = false,
-    .resolve = NULL,
-    .args = NULL,
-};
-
-static struct _gqlField	query_field = {
-    .next = &mutation_field,
-    .name = "query",
-    .desc = "Root level query.",
-    .type = &query_type,
-    .required = true,
-    .list = false,
-    .resolve = NULL,
-    .args = NULL,
-};
-
-static struct _gqlType	schema_type = {
-    .name = "schema",
-    .desc = "The GraphQL root Object.",
-    .kind = GQL_OBJECT,
-    .locked = true,
-    .core = true, // TBD define using type create and set core to false
-    .fields = &query_field,
-    .interfaces = NULL,
-    .to_text = gql_object_to_text,
-};
-
 int
 gql_init(Err err) {
     memset(buckets, 0, sizeof(buckets));
 
     if (ERR_OK != gql_value_init(err) ||
-	ERR_OK != gql_intro_init(err) ||
-	ERR_OK != gql_type_set(err, &query_type) ||
-	ERR_OK != gql_type_set(err, &mutation_type) ||
-	ERR_OK != gql_type_set(err, &subscription_type) ||
-	ERR_OK != gql_type_set(err, &schema_type)) {
+	ERR_OK != gql_intro_init(err)) {
+
+	return err->code;
+    }
+    if (
+	NULL == (query_type = gql_type_create(err, "Query", "The GraphQL root Query.", false, NULL)) ||
+	NULL == (mutation_type = gql_type_create(err, "Mutation", "The GraphQL root Mutation.", false, NULL)) ||
+	NULL == (subscription_type = gql_type_create(err, "Subscription", "The GraphQL root Subscription.", false, NULL)) ||
+	NULL == (schema_type = gql_type_create(err, "schema", "The GraphQL root Object.", false, NULL)) ||
+	NULL == gql_type_field(err, schema_type, "query", query_type, "Root level query.", false, false, false, NULL) ||
+	NULL == gql_type_field(err, schema_type, "mutation", mutation_type, "Root level mutation.", false, false, false, NULL) ||
+	NULL == gql_type_field(err, schema_type, "subscription", subscription_type, "Root level subscription.", false, false, false, NULL)) {
+
 	return err->code;
     }
     return ERR_OK;
@@ -832,9 +770,20 @@ gql_dump_hook(Req req) {
     char	buf[256];
     int		cnt;
     Text	text = text_allocate(4094);
+    bool	all = false;
+    bool	with_desc = true;
+    int		vlen;
+    const char	*s = req_query_value(req, "all", 3, &vlen);
 
-    // TBD pull with_desc and all from req query parameters 
-    text = gql_schema_text(text, false, false);
+    if (NULL != s && 4 == vlen && 0 == strncasecmp("true", s, 4)) {
+	all = true;
+    }
+    s = req_query_value(req, "with_desc", 9, &vlen);
+
+    if (NULL != s && 5 == vlen && 0 == strncasecmp("false", s, 5)) {
+	with_desc = false;
+    }
+    text = gql_schema_text(text, with_desc, all);
     cnt = snprintf(buf, sizeof(buf), "HTTP/1.1 200 Okay\r\nContent-Type: application/graphql\r\nContent-Length: %ld\r\n\r\n", text->len);
     text = text_prepend(text, buf, cnt);
     res_set_message(req->res, text);
@@ -842,5 +791,9 @@ gql_dump_hook(Req req) {
 
 void
 gql_eval_hook(Req req) {
-    // TBD
+    // TBD detect introspection
+    //  start resolving by callout to some global handler as needed
+    //   pass target, field, args
+    //   return json or gqlValue
+    // for handler, if introspection then handler here else global
 }
