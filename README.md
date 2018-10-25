@@ -50,6 +50,8 @@ benchmarks driver could not push Agoo hard enough.
 Agoo supports the [Ruby rack API](https://rack.github.io) which allows for the
 use of rack compatible gems such as Hanami and Rails. Agoo also supports WebSockets and SSE.
 
+Agoo is not available on Windows.
+
 ## News
 
 - Clustered Agoo is ready. For slower application and a machine with multiple
