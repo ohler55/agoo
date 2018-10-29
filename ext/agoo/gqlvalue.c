@@ -1,24 +1,42 @@
 // Copyright (c) 2018, Peter Ohler, All rights reserved.
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 #include "debug.h"
 #include "gqlvalue.h"
 #include "graphql.h"
 
+static const char	spaces[256] = "\n                                                                                                                                                                                                                                                               ";
 
 // Int type
-static int
-coerce_int(Err err, gqlValue src, gqlType type) {
-    // TBD
-    return ERR_OK;
+static Text
+null_to_text(Text text, gqlValue value, int indent, int depth) {
+    return text_append(text, "null", 4);
 }
 
+struct _gqlType	gql_null_type = {
+    .name = "Null",
+    .desc = "Null scalar.",
+    .kind = GQL_SCALAR,
+    .locked = true,
+    .core = true,
+    .coerce = NULL,
+    .destroy = NULL,
+    .to_json = null_to_text,
+};
+
+// Int type
 static Text
-int_to_text(Text text, gqlValue value) {
-    // TBD
-    return text;
+int_to_text(Text text, gqlValue value, int indent, int depth) {
+    char	num[32];
+    int		cnt;
+    
+    cnt = snprintf(num, sizeof(num), "%lld", (long long)value->i);
+
+    return text_append(text, num, cnt);
 }
 
 struct _gqlType	gql_int_type = {
@@ -27,22 +45,20 @@ struct _gqlType	gql_int_type = {
     .kind = GQL_SCALAR,
     .locked = true,
     .core = true,
-    .coerce = coerce_int,
+    .coerce = NULL,
     .destroy = NULL,
-    .to_text = int_to_text,
+    .to_json = int_to_text,
 };
 
 // I64 type, add on type.
-static int
-coerce_i64(Err err, gqlValue src, gqlType type) {
-    // TBD
-    return ERR_OK;
-}
-
 static Text
-i64_to_text(Text text, gqlValue value) {
-    // TBD
-    return text;
+i64_to_text(Text text, gqlValue value, int indent, int depth) {
+    char	num[32];
+    int		cnt;
+    
+    cnt = snprintf(num, sizeof(num), "%lld", (long long)value->i64);
+
+    return text_append(text, num, cnt);
 }
 
 struct _gqlType	gql_i64_type = {
@@ -51,9 +67,9 @@ struct _gqlType	gql_i64_type = {
     .kind = GQL_SCALAR,
     .locked = true,
     .core = true,
-    .coerce = coerce_i64,
+    .coerce = NULL,
     .destroy = NULL,
-    .to_text = i64_to_text,
+    .to_json = i64_to_text,
 };
 
 // String type
@@ -62,17 +78,7 @@ string_destroy(gqlValue value) {
     free((char*)value->str);
 }
 
-static int
-coerce_string(Err err, gqlValue src, gqlType type) {
-    // TBD
-    return ERR_OK;
-}
-
-static Text
-string_to_text(Text text, gqlValue value) {
-    // TBD
-    return text;
-}
+static Text	string_to_text(Text text, gqlValue value, int indent, int depth);
 
 struct _gqlType	gql_string_type = {
     .name = "String",
@@ -80,9 +86,9 @@ struct _gqlType	gql_string_type = {
     .kind = GQL_SCALAR,
     .locked = true,
     .core = true,
-    .coerce = coerce_string,
+    .coerce = NULL,
     .destroy = string_destroy,
-    .to_text = string_to_text,
+    .to_json = string_to_text,
 };
 
 // Alternative to String but with no destroy needed.
@@ -92,20 +98,30 @@ struct _gqlType	gql_str16_type = { // unregistered
     .kind = GQL_SCALAR,
     .locked = true,
     .core = true,
-    .coerce = coerce_string,
+    .coerce = NULL,
     .destroy = NULL,
-    .to_text = string_to_text,
+    .to_json = string_to_text,
 };
 
-// Bool type
-static int
-coerce_bool(Err err, gqlValue src, gqlType type) {
-    // TBD
-    return ERR_OK;
+static Text
+string_to_text(Text text, gqlValue value, int indent, int depth) {
+    if (&gql_str16_type == value->type) {
+	text = text_append(text, "\"", 1);
+	text = text_append(text, value->str16, -1);
+	text = text_append(text, "\"", 1);
+    } else if (NULL == value->str) {
+	text = text_append(text, "null", 4);
+    } else {
+	text = text_append(text, "\"", 1);
+	text = text_append(text, value->str, -1);
+	text = text_append(text, "\"", 1);
+    }
+    return text;
 }
 
+// Bool type
 static Text
-bool_to_text(Text text, gqlValue value) {
+bool_to_text(Text text, gqlValue value, int indent, int depth) {
     if (value->b) {
 	text = text_append(text, "true", 4);
     } else {
@@ -120,22 +136,20 @@ struct _gqlType	gql_bool_type = {
     .kind = GQL_SCALAR,
     .locked = true,
     .core = true,
-    .coerce = coerce_bool,
+    .coerce = NULL,
     .destroy = NULL,
-    .to_text = bool_to_text,
+    .to_json = bool_to_text,
 };
 
 // Float type
-static int
-coerce_float(Err err, gqlValue src, gqlType type) {
-    // TBD
-    return ERR_OK;
-}
-
 static Text
-float_to_text(Text text, gqlValue value) {
-    // TBD
-    return text;
+float_to_text(Text text, gqlValue value, int indent, int depth) {
+    char	num[32];
+    int		cnt;
+    
+    cnt = snprintf(num, sizeof(num), "%g", value->f);
+
+    return text_append(text, num, cnt);
 }
 
 struct _gqlType	gql_float_type = {
@@ -144,22 +158,276 @@ struct _gqlType	gql_float_type = {
     .kind = GQL_SCALAR,
     .locked = true,
     .core = true,
-    .coerce = coerce_float,
+    .coerce = NULL,
     .destroy = NULL,
-    .to_text = float_to_text,
+    .to_json = float_to_text,
 };
 
 // Time type
-static int
-coerce_time(Err err, gqlValue src, gqlType type) {
-    // TBD
-    return ERR_OK;
+static const char*
+read_num(const char *s, int len, int *vp) {
+    uint32_t	v = 0;
+
+    for (; 0 < len; len--, s++) {
+	if ('0' <= *s && *s <= '9') {
+	    v = v * 10 + *s - '0';
+	} else {
+	    return NULL;
+	}
+    }
+    *vp = (int)v;
+
+    return s;
+}
+
+static const char*
+read_zone(const char *s, int *vp) {
+    int	hr;
+    int	min;
+
+    if (NULL == (s = read_num(s, 2, &hr))) {
+	return NULL;
+    }
+    if (':' != *s) {
+	return NULL;
+    }
+    s++;
+    if (NULL == (s = read_num(s, 2, &min))) {
+	return NULL;
+    }
+    *vp = hr * 60 + min;
+    
+    return s;
+}
+
+static int64_t
+time_parse(Err err, const char *str, int len) {
+    const char	*s = str;
+    const char	*end;
+    struct tm	tm;
+    bool	neg = false;
+    uint64_t	nsecs = 0;
+    int		i = 9;
+    int64_t	secs;
+    
+    if (0 > len) {
+	len = strlen(str);
+    }
+    if (len < 10 || 36 < len) {
+	err_set(err, ERR_PARSE, "Invalid time format.");
+	return 0;
+    }
+    end = str + len;
+    memset(&tm, 0, sizeof(tm));
+    if ('-' == *s) {
+	s++;
+	neg = true;
+    }
+    if (NULL == (s = read_num(s, 4, &tm.tm_year))) {
+	err_set(err, ERR_PARSE, "Invalid time format.");
+	return 0;
+    }
+    if (neg) {
+	tm.tm_year = -tm.tm_year;
+	neg = false;
+    }
+    tm.tm_year -= 1900;
+    if ('-' != *s) {
+	err_set(err, ERR_PARSE, "Invalid time format.");
+	return 0;
+    }
+    s++;
+
+    if (NULL == (s = read_num(s, 2, &tm.tm_mon))) {
+	err_set(err, ERR_PARSE, "Invalid time format.");
+	return 0;
+    }
+    tm.tm_mon--;
+    if ('-' != *s) {
+	err_set(err, ERR_PARSE, "Invalid time format.");
+	return 0;
+    }
+    s++;
+
+    if (NULL == (s = read_num(s, 2, &tm.tm_mday))) {
+	err_set(err, ERR_PARSE, "Invalid time format.");
+	return 0;
+    }
+
+    // If that's the end then pass back the date as a unix time.
+    if (end == s) {
+	return (int64_t)timegm(&tm) * 1000000000LL;
+    }
+    switch (*s++) {
+    case 'Z':
+	if (s == end) {
+	    return (int64_t)timegm(&tm) * 1000000000LL;
+	}
+	err_set(err, ERR_PARSE, "Invalid time format.");
+	return 0;
+    case '-':
+	neg = true;
+	// fall through
+    case '+': {
+	int	v = 0;
+	
+	if (NULL == (s = read_zone(s, &v))) {
+	    err_set(err, ERR_PARSE, "Invalid time format.");
+	    return 0;
+	}
+	if (neg) {
+	    v = -v;
+	}
+	if (s == end) {
+	    return ((int64_t)timegm(&tm) - (int64_t)v) * 1000000000LL;
+	}
+	err_set(err, ERR_PARSE, "Invalid time format.");
+	return 0;
+    }
+    case 'T':
+	break;
+    default:
+	err_set(err, ERR_PARSE, "Invalid time format.");
+	return 0;
+    }
+    // T encountered, need space for time and zone
+    if (end - s < 9) {
+	err_set(err, ERR_PARSE, "Invalid time format.");
+	return 0;
+    }
+    if (NULL == (s = read_num(s, 2, &tm.tm_hour))) {
+	return 0;
+    }
+    if (':' != *s) {
+	err_set(err, ERR_PARSE, "Invalid time format.");
+	return 0;
+    }
+    s++;
+
+    if (NULL == (s = read_num(s, 2, &tm.tm_min))) {
+	err_set(err, ERR_PARSE, "Invalid time format.");
+	return 0;
+    }
+    if (':' != *s) {
+	err_set(err, ERR_PARSE, "Invalid time format.");
+	return 0;
+    }
+    s++;
+
+    if (NULL == (s = read_num(s, 2, &tm.tm_sec))) {
+	err_set(err, ERR_PARSE, "Invalid time format.");
+	return 0;
+    }
+    switch (*s++) {
+    case 'Z':
+	if (s == end) {
+	    return (int64_t)timegm(&tm) * 1000000000LL;
+	}
+	err_set(err, ERR_PARSE, "Invalid time format.");
+	return 0;
+    case '-':
+	neg = true;
+	// fall through
+    case '+': {
+	int	v = 0;
+
+	if (end - s < 5) {
+	    err_set(err, ERR_PARSE, "Invalid time format.");
+	    return 0;
+	}
+	if (NULL == (s = read_zone(s, &v))) {
+	    err_set(err, ERR_PARSE, "Invalid time format.");
+	    return 0;
+	}
+	if (neg) {
+	    v = -v;
+	}
+	if (s == end) {
+	    return ((int64_t)timegm(&tm) - (int64_t)v) * 1000000000LL;
+	}
+	err_set(err, ERR_PARSE, "Invalid time format.");
+	return 0;
+    }
+    case '.':
+	break;
+    default:
+	err_set(err, ERR_PARSE, "Invalid time format.");
+	return 0;
+    }
+    for (; 0 < i; i--, s++) {
+	if (end <= s) {
+	    err_set(err, ERR_PARSE, "Invalid time format.");
+	    return 0;
+	}	
+	if ('0' <= *s && *s <= '9') {
+	    nsecs = nsecs * 10 + *s - '0';
+	} else {
+	    break;
+	}
+    }
+    for (; 0 < i; i--) {
+	nsecs *= 10;
+    }
+    switch (*s++) {
+    case 'Z':
+	if (s == end) {
+	    break;
+	}
+	err_set(err, ERR_PARSE, "Invalid time format.");
+	return 0;
+    case '-':
+	neg = true;
+	// fall through
+    case '+': {
+	int	v = 0;
+
+	if (end - s < 5) {
+	    err_set(err, ERR_PARSE, "Invalid time format.");
+	    return 0;
+	}
+	if (NULL == (s = read_zone(s, &v))) {
+	    err_set(err, ERR_PARSE, "Invalid time format.");
+	    return 0;
+	}
+	if (neg) {
+	    v = -v;
+	}
+	if (s == end) {
+	    return ((int64_t)timegm(&tm) - (int64_t)v) * 1000000000LL + nsecs;
+	}
+	err_set(err, ERR_PARSE, "Invalid time format.");
+	return 0;
+    }
+    default:
+	if (s != end) {
+	    err_set(err, ERR_PARSE, "Invalid time format.");
+	    return 0;
+	}
+    }
+    if (0 <= (secs = (int64_t)timegm(&tm) * 1000000000LL)) {
+	return secs + nsecs;
+    }
+    return secs - nsecs;
 }
 
 static Text
-time_to_text(Text text, gqlValue value) {
-    // TBD
-    return text;
+time_to_text(Text text, gqlValue value, int indent, int depth) {
+    char	str[64];
+    int		cnt;
+    struct tm	tm;
+    int64_t	tt = value->time;
+    time_t	t = (time_t)(tt / 1000000000LL);
+    long	nsecs = tt - (int64_t)t * 1000000000LL;
+
+    if (0 > nsecs) {
+	nsecs = -nsecs;
+    }
+    gmtime_r(&t, &tm);
+    cnt = sprintf(str, "\"%04d-%02d-%02dT%02d:%02d:%02d.%09ldZ\"",
+		  1900 + tm.tm_year, 1 + tm.tm_mon, tm.tm_mday,
+		  tm.tm_hour, tm.tm_min, tm.tm_sec, (long)nsecs);
+    
+    return text_append(text, str, cnt);
 }
 
 struct _gqlType	gql_time_type = {
@@ -168,22 +436,91 @@ struct _gqlType	gql_time_type = {
     .kind = GQL_SCALAR,
     .locked = true,
     .core = true,
-    .coerce = coerce_time,
+    .coerce = NULL,
     .destroy = NULL,
-    .to_text = time_to_text,
+    .to_json = time_to_text,
 };
 
 // Uuid type
 static int
-coerce_uuid(Err err, gqlValue src, gqlType type) {
-    // TBD
+hexVal(int c) {
+    int	h = -1;
+    
+    if ('0' <= c && c <= '9') {
+	h = c - '0';
+    } else if ('a' <= c && c <= 'f') {
+	h = c - 'a' + 10;
+    } else if ('A' <= c && c <= 'F') {
+	h = c - 'A' + 10;
+    }
+    return h;
+}
+
+// 123e4567-e89b-12d3-a456-426655440000
+static int
+parse_uuid(Err err, const char *str, int len, uint64_t *hip, uint64_t *lop) {
+    uint64_t	hi = 0;
+    uint64_t	lo = 0;
+    int		i;
+    int		n;
+    
+    if (0 >= len) {
+	len = strlen(str);
+    }
+    if (36 != len || '-' != str[8] || '-' != str[13] || '-' != str[18] || '-' != str[23]) {
+	return err_set(err, ERR_PARSE, "not UUID format");
+    }
+    for (i = 0; i < 8; i++, str++) {
+	if (0 > (n = hexVal(*str))) {
+	    return err_set(err, ERR_PARSE, "not UUID format");
+	}
+	hi = (hi << 4) + n;
+    }
+    str++;
+    for (i = 0; i < 4; i++, str++) {
+	if (0 > (n = hexVal(*str))) {
+	    return err_set(err, ERR_PARSE, "not UUID format");
+	}
+	hi = (hi << 4) + n;
+    }
+    str++;
+    for (i = 0; i < 4; i++, str++) {
+	if (0 > (n = hexVal(*str))) {
+	    return err_set(err, ERR_PARSE, "not UUID format");
+	}
+	hi = (hi << 4) + n;
+    }
+    str++;
+    for (i = 0; i < 4; i++, str++) {
+	if (0 > (n = hexVal(*str))) {
+	    return err_set(err, ERR_PARSE, "not UUID format");
+	}
+	lo = (lo << 4) + n;
+    }
+    str++;
+    for (i = 0; i < 12; i++, str++) {
+	if (0 > (n = hexVal(*str))) {
+	    return err_set(err, ERR_PARSE, "not UUID format");
+	}
+	lo = (lo << 4) + n;
+    }
+    *hip = hi;
+    *lop = lo;
+
     return ERR_OK;
 }
 
 static Text
-uuid_to_text(Text text, gqlValue value) {
-    // TBD
-    return text;
+uuid_to_text(Text text, gqlValue value, int indent, int depth) {
+    char	str[64];
+    int		cnt = sprintf(str, "\"%08lx-%04lx-%04lx-%04lx-%012lx\"",
+			      (unsigned long)(value->uuid.hi >> 32),
+			      (unsigned long)((value->uuid.hi >> 16) & 0x000000000000FFFFUL),
+			      (unsigned long)(value->uuid.hi & 0x000000000000FFFFUL),
+			      (unsigned long)(value->uuid.lo >> 48),
+			      (unsigned long)(value->uuid.lo & 0x0000FFFFFFFFFFFFUL));
+
+    return text_append(text, str, cnt);
 }
 
 struct _gqlType	gql_uuid_type = {
@@ -192,9 +529,9 @@ struct _gqlType	gql_uuid_type = {
     .kind = GQL_SCALAR,
     .locked = true,
     .core = true,
-    .coerce = coerce_uuid,
+    .coerce = NULL,
     .destroy = NULL,
-    .to_text = uuid_to_text,
+    .to_json = uuid_to_text,
 };
 
 // Url type
@@ -203,15 +540,15 @@ url_destroy(gqlValue value) {
     free((char*)value->url);
 }
 
-static int
-coerce_url(Err err, gqlValue src, gqlType type) {
-    // TBD
-    return ERR_OK;
-}
-
 static Text
-url_to_text(Text text, gqlValue value) {
-    // TBD
+url_to_text(Text text, gqlValue value, int indent, int depth) {
+    if (NULL == value->url) {
+	return text_append(text, "null", 4);
+    }
+    text = text_append(text, "\"", 1);
+    text = text_append(text, value->url, -1);
+    text = text_append(text, "\"", 1);
+
     return text;
 }
 
@@ -221,18 +558,130 @@ struct _gqlType	gql_url_type = {
     .kind = GQL_SCALAR,
     .locked = true,
     .core = true,
-    .coerce = coerce_url,
+    .coerce = NULL,
     .destroy = url_destroy,
-    .to_text = url_to_text,
+    .to_json = url_to_text,
+};
+
+// List, not visible but used for list values.
+static void
+list_destroy(gqlValue value) {
+    gqlLink	link;
+
+    while (NULL != (link = value->members)) {
+	value->members = link->next;
+	gql_value_destroy(link->value);
+	DEBUG_ALLOC(mem_graphql_link, link);
+	free(link);
+    }
+}
+
+static Text
+list_to_json(Text text, gqlValue value, int indent, int depth) {
+    int		i = indent * depth;
+    int		i2 = i + indent;
+    int		d2 = depth + 1;
+    gqlLink	link;
+    
+    if (0 < indent) {
+	i++; // for \n
+	i2++;
+    }
+    if ((int)sizeof(spaces) <= i) {
+	i2 = sizeof(spaces) - 1;
+	i = i2 - indent;
+    }
+    text = text_append(text, "[", 1);
+    for (link = value->members; NULL != link; link = link->next) {
+	text = text_append(text, spaces, i2);
+	text = link->value->type->to_json(text, link->value, indent, d2);
+	if (NULL != link->next) {
+	    text = text_append(text, ",", 1);
+	}
+    }
+    if (0 < indent) {
+	text = text_append(text, spaces, i);
+    }
+    text = text_append(text, "]", 1);
+
+    return text;
+}
+
+struct _gqlType	list_type = { // unregistered
+    .name = "__List",
+    .desc = NULL,
+    .kind = GQL_SCALAR,
+    .locked = true,
+    .core = true,
+    .coerce = NULL,
+    .destroy = list_destroy,
+    .to_json = list_to_json,
+};
+
+// Object, not visible but used for object values.
+static void
+object_destroy(gqlValue value) {
+    gqlLink	link;
+
+    while (NULL != (link = value->members)) {
+	value->members = link->next;
+	gql_value_destroy(link->value);
+	free(link->key);
+	DEBUG_ALLOC(mem_graphql_link, link);
+	free(link);
+    }
+}
+
+static Text
+object_to_json(Text text, gqlValue value, int indent, int depth) {
+    int		i = indent * depth;
+    int		i2 = i + indent;
+    int		d2 = depth + 1;
+    gqlLink	link;
+    
+    if (0 < indent) {
+	i++; // for \n
+	i2++;
+    }
+    if ((int)sizeof(spaces) <= i) {
+	i2 = sizeof(spaces) - 1;
+	i = i2 - indent;
+    }
+    text = text_append(text, "{", 1);
+    for (link = value->members; NULL != link; link = link->next) {
+	text = text_append(text, spaces, i2);
+	text = text_append(text, "\"", 1);
+	text = text_append(text, link->key, -1);
+	if (0 < indent) {
+	    text = text_append(text, "\": ", 3);
+	} else {
+	    text = text_append(text, "\":", 2);
+	}
+	text = link->value->type->to_json(text, link->value, indent, d2);
+	if (NULL != link->next) {
+	    text = text_append(text, ",", 1);
+	}
+    }
+    if (0 < indent) {
+	text = text_append(text, spaces, i);
+    }
+    text = text_append(text, "}", 1);
+
+    return text;
+}
+
+struct _gqlType	object_type = { // unregistered
+    .name = "__Object",
+    .desc = NULL,
+    .kind = GQL_SCALAR,
+    .locked = true,
+    .core = true,
+    .coerce = NULL,
+    .destroy = object_destroy,
+    .to_json = object_to_json,
 };
 
 ////////////////////////////////////////////////////////////////////////////////
-gqlValue
-gql_value_create(Err err) {
-    // TBD
-    return NULL;
-}
-
 void
 gql_value_destroy(gqlValue value) {
     if (NULL != value->type->destroy) {
@@ -271,71 +720,145 @@ gql_i64_set(gqlValue value, int64_t i) {
 }
 
 void
-gql_string_set(gqlValue value, const char *str) {
+gql_string_set(gqlValue value, const char *str, int len) {
     value->type = &gql_string_type;
     if (NULL == str) {
 	value->str = NULL;
     } else {
-	size_t	len = strlen(str);
-
-	if (len < sizeof(value->str16)) {
+	if (0 >= len) {
+	    len = strlen(str);
+	}
+	if (len < (int)sizeof(value->str16)) {
 	    value->type = &gql_str16_type;
-	    strcpy(value->str16, str);
+	    strncpy(value->str16, str, len);
 	} else {
-	    value->str = strdup(str);
+	    value->str = strndup(str, len);
 	}
     }
 }
 
 int
-gql_url_set(Err err, gqlValue value, const char *url) {
-    // TBD
+gql_url_set(Err err, gqlValue value, const char *url, int len) {
+    value->type = &gql_url_type;
+    if (NULL == url) {
+	value->url = NULL;
+    } else {
+	if (0 >= len) {
+	    len = strlen(url);
+	}
+	value->url = strndup(url, len);
+    }
     return ERR_OK;
 }
 
 void
 gql_bool_set(gqlValue value, bool b) {
-    // TBD
+    value->b = b;
 }
 
 void
 gql_float_set(gqlValue value, double f) {
-    // TBD
+    value->f = f;
 }
 
 void
 gql_time_set(gqlValue value, int64_t t) {
-    // TBD
+    value->time = t;
 }
 
 int
-gql_time_str_set(Err err, gqlValue value, const char *str) {
-    // TBD
-    return ERR_OK;
+gql_time_str_set(Err err, gqlValue value, const char *str, int len) {
+    if (0 >= len) {
+	len = strlen(str);
+    }
+    value->time = time_parse(err, str, len);
+
+    return err->code;
 }
 
 void
 gql_uuid_set(gqlValue value, uint64_t hi, uint64_t lo) {
-    // TBD
+    value->uuid.hi = hi;
+    value->uuid.lo = lo;
 }
 
 int
-gql_uuid_str_set(Err err, gqlValue value, const char *str) {
-    // TBD
+gql_uuid_str_set(Err err, gqlValue value, const char *str, int len) {
+    uint64_t	hi = 0;
+    uint64_t	lo = 0;
+
+    if (ERR_OK != parse_uuid(err, str, len, &hi, &lo)) {
+	return err->code;
+    }
+    value->uuid.hi = hi;
+    value->uuid.lo = lo;
+
     return ERR_OK;
 }
 
 extern void	gql_null_set(gqlValue value);
 
+gqlLink
+link_create(Err err, gqlValue item) {
+    gqlLink	link = (gqlLink)malloc(sizeof(struct _gqlLink));
+
+    if (NULL == link) {
+	err_set(err, ERR_MEMORY, "Failed to allocation memory for a list link.");
+    } else {
+	DEBUG_ALLOC(mem_graphql_link, link);
+	link->next = NULL;
+	link->key = NULL;
+	link->value = item;
+    }
+    return link;
+}
+
 int
 gql_list_append(Err err, gqlValue list, gqlValue item) {
-    // TBD
+    gqlLink	link = link_create(err, item);
+
+    if (NULL != link) {
+	if (NULL == list->members) {
+	    list->members = link;
+	} else {
+	    gqlLink	last = list->members;
+
+	    for (; NULL != last->next; last = last->next) {
+	    }
+	    last->next = link;
+	}
+    }
     return ERR_OK;
 }
 
 int
-gql_object_append(Err err, gqlValue list, const char *key, gqlValue item) {
-    // TBD
+gql_list_prepend(Err err, gqlValue list, gqlValue item) {
+    gqlLink	link = link_create(err, item);
+
+    if (NULL != link) {
+	link->next = list->members;
+	list->members = link;
+    }
+    return ERR_OK;
+}
+
+int
+gql_object_set(Err err, gqlValue obj, const char *key, gqlValue item) {
+    gqlLink	link = link_create(err, item);
+
+    if (NULL != link) {
+	link->key = strdup(key);
+	//link->next = obj->members;
+	if (NULL == obj->members) {
+	    obj->members = link;
+	} else {
+	    gqlLink	last = obj->members;
+
+	    for (; NULL != last->next; last = last->next) {
+	    }
+	    last->next = link;
+	}
+    }
     return ERR_OK;
 }
 
@@ -355,27 +878,55 @@ value_create(gqlType type) {
 
 gqlValue
 gql_int_create(Err err, int32_t i) {
-
-    // TBD
-    return NULL;
+    gqlValue	v = value_create(&gql_int_type);
+    
+    if (NULL != v) {
+	v->i = i;
+    }
+    return v;
 }
 
 gqlValue
 gql_i64_create(Err err, int64_t i) {
-    // TBD
-    return NULL;
+    gqlValue	v = value_create(&gql_i64_type);
+    
+    if (NULL != v) {
+	v->i64 = i;
+    }
+    return v;
 }
 
 gqlValue
-gql_string_create(Err err, const char *str) {
-    // TBD
-    return NULL;
+gql_string_create(Err err, const char *str, int len) {
+    gqlValue	v;
+    
+    if (0 >= len) {
+	len = strlen(str);
+    }
+    if ((int)sizeof(v->str16) <= len) {
+	if (NULL != (v = value_create(&gql_string_type))) {
+	    v->str = strndup(str, len);
+	}
+    } else {
+	if (NULL != (v = value_create(&gql_str16_type))) {
+	    strncpy(v->str16, str, len);
+	    v->str16[len] = '\0';
+	}
+    }
+    return v;
 }
 
 gqlValue
-gql_url_create(Err err, const char *url) {
-    // TBD
-    return NULL;
+gql_url_create(Err err, const char *url, int len) {
+    gqlValue	v = value_create(&gql_url_type);
+    
+    if (0 >= len) {
+	len = strlen(url);
+    }
+    if (NULL != v) {
+	v->str = strndup(url, len);
+    }
+    return v;
 }
 
 gqlValue
@@ -390,54 +941,95 @@ gql_bool_create(Err err, bool b) {
 
 gqlValue
 gql_float_create(Err err, double f) {
-    // TBD
-    return NULL;
+    gqlValue	v = value_create(&gql_float_type);
+    
+    if (NULL != v) {
+	v->f = f;
+    }
+    return v;
 }
 
 gqlValue
 gql_time_create(Err err, int64_t t) {
-    // TBD
-    return NULL;
+    gqlValue	v = value_create(&gql_time_type);
+    
+    if (NULL != v) {
+	v->time = t;
+    }
+    return v;
 }
 
 gqlValue
-gql_time_str_create(Err err, const char *str) {
-    // TBD
-    return NULL;
+gql_time_str_create(Err err, const char *str, int len) {
+    gqlValue	v = value_create(&gql_time_type);
+    
+    if (NULL != v) {
+	if (0 >= len) {
+	    len = strlen(str);
+	}
+	v->time = time_parse(err, str, len);
+    }
+    return v;
 }
 
 gqlValue
 gql_uuid_create(Err err, uint64_t hi, uint64_t lo) {
-    // TBD
-    return NULL;
+    gqlValue	v = value_create(&gql_uuid_type);
+    
+    if (NULL != v) {
+	v->uuid.hi = hi;
+	v->uuid.lo = lo;
+    }
+    return v;
 }
 
+// 123e4567-e89b-12d3-a456-426655440000
 gqlValue
-gql_uuid_str_create(Err err, const char *str) {
-    // TBD
-    return NULL;
+gql_uuid_str_create(Err err, const char *str, int len) {
+    uint64_t	hi = 0;
+    uint64_t	lo = 0;
+    gqlValue	v;
+
+    if (ERR_OK != parse_uuid(err, str, len, &hi, &lo)) {
+	return NULL;
+    }
+    if (NULL != (v = value_create(&gql_uuid_type))) {
+	v->uuid.hi = hi;
+	v->uuid.lo = lo;
+    }
+    return v;
 }
 
 gqlValue
 gql_null_create(Err err) {
-    // TBD
-    return NULL;
+    gqlValue	v = value_create(&gql_null_type);
+    
+    return v;
 }
 
 gqlValue
-gql_list_create(Err err) {
-    // TBD
-    return NULL;
+gql_list_create(Err err, gqlType itemType) {
+    gqlValue	v = value_create(&list_type);
+
+    if (NULL != v) {
+	v->members = NULL;
+	v->member_type = itemType;
+    }
+    return v;
 }
 
 gqlValue
 gql_object_create(Err err) {
-    // TBD
-    return NULL;
+    gqlValue	v = value_create(&object_type);
+
+    if (NULL != v) {
+	v->members = NULL;
+	v->member_type = NULL;
+    }
+    return v;
 }
 
 Text
-gql_value_text(Text text, gqlValue value) {
-    return value->type->to_text(text, value);
+gql_value_json(Text text, gqlValue value, int indent, int depth) {
+    return value->type->to_json(text, value, indent, depth);
 }
-

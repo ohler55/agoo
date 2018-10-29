@@ -3,7 +3,7 @@ sudo: true
 
 language: ruby
 rvm:
-  - 2.5.1
+  - 2.5.3
 
 matrix:
   include:

@@ -24,13 +24,13 @@ static gqlType	directive_location_type;
 //   directives: [__Directive!]!
 // }
 static gqlRef
-schema_types_resolve(gqlRef target, const char *fieldName) {
-    // TBD 
+schema_types_resolve(gqlRef target, const char *fieldName, gqlKeyVal *args) {
+    // TBD
     return NULL;
 }
 
 static gqlRef
-schema_query_type_resolve(gqlRef target, const char *fieldName) {
+schema_query_type_resolve(gqlRef target, const char *fieldName, gqlKeyVal *args) {
     // TBD return schema_type.query.type
     //  lookup "schema" type
     //  get query field

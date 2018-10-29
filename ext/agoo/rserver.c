@@ -186,7 +186,7 @@ configure(Err err, int port, const char *root, VALUE options) {
 	    }
 	    path = StringValuePtr(v);
 	    plen = (long)RSTRING_LEN(v);
-	    if (sizeof(schema_path) - 8 < plen) {
+	    if ((int)sizeof(schema_path) - 8 < plen) {
 		rb_raise(rb_eArgError, "A graphql schema path is limited to %d characters.", (int)(sizeof(schema_path) - 8));
 	    }
 	    memcpy(schema_path, path, plen);

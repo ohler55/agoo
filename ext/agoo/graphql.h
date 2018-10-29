@@ -35,8 +35,13 @@ typedef struct _gqlQuery {
     // TBD data about a query, mutation, or subscription
 } *gqlQuery;
 
+typedef struct _gqlKeyVal {
+    const char		*key;
+    struct _gqlValue	*value;
+} *gqlKeyVal;
+
 // Resolve field on a target to a child reference.
-typedef gqlRef			(*gqlResolveFunc)(gqlRef target, const char *fieldName);
+typedef gqlRef			(*gqlResolveFunc)(gqlRef target, const char *fieldName, gqlKeyVal *args);
 
 // Coerce an implemenation reference into a gqlValue.
 typedef struct _gqlValue*	(*gqlCoerceFunc)(gqlRef ref, struct _gqlType *type);
@@ -70,7 +75,7 @@ typedef struct _gqlField {
 typedef struct _gqlType {
     const char	*name;
     const char	*desc;
-    Text	(*to_text)(Text text, struct _gqlValue *value);
+    Text	(*to_json)(Text text, struct _gqlValue *value, int indent, int depth);
     gqlKind	kind;
     bool	locked; // set by app
     bool	core;
@@ -129,12 +134,13 @@ extern int	gql_type_set(Err err, gqlType type);
 extern gqlType	gql_type_get(const char *name);
 extern void	gql_type_destroy(gqlType type);
 
-extern Text	gql_type_text(Text text, gqlType type, bool comments);
-extern Text	gql_schema_text(Text text, bool with_desc, bool all);
+extern Text	gql_type_sdl(Text text, gqlType type, bool comments);
+extern Text	gql_schema_sdl(Text text, bool with_desc, bool all);
 
-extern Text	gql_object_to_text(Text text, struct _gqlValue *value);
-extern Text	gql_union_to_text(Text text, struct _gqlValue *value);
-extern Text	gql_enum_to_text(Text text, struct _gqlValue *value);
+extern Text	gql_object_to_json(Text text, struct _gqlValue *value, int indent, int depth);
+extern Text	gql_object_to_graphql(Text text, struct _gqlValue *value, int indent, int depth);
+extern Text	gql_union_to_text(Text text, struct _gqlValue *value, int indent, int depth);
+extern Text	gql_enum_to_text(Text text, struct _gqlValue *value, int indent, int depth);
 
 extern void	gql_dump_hook(struct _Req *req);
 extern void	gql_eval_hook(struct _Req *req);

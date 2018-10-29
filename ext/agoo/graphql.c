@@ -262,7 +262,13 @@ type_create(Err err, const char *name, const char *desc, bool locked) {
 }
 
 Text
-gql_object_to_text(Text text, gqlValue value) {
+gql_object_to_json(Text text, gqlValue value, int indent, int depth) {
+    // TBD
+    return text;
+}
+
+Text
+gql_object_to_graphql(Text text, gqlValue value, int indent, int depth) {
     // TBD
     return text;
 }
@@ -273,7 +279,7 @@ gql_type_create(Err err, const char *name, const char *desc, bool locked, gqlTyp
 
     if (NULL != type) {
 	type->kind = GQL_OBJECT;
-	type->to_text = gql_object_to_text;
+	type->to_json = gql_object_to_json;
 	type->fields = NULL;
 	type->interfaces = NULL;
 	if (NULL != interfaces) {
@@ -376,7 +382,7 @@ gql_field_arg(Err err, gqlField field, const char *name, gqlType type, const cha
 }
 
 Text
-gql_union_to_text(Text text, gqlValue value) {
+gql_union_to_json(Text text, gqlValue value, int indent, int depth) {
     // TBD
     return text;
 }
@@ -387,7 +393,7 @@ gql_union_create(Err err, const char *name, const char *desc, bool locked, gqlTy
 
     if (NULL != type) {
 	type->kind = GQL_UNION;
-	type->to_text = gql_union_to_text;
+	type->to_json = gql_union_to_json;
 	type->utypes = NULL;
 	if (NULL != types) {
 	    gqlType	*tp = types;
@@ -414,7 +420,7 @@ gql_union_create(Err err, const char *name, const char *desc, bool locked, gqlTy
 }
 
 Text
-gql_enum_to_text(Text text, gqlValue value) {
+gql_enum_to_json(Text text, gqlValue value, int indent, int depth) {
     // TBD
     return text;
 }
@@ -425,7 +431,7 @@ gql_enum_create(Err err, const char *name, const char *desc, bool locked, const 
 
     if (NULL != type) {
 	type->kind = GQL_ENUM;
-	type->to_text = gql_enum_to_text;
+	type->to_json = gql_enum_to_json;
 	type->choices = NULL;
 	if (NULL != choices) {
 	    const char	**cp = choices;
@@ -452,7 +458,7 @@ gql_enum_create(Err err, const char *name, const char *desc, bool locked, const 
 }
 
 static Text
-fragment_to_text(Text text, gqlValue value) {
+fragment_to_json(Text text, gqlValue value, int indent, int depth) {
     // TBD
     return text;
 }
@@ -463,7 +469,7 @@ gql_fragment_create(Err err, const char *name, const char *desc, bool locked, gq
 
     if (NULL != type) {
 	type->kind = GQL_FRAG;
-	type->to_text = fragment_to_text;
+	type->to_json = fragment_to_json;
 	type->fields = NULL;
 	type->on = on;
     }
@@ -471,7 +477,7 @@ gql_fragment_create(Err err, const char *name, const char *desc, bool locked, gq
 }
 
 static Text
-input_to_text(Text text, gqlValue value) {
+input_to_json(Text text, gqlValue value, int indent, int depth) {
     // TBD
     return text;
 }
@@ -482,14 +488,14 @@ gql_input_create(Err err, const char *name, const char *desc, bool locked) {
 
     if (NULL != type) {
 	type->kind = GQL_INPUT;
-	type->to_text = input_to_text;
+	type->to_json = input_to_json;
 	type->fields = NULL;
     }
     return type;
 }
 
 static Text
-interface_to_text(Text text, gqlValue value) {
+interface_to_json(Text text, gqlValue value, int indent, int depth) {
     // TBD
     return text;
 }
@@ -500,25 +506,32 @@ gql_interface_create(Err err, const char *name, const char *desc, bool locked) {
 
     if (NULL != type) {
 	type->kind = GQL_INTERFACE;
-	type->to_text = interface_to_text;
+	type->to_json = interface_to_json;
 	type->fields = NULL;
     }
     return type;
 }
 
 static Text
-scalar_to_text(Text text, gqlValue value) {
-    // TBD
+scalar_to_json(Text text, gqlValue value, int indent, int depth) {
+    if (NULL == value->str) {
+	text = text_append(text, "null", 4);
+    } else {
+	text = text_append(text, "\"", 1);
+	text = text_append(text, value->str, -1);
+	text = text_append(text, "\"", 1);
+    }
     return text;
 }
 
+// Create a scalar type that will be represented as a string.
 gqlType
 gql_scalar_create(Err err, const char *name, const char *desc, bool locked) {
     gqlType	type = type_create(err, name, desc, locked);
 
     if (NULL != type) {
 	type->kind = GQL_SCALAR;
-	type->to_text = scalar_to_text;
+	type->to_json = scalar_to_json;
 	type->coerce = NULL;
 	type->destroy = NULL;
     }
@@ -532,7 +545,7 @@ gql_type_destroy(gqlType type) {
 }
 
 static Text
-arg_text(Text text, gqlArg a, bool with_desc, bool last) {
+arg_sdl(Text text, gqlArg a, bool with_desc, bool last) {
     if (with_desc && NULL != a->desc) {
 	if (NULL == index(a->desc, '\n')) {
 	    text = text_append(text, "\n    \"", 6);
@@ -553,7 +566,7 @@ arg_text(Text text, gqlArg a, bool with_desc, bool last) {
     text = text_append(text, a->type->name, -1);
     if (NULL != a->default_value) {
 	text = text_append(text, " = ", 3);
-	text = gql_value_text(text, a->default_value);
+	text = gql_value_json(text, a->default_value, 0, 0);
     }
     if (!last) {
 	text = text_append(text, ", ", 2);
@@ -562,7 +575,7 @@ arg_text(Text text, gqlArg a, bool with_desc, bool last) {
 }
 
 static Text
-field_text(Text text, gqlField f, bool with_desc) {
+field_sdl(Text text, gqlField f, bool with_desc) {
     if (with_desc && NULL != f->desc) {
 	if (NULL == index(f->desc, '\n')) {
 	    text = text_append(text, "  \"", 3);
@@ -581,7 +594,7 @@ field_text(Text text, gqlField f, bool with_desc) {
 
 	text = text_append(text, "(", 1);
 	for (a = f->args; NULL != a; a = a->next) {
-	    text = arg_text(text, a, with_desc, NULL == a->next);
+	    text = arg_sdl(text, a, with_desc, NULL == a->next);
 	}
 	text = text_append(text, ")", 1);
     }
@@ -605,7 +618,7 @@ field_text(Text text, gqlField f, bool with_desc) {
 }
 
 Text
-gql_type_text(Text text, gqlType type, bool with_desc) {
+gql_type_sdl(Text text, gqlType type, bool with_desc) {
     if (with_desc && NULL != type->desc) {
 	if (NULL == index(type->desc, '\n')) {
 	    text = text_append(text, "\"", 1);
@@ -637,7 +650,7 @@ gql_type_text(Text text, gqlType type, bool with_desc) {
 	}
 	text = text_append(text, " {\n", 3);
 	for (f = type->fields; NULL != f; f = f->next) {
-	    text = field_text(text, f, with_desc);
+	    text = field_sdl(text, f, with_desc);
 	}
 	text = text_append(text, "}\n", 2);
 	break;
@@ -685,7 +698,7 @@ gql_type_text(Text text, gqlType type, bool with_desc) {
 	text = text_append(text, " {\n", 3);
 
 	for (f = type->fields; NULL != f; f = f->next) {
-	    text = field_text(text, f, with_desc);
+	    text = field_sdl(text, f, with_desc);
 	}
 	text = text_append(text, "}\n", 2);
 	break;
@@ -697,7 +710,7 @@ gql_type_text(Text text, gqlType type, bool with_desc) {
 	text = text_append(text, type->name, -1);
 	text = text_append(text, " {\n", 3);
 	for (f = type->fields; NULL != f; f = f->next) {
-	    text = field_text(text, f, with_desc);
+	    text = field_sdl(text, f, with_desc);
 	}
 	text = text_append(text, "}\n", 2);
 	break;
@@ -726,7 +739,7 @@ type_cmp(const void *v0, const void *v1) {
 }
 
 Text
-gql_schema_text(Text text, bool with_desc, bool all) {
+gql_schema_sdl(Text text, bool with_desc, bool all) {
     Slot	*bucket;
     Slot	s;
     gqlType	type;
@@ -742,7 +755,6 @@ gql_schema_text(Text text, bool with_desc, bool all) {
 	    cnt++;
 	}
     }
-    text = text_append(text, "\n", 1);
     if (0 < cnt) {
 	gqlType	types[cnt];
 	gqlType	*tp = types;
@@ -758,8 +770,10 @@ gql_schema_text(Text text, bool with_desc, bool all) {
 	}
 	qsort(types, cnt, sizeof(gqlType), type_cmp);
 	for (i = 0, tp = types; i < cnt; i++, tp++) {
-	    text = gql_type_text(text, *tp, with_desc);
-	    text = text_append(text, "\n", 1);
+	    text = gql_type_sdl(text, *tp, with_desc);
+	    if (i < cnt - 1) {
+		text = text_append(text, "\n", 1);
+	    }
 	}
     }
     return text;
@@ -783,7 +797,7 @@ gql_dump_hook(Req req) {
     if (NULL != s && 5 == vlen && 0 == strncasecmp("false", s, 5)) {
 	with_desc = false;
     }
-    text = gql_schema_text(text, with_desc, all);
+    text = gql_schema_sdl(text, with_desc, all);
     cnt = snprintf(buf, sizeof(buf), "HTTP/1.1 200 Okay\r\nContent-Type: application/graphql\r\nContent-Length: %ld\r\n\r\n", text->len);
     text = text_prepend(text, buf, cnt);
     res_set_message(req->res, text);
