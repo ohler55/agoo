@@ -100,10 +100,10 @@ typedef struct _gqlType {
 extern int	gql_init(Err err);
 extern void	gql_destroy(); // clear out all
 
-extern gqlType	gql_type_create(Err err, const char *name, const char *desc, bool locked, gqlType *interfaces);
-extern gqlType	gql_fragment_create(Err err, const char *name, const char *desc, bool locked, gqlType on);
-extern gqlType	gql_input_create(Err err, const char *name, const char *desc, bool locked);
-extern gqlType	gql_interface_create(Err err, const char *name, const char *desc, bool locked);
+extern gqlType	gql_type_create(Err err, const char *name, const char *desc, int dlen, bool locked, gqlType *interfaces);
+extern gqlType	gql_fragment_create(Err err, const char *name, const char *desc, int dlen, bool locked, gqlType on);
+extern gqlType	gql_input_create(Err err, const char *name, const char *desc, int dlen, bool locked);
+extern gqlType	gql_interface_create(Err err, const char *name, const char *desc, int dlen, bool locked);
 
 extern gqlField	gql_type_field(Err		err,
 			       gqlType		type,
@@ -126,9 +126,9 @@ extern gqlArg	gql_field_arg(Err 		err,
 // TBD maybe create then add fields
 // TBD same with op? create then add args
 
-extern gqlType	gql_union_create(Err err, const char *name, const char *desc, bool locked, gqlType *types);
-extern gqlType	gql_enum_create(Err err, const char *name, const char *desc, bool locked, const char **choices); // NULL terminated choices
-extern gqlType	gql_scalar_create(Err err, const char *name, const char *desc, bool locked);
+extern gqlType	gql_union_create(Err err, const char *name, const char *desc, int dlen, bool locked, gqlType *types);
+extern gqlType	gql_enum_create(Err err, const char *name, const char *desc, int dlen, bool locked, const char **choices); // NULL terminated choices
+extern gqlType	gql_scalar_create(Err err, const char *name, const char *desc, int dlen, bool locked);
 
 extern int	gql_type_set(Err err, gqlType type);
 extern gqlType	gql_type_get(const char *name);

@@ -202,10 +202,10 @@ gql_init(Err err) {
 	return err->code;
     }
     if (
-	NULL == (query_type = gql_type_create(err, "Query", "The GraphQL root Query.", false, NULL)) ||
-	NULL == (mutation_type = gql_type_create(err, "Mutation", "The GraphQL root Mutation.", false, NULL)) ||
-	NULL == (subscription_type = gql_type_create(err, "Subscription", "The GraphQL root Subscription.", false, NULL)) ||
-	NULL == (schema_type = gql_type_create(err, "schema", "The GraphQL root Object.", false, NULL)) ||
+	NULL == (query_type = gql_type_create(err, "Query", "The GraphQL root Query.", -1, false, NULL)) ||
+	NULL == (mutation_type = gql_type_create(err, "Mutation", "The GraphQL root Mutation.", -1, false, NULL)) ||
+	NULL == (subscription_type = gql_type_create(err, "Subscription", "The GraphQL root Subscription.", -1, false, NULL)) ||
+	NULL == (schema_type = gql_type_create(err, "schema", "The GraphQL root Object.", -1, false, NULL)) ||
 	NULL == gql_type_field(err, schema_type, "query", query_type, "Root level query.", false, false, false, NULL) ||
 	NULL == gql_type_field(err, schema_type, "mutation", mutation_type, "Root level mutation.", false, false, false, NULL) ||
 	NULL == gql_type_field(err, schema_type, "subscription", subscription_type, "Root level subscription.", false, false, false, NULL)) {
@@ -237,7 +237,7 @@ gql_destroy() {
 }
 
 static gqlType
-type_create(Err err, const char *name, const char *desc, bool locked) {
+type_create(Err err, const char *name, const char *desc, int dlen, bool locked) {
     gqlType	type = (gqlType)malloc(sizeof(struct _gqlType));
 
     if (NULL == type) {
@@ -248,7 +248,11 @@ type_create(Err err, const char *name, const char *desc, bool locked) {
 	if (NULL == desc) {
 	    type->desc = NULL;
 	} else {
-	    type->desc = strdup(desc);
+	    if (0 >= dlen) {
+		type->desc = strdup(desc);
+	    } else {
+		type->desc = strndup(desc, dlen);
+	    }
 	}
 	type->locked = locked;
 	type->core = false;
@@ -274,8 +278,8 @@ gql_object_to_graphql(Text text, gqlValue value, int indent, int depth) {
 }
 
 gqlType
-gql_type_create(Err err, const char *name, const char *desc, bool locked, gqlType *interfaces) {
-    gqlType	type = type_create(err, name, desc, locked);
+gql_type_create(Err err, const char *name, const char *desc, int dlen, bool locked, gqlType *interfaces) {
+    gqlType	type = type_create(err, name, desc, dlen, locked);
 
     if (NULL != type) {
 	type->kind = GQL_OBJECT;
@@ -388,8 +392,8 @@ gql_union_to_json(Text text, gqlValue value, int indent, int depth) {
 }
 
 gqlType
-gql_union_create(Err err, const char *name, const char *desc, bool locked, gqlType *types) {
-    gqlType	type = type_create(err, name, desc, locked);
+gql_union_create(Err err, const char *name, const char *desc, int dlen, bool locked, gqlType *types) {
+    gqlType	type = type_create(err, name, desc, dlen, locked);
 
     if (NULL != type) {
 	type->kind = GQL_UNION;
@@ -426,8 +430,8 @@ gql_enum_to_json(Text text, gqlValue value, int indent, int depth) {
 }
 
 gqlType
-gql_enum_create(Err err, const char *name, const char *desc, bool locked, const char **choices) {
-    gqlType	type = type_create(err, name, desc, locked);
+gql_enum_create(Err err, const char *name, const char *desc, int dlen, bool locked, const char **choices) {
+    gqlType	type = type_create(err, name, desc, dlen, locked);
 
     if (NULL != type) {
 	type->kind = GQL_ENUM;
@@ -464,8 +468,8 @@ fragment_to_json(Text text, gqlValue value, int indent, int depth) {
 }
 
 gqlType
-gql_fragment_create(Err err, const char *name, const char *desc, bool locked, gqlType on) {
-    gqlType	type = type_create(err, name, desc, locked);
+gql_fragment_create(Err err, const char *name, const char *desc, int dlen, bool locked, gqlType on) {
+    gqlType	type = type_create(err, name, desc, dlen, locked);
 
     if (NULL != type) {
 	type->kind = GQL_FRAG;
@@ -483,8 +487,8 @@ input_to_json(Text text, gqlValue value, int indent, int depth) {
 }
 
 gqlType
-gql_input_create(Err err, const char *name, const char *desc, bool locked) {
-    gqlType	type = type_create(err, name, desc, locked);
+gql_input_create(Err err, const char *name, const char *desc, int dlen, bool locked) {
+    gqlType	type = type_create(err, name, desc, dlen, locked);
 
     if (NULL != type) {
 	type->kind = GQL_INPUT;
@@ -501,8 +505,8 @@ interface_to_json(Text text, gqlValue value, int indent, int depth) {
 }
 
 gqlType
-gql_interface_create(Err err, const char *name, const char *desc, bool locked) {
-    gqlType	type = type_create(err, name, desc, locked);
+gql_interface_create(Err err, const char *name, const char *desc, int dlen, bool locked) {
+    gqlType	type = type_create(err, name, desc, dlen, locked);
 
     if (NULL != type) {
 	type->kind = GQL_INTERFACE;
@@ -526,8 +530,8 @@ scalar_to_json(Text text, gqlValue value, int indent, int depth) {
 
 // Create a scalar type that will be represented as a string.
 gqlType
-gql_scalar_create(Err err, const char *name, const char *desc, bool locked) {
-    gqlType	type = type_create(err, name, desc, locked);
+gql_scalar_create(Err err, const char *name, const char *desc, int dlen, bool locked) {
+    gqlType	type = type_create(err, name, desc, dlen, locked);
 
     if (NULL != type) {
 	type->kind = GQL_SCALAR;

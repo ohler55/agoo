@@ -40,7 +40,7 @@ schema_query_type_resolve(gqlRef target, const char *fieldName, gqlKeyVal *args)
 
 static int
 create_schema_type(Err err) {
-    if (NULL == (schema_type = gql_type_create(err, "__Schema", NULL, true, NULL)) ||
+    if (NULL == (schema_type = gql_type_create(err, "__Schema", NULL, -1, true, NULL)) ||
 	NULL == gql_type_field(err, schema_type, "types", type_type, NULL, true, true, true, schema_types_resolve) ||
 	NULL == gql_type_field(err, schema_type, "queryType", type_type, NULL, true, false, false, schema_query_type_resolve) ||
 	NULL == gql_type_field(err, schema_type, "mutationType", type_type, NULL, false, false, false, NULL) ||
@@ -71,7 +71,7 @@ create_type_type(Err err) {
     gqlField	enum_values = NULL;
     gqlValue	dv;
     
-    if (NULL == (type_type = gql_type_create(err, "__Type", NULL, true, NULL)) ||
+    if (NULL == (type_type = gql_type_create(err, "__Type", NULL, -1, true, NULL)) ||
 	NULL == gql_type_field(err, type_type, "kind", type_kind_type, NULL, true, false, false, NULL) ||
 	NULL == gql_type_field(err, type_type, "name", &gql_string_type, NULL, false, false, false, NULL) ||
 	NULL == gql_type_field(err, type_type, "description", &gql_string_type, NULL, false, false, false, NULL) ||
@@ -109,7 +109,7 @@ create_type_kind_type(Err err) {
 	"NON_NULL",
 	NULL
     };
-    type_kind_type = gql_enum_create(err, "__TypeKind", NULL, true, choices);
+    type_kind_type = gql_enum_create(err, "__TypeKind", NULL, -1, true, choices);
     type_kind_type->core = true;
     
     return err->code;
@@ -125,7 +125,7 @@ create_type_kind_type(Err err) {
 // }
 static int
 create_field_type(Err err) {
-    if (NULL == (field_type = gql_type_create(err, "__Field", NULL, true, NULL)) ||
+    if (NULL == (field_type = gql_type_create(err, "__Field", NULL, -1, true, NULL)) ||
 	NULL == gql_type_field(err, field_type, "name", &gql_string_type, NULL, true, false, false, NULL) ||
 	NULL == gql_type_field(err, field_type, "description", &gql_string_type, NULL, false, false, false, NULL) ||
 	NULL == gql_type_field(err, field_type, "args", input_value_type, NULL, true, true, true, NULL) ||
@@ -148,7 +148,7 @@ create_field_type(Err err) {
 // }
 static int
 create_input_type(Err err) {
-    if (NULL == (input_value_type = gql_type_create(err, "__InputValue", NULL, true, NULL)) ||
+    if (NULL == (input_value_type = gql_type_create(err, "__InputValue", NULL, -1, true, NULL)) ||
 	NULL == gql_type_field(err, input_value_type, "name", &gql_string_type, NULL, true, false, false, NULL) ||
 	NULL == gql_type_field(err, input_value_type, "description", &gql_string_type, NULL, false, false, false, NULL) ||
 	NULL == gql_type_field(err, input_value_type, "type", type_type, NULL, true, false, false, NULL) ||
@@ -169,7 +169,7 @@ create_input_type(Err err) {
 // }
 static int
 create_enum_type(Err err) {
-    if (NULL == (enum_value_type = gql_type_create(err, "__EnumValue", NULL, true, NULL)) ||
+    if (NULL == (enum_value_type = gql_type_create(err, "__EnumValue", NULL, -1, true, NULL)) ||
 	NULL == gql_type_field(err, enum_value_type, "name", &gql_string_type, NULL, true, false, false, NULL) ||
 	NULL == gql_type_field(err, enum_value_type, "description", &gql_string_type, NULL, false, false, false, NULL) ||
 	NULL == gql_type_field(err, enum_value_type, "isDeprecated", &gql_bool_type, NULL, true, false, false, NULL) ||
@@ -190,7 +190,7 @@ create_enum_type(Err err) {
 // }
 static int
 create_directive_type(Err err) {
-    if (NULL == (directive_type = gql_type_create(err, "__Directive", NULL, true, NULL)) ||
+    if (NULL == (directive_type = gql_type_create(err, "__Directive", NULL, -1, true, NULL)) ||
 	NULL == gql_type_field(err, directive_type, "name", &gql_string_type, NULL, true, false, false, NULL) ||
 	NULL == gql_type_field(err, directive_type, "description", &gql_string_type, NULL, false, false, false, NULL) ||
 	NULL == gql_type_field(err, directive_type, "location", directive_location_type, NULL, true, true, true, NULL) ||
@@ -226,7 +226,7 @@ create_directive_location_type(Err err) {
 	"INPUT_FIELD_DEFINITION",
 	NULL };
 
-    directive_location_type = gql_enum_create(err, "__DirectiveLocation", NULL, true, choices);
+    directive_location_type = gql_enum_create(err, "__DirectiveLocation", NULL, -1, true, choices);
     directive_location_type->core = true;
     
     return err->code;
