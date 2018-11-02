@@ -42,6 +42,8 @@ static uint8_t	name_chars[256] = "\
 \x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\
 ";
 
+static const char	spaces[16] = "                ";
+
 static gqlType	query_type = NULL;
 static gqlType	mutation_type = NULL;
 static gqlType	subscription_type = NULL;
@@ -102,12 +104,13 @@ type_destroy(gqlType type) {
 	    free(type->utypes);
 	    break;
 	case GQL_ENUM: {
-	    char	**cp;
-	    
-	    for (cp = (char**)type->choices; NULL != *cp; cp++) {
-		free(*cp);
+	    gqlStrLink	link;
+
+	    while (NULL != (link = type->choices)) {
+		type->choices = link->next;
+		free(link->str);
+		free(link);
 	    }
-	    free(type->choices);
 	    break;
 	}
 	default:
@@ -430,35 +433,57 @@ gql_enum_to_json(Text text, gqlValue value, int indent, int depth) {
 }
 
 gqlType
-gql_enum_create(Err err, const char *name, const char *desc, int dlen, bool locked, const char **choices) {
+gql_enum_create(Err err, const char *name, const char *desc, int dlen, bool locked) {
     gqlType	type = type_create(err, name, desc, dlen, locked);
 
     if (NULL != type) {
 	type->kind = GQL_ENUM;
 	type->to_json = gql_enum_to_json;
 	type->choices = NULL;
-	if (NULL != choices) {
-	    const char	**cp = choices;
-	    const char	**dp;
-	    int		cnt = 0;
-
-	    for (; NULL != *cp; cp++) {
-		cnt++;
-	    }
-	    if (0 < cnt) {
-		if (NULL == (type->choices = (const char**)malloc(sizeof(const char*) * (cnt + 1)))) {
-		    err_set(err, ERR_MEMORY, "Failed to allocation memory for a GraphQL Enum.");
-		    free(type);
-		    return NULL;
-		}
-		for (dp = type->choices, cp = choices; NULL != *cp; dp++, cp++) {
-		    *dp = strdup(*cp);
-		}
-		*dp = NULL;
-	    }
-	}
     }
     return type;
+}
+
+int
+gql_enum_add(Err err, gqlType type, const char *value, int len) {
+    gqlStrLink	link = (gqlStrLink)malloc(sizeof(gqlStrLink));
+
+    if (NULL == link) {
+	err_set(err, ERR_MEMORY, "Failed to allocation memory for a GraphQL Enum value.");
+    }
+    if (0 >= len) {
+	len = strlen(value);
+    }
+    link->next = type->choices;
+    type->choices = link;
+    link->str = strndup(value, len);
+    
+    return ERR_OK;
+}
+
+int
+gql_enum_append(Err err, gqlType type, const char *value, int len) {
+    gqlStrLink	link = (gqlStrLink)malloc(sizeof(gqlStrLink));
+
+    if (NULL == link) {
+	err_set(err, ERR_MEMORY, "Failed to allocation memory for a GraphQL Enum value.");
+    }
+    if (0 >= len) {
+	len = strlen(value);
+    }
+    link->str = strndup(value, len);
+    if (NULL == type->choices) {
+	link->next = type->choices;
+	type->choices = link;
+    } else {
+	gqlStrLink	last = type->choices;
+
+	for (; NULL != last->next; last = last->next) {
+	}
+	link->next = NULL;
+	last->next = link;
+    }
+    return ERR_OK;
 }
 
 static Text
@@ -548,18 +573,78 @@ gql_type_destroy(gqlType type) {
     type_remove(type);
 }
 
+// If negative then there are non-simple-string characters.
+static int
+desc_len(const char *desc) {
+    const char	*d = desc;
+    int		special = 1;
+
+    for (; '\0' != *d; d++) {
+	if (*d < ' ' || '"' == *d || '\\' == *d) {
+	    special = -1;
+	}
+    }
+    return (int)(d - desc) * special;
+}
+
+static Text
+desc_sdl(Text text, const char *desc, int indent) {
+    if (NULL != desc) {
+	int	cnt = desc_len(desc);
+
+	if (0 < indent) {
+	    text = text_append(text, spaces, indent);
+	}
+	if (0 <= cnt) {
+	    text = text_append(text, "\"", 1);
+	    text = text_append(text, desc, cnt);
+	    text = text_append(text, "\"\n", 2);
+	} else {
+	    text = text_append(text, "\"\"\"\n", 4);
+	    if (0 < indent) {
+		const char	*start = desc;
+		const char	*d = desc;
+	    
+		for (; '\0' != *d; d++) {
+		    if ('\r' == *d) {
+			int	len = (int)(d - start);
+			d++;
+			if ('\n' == *d) {
+			    d++;
+			}
+			text = text_append(text, spaces, indent);
+			text = text_append(text, start, len);
+			text = text_append(text, "\n", 1);
+			start = d;
+		    } else if ('\n' == *d) {
+			text = text_append(text, spaces, indent);
+			text = text_append(text, start, d - start);
+			text = text_append(text, "\n", 1);
+			d++;
+			start = d;
+		    }
+		}
+		text = text_append(text, spaces, indent);
+		text = text_append(text, start, d - start);
+	    } else {
+		text = text_append(text, desc, -1);
+	    }
+	    if (0 < indent) {
+		text = text_append(text, "\n", 1);
+		text = text_append(text, spaces, indent);
+		text = text_append(text, "\"\"\"\n", 4);
+	    } else {
+		text = text_append(text, "\n\"\"\"\n", 5);
+	    }
+	}
+    }
+    return text;
+}
+
 static Text
 arg_sdl(Text text, gqlArg a, bool with_desc, bool last) {
-    if (with_desc && NULL != a->desc) {
-	if (NULL == index(a->desc, '\n')) {
-	    text = text_append(text, "\n    \"", 6);
-	    text = text_append(text, a->desc, -1);
-	    text = text_append(text, "\"\n    ", 6);
-	} else {
-	    text = text_append(text, "\n    \"\"\"\n", 9);
-	    text = text_append(text, a->desc, -1);
-	    text = text_append(text, "\n    \"\"\"\n    ", 13);
-	}
+    if (with_desc) {
+	text = desc_sdl(text, a->desc, 4);
     }
     text = text_append(text, a->name, -1);
     if (a->required) {
@@ -580,16 +665,8 @@ arg_sdl(Text text, gqlArg a, bool with_desc, bool last) {
 
 static Text
 field_sdl(Text text, gqlField f, bool with_desc) {
-    if (with_desc && NULL != f->desc) {
-	if (NULL == index(f->desc, '\n')) {
-	    text = text_append(text, "  \"", 3);
-	    text = text_append(text, f->desc, -1);
-	    text = text_append(text, "\"\n", 2);
-	} else {
-	    text = text_append(text, "  \"\"\"\n", 6);
-	    text = text_append(text, f->desc, -1);
-	    text = text_append(text, "\n  \"\"\"\n", 7);
-	}
+    if (with_desc) {
+	text = desc_sdl(text, f->desc, 2);
     }
     text = text_append(text, "  ", 2);
     text = text_append(text, f->name, -1);
@@ -623,16 +700,8 @@ field_sdl(Text text, gqlField f, bool with_desc) {
 
 Text
 gql_type_sdl(Text text, gqlType type, bool with_desc) {
-    if (with_desc && NULL != type->desc) {
-	if (NULL == index(type->desc, '\n')) {
-	    text = text_append(text, "\"", 1);
-	    text = text_append(text, type->desc, -1);
-	    text = text_append(text, "\"\n", 2);
-	} else {
-	    text = text_append(text, "\"\"\"\n", 4);
-	    text = text_append(text, type->desc, -1);
-	    text = text_append(text, "\n\"\"\"\n", 5);
-	}
+    if (with_desc) {
+	desc_sdl(text, type->desc, 0);
     }
     switch (type->kind) {
     case GQL_OBJECT:
@@ -676,14 +745,14 @@ gql_type_sdl(Text text, gqlType type, bool with_desc) {
 	break;
     }
     case GQL_ENUM: {
-	const char	**cp;
+	gqlStrLink	link;;
 	
 	text = text_append(text, "enum ", 5);
 	text = text_append(text, type->name, -1);
 	text = text_append(text, " {\n", 3);
-	for (cp = type->choices; NULL != *cp; cp++) {
+	for (link = type->choices; NULL != link; link = link->next) {
 	    text = text_append(text, "  ", 2);
-	    text = text_append(text, *cp, -1);
+	    text = text_append(text, link->str, -1);
 	    text = text_append(text, "\n", 1);
 	}
 	text = text_append(text, "}\n", 2);

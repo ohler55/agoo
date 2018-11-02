@@ -3,6 +3,8 @@
 #ifndef __AGOO_DOC_H__
 #define __AGOO_DOC_H__
 
+#include <stdarg.h>
+
 #include "err.h"
 
 typedef struct _Doc {
@@ -22,7 +24,7 @@ extern void	doc_read_token(Doc doc);
 
 extern int	doc_read_string(Err err, Doc doc);
 
-extern int	doc_err(Doc doc, Err err, const char *msg);
+extern int	doc_err(Doc doc, Err err, const char *fmt, ...);
 extern void	doc_location(Doc doc, int *linep, int *colp);
 
 #endif // __AGOO_DOC_H__

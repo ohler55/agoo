@@ -2,6 +2,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <string.h>
 
 #include "doc.h"
@@ -77,15 +78,18 @@ doc_next_token(Doc doc) {
 int
 doc_read_string(Err err, Doc doc) {
     doc->cur++; // skip first "
-    if ('"' == *doc->cur) { // a """ string
+    if ('"' == *doc->cur) { // a """ string or an empty string
 	doc->cur++;
 	if ('"' != *doc->cur) {
-	    // TBD error, calc location
+	    return ERR_OK; // empty string
 	}
 	doc->cur++;
-
-	// TBD
-
+	for (; doc->cur < doc->end; doc->cur++) {
+	    if ('"' == *doc->cur && '"' == doc->cur[1] && '"' == doc->cur[2]) {
+		doc->cur += 3;
+		break;
+	    }
+	}
     } else {
 	for (; doc->cur < doc->end; doc->cur++) {
 	    if ('"' == *doc->cur) {
@@ -95,19 +99,24 @@ doc_read_string(Err err, Doc doc) {
 		}
 	    }
 	}
-	if (doc->end <= doc->cur) {
-	    return doc_err(doc, err, "String not terminated");
-	}
+    }
+    if (doc->end <= doc->cur) {
+	return doc_err(doc, err, "String not terminated");
     }
     return ERR_OK;
 }
 
 int
-doc_err(Doc doc, Err err, const char *msg) {
-    int	line = 0;
-    int	col = 0;
-    
+doc_err(Doc doc, Err err, const char *fmt, ...) {
+    va_list	ap;
+    char	msg[248];
+    int		line = 0;
+    int		col = 0;
+
+    va_start(ap, fmt);
+    vsnprintf(msg, sizeof(msg), fmt, ap);
     doc_location(doc, &line, &col);
+    va_end(ap);
 
     return err_set(err, ERR_PARSE, "%s at %d:%d", msg, line, col);
 }

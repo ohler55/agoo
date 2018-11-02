@@ -87,9 +87,9 @@ create_type_type(Err err) {
     type_type->core = true;
 
     if (NULL == (dv = gql_bool_create(err, false)) ||
-	NULL == gql_field_arg(err, fields, "includeDeprecated", &gql_bool_type, "A comment.", dv, false) ||
+	NULL == gql_field_arg(err, fields, "includeDeprecated", &gql_bool_type, NULL, dv, false) ||
 	NULL == (dv = gql_bool_create(err, false)) ||
-	NULL == gql_field_arg(err, enum_values, "includeDeprecated", &gql_bool_type, "    One line\n    and two.", dv, false)) {
+	NULL == gql_field_arg(err, enum_values, "includeDeprecated", &gql_bool_type, NULL, dv, false)) {
 
 	return err->code;
     }
@@ -109,9 +109,15 @@ create_type_kind_type(Err err) {
 	"NON_NULL",
 	NULL
     };
-    type_kind_type = gql_enum_create(err, "__TypeKind", NULL, -1, true, choices);
-    type_kind_type->core = true;
+    const char	**cp;
     
+    type_kind_type = gql_enum_create(err, "__TypeKind", NULL, -1, true);
+    type_kind_type->core = true;
+    for (cp = choices; NULL != *cp; cp++) {
+	if (ERR_OK != gql_enum_append(err, type_kind_type, *cp, -1)) {
+	    return err->code;
+	}
+    }
     return err->code;
 }
 
@@ -225,10 +231,15 @@ create_directive_location_type(Err err) {
 	"INPUT_OBJECT",
 	"INPUT_FIELD_DEFINITION",
 	NULL };
+    const char	**cp;
 
-    directive_location_type = gql_enum_create(err, "__DirectiveLocation", NULL, -1, true, choices);
+    directive_location_type = gql_enum_create(err, "__DirectiveLocation", NULL, -1, true);
     directive_location_type->core = true;
-    
+    for (cp = choices; NULL != *cp; cp++) {
+	if (ERR_OK != gql_enum_append(err, directive_location_type, *cp, -1)) {
+	    return err->code;
+	}
+    }
     return err->code;
 }
     
