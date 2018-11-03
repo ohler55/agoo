@@ -1,5 +1,9 @@
 # CHANGELOG
 
+### 2.5.2 - 2018-11-02
+
+Allow empty pages to be returned.
+
 ### 2.5.1 - 2018-08-30
 
 Bug fix.
