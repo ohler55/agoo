@@ -45,6 +45,12 @@ typedef struct _gqlStrLink {
     char		*str;
 } *gqlStrLink;
 
+typedef struct _gqlTypeLink {
+    struct _gqlTypeLink	*next;
+    char		*name;
+    struct _gqlType	*type;
+} *gqlTypeLink;
+
 // Resolve field on a target to a child reference.
 typedef gqlRef			(*gqlResolveFunc)(gqlRef target, const char *fieldName, gqlKeyVal *args);
 
@@ -92,8 +98,8 @@ typedef struct _gqlType {
 		struct _gqlType	*on;          // Fragment
 	    };
 	};
-	struct _gqlType		**utypes;     // Union, null terminated array if not NULL.
-	gqlStrLink		choices;    // Used in enums
+	gqlTypeLink		types;	      // Union
+	gqlStrLink		choices;      // Enums
 	// Returns error code. Only for scalars.
 	struct {
 	    int			(*coerce)(Err err, struct _gqlValue *src, struct _gqlType *type);
@@ -133,7 +139,9 @@ extern gqlArg	gql_field_arg(Err 		err,
 
 extern gqlType	gql_scalar_create(Err err, const char *name, const char *desc, int dlen, bool locked);
 
-extern gqlType	gql_union_create(Err err, const char *name, const char *desc, int dlen, bool locked, gqlType *types);
+extern gqlType	gql_union_create(Err err, const char *name, const char *desc, int dlen, bool locked);
+extern int	gql_union_add(Err err, gqlType type, const char *name, int len);
+
 extern gqlType	gql_enum_create(Err err, const char *name, const char *desc, int dlen, bool locked);
 extern int	gql_enum_add(Err err, gqlType type, const char *value, int len);
 extern int	gql_enum_append(Err err, gqlType type, const char *value, int len);

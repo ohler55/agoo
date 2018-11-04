@@ -82,6 +82,41 @@ make_enum(Err err, Doc doc, const char *desc, int len) {
     return ERR_OK;
 }
 
+static int
+make_union(Err err, Doc doc, const char *desc, int len) {
+    char	name[256];
+    const char	*start;
+    gqlType	type;
+    
+    if (ERR_OK != extract_name(err, doc, "union", 5, name, sizeof(name))) {
+	return err->code;
+    }
+    doc_skip_white(doc);
+    if ('=' != *doc->cur) {
+	return doc_err(doc, err, "Expected '='");
+    }
+    doc->cur++;
+    doc_skip_white(doc);
+
+    if (NULL == (type = gql_union_create(err, name, desc, len, false))) {
+	return err->code;
+    }
+    while (doc->cur < doc->end) {
+	doc_skip_white(doc);
+	start = doc->cur;
+	doc_read_token(doc);
+	if (ERR_OK != gql_union_add(err, type, start, doc->cur - start)) {
+	    return err->code;
+	}
+	doc_skip_white(doc);
+	if ('|' != *doc->cur) {
+	    break;
+	}
+	doc->cur++; // skip |
+    }
+    return ERR_OK;
+}
+
 int
 sdl_parse(Err err, const char *str, int len) {
     struct _Doc	doc;
@@ -124,6 +159,9 @@ sdl_parse(Err err, const char *str, int len) {
 	    }
 	    return doc_err(&doc, err, "Unknown directive");
 	case 'u': // union
+	    if (ERR_OK != make_union(err, &doc, desc, (int)(desc_end - desc))) {
+		return err->code;
+	    }
 	    break;
 	case 'd': // directive
 	    // TBD maybe keep a list of directives

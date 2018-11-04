@@ -100,9 +100,16 @@ type_destroy(gqlType type) {
 	    free(type->interfaces);
 	    break;
 	}
-	case GQL_UNION:
-	    free(type->utypes);
+	case GQL_UNION: {
+	    gqlTypeLink	link;
+
+	    while (NULL != (link = type->types)) {
+		type->types = link->next;
+		free(link->name);
+		free(link);
+	    }
 	    break;
+	}
 	case GQL_ENUM: {
 	    gqlStrLink	link;
 
@@ -395,35 +402,40 @@ gql_union_to_json(Text text, gqlValue value, int indent, int depth) {
 }
 
 gqlType
-gql_union_create(Err err, const char *name, const char *desc, int dlen, bool locked, gqlType *types) {
+gql_union_create(Err err, const char *name, const char *desc, int dlen, bool locked) {
     gqlType	type = type_create(err, name, desc, dlen, locked);
 
     if (NULL != type) {
 	type->kind = GQL_UNION;
 	type->to_json = gql_union_to_json;
-	type->utypes = NULL;
-	if (NULL != types) {
-	    gqlType	*tp = types;
-	    gqlType	*np;
-	    int		cnt = 0;
-
-	    for (; NULL != *tp; tp++) {
-		cnt++;
-	    }
-	    if (0 < cnt) {
-		if (NULL == (type->utypes = (gqlType*)malloc(sizeof(gqlType) * (cnt + 1)))) {
-		    err_set(err, ERR_MEMORY, "Failed to allocation memory for a GraphQL Union.");
-		    free(type);
-		    return NULL;
-		}
-		for (np = type->utypes, tp = types; NULL != *tp; np++, tp++) {
-		    *np = *tp;
-		}
-		*np = NULL;
-	    }
-	}
+	type->types = NULL;
     }
     return type;
+}
+
+int
+gql_union_add(Err err, gqlType type, const char *name, int len) {
+    gqlTypeLink	link = (gqlTypeLink)malloc(sizeof(gqlTypeLink));
+
+    if (NULL == link) {
+	err_set(err, ERR_MEMORY, "Failed to allocation memory for a GraphQL Union value.");
+    }
+    if (0 >= len) {
+	len = strlen(name);
+    }
+    link->name = strndup(name, len);
+    if (NULL == type->types) {
+	link->next = type->types;
+	type->types = link;
+    } else {
+	gqlTypeLink	last = type->types;
+
+	for (; NULL != last->next; last = last->next) {
+	}
+	link->next = NULL;
+	last->next = link;
+    }
+    return ERR_OK;
 }
 
 Text
@@ -729,17 +741,15 @@ gql_type_sdl(Text text, gqlType type, bool with_desc) {
 	break;
     }
     case GQL_UNION: {
+	gqlTypeLink	link;
+
 	text = text_append(text, "union ", 6);
 	text = text_append(text, type->name, -1);
 	text = text_append(text, " = ", 3);
-	if (NULL != type->utypes) {
-	    gqlType	*tp = type->utypes;
-
-	    for (; NULL != *tp; tp++) {
-		text = text_append(text, (*tp)->name, -1);
-		if (NULL != *(tp + 1)) {
-		    text = text_append(text, " | ", 3);
-		}
+	for (link = type->types; NULL != link; link = link->next) {
+	    text = text_append(text, link->name, -1);
+	    if (NULL != link->next) {
+		text = text_append(text, " | ", 3);
 	    }
 	}
 	break;
