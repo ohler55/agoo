@@ -22,6 +22,7 @@ extern atomic_int	mem_cslot;
 extern atomic_int	mem_err_stream;
 extern atomic_int	mem_eval_threads;
 extern atomic_int	mem_graphql_arg;
+extern atomic_int	mem_graphql_directive;
 extern atomic_int	mem_graphql_field;
 extern atomic_int	mem_graphql_link;
 extern atomic_int	mem_graphql_slot;

@@ -4,6 +4,7 @@
 #include <string.h>
 
 #include "doc.h"
+#include "gqlvalue.h"
 #include "graphql.h"
 #include "sdl.h"
 
@@ -117,6 +118,146 @@ make_union(Err err, Doc doc, const char *desc, int len) {
     return ERR_OK;
 }
 
+static int
+make_arg(Err err, Doc doc, gqlDir dir) {
+    char	name[256];
+    char	type_name[256];
+    const char	*start;
+    const char	*desc = NULL;;
+    const char	*desc_end = NULL;
+    size_t	nlen;
+    bool	required = false;
+    gqlValue	dv = NULL;
+    
+    doc_skip_white(doc);
+    if ('"' == *doc->cur) {
+	desc = doc->cur + 1;
+	if (ERR_OK != doc_read_string(err, doc)) {
+	    return err->code;
+	}
+	if ('"' == *desc) { // must be a """
+	    desc += 2;
+	    desc_end = doc->cur - 3;
+	} else {
+	    desc_end = doc->cur - 1;
+	}
+    }
+    doc_skip_white(doc);
+    start = doc->cur;
+    doc_read_token(doc);
+    if (doc->cur == start) {
+	return doc_err(doc, err, "Argument name not provided");
+    }
+    if (':' != *doc->cur) {
+	return doc_err(doc, err, "Expected ':'");
+    }
+    nlen = doc->cur - start;
+    if (sizeof(name) <= nlen) {
+	return doc_err(doc, err, "Name too long");
+    }
+    strncpy(name, start, nlen);
+    name[nlen] = '\0';
+    doc->cur++;
+
+    // read type
+    doc_skip_white(doc);
+    start = doc->cur;
+    doc_read_token(doc);
+    if (doc->cur == start) {
+	return doc_err(doc, err, "Argument type not provided");
+    }
+    nlen = doc->cur - start;
+    if (sizeof(type_name) <= nlen) {
+	return doc_err(doc, err, "Type name too long");
+    }
+    strncpy(type_name, start, nlen);
+    type_name[nlen] = '\0';
+
+    doc_skip_white(doc);
+    if ('!' == *doc->cur) {
+	required = true;
+    } else if ('=' == *doc->cur) {
+	if (NULL == (dv = doc_read_value(err, doc))) {
+	    return err->code;
+	}
+    }
+    doc_skip_white(doc);
+    if ('@' == *doc->cur) {
+	// TBD directive
+    }
+    if (NULL == gql_dir_arg(err, dir, name, type_name, desc, (int)(desc_end - desc), dv, required)) {
+	return err->code;
+    }
+    return ERR_OK;
+}
+
+static int
+make_directive(Err err, Doc doc, const char *desc, int len) {
+    char	name[256];
+    const char	*start;
+    gqlDir	dir;
+    size_t	nlen;
+
+    if (0 != strncmp(doc->cur, "directive", 9)) {
+	return doc_err(doc, err, "Expected directive key word");
+    }
+    doc->cur += 9;
+    if (0 == doc_skip_white(doc)) {
+	return doc_err(doc, err, "Expected directive key word");
+    }
+    if ('@' != *doc->cur) {
+	return doc_err(doc, err, "Expected '@'");
+    }
+    doc->cur++;
+    start = doc->cur;
+    doc_read_token(doc);
+    if (doc->cur == start) {
+	return doc_err(doc, err, "Name not provided");
+    }
+    nlen = doc->cur - start;
+    if (sizeof(name) <= nlen) {
+	return doc_err(doc, err, "Name too long");
+    }
+    strncpy(name, start, nlen);
+    name[nlen] = '\0';
+    if (NULL == (dir = gql_directive_create(err, name, desc, len, false))) {
+	return err->code;
+    }
+    if ('(' == *doc->cur) {
+	while (doc->cur < doc->end) {
+	    if (ERR_OK != make_arg(err, doc, dir)) {
+		return err->code;
+	    }
+	    doc_skip_white(doc);
+	    if (')' == *doc->cur) {
+		doc->cur++;
+		break;
+	    }
+	}
+    }
+    doc_skip_white(doc);
+    start = doc->cur;
+    doc_read_token(doc);
+
+    if (2 != doc->cur - start || 0 != strncmp(start, "on", 2)) {
+	return doc_err(doc, err, "Expected 'on'");
+    }
+    while (doc->cur < doc->end) {
+	doc_skip_white(doc);
+	start = doc->cur;
+	doc_read_token(doc);
+	if (ERR_OK != gql_directive_on(err, dir, start, doc->cur - start)) {
+	    return err->code;
+	}
+	doc_skip_white(doc);
+	if ('|' != *doc->cur) {
+	    break;
+	}
+	doc->cur++; // skip |
+    }
+    return ERR_OK;
+}
+
 int
 sdl_parse(Err err, const char *str, int len) {
     struct _Doc	doc;
@@ -164,7 +305,9 @@ sdl_parse(Err err, const char *str, int len) {
 	    }
 	    break;
 	case 'd': // directive
-	    // TBD maybe keep a list of directives
+	    if (ERR_OK != make_directive(err, &doc, desc, (int)(desc_end - desc))) {
+		return err->code;
+	    }
 	    break;
 	case 't': // type
 	    break;

@@ -242,7 +242,59 @@ create_directive_location_type(Err err) {
     }
     return err->code;
 }
-    
+
+static int
+create_dir_skip(Err err) {
+    gqlDir	dir = gql_directive_create(err, "skip", NULL, -1, true);
+
+    if (NULL == dir) {
+	return err->code;
+    }
+    if (ERR_OK != gql_directive_on(err, dir, "FIELD", -1) ||
+	ERR_OK != gql_directive_on(err, dir, "FRAGMENT_SPREAD", -1) ||
+	ERR_OK != gql_directive_on(err, dir, "INLINE_FRAGMENT", -1) ||
+	NULL == gql_dir_arg(err, dir, "if", "Boolean", NULL, -1, NULL, true)) {
+
+	return err->code;
+    }
+    return ERR_OK;
+}
+
+static int
+create_dir_include(Err err) {
+    gqlDir	dir = gql_directive_create(err, "include", NULL, -1, true);
+
+    if (NULL == dir) {
+	return err->code;
+    }
+    if (ERR_OK != gql_directive_on(err, dir, "FIELD", -1) ||
+	ERR_OK != gql_directive_on(err, dir, "FRAGMENT_SPREAD", -1) ||
+	ERR_OK != gql_directive_on(err, dir, "INLINE_FRAGMENT", -1) ||
+	NULL == gql_dir_arg(err, dir, "if", "Boolean", NULL, -1, NULL, true)) {
+
+	return err->code;
+    }
+    return ERR_OK;
+}
+
+static int
+create_dir_deprecated(Err err) {
+    gqlDir	dir = gql_directive_create(err, "deprecated", NULL, -1, true);
+    gqlValue	dv;
+
+    if (NULL == dir) {
+	return err->code;
+    }
+    if (ERR_OK != gql_directive_on(err, dir, "FIELD_DEFINITION", -1) ||
+	ERR_OK != gql_directive_on(err, dir, "ENUM_VALUE", -1) ||
+	NULL == (dv = gql_string_create(err, "No longer supported", -1)) ||
+	NULL == gql_dir_arg(err, dir, "reason", "String", NULL, -1, dv, false)) {
+
+	return err->code;
+    }
+    return ERR_OK;
+}
+
 int
 gql_intro_init(Err err) {
     gqlField	f;
@@ -254,7 +306,11 @@ gql_intro_init(Err err) {
 	ERR_OK != create_field_type(err) ||
 	ERR_OK != create_directive_location_type(err) ||
 	ERR_OK != create_directive_type(err) ||
-	ERR_OK != create_schema_type(err)) {
+	ERR_OK != create_schema_type(err) ||
+	ERR_OK != create_dir_deprecated(err) ||
+	ERR_OK != create_dir_include(err) ||
+	ERR_OK != create_dir_skip(err)) {
+
 	return err->code;
     }
     // InputValue and Type as well Field and Type as have a depency loop so

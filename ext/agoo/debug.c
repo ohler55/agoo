@@ -29,6 +29,7 @@ atomic_int	mem_err_stream = 0;
 atomic_int	mem_eval_threads = 0;
 atomic_int	mem_group = 0;
 atomic_int	mem_graphql_arg = 0;
+atomic_int	mem_graphql_directive = 0;
 atomic_int	mem_graphql_field = 0;
 atomic_int	mem_graphql_link = 0;
 atomic_int	mem_graphql_slot = 0;

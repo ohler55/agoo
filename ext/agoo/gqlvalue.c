@@ -131,8 +131,8 @@ bool_to_text(Text text, gqlValue value, int indent, int depth) {
 }
 
 struct _gqlType	gql_bool_type = {
-    .name = "Bool",
-    .desc = "Bool scalar.",
+    .name = "Boolean",
+    .desc = "Boolean scalar.",
     .kind = GQL_SCALAR,
     .locked = true,
     .core = true,

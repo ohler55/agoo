@@ -7,6 +7,8 @@
 
 #include "err.h"
 
+struct _gqlValue;
+
 typedef struct _Doc {
     const char	*str;
     const char	*cur;
@@ -26,5 +28,7 @@ extern int	doc_read_string(Err err, Doc doc);
 
 extern int	doc_err(Doc doc, Err err, const char *fmt, ...);
 extern void	doc_location(Doc doc, int *linep, int *colp);
+
+extern struct _gqlValue*	doc_read_value(Err err, Doc doc);
 
 #endif // __AGOO_DOC_H__

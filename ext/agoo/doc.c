@@ -6,6 +6,7 @@
 #include <string.h>
 
 #include "doc.h"
+#include "gqlvalue.h"
 
 static char	char_map[256] = "\
 .........ww..w..................\
@@ -148,3 +149,11 @@ doc_location(Doc doc, int *linep, int *colp) {
     *linep = line;
     *colp = col;
 }
+
+gqlValue
+doc_read_value(Err err, Doc doc) {
+    // TBD handle list and object as well as scalars, object is typeless
+    // TBD put this in doc_read_value
+    return NULL;
+}
+

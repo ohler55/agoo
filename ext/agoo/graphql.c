@@ -48,6 +48,7 @@ static gqlType	query_type = NULL;
 static gqlType	mutation_type = NULL;
 static gqlType	subscription_type = NULL;
 static gqlType	schema_type = NULL;
+static gqlDir	directives = NULL;
 
 static uint64_t
 calc_hash(const char *name) {
@@ -87,6 +88,7 @@ type_destroy(gqlType type) {
 		while (NULL != (a = f->args)) {
 		    f->args = a->next;
 		    free((char*)a->name);
+		    free((char*)a->type_name);
 		    free((char*)a->desc);
 		    gql_value_destroy(a->default_value);
 		    DEBUG_FREE(mem_graphql_arg, a);
@@ -128,6 +130,31 @@ type_destroy(gqlType type) {
     }
 }
 
+static void
+dir_destroy(gqlDir dir) {
+    gqlArg	a;
+    gqlStrLink	link;
+    
+    free((char*)dir->name);
+    free((char*)dir->desc);
+    while (NULL != (a = dir->args)) {
+	dir->args = a->next;
+	free((char*)a->name);
+	free((char*)a->type_name);
+	free((char*)a->desc);
+	gql_value_destroy(a->default_value);
+	DEBUG_FREE(mem_graphql_arg, a);
+	free(a);
+    }
+    while (NULL != (link = dir->locs)) {
+	dir->locs = link->next;
+	free(link->str);
+	free(link);
+    }
+    DEBUG_FREE(mem_graphql_directive, dir);
+    free(dir);
+}
+
 gqlType
 gql_type_get(const char *name) {
     gqlType	type = NULL;
@@ -145,6 +172,18 @@ gql_type_get(const char *name) {
 	}
     }
     return type;
+}
+
+gqlDir
+gql_directive_get(const char *name) {
+    gqlDir	dir = directives;
+
+    for (; NULL != dir; dir = dir->next) {
+	if (0 == strcmp(name, dir->name)) {
+	    break;
+	}
+    }
+    return dir;
 }
 
 int
@@ -231,7 +270,8 @@ gql_destroy() {
     Slot	s;
     Slot	n;
     int		i;
-
+    gqlDir	dir;
+    
     for (i = BUCKET_SIZE; 0 < i; i--, sp++) {
 	Slot	*b = sp;
 
@@ -243,6 +283,10 @@ gql_destroy() {
 	    free(s);
 	}
 	*sp = NULL;
+    }
+    while (NULL != (dir = directives)) {
+	directives = dir->next;
+	dir_destroy(dir);
     }
 }
 
@@ -266,6 +310,7 @@ type_create(Err err, const char *name, const char *desc, int dlen, bool locked) 
 	}
 	type->locked = locked;
 	type->core = false;
+	type->dir = NULL;
 
 	if (ERR_OK != gql_type_set(err, type)) {
 	    gql_type_destroy(type);
@@ -346,6 +391,7 @@ gql_type_field(Err err,
 	}
 	f->reason = NULL;
 	f->args = NULL;
+	f->dir = NULL;
 	f->resolve = resolve;
 	f->required = required;
 	f->list = list;
@@ -365,7 +411,13 @@ gql_type_field(Err err,
 }
 
 gqlArg
-gql_field_arg(Err err, gqlField field, const char *name, gqlType type, const char *desc, struct _gqlValue *def_value, bool required) {
+gql_field_arg(Err		err,
+	      gqlField		field,
+	      const char	*name,
+	      gqlType		type,
+	      const char	*desc,
+	      struct _gqlValue	*def_value,
+	      bool		required) {
     gqlArg	a = (gqlArg)malloc(sizeof(struct _gqlArg));
     
     if (NULL == a) {
@@ -381,6 +433,7 @@ gql_field_arg(Err err, gqlField field, const char *name, gqlType type, const cha
 	    a->desc = strdup(desc);
 	}
 	a->default_value = def_value;
+	a->dir = NULL;
 	a->required = required;
 	if (NULL == field->args) {
 	    field->args = a;
@@ -579,6 +632,101 @@ gql_scalar_create(Err err, const char *name, const char *desc, int dlen, bool lo
     return type;
 }
 
+gqlDir
+gql_directive_create(Err err, const char *name, const char *desc, int dlen, bool locked) {
+    gqlDir	dir;
+    
+    if (NULL == (dir = (gqlDir)malloc(sizeof(struct _gqlDir)))) {
+	err_set(err, ERR_MEMORY, "Failed to allocation memory for a GraphQL directive.");
+	return NULL;
+    }
+    DEBUG_ALLOC(mem_graphql_directive, dir);
+    dir->next = directives;
+    directives = dir;
+    dir->name = strdup(name);
+    dir->args = NULL;
+    dir->locs = NULL;
+    dir->locked = locked;
+    if (NULL == desc) {
+	dir->desc = NULL;
+    } else {
+	if (0 >= dlen) {
+	    dir->desc = strdup(desc);
+	} else {
+	    dir->desc = strndup(desc, dlen);
+	}
+    }
+    return dir;
+}
+
+gqlArg
+gql_dir_arg(Err 		err,
+	    gqlDir 		dir,
+	    const char 		*name,
+	    const char 		*type_name,
+	    const char	 	*desc,
+	    int			dlen,
+	    struct _gqlValue	*def_value,
+	    bool 		required) {
+
+    gqlArg	a = (gqlArg)malloc(sizeof(struct _gqlArg));
+    
+    if (NULL == a) {
+	err_set(err, ERR_MEMORY, "Failed to allocation memory for a GraphQL directive argument.");
+    } else {
+	DEBUG_ALLOC(mem_graphql_arg, a);
+	a->next = NULL;
+	a->name = strdup(name);
+	a->type_name = strdup(type_name);
+	a->type = NULL;
+	if (NULL == desc) {
+	    a->desc = NULL;
+	} else if (0 < dlen) {
+	    a->desc = strdup(desc);
+	} else {
+	    a->desc = strndup(desc, dlen);
+	}
+	a->default_value = def_value;
+	a->dir = NULL;
+	a->required = required;
+	if (NULL == dir->args) {
+	    dir->args = a;
+	} else {
+	    gqlArg	end;
+
+	    for (end = dir->args; NULL != end->next; end = end->next) {
+	    }
+	    end->next = a;
+	}
+    }
+    return a;
+}
+
+int
+gql_directive_on(Err err, gqlDir d, const char *on, int len) {
+    gqlStrLink	link = (gqlStrLink)malloc(sizeof(gqlStrLink));
+    gqlStrLink	loc;
+
+    if (NULL == link) {
+	err_set(err, ERR_MEMORY, "Failed to allocation memory for a GraphQL directive location.");
+    }
+    if (0 >= len) {
+	len = strlen(on);
+    }
+    if (NULL == d->locs) {
+	link->next = d->locs;
+	d->locs = link;
+    } else {
+	link->next = NULL;
+	for (loc = d->locs; NULL != loc->next; loc = loc->next) {
+	}
+	loc->next = link;
+    }
+    link->str = strndup(on, len);
+    
+    return ERR_OK;
+}
+
 void
 gql_type_destroy(gqlType type) {
     type_destroy(type);
@@ -664,7 +812,7 @@ arg_sdl(Text text, gqlArg a, bool with_desc, bool last) {
     } else {
 	text = text_append(text, ": ", 2);
     }
-    text = text_append(text, a->type->name, -1);
+    text = text_append(text, a->type_name, -1);
     if (NULL != a->default_value) {
 	text = text_append(text, " = ", 3);
 	text = gql_value_json(text, a->default_value, 0, 0);
@@ -804,6 +952,34 @@ gql_type_sdl(Text text, gqlType type, bool with_desc) {
     return text;
 }
 
+Text
+gql_directive_sdl(Text text, gqlDir d, bool with_desc) {
+    gqlStrLink	link;
+    
+    if (with_desc) {
+	text = desc_sdl(text, d->desc, 0);
+    }
+    text = text_append(text, "directive @", 11);
+    text = text_append(text, d->name, -1);
+    if (NULL != d->args) {
+	gqlArg	a;
+
+	text = text_append(text, "(", 1);
+	for (a = d->args; NULL != a; a = a->next) {
+	    text = arg_sdl(text, a, with_desc, NULL == a->next);
+	}
+	text = text_append(text, ")", 1);
+    }
+    text = text_append(text, " on ", 4);
+    for (link = d->locs; NULL != link; link = link->next) {
+	text = text_append(text, link->str, -1);
+	if (NULL != link->next) {
+	    text = text_append(text, " | ", 3);
+	}
+    }
+    return text;
+}
+
 static int
 type_cmp(const void *v0, const void *v1) {
     gqlType	t0 = *(gqlType*)v0;
@@ -826,6 +1002,7 @@ gql_schema_sdl(Text text, bool with_desc, bool all) {
     Slot	*bucket;
     Slot	s;
     gqlType	type;
+    gqlDir	d;
     int		i;
     int		cnt = 0;
 
@@ -858,6 +1035,11 @@ gql_schema_sdl(Text text, bool with_desc, bool all) {
 		text = text_append(text, "\n", 1);
 	    }
 	}
+    }
+    for (d = directives; NULL != d; d = d->next) {
+	text = text_append(text, "\n", 1);
+	text = gql_directive_sdl(text, d, with_desc);
+	text = text_append(text, "\n", 1);
     }
     return text;
 }

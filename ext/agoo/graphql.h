@@ -26,12 +26,15 @@ struct _gqlValue;
 struct _gqlLink;
 struct _gqlField;
 struct _Req;
+struct _gqlDirUse;
+struct _gqlLink;
 
 // Used for references to implemenation entities.
 typedef void*	gqlRef;
 typedef struct _gqlQuery {
     struct _gqlQuery	*next;
     struct _gqlValue	*result;
+    struct _gqlDirUse	*dir;
     // TBD data about a query, mutation, or subscription
 } *gqlQuery;
 
@@ -64,8 +67,10 @@ typedef struct _gqlArg {
     struct _gqlArg	*next;
     const char		*name;
     const char		*desc;
+    const char		*type_name;
     struct _gqlType	*type;
     struct _gqlValue	*default_value;
+    struct _gqlDirUse	*dir;
     bool		required;
 } *gqlArg;
 
@@ -76,6 +81,7 @@ typedef struct _gqlField {
     const char		*desc;
     const char		*reason; // deprecationReason
     gqlArg		args;
+    struct _gqlDirUse	*dir;
     gqlResolveFunc	resolve;
     bool		required;
     bool		list;
@@ -83,10 +89,25 @@ typedef struct _gqlField {
     bool		deprecated;
 } *gqlField;
 
+typedef struct _gqlDir {
+    struct _gqlDir	*next;
+    const char		*name;
+    const char		*desc;
+    gqlArg		args;
+    gqlStrLink		locs; // location names
+    bool		locked;
+} *gqlDir;
+
+typedef struct _gqlDirUse {
+    gqlDir		dir;
+    struct _gqlLink	*args;
+} *gqlDirUse;
+
 typedef struct _gqlType {
     const char	*name;
     const char	*desc;
     Text	(*to_json)(Text text, struct _gqlValue *value, int indent, int depth);
+    gqlDirUse	dir;
     gqlKind	kind;
     bool	locked; // set by app
     bool	core;
@@ -139,6 +160,18 @@ extern gqlArg	gql_field_arg(Err 		err,
 
 extern gqlType	gql_scalar_create(Err err, const char *name, const char *desc, int dlen, bool locked);
 
+extern gqlDir	gql_directive_create(Err err, const char *name, const char *desc, int dlen, bool locked);
+extern int	gql_directive_on(Err err, gqlDir d, const char *on, int len);
+extern gqlArg	gql_dir_arg(Err 		err,
+			    gqlDir 		dir,
+			    const char 		*name,
+			    const char 		*type_name,
+			    const char	 	*desc,
+			    int			dlen,
+			    struct _gqlValue	*def_value,
+			    bool 		required);
+extern gqlDir	gql_directive_get(const char *name);
+
 extern gqlType	gql_union_create(Err err, const char *name, const char *desc, int dlen, bool locked);
 extern int	gql_union_add(Err err, gqlType type, const char *name, int len);
 
@@ -151,6 +184,7 @@ extern gqlType	gql_type_get(const char *name);
 extern void	gql_type_destroy(gqlType type);
 
 extern Text	gql_type_sdl(Text text, gqlType type, bool comments);
+extern Text	gql_directive_sdl(Text text, gqlDir dir, bool comments);
 extern Text	gql_schema_sdl(Text text, bool with_desc, bool all);
 
 extern Text	gql_object_to_json(Text text, struct _gqlValue *value, int indent, int depth);
@@ -162,4 +196,3 @@ extern void	gql_dump_hook(struct _Req *req);
 extern void	gql_eval_hook(struct _Req *req);
 
 #endif // __AGOO_GRAPHQL_H__
-
