@@ -644,7 +644,7 @@ con_http_write(Con c) {
 	    log_cat(&debug_cat, "response on %llu: %s", (unsigned long long)c->id, message->text);
 	}
     }
-    if (0 > (cnt = send(c->sock, message->text + c->wcnt, message->len - c->wcnt, 0))) {
+    if (0 > (cnt = send(c->sock, message->text + c->wcnt, message->len - c->wcnt, MSG_DONTWAIT))) {
 	if (EAGAIN == errno) {
 	    return false;
 	}
@@ -666,6 +666,7 @@ con_http_write(Con c) {
 
 	return done;
     }
+
     return false;
 }
 
@@ -971,10 +972,8 @@ short
 con_http_events(Con c) {
     short	events = 0;
     
-    if (NULL != c->res_head && NULL != res_message(c->res_head)) {
+    if (!c->closing) {
 	events = POLLIN | POLLOUT;
-    } else if (!c->closing) {
-	events = POLLIN;
     }
     return events;
 }
@@ -1061,7 +1060,7 @@ con_loop(void *x) {
     int			i;
     double		now;
     Pub			pub;
-    
+
     atomic_fetch_add(&the_server.running, 1);
     memset(pa, 0, size);
     while (the_server.active) {
@@ -1088,7 +1087,7 @@ con_loop(void *x) {
 	}
 	
 	pp = poll_setup(cons, pa);
-	if (0 > (i = poll(pa, (nfds_t)(pp - pa), 100))) {
+	if (0 > (i = poll(pa, (nfds_t)(pp - pa), 200))) {
 	    if (EAGAIN == errno) {
 		continue;
 	    }
@@ -1097,7 +1096,6 @@ con_loop(void *x) {
 	    break;
 	}
 	now = dtime();
-
 	if (0 < i) {
 	    // Check con_queue if an event is waiting.
 	    if (0 != (pa->revents & POLLIN)) {
@@ -1142,7 +1140,7 @@ con_loop(void *x) {
 		    goto CON_CHECK;
 		}
 	    }
-	    if (0 != (pp->revents & POLLOUT)) {
+	    if (0 != (pp->revents & POLLOUT) && NULL != c->res_head && NULL != res_message(c->res_head)) {
 		if (con_write(c)) {
 		    c->dead = true;
 		    goto CON_CHECK;
@@ -1202,4 +1200,3 @@ con_loop(void *x) {
     
     return NULL;
 }
-

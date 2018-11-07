@@ -58,7 +58,7 @@ listen_loop(void *x) {
     memset(&client_addr, 0, sizeof(client_addr));
     atomic_fetch_add(&the_server.running, 1);
     while (the_server.active) {
-	if (0 > (i = poll(pa, pcnt, 100))) {
+	if (0 > (i = poll(pa, pcnt, 200))) {
 	    if (EAGAIN == errno) {
 		continue;
 	    }
@@ -83,6 +83,7 @@ listen_loop(void *x) {
 		    setsockopt(client_sock, SOL_SOCKET, SO_NOSIGPIPE, &optval, sizeof(optval));
 #endif
 		    fcntl(client_sock, F_SETFL, O_NONBLOCK);
+		    //fcntl(client_sock, F_SETFL, FNDELAY);
 		    setsockopt(client_sock, SOL_SOCKET, SO_KEEPALIVE, &optval, sizeof(optval));
 		    setsockopt(client_sock, IPPROTO_TCP, TCP_NODELAY, &optval, sizeof(optval));
 		    log_cat(&con_cat, "Server with pid %d accepted connection %llu on %s [%d]",
