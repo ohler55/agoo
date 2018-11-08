@@ -123,7 +123,7 @@ make_arg(Err err, Doc doc, gqlDir dir) {
     char	name[256];
     char	type_name[256];
     const char	*start;
-    const char	*desc = NULL;;
+    const char	*desc = NULL;
     const char	*desc_end = NULL;
     size_t	nlen;
     bool	required = false;

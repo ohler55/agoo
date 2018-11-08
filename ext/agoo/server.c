@@ -28,7 +28,7 @@ server_setup() {
     the_server.up_list = NULL;
     the_server.max_push_pending = 32;
     pages_init();
-    queue_multi_init(&the_server.con_queue, 256, false, false);
+    queue_multi_init(&the_server.con_queue, 256, false, true);
     queue_multi_init(&the_server.pub_queue, 256, true, false);
     queue_multi_init(&the_server.eval_queue, 1024, false, true);
 }
@@ -85,6 +85,7 @@ listen_loop(void *x) {
 		    fcntl(client_sock, F_SETFL, O_NONBLOCK);
 		    //fcntl(client_sock, F_SETFL, FNDELAY);
 		    setsockopt(client_sock, SOL_SOCKET, SO_KEEPALIVE, &optval, sizeof(optval));
+		    setsockopt(client_sock, IPPROTO_TCP, TCP_QUICKACK, &optval, sizeof(optval));
 		    setsockopt(client_sock, IPPROTO_TCP, TCP_NODELAY, &optval, sizeof(optval));
 		    log_cat(&con_cat, "Server with pid %d accepted connection %llu on %s [%d]",
 			    getpid(), (unsigned long long)cnt, b->id, con->sock);

@@ -1085,9 +1085,8 @@ con_loop(void *x) {
 	while (NULL != (pub = (Pub)queue_pop(&the_server.pub_queue, 0.0))) {
 	    process_pub_con(pub);
 	}
-	
 	pp = poll_setup(cons, pa);
-	if (0 > (i = poll(pa, (nfds_t)(pp - pa), 200))) {
+	if (0 > (i = poll(pa, (nfds_t)(pp - pa), 10))) {
 	    if (EAGAIN == errno) {
 		continue;
 	    }
