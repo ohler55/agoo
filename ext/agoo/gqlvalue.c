@@ -716,7 +716,7 @@ gql_int_set(gqlValue value, int32_t i) {
 void
 gql_i64_set(gqlValue value, int64_t i) {
     value->type = &gql_i64_type;
-    value->i = i;
+    value->i64 = i;
 }
 
 void
@@ -744,7 +744,7 @@ gql_url_set(Err err, gqlValue value, const char *url, int len) {
 	value->url = NULL;
     } else {
 	if (0 >= len) {
-	    len = strlen(url);
+	    len = (int)strlen(url);
 	}
 	value->url = strndup(url, len);
     }
@@ -921,7 +921,7 @@ gql_url_create(Err err, const char *url, int len) {
     gqlValue	v = value_create(&gql_url_type);
     
     if (0 >= len) {
-	len = strlen(url);
+	len = (int)strlen(url);
     }
     if (NULL != v) {
 	v->str = strndup(url, len);

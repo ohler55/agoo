@@ -81,7 +81,8 @@ listen_loop(void *x) {
 		} else {
 #ifdef OSX_OS
 		    setsockopt(client_sock, SOL_SOCKET, SO_NOSIGPIPE, &optval, sizeof(optval));
-#else
+#endif
+#ifdef PLATFORM_LINUX
 		    setsockopt(client_sock, IPPROTO_TCP, TCP_QUICKACK, &optval, sizeof(optval));
 #endif
 		    fcntl(client_sock, F_SETFL, O_NONBLOCK);

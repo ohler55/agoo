@@ -625,7 +625,7 @@ group_get(Err err, const char *path, int plen) {
 	strncpy(s, path + g->plen, plen - g->plen);
 	s += plen - g->plen;
 	*s = '\0';
-	if (NULL != (page = cache_get(full_path, s - full_path))) {
+	if (NULL != (page = cache_get(full_path, (int)(s - full_path)))) {
 	    break;
 	}
     }
@@ -645,7 +645,7 @@ group_get(Err err, const char *path, int plen) {
 	if (NULL == d) {
 	    return NULL;
 	}
-	plen = s - full_path;
+	plen = (int)(s - full_path);
 	path = full_path;
 	if (NULL == (page = cache_get(path, plen))) {
 	    Page	old;
