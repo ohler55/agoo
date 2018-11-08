@@ -21,7 +21,7 @@ pttttttttttttttttttttttttttp.p.t\
 void
 doc_init(Doc doc, const char *str, int len) {
     if (0 >= len) {
-	len = strlen(str);
+	len = (int)strlen(str);
     }
     doc->str = str;
     doc->cur = str;

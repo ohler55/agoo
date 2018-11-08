@@ -76,7 +76,7 @@ make_enum(Err err, Doc doc, const char *desc, int len) {
 	    }
 	    return doc_err(doc, err, "Invalid Enum value");
 	}
-	if (ERR_OK != gql_enum_add(err, type, start, doc->cur - start)) {
+	if (ERR_OK != gql_enum_add(err, type, start, (int)(doc->cur - start))) {
 	    return err->code;
 	}
     }
@@ -106,7 +106,7 @@ make_union(Err err, Doc doc, const char *desc, int len) {
 	doc_skip_white(doc);
 	start = doc->cur;
 	doc_read_token(doc);
-	if (ERR_OK != gql_union_add(err, type, start, doc->cur - start)) {
+	if (ERR_OK != gql_union_add(err, type, start, (int)(doc->cur - start))) {
 	    return err->code;
 	}
 	doc_skip_white(doc);
@@ -246,7 +246,7 @@ make_directive(Err err, Doc doc, const char *desc, int len) {
 	doc_skip_white(doc);
 	start = doc->cur;
 	doc_read_token(doc);
-	if (ERR_OK != gql_directive_on(err, dir, start, doc->cur - start)) {
+	if (ERR_OK != gql_directive_on(err, dir, start, (int)(doc->cur - start))) {
 	    return err->code;
 	}
 	doc_skip_white(doc);

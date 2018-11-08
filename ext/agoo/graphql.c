@@ -474,7 +474,7 @@ gql_union_add(Err err, gqlType type, const char *name, int len) {
 	err_set(err, ERR_MEMORY, "Failed to allocation memory for a GraphQL Union value.");
     }
     if (0 >= len) {
-	len = strlen(name);
+	len = (int)strlen(name);
     }
     link->name = strndup(name, len);
     if (NULL == type->types) {
@@ -517,7 +517,7 @@ gql_enum_add(Err err, gqlType type, const char *value, int len) {
 	err_set(err, ERR_MEMORY, "Failed to allocation memory for a GraphQL Enum value.");
     }
     if (0 >= len) {
-	len = strlen(value);
+	len = (int)strlen(value);
     }
     link->next = type->choices;
     type->choices = link;
@@ -534,7 +534,7 @@ gql_enum_append(Err err, gqlType type, const char *value, int len) {
 	err_set(err, ERR_MEMORY, "Failed to allocation memory for a GraphQL Enum value.");
     }
     if (0 >= len) {
-	len = strlen(value);
+	len = (int)strlen(value);
     }
     link->str = strndup(value, len);
     if (NULL == type->choices) {
@@ -711,7 +711,7 @@ gql_directive_on(Err err, gqlDir d, const char *on, int len) {
 	err_set(err, ERR_MEMORY, "Failed to allocation memory for a GraphQL directive location.");
     }
     if (0 >= len) {
-	len = strlen(on);
+	len = (int)strlen(on);
     }
     if (NULL == d->locs) {
 	link->next = d->locs;
@@ -778,14 +778,14 @@ desc_sdl(Text text, const char *desc, int indent) {
 			start = d;
 		    } else if ('\n' == *d) {
 			text = text_append(text, spaces, indent);
-			text = text_append(text, start, d - start);
+			text = text_append(text, start, (int)(d - start));
 			text = text_append(text, "\n", 1);
 			d++;
 			start = d;
 		    }
 		}
 		text = text_append(text, spaces, indent);
-		text = text_append(text, start, d - start);
+		text = text_append(text, start, (int)(d - start));
 	    } else {
 		text = text_append(text, desc, -1);
 	    }

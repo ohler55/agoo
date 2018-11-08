@@ -81,11 +81,11 @@ req_query_value(Req r, const char *key, int klen, int *vlenp) {
 	char	*end;
 
 	if (0 >= klen) {
-	    klen = strlen(key);
+	    klen = (int)strlen(key);
 	}
 	value += klen + 1;
 	if (NULL == (end = index(value, '&'))) {
-	    *vlenp = strlen(value);
+	    *vlenp = (int)strlen(value);
 	} else {
 	    *vlenp = (int)(end - value);
 	}

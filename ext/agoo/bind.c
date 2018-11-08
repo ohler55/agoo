@@ -193,7 +193,7 @@ bind_url(Err err, const char *url) {
 	char	scheme[8];
 
 	if (NULL != colon && colon - url < (int)sizeof(scheme)) {
-	    int	slen = colon - url;
+	    int	slen = (int)(colon - url);
 
 	    memcpy(scheme, url, slen);
 	    scheme[slen] = '\0';

@@ -46,7 +46,7 @@ extract_subject(VALUE subject, int *slen) {
 	break;
     case T_SYMBOL:
 	subj = rb_id2name(rb_sym2id(subject));
-	*slen = strlen(subj);
+	*slen = (int)strlen(subj);
 	break;
     default:
 	subject = rb_funcall(subject, to_s_id, 0);

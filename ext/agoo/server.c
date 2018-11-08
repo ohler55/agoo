@@ -81,11 +81,12 @@ listen_loop(void *x) {
 		} else {
 #ifdef OSX_OS
 		    setsockopt(client_sock, SOL_SOCKET, SO_NOSIGPIPE, &optval, sizeof(optval));
+#else
+		    setsockopt(client_sock, IPPROTO_TCP, TCP_QUICKACK, &optval, sizeof(optval));
 #endif
 		    fcntl(client_sock, F_SETFL, O_NONBLOCK);
 		    //fcntl(client_sock, F_SETFL, FNDELAY);
 		    setsockopt(client_sock, SOL_SOCKET, SO_KEEPALIVE, &optval, sizeof(optval));
-		    setsockopt(client_sock, IPPROTO_TCP, TCP_QUICKACK, &optval, sizeof(optval));
 		    setsockopt(client_sock, IPPROTO_TCP, TCP_NODELAY, &optval, sizeof(optval));
 		    log_cat(&con_cat, "Server with pid %d accepted connection %llu on %s [%d]",
 			    getpid(), (unsigned long long)cnt, b->id, con->sock);

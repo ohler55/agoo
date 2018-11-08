@@ -211,7 +211,7 @@ time_parse(Err err, const char *str, int len) {
     int64_t	secs;
     
     if (0 > len) {
-	len = strlen(str);
+	len = (int)strlen(str);
     }
     if (len < 10 || 36 < len) {
 	err_set(err, ERR_PARSE, "Invalid time format.");
@@ -465,7 +465,7 @@ parse_uuid(Err err, const char *str, int len, uint64_t *hip, uint64_t *lop) {
     int		n;
     
     if (0 >= len) {
-	len = strlen(str);
+	len = (int)strlen(str);
     }
     if (36 != len || '-' != str[8] || '-' != str[13] || '-' != str[18] || '-' != str[23]) {
 	return err_set(err, ERR_PARSE, "not UUID format");
@@ -726,7 +726,7 @@ gql_string_set(gqlValue value, const char *str, int len) {
 	value->str = NULL;
     } else {
 	if (0 >= len) {
-	    len = strlen(str);
+	    len = (int)strlen(str);
 	}
 	if (len < (int)sizeof(value->str16)) {
 	    value->type = &gql_str16_type;
@@ -769,7 +769,7 @@ gql_time_set(gqlValue value, int64_t t) {
 int
 gql_time_str_set(Err err, gqlValue value, const char *str, int len) {
     if (0 >= len) {
-	len = strlen(str);
+	len = (int)strlen(str);
     }
     value->time = time_parse(err, str, len);
 
@@ -901,7 +901,7 @@ gql_string_create(Err err, const char *str, int len) {
     gqlValue	v;
     
     if (0 >= len) {
-	len = strlen(str);
+	len = (int)strlen(str);
     }
     if ((int)sizeof(v->str16) <= len) {
 	if (NULL != (v = value_create(&gql_string_type))) {
@@ -965,7 +965,7 @@ gql_time_str_create(Err err, const char *str, int len) {
     
     if (NULL != v) {
 	if (0 >= len) {
-	    len = strlen(str);
+	    len = (int)strlen(str);
 	}
 	v->time = time_parse(err, str, len);
     }

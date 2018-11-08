@@ -164,7 +164,7 @@ configure(Err err, int port, const char *root, VALUE options) {
 		url_bind(v);
 		break;
 	    case T_ARRAY:
-		len = RARRAY_LEN(v);
+		len = (int)RARRAY_LEN(v);
 		for (i = 0; i < len; i++) {
 		    url_bind(rb_ary_entry(v, i));
 		}
