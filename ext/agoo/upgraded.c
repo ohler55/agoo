@@ -128,7 +128,7 @@ upgraded_write(Upgraded up, const char *message, size_t mlen, bool bin, bool inc
     }
     p = pub_write(up, message, mlen, bin);
     atomic_fetch_add(&up->pending, 1);
-    queue_push(&the_server.pub_queue, p);
+    server_publish(p);
 
     return true;
 }
@@ -139,7 +139,7 @@ upgraded_subscribe(Upgraded up, const char *subject, int slen, bool inc_ref) {
 	atomic_fetch_add(&up->ref_cnt, 1);
     }
     atomic_fetch_add(&up->pending, 1);
-    queue_push(&the_server.pub_queue, pub_subscribe(up, subject, slen));
+    server_publish(pub_subscribe(up, subject, slen));
 }
 
 void
@@ -148,7 +148,7 @@ upgraded_unsubscribe(Upgraded up, const char *subject, int slen, bool inc_ref) {
 	atomic_fetch_add(&up->ref_cnt, 1);
     }
     atomic_fetch_add(&up->pending, 1);
-    queue_push(&the_server.pub_queue, pub_unsubscribe(up, subject, slen));
+    server_publish(pub_unsubscribe(up, subject, slen));
 }
 
 void
@@ -157,7 +157,7 @@ upgraded_close(Upgraded up, bool inc_ref) {
 	atomic_fetch_add(&up->ref_cnt, 1);
     }
     atomic_fetch_add(&up->pending, 1);
-    queue_push(&the_server.pub_queue, pub_close(up));
+    server_publish(pub_close(up));
 }
 
 int

@@ -4,6 +4,7 @@
 #define __AGOO_CON_H__
 
 #include <poll.h>
+#include <pthread.h>
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -19,6 +20,7 @@ struct _Upgraded;
 struct _Req;
 struct _Res;
 struct _Bind;
+struct _Queue;
 
 typedef struct _Con {
     struct _Con		*next;
@@ -43,11 +45,19 @@ typedef struct _Con {
     struct _Upgraded	*up; // only set for push connections
 } *Con;
 
+typedef struct _ConLoop {
+    struct _ConLoop	*next;
+    struct _Queue	pub_queue;
+    pthread_t		thread;
+    int			id;
+} *ConLoop;
+    
 extern Con		con_create(Err err, int sock, uint64_t id, struct _Bind *b);
 extern void		con_destroy(Con c);
 extern const char*	con_header_value(const char *header, int hlen, const char *key, int *vlen);
 
-extern void*		con_loop(void *ctx);
+extern struct _ConLoop*	conloop_create(Err err, int id);
+
 extern bool		con_http_read(Con c);
 extern bool		con_http_write(Con c);
 extern short		con_http_events(Con c);

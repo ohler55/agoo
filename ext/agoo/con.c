@@ -65,6 +65,8 @@ con_create(Err err, int sock, uint64_t id, Bind b) {
 
 void
 con_destroy(Con c) {
+    atomic_fetch_sub(&the_server.con_cnt, 1);
+
     if (CON_WS == c->bind->kind || CON_SSE == c->bind->kind) {
 	ws_req_close(c);
     }
@@ -1001,14 +1003,14 @@ con_sse_events(Con c) {
 }
 
 static struct pollfd*
-poll_setup(Con c, struct pollfd *pp) {
+poll_setup(Con c, Queue q, struct pollfd *pp) {
     // The first two pollfd are for the con_queue and the pub_queue in that
     // order.
     pp->fd = queue_listen(&the_server.con_queue);
     pp->events = POLLIN;
     pp->revents = 0;
     pp++;
-    pp->fd = queue_listen(&the_server.pub_queue);
+    pp->fd = queue_listen(q);
     pp->events = POLLIN;
     pp->revents = 0;
     pp++;
@@ -1048,6 +1050,7 @@ remove_dead_res(Con c) {
 
 void*
 con_loop(void *x) {
+    ConLoop		loop = (ConLoop)x;
     Con			c;
     Con			prev;
     Con			next;
@@ -1082,10 +1085,10 @@ con_loop(void *x) {
 		pend = pa + cnt;
 	    }
 	}
-	while (NULL != (pub = (Pub)queue_pop(&the_server.pub_queue, 0.0))) {
+	while (NULL != (pub = (Pub)queue_pop(&loop->pub_queue, 0.0))) {
 	    process_pub_con(pub);
 	}
-	pp = poll_setup(cons, pa);
+	pp = poll_setup(cons, &loop->pub_queue, pa);
 	if (0 > (i = poll(pa, (nfds_t)(pp - pa), 10))) {
 	    if (EAGAIN == errno) {
 		continue;
@@ -1120,8 +1123,8 @@ con_loop(void *x) {
 	    }
 	    // Check pub_queue if an event is waiting.
 	    if (0 != (pa[1].revents & POLLIN)) {
-		queue_release(&the_server.pub_queue);
-		while (NULL != (pub = (Pub)queue_pop(&the_server.pub_queue, 0.0))) {
+		queue_release(&loop->pub_queue);
+		while (NULL != (pub = (Pub)queue_pop(&loop->pub_queue, 0.0))) {
 		    process_pub_con(pub);
 		}
 	    }
@@ -1198,4 +1201,20 @@ con_loop(void *x) {
     atomic_fetch_sub(&the_server.running, 1);
     
     return NULL;
+}
+
+ConLoop
+conloop_create(Err err, int id) {
+     ConLoop	loop;
+
+    if (NULL == (loop = (ConLoop)malloc(sizeof(struct _ConLoop)))) {
+	err_set(err, ERR_MEMORY, "Failed to allocate memory for a connection thread.");
+    } else {
+	//DEBUG_ALLOC(mem_con, c);
+	loop->next = NULL;
+	queue_multi_init(&loop->pub_queue, 256, true, false);
+	loop->id = id;
+	pthread_create(&loop->thread, NULL, con_loop, loop);
+    }
+    return loop;
 }

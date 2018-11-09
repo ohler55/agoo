@@ -470,7 +470,7 @@ update_contents(Page p) {
 	fclose(f);
 	return false;
     }
-    if (0 >= (size = ftell(f))) {
+    if (0 > (size = ftell(f))) {
 	fclose(f);
 	return false;
     }

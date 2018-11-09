@@ -15,9 +15,13 @@
 #include "hook.h"
 #include "log.h"
 #include "page.h"
+#include "pub.h"
 #include "upgraded.h"
 
 #include "server.h"
+
+#define LOOP_UP		512
+#define MAX_LOOP	4
 
 struct _Server	the_server = {false};
 
@@ -28,9 +32,20 @@ server_setup() {
     the_server.up_list = NULL;
     the_server.max_push_pending = 32;
     pages_init();
-    queue_multi_init(&the_server.con_queue, 256, false, true);
-    queue_multi_init(&the_server.pub_queue, 256, true, false);
+    queue_multi_init(&the_server.con_queue, 1024, false, true);
     queue_multi_init(&the_server.eval_queue, 1024, false, true);
+}
+
+static void
+add_con_loop() {
+    struct _Err	err = ERR_INIT;
+    ConLoop	loop = conloop_create(&err, 0);
+
+    if (NULL != loop) {
+	loop->next = the_server.con_loops;
+	the_server.con_loops = loop;
+	the_server.loop_cnt++;
+    }
 }
 
 static void*
@@ -79,6 +94,7 @@ listen_loop(void *x) {
 		    cnt--;
 		    err_clear(&err);
 		} else {
+		    int	con_cnt;
 #ifdef OSX_OS
 		    setsockopt(client_sock, SOL_SOCKET, SO_NOSIGPIPE, &optval, sizeof(optval));
 #endif
@@ -91,6 +107,11 @@ listen_loop(void *x) {
 		    setsockopt(client_sock, IPPROTO_TCP, TCP_NODELAY, &optval, sizeof(optval));
 		    log_cat(&con_cat, "Server with pid %d accepted connection %llu on %s [%d]",
 			    getpid(), (unsigned long long)cnt, b->id, con->sock);
+
+		    con_cnt = atomic_fetch_add(&the_server.con_cnt, 1);
+		    if (MAX_LOOP > the_server.loop_cnt && the_server.loop_cnt * LOOP_UP < con_cnt) {
+			add_con_loop();
+		    }
 		    queue_push(&the_server.con_queue, (void*)con);
 		}
 	    }
@@ -116,10 +137,11 @@ listen_loop(void *x) {
 int
 server_start(Err err, const char *app_name, const char *version) {
     double	giveup;
-
-    pthread_create(&the_server.listen_thread, NULL, listen_loop, NULL);
-    pthread_create(&the_server.con_thread, NULL, con_loop, NULL);
     
+    pthread_create(&the_server.listen_thread, NULL, listen_loop, NULL);
+    the_server.con_loops = conloop_create(err, 0);
+    the_server.loop_cnt = 1;
+
     giveup = dtime() + 1.0;
     while (dtime() < giveup) {
 	if (2 <= atomic_load(&the_server.running)) {
@@ -154,6 +176,8 @@ setup_listen(Err err) {
 void
 server_shutdown(const char *app_name, void (*stop)()) {
     if (the_server.inited) {
+	ConLoop	loop;
+
 	log_cat(&info_cat, "%s with pid %d shutting down.", app_name, getpid());
 	the_server.inited = false;
 	if (the_server.active) {
@@ -161,7 +185,9 @@ server_shutdown(const char *app_name, void (*stop)()) {
 	    
 	    the_server.active = false;
 	    pthread_detach(the_server.listen_thread);
-	    pthread_detach(the_server.con_thread);
+	    for (loop = the_server.con_loops; NULL != loop; loop = loop->next) {
+		pthread_detach(loop->thread);
+	    }
 	    while (0 < atomic_load(&the_server.running)) {
 		dsleep(0.1);
 		if (giveup < dtime()) {
@@ -184,7 +210,9 @@ server_shutdown(const char *app_name, void (*stop)()) {
 	    bind_destroy(b);
 	}
 	queue_cleanup(&the_server.con_queue);
-	queue_cleanup(&the_server.pub_queue);
+	for (loop = the_server.con_loops; NULL != loop; loop = loop->next) {
+	    queue_cleanup(&loop->pub_queue);
+	}
 	queue_cleanup(&the_server.eval_queue);
 
 	pages_cleanup();
@@ -259,4 +287,17 @@ server_add_func_hook(Err	err,
 	the_server.hooks = hook;
     }
     return ERR_OK;
+}
+
+void
+server_publish(struct _Pub *pub) {
+    ConLoop	loop;
+
+    for (loop = the_server.con_loops; NULL != loop; loop = loop->next) {
+	if (NULL == loop->next) {
+	    queue_push(&loop->pub_queue, pub);
+	} else {
+	    queue_push(&loop->pub_queue, pub_dup(pub));
+	}
+    }
 }

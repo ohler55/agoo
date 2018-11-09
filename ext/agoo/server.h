@@ -12,8 +12,10 @@
 #include "hook.h"
 #include "queue.h"
 
-struct _Upgraded;
+struct _ConLoop;
+struct _Pub;
 struct _Req;
+struct _Upgraded;
 
 typedef struct _Server {
     volatile bool	inited;
@@ -22,7 +24,6 @@ typedef struct _Server {
     bool		pedantic;
     bool		root_first;
     pthread_t		listen_thread;
-    pthread_t		con_thread;
     struct _Queue	con_queue;
     Hook		hooks;
     Hook		hook404;
@@ -30,7 +31,10 @@ typedef struct _Server {
 
     struct _Queue	eval_queue;
 
-    struct _Queue	pub_queue;
+    struct _ConLoop	*con_loops;
+    int			loop_cnt;
+    atomic_int		con_cnt;
+    
     struct _Upgraded	*up_list;
     pthread_mutex_t	up_lock;
     int			max_push_pending;
@@ -57,5 +61,7 @@ extern int	server_add_func_hook(Err	err,
 				     const char	*pattern,
 				     void	(*func)(struct _Req *req),
 				     Queue	queue);
+
+extern void	server_publish(struct _Pub *pub);
 
 #endif // __AGOO_SERVER_H__
