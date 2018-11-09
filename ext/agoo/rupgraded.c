@@ -2,9 +2,8 @@
 
 #include <stdio.h>
 
-#include <ruby/encoding.h>
-
 #include <ruby.h>
+#include <ruby/encoding.h>
 
 #include "con.h"
 #include "debug.h"

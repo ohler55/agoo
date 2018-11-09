@@ -1087,7 +1087,7 @@ con_loop(void *x) {
 	}
 	
 	pp = poll_setup(cons, pa);
-	if (0 > (i = poll(pa, (nfds_t)(pp - pa), 200))) {
+	if (0 > (i = poll(pa, (nfds_t)(pp - pa), 10))) {
 	    if (EAGAIN == errno) {
 		continue;
 	    }
