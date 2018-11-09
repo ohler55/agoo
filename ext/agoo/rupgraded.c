@@ -4,6 +4,8 @@
 
 #include <ruby/encoding.h>
 
+#include <ruby.h>
+
 #include "con.h"
 #include "debug.h"
 #include "pub.h"
