@@ -54,6 +54,11 @@ Agoo is not available on Windows.
 
 ## News
 
+- Agoo takes first place as the highest throughput on [web-frameworks
+  benchmarks](https://github.com/the-benchmarker/web-frameworks). Latency was
+  not at the top but release 2.5.2 improves that. Look for an Agoo-C benchmark
+  in the future.
+
 - Clustered Agoo is ready. For slower application and a machine with multiple
   cores a significant improvement is performance is realized. The application
   must be stateless in that no data is shared between workers.
