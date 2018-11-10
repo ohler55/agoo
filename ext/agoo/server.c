@@ -33,7 +33,7 @@ server_setup() {
     the_server.max_push_pending = 32;
     pages_init();
     queue_multi_init(&the_server.con_queue, 1024, false, true);
-    queue_multi_init(&the_server.eval_queue, 1024, false, true);
+    queue_multi_init(&the_server.eval_queue, 1024, true, true);
 }
 
 static void

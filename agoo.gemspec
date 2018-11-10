@@ -18,7 +18,6 @@ Gem::Specification.new do |s|
   s.test_files = Dir["test/**/*.rb"]
   s.extensions = ["ext/agoo/extconf.rb"]
 
-  s.has_rdoc = true
   s.extra_rdoc_files = ['README.md', 'CHANGELOG.md', 'LICENSE'] + Dir["pages/*.md"]
   s.rdoc_options = ['-t', 'Agoo', '-m', 'README.md', '-x', '"test/*"', '-x', '"example/*"', '-x', 'extconf.rb']
 

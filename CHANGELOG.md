@@ -1,5 +1,11 @@
 # CHANGELOG
 
+### 2.5.3 - 2018-11-10
+
+Bug fix.
+
+- The latest changes introduced a bug where requests were lost. Fixed in this release.
+
 ### 2.5.2 - 2018-11-09
 
 Latency improvements.
