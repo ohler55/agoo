@@ -98,7 +98,7 @@ configure(Err err, int port, const char *root, VALUE options) {
     the_rserver.worker_cnt = 1;
     the_server.running = 0;
     the_server.listen_thread = 0;
-    the_server.con_thread = 0;
+    the_server.con_loops = NULL;
     the_server.root_first = false;
     the_server.binds = NULL;
 
@@ -163,7 +163,7 @@ configure(Err err, int port, const char *root, VALUE options) {
 		url_bind(v);
 		break;
 	    case T_ARRAY:
-		len = RARRAY_LEN(v);
+		len = (int)RARRAY_LEN(v);
 		for (i = 0; i < len; i++) {
 		    url_bind(rb_ary_entry(v, i));
 		}
@@ -567,7 +567,7 @@ handle_push_inner(void *x) {
 	break;
     case ON_CLOSE:
 	upgraded_ref(req->up);
-	queue_push(&the_server.pub_queue, pub_close(req->up));
+	server_publish(pub_close(req->up));
 	if (req->up->on_close && NULL != req->hook) {
 	    rb_funcall((VALUE)req->hook->handler, on_close_id, 1, (VALUE)req->up->wrap);
 	}
@@ -637,6 +637,10 @@ handle_protected(Req req, bool gvi) {
 	} else {
 	    handle_push(req);
 	}
+	break;
+    case FUNC_HOOK:
+	req->hook->func(req);
+	queue_wakeup(&the_server.con_queue);
 	break;
     default: {
 	char	buf[256];

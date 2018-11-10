@@ -384,7 +384,7 @@ page_immutable(Err err, const char *path, const char *content, int clen) {
 	p->path = NULL;
     } else {
 	p->path = strdup(path);
-	plen = strlen(path);
+	plen = (int)strlen(path);
 	DEBUG_ALLOC(mem_page_path, p->path);
     }
     p->mtime = 0;
@@ -484,12 +484,10 @@ update_contents(Page p) {
     }
     cnt = sprintf(t->text, page_fmt, mime, size);
     msize = cnt + size;
-    if (0 < size) {
-	if (size != (long)fread(t->text + cnt, 1, size, f)) {
-	    fclose(f);
-	    text_release(t);
-	    return false;
-	}
+    if (size != (long)fread(t->text + cnt, 1, size, f)) {
+	fclose(f);
+	text_release(t);
+	return false;
     }
     fclose(f);
     t->text[msize] = '\0';
@@ -512,7 +510,7 @@ update_contents(Page p) {
 
 static void
 page_remove(Page p) {
-    int		len = strlen(p->path);
+    int		len = (int)strlen(p->path);
     int64_t	h = calc_hash(p->path, &len);
     Slot	*bucket = get_bucketp(h);
     Slot	s;
@@ -627,7 +625,7 @@ group_get(Err err, const char *path, int plen) {
 	strncpy(s, path + g->plen, plen - g->plen);
 	s += plen - g->plen;
 	*s = '\0';
-	if (NULL != (page = cache_get(full_path, s - full_path))) {
+	if (NULL != (page = cache_get(full_path, (int)(s - full_path)))) {
 	    break;
 	}
     }
@@ -647,7 +645,7 @@ group_get(Err err, const char *path, int plen) {
 	if (NULL == d) {
 	    return NULL;
 	}
-	plen = s - full_path;
+	plen = (int)(s - full_path);
 	path = full_path;
 	if (NULL == (page = cache_get(path, plen))) {
 	    Page	old;
@@ -679,7 +677,7 @@ group_create(const char *path) {
 	g->next = cache.groups;
 	cache.groups = g;
 	g->path = strdup(path);
-	g->plen = strlen(path);
+	g->plen = (int)strlen(path);
 	DEBUG_ALLOC(mem_group_path, g->path);
 	g->dirs = NULL;
     }
@@ -695,7 +693,7 @@ group_add(Group g, const char *dir) {
 	d->next = g->dirs;
 	g->dirs = d;
 	d->path = strdup(dir);
-	d->plen = strlen(dir);
+	d->plen = (int)strlen(dir);
 	DEBUG_ALLOC(mem_dir_path, d->path);
     }
 }

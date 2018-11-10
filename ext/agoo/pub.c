@@ -98,6 +98,22 @@ pub_write(Upgraded up, const char *message, size_t mlen, bool bin) {
     return p;
 }
 
+Pub
+pub_dup(Pub src) {
+    Pub	p = (Pub)malloc(sizeof(struct _Pub));
+
+    if (NULL != p) {
+	DEBUG_ALLOC(mem_pub, p);
+	p->next = NULL;
+	p->kind = src->kind;
+	p->up = src->up;
+	p->subject = subject_create(src->subject->pattern, strlen(src->subject->pattern));
+	p->msg = src->msg;
+	text_ref(p->msg);
+    }
+    return p;
+}
+
 void
 pub_destroy(Pub pub) {
     if (NULL != pub->msg) {

@@ -1,8 +1,12 @@
 # CHANGELOG
 
-### 2.5.2 - 2018-11-02
+### 2.5.2 - 2018-11-09
 
-Allow empty pages to be returned.
+Latency improvements.
+
+- Allow empty pages to be returned.
+
+- Included multiple read/write threads.
 
 ### 2.5.1 - 2018-08-30
 

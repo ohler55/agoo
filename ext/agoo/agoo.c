@@ -49,7 +49,7 @@ ragoo_publish(VALUE self, VALUE subject, VALUE message) {
     const char	*subj = extract_subject(subject, &slen);
 
     rb_check_type(message, T_STRING);
-    queue_push(&the_server.pub_queue, pub_publish(subj, slen, StringValuePtr(message), (int)RSTRING_LEN(message)));
+    server_publish(pub_publish(subj, slen, StringValuePtr(message), (int)RSTRING_LEN(message)));
 
     return Qnil;
 }
@@ -66,7 +66,7 @@ static VALUE
 ragoo_unsubscribe(VALUE self, VALUE subject) {
     rb_check_type(subject, T_STRING);
 
-    queue_push(&the_server.pub_queue, pub_unsubscribe(NULL, StringValuePtr(subject), (int)RSTRING_LEN(subject)));
+    server_publish(pub_unsubscribe(NULL, StringValuePtr(subject), (int)RSTRING_LEN(subject)));
 
     return Qnil;
 }

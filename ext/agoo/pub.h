@@ -34,6 +34,7 @@ extern Pub	pub_subscribe(struct _Upgraded *up, const char *subject, int slen);
 extern Pub	pub_unsubscribe(struct _Upgraded *up, const char *subject, int slen);
 extern Pub	pub_publish(const char *subject, int slen, const char *message, size_t mlen);
 extern Pub	pub_write(struct _Upgraded *up, const char *message, size_t mlen, bool bin);
+extern Pub	pub_dup(Pub src);
 extern void	pub_destroy(Pub pub);
 
 #endif // __AGOO_PUB_H__
