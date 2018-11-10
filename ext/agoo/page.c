@@ -484,10 +484,12 @@ update_contents(Page p) {
     }
     cnt = sprintf(t->text, page_fmt, mime, size);
     msize = cnt + size;
-    if (size != (long)fread(t->text + cnt, 1, size, f)) {
-	fclose(f);
-	text_release(t);
-	return false;
+    if (0 < size) {
+	if (size != (long)fread(t->text + cnt, 1, size, f)) {
+	    fclose(f);
+	    text_release(t);
+	    return false;
+	}
     }
     fclose(f);
     t->text[msize] = '\0';

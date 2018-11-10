@@ -974,7 +974,7 @@ short
 con_http_events(Con c) {
     short	events = 0;
     
-    if (!c->closing) {
+    if ((NULL != c->res_head && NULL != res_message(c->res_head)) || !c->closing) {
 	events = POLLIN | POLLOUT;
     }
     return events;
