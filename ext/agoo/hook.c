@@ -30,6 +30,7 @@ hook_create(Method method, const char *pattern, void *handler, HookType type, Qu
 	hook->handler = handler;
 	hook->type = type;
 	hook->queue = q;
+	hook->no_queue = false;
     }
     return hook;
 }
@@ -57,6 +58,7 @@ hook_func_create(Method method, const char *pattern, void (*func)(Req req), Queu
 	hook->func = func;
 	hook->type = FUNC_HOOK;
 	hook->queue = q;
+	hook->no_queue = false;
     }
     return hook;
 }

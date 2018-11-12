@@ -270,7 +270,8 @@ server_add_func_hook(Err	err,
 		     Method	method,
 		     const char	*pattern,
 		     void	(*func)(Req req),
-		     Queue	queue) {
+		     Queue	queue,
+		     bool	quick) {
     Hook	h;
     Hook	prev = NULL;
     Hook	hook = hook_func_create(method, pattern, func, queue);
@@ -278,6 +279,7 @@ server_add_func_hook(Err	err,
     if (NULL == hook) {
 	return err_set(err, ERR_MEMORY, "failed to allocate memory for HTTP server Hook.");
     }
+    hook->no_queue = quick;
     for (h = the_server.hooks; NULL != h; h = h->next) {
 	prev = h;
     }

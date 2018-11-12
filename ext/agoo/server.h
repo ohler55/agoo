@@ -60,7 +60,8 @@ extern int	server_add_func_hook(Err	err,
 				     Method	method,
 				     const char	*pattern,
 				     void	(*func)(struct _Req *req),
-				     Queue	queue);
+				     Queue	queue,
+				     bool	quick);
 
 extern void	server_publish(struct _Pub *pub);
 

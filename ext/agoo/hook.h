@@ -31,6 +31,7 @@ typedef struct _Hook {
 	void		(*func)(struct _Req *req);
     };
     Queue		queue;
+    bool		no_queue;
 } *Hook;
 
 extern Hook	hook_create(Method method, const char *pattern, void *handler, HookType type, Queue q);
