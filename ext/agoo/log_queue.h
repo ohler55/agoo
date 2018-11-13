@@ -1,7 +1,7 @@
 // Copyright 2018 by Peter Ohler, All Rights Reserved
 
-#ifndef __AGOO_LOG_QUEUE_H__
-#define __AGOO_LOG_QUEUE_H__
+#ifndef AGOO_LOG_QUEUE_H
+#define AGOO_LOG_QUEUE_H
 
 #include <stdatomic.h>
 #include <stdbool.h>
@@ -27,4 +27,4 @@ extern opoMsg	queue_pop(Queue q, double timeout);
 extern bool	queue_empty(Queue q);
 extern int	queue_count(Queue q);
 
-#endif /* __AGOO_LOG_QUEUE_H__ */
+#endif /* AGOO_LOG_QUEUE_H */

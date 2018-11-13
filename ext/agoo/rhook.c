@@ -22,7 +22,7 @@ resolve_classname(VALUE mod, const char *classname) {
     return clas;
 }
 
-static VALUE
+VALUE
 resolve_classpath(const char *name, size_t len) {
     char	class_name[1024];
     VALUE	clas;
@@ -55,7 +55,7 @@ resolve_classpath(const char *name, size_t len) {
 
 Hook
 rhook_create(Method method, const char *pattern, VALUE handler, Queue q) {
-    Hook	hook = hook_create(method,pattern, NULL, RACK_HOOK, q);
+    Hook	hook = hook_create(method, pattern, NULL, RACK_HOOK, q);
 
     if (NULL != hook) {
 	if (T_STRING == rb_type(handler)) {

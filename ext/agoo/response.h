@@ -1,7 +1,7 @@
 // Copyright (c) 2018, Peter Ohler, All rights reserved.
 
-#ifndef __AGOO_RESPONSE_H__
-#define __AGOO_RESPONSE_H__
+#ifndef AGOO_RESPONSE_H
+#define AGOO_RESPONSE_H
 
 #include <stdatomic.h>
 #include <stdbool.h>
@@ -25,4 +25,4 @@ typedef struct _Response {
 extern int	response_len(Response res);
 extern void	response_fill(Response res, char *buf);
 
-#endif // __AGOO_RESPONSE_H__
+#endif // AGOO_RESPONSE_H

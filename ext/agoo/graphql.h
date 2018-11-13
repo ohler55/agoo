@@ -1,7 +1,7 @@
 // Copyright (c) 2018, Peter Ohler, All rights reserved.
 
-#ifndef __AGOO_GRAPHQL_H__
-#define __AGOO_GRAPHQL_H__
+#ifndef AGOO_GRAPHQL_H
+#define AGOO_GRAPHQL_H
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -195,4 +195,4 @@ extern Text	gql_enum_to_text(Text text, struct _gqlValue *value, int indent, int
 extern void	gql_dump_hook(struct _Req *req);
 extern void	gql_eval_hook(struct _Req *req);
 
-#endif // __AGOO_GRAPHQL_H__
+#endif // AGOO_GRAPHQL_H

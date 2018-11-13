@@ -1,11 +1,11 @@
 // Copyright (c) 2018, Peter Ohler, All rights reserved.
 
-#ifndef __AGOO_SEG_H__
-#define __AGOO_SEG_H__
+#ifndef AGOO_SEG_H
+#define AGOO_SEG_H
 
 typedef struct _Seg {
     char	*start;
     char	*end;
 } *Seg;
 
-#endif // __AGOO_SEG_H__
+#endif // AGOO_SEG_H

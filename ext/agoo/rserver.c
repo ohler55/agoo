@@ -865,6 +865,7 @@ handle(VALUE self, VALUE method, VALUE pattern, VALUE handler) {
     Hook	hook;
     Method	meth = ALL;
     const char	*pat;
+    ID		static_id = rb_intern("static?");
 
     rb_check_type(pattern, T_STRING);
     pat = StringValuePtr(pattern);
@@ -887,6 +888,42 @@ handle(VALUE self, VALUE method, VALUE pattern, VALUE handler) {
 	meth = ALL;
     } else {
 	rb_raise(rb_eArgError, "invalid method");
+    }
+    if (T_STRING == rb_type(handler)) {
+	handler = resolve_classpath(StringValuePtr(handler), RSTRING_LEN(handler));
+    }
+    if (rb_respond_to(handler, static_id)) {
+	if (Qtrue == rb_funcall(handler, static_id, 0, Qnil)) {
+	    VALUE	res = rb_funcall(handler, call_id, 1, Qnil);
+	    VALUE	bv;
+	    
+	    rb_check_type(res, T_ARRAY);
+	    if (3 != RARRAY_LEN(res)) {
+		rb_raise(rb_eArgError, "a rack call() response must be an array of 3 members.");
+	    }
+	    bv = rb_ary_entry(res, 2);
+	    if (T_ARRAY == rb_type(bv)) {
+		int		i;
+		int		bcnt = (int)RARRAY_LEN(bv);
+		Text		t = text_allocate(1024);
+		struct _Err	err = ERR_INIT;
+		VALUE		v;
+
+		if (NULL == t) {
+		    rb_raise(rb_eArgError, "failed to allocate response.");
+		}
+		for (i = 0; i < bcnt; i++) {
+		    v = rb_ary_entry(bv, i);
+		    t = text_append(t, StringValuePtr(v), (int)RSTRING_LEN(v));
+		}
+		if (NULL == page_immutable(&err, pat, t->text, t->len)) {
+		    rb_raise(rb_eArgError, "%s", err.msg);
+		}
+		text_release(t);
+
+		return Qnil;
+	    }
+	}
     }
     if (NULL == (hook = rhook_create(meth, pat, handler, &the_server.eval_queue))) {
 	rb_raise(rb_eStandardError, "out of memory.");

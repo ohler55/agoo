@@ -1,11 +1,11 @@
 // Copyright 2018 by Peter Ohler, All Rights Reserved
 
-#ifndef __AGOO_RLOG_H__
-#define __AGOO_RLOG_H__
+#ifndef AGOO_RLOG_H
+#define AGOO_RLOG_H
 
 #include <ruby.h>
 #include "log.h"
 
 extern void	rlog_init(VALUE mod);
 
-#endif /* __AGOO_RLOG_H__ */
+#endif /* AGOO_RLOG_H */

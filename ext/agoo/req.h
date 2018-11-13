@@ -1,7 +1,7 @@
 // Copyright (c) 2018, Peter Ohler, All rights reserved.
 
-#ifndef __AGOO_REQ_H__
-#define __AGOO_REQ_H__
+#ifndef AGOO_REQ_H
+#define AGOO_REQ_H
 
 #include <stdint.h>
 
@@ -45,4 +45,4 @@ extern const char*	req_host(Req r, int *lenp);
 extern int		req_port(Req r);
 extern const char*	req_query_value(Req r, const char *key, int klen, int *vlenp);
 
-#endif // __AGOO_REQ_H__
+#endif // AGOO_REQ_H

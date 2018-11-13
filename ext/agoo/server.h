@@ -1,7 +1,7 @@
 // Copyright (c) 2018, Peter Ohler, All rights reserved.
 
-#ifndef __AGOO_SERVER_H__
-#define __AGOO_SERVER_H__
+#ifndef AGOO_SERVER_H
+#define AGOO_SERVER_H
 
 #include <pthread.h>
 #include <stdbool.h>
@@ -65,4 +65,4 @@ extern int	server_add_func_hook(Err	err,
 
 extern void	server_publish(struct _Pub *pub);
 
-#endif // __AGOO_SERVER_H__
+#endif // AGOO_SERVER_H

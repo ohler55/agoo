@@ -1,7 +1,7 @@
 // Copyright (c) 2018, Peter Ohler, All rights reserved.
 
-#ifndef __AGOO_BIND_H__
-#define __AGOO_BIND_H__
+#ifndef AGOO_BIND_H
+#define AGOO_BIND_H
 
 #include <stdbool.h>
 #include <sys/socket.h>
@@ -41,4 +41,4 @@ extern void	bind_destroy(Bind b);
 extern int	bind_listen(Err err, Bind b);
 extern void	bind_close(Bind b);
 
-#endif // __AGOO_BIND_H__
+#endif // AGOO_BIND_H

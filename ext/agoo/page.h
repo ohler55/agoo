@@ -1,7 +1,7 @@
 // Copyright 2016, 2018 by Peter Ohler, All Rights Reserved
 
-#ifndef __AGOO_PAGE_H__
-#define __AGOO_PAGE_H__
+#ifndef AGOO_PAGE_H
+#define AGOO_PAGE_H
 
 #include <stdint.h>
 #include <time.h>
@@ -43,4 +43,4 @@ extern Page	page_immutable(Err err, const char *path, const char *content, int c
 extern Page	page_get(Err err, const char *path, int plen);
 extern int	mime_set(Err err, const char *key, const char *value);
 
-#endif /* __AGOO_PAGE_H__ */
+#endif /* AGOO_PAGE_H */

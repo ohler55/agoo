@@ -1,7 +1,7 @@
 // Copyright (c) 2018, Peter Ohler, All rights reserved.
 
-#ifndef __AGOO_RSERVER_H__
-#define __AGOO_RSERVER_H__
+#ifndef AGOO_RSERVER_H
+#define AGOO_RSERVER_H
 
 #include <ruby.h>
 
@@ -18,4 +18,4 @@ extern struct _RServer	the_rserver;
 extern void	server_init(VALUE mod);
 extern VALUE	rserver_shutdown(VALUE self);
 
-#endif // __AGOO_RSERVER_H__
+#endif // AGOO_RSERVER_H

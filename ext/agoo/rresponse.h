@@ -1,7 +1,7 @@
 // Copyright (c) 2018, Peter Ohler, All rights reserved.
 
-#ifndef __AGOO_RRESPONSE_H__
-#define __AGOO_RRESPONSE_H__
+#ifndef AGOO_RRESPONSE_H
+#define AGOO_RRESPONSE_H
 
 #include <ruby.h>
 
@@ -11,4 +11,4 @@ extern void	response_init(VALUE mod);
 extern VALUE	response_new();
 extern Text	response_text(VALUE self);
 
-#endif // __AGOO_RRESPONSE_H__
+#endif // AGOO_RRESPONSE_H

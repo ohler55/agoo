@@ -1,7 +1,7 @@
 // Copyright (c) 2018, Peter Ohler, All rights reserved.
 
-#ifndef __AGOO_GQLVALUE_H__
-#define __AGOO_GQLVALUE_H__
+#ifndef AGOO_GQLVALUE_H
+#define AGOO_GQLVALUE_H
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -85,4 +85,4 @@ extern struct _gqlType	gql_uuid_type;
 extern struct _gqlType	gql_url_type;
 extern struct _gqlType	gql_string_type;
 
-#endif // __AGOO_GQLVALUE_H__
+#endif // AGOO_GQLVALUE_H

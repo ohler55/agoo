@@ -1,5 +1,5 @@
-#ifndef __AGOO_SHA1_H__
-#define __AGOO_SHA1_H__
+#ifndef AGOO_SHA1_H
+#define AGOO_SHA1_H
 
 #include <stdint.h>
 
@@ -7,4 +7,4 @@
 
 extern void sha1(const uint8_t *data, size_t len, uint8_t *digest);
 
-#endif // __AGOO_SHA1_H__
+#endif // AGOO_SHA1_H

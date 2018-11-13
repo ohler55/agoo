@@ -1,7 +1,7 @@
 // Copyright (c) 2018, Peter Ohler, All rights reserved.
 
-#ifndef __AGOO_HTTP_H__
-#define __AGOO_HTTP_H__
+#ifndef AGOO_HTTP_H
+#define AGOO_HTTP_H
 
 #include <stdbool.h>
 
@@ -14,4 +14,4 @@ extern int		http_header_ok(Err err, const char *key, int klen, const char *value
 
 extern const char*	http_code_message(int code);
 
-#endif // __AGOO_HTTP_H__
+#endif // AGOO_HTTP_H

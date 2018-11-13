@@ -1,10 +1,10 @@
 // Copyright (c) 2018, Peter Ohler, All rights reserved.
 
-#ifndef __AGOO_GQLINTRO_H__
-#define __AGOO_GQLINTRO_H__
+#ifndef AGOO_GQLINTRO_H
+#define AGOO_GQLINTRO_H
 
 #include "err.h"
 
 extern int	gql_intro_init(Err err);
 
-#endif // __AGOO_GQLINTRO_H__
+#endif // AGOO_GQLINTRO_H

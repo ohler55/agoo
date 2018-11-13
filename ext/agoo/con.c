@@ -974,8 +974,10 @@ short
 con_http_events(Con c) {
     short	events = 0;
     
-    if ((NULL != c->res_head && NULL != res_message(c->res_head)) || !c->closing) {
+    if (NULL != c->res_head && NULL != res_message(c->res_head)) {
 	events = POLLIN | POLLOUT;
+    } else if (!c->closing) {
+	events = POLLIN;
     }
     return events;
 }
@@ -1142,7 +1144,7 @@ con_loop(void *x) {
 		    goto CON_CHECK;
 		}
 	    }
-	    if (0 != (pp->revents & POLLOUT) && NULL != c->res_head && NULL != res_message(c->res_head)) {
+	    if (0 != (pp->revents & POLLOUT)) {
 		if (con_write(c)) {
 		    c->dead = true;
 		    goto CON_CHECK;

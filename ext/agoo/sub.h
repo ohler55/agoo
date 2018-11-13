@@ -1,7 +1,7 @@
 // Copyright (c) 2018, Peter Ohler, All rights reserved.
 
-#ifndef __AGOO_SUB_H__
-#define __AGOO_SUB_H__
+#ifndef AGOO_SUB_H
+#define AGOO_SUB_H
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -33,4 +33,4 @@ extern void	sub_add(SubCache sc, Sub s);
 extern Sub	sub_get(SubCache sc, uint64_t cid, uint64_t sid);
 extern void	sub_del(SubCache sc, uint64_t cid, uint64_t sid);
 
-#endif // __AGOO_SUB_H__
+#endif // AGOO_SUB_H

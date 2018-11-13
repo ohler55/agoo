@@ -1,5 +1,15 @@
 # CHANGELOG
 
+### 2.5.5 - 2018-11-12
+
+More optimizations and some cleanup.
+
+- New optional hint to the server that allows responses to `#call` to be cached.
+
+- Change C header file guards. No change in behavior. Just code cleanup.
+
+- Fixed change that slowed down the server.
+
 ### 2.5.4 - 2018-11-10
 
 Third times a charm.

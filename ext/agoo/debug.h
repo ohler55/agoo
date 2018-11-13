@@ -1,14 +1,14 @@
 // Copyright (c) 2018, Peter Ohler, All rights reserved.
 
-#ifndef __AGOO_DEBUG_H__
-#define __AGOO_DEBUG_H__
+#ifndef AGOO_DEBUG_H
+#define AGOO_DEBUG_H
 
 #include <stdatomic.h>
 
 #ifdef MEM_DEBUG
-#define DEBUG_ALLOC(var, ptr) { atomic_fetch_add(&var, 1); debug_add(ptr, #var, __FILE__, __LINE__); }
-#define DEBUG_REALLOC(var, orig, ptr) { debug_update(orig, ptr, #var, __FILE__, __LINE__); }
-#define DEBUG_FREE(var, ptr) { atomic_fetch_sub(&var, 1); debug_del(ptr, __FILE__, __LINE__); }
+#define DEBUG_ALLOC(var, ptr) { atomic_fetch_add(&var, 1); debug_add(ptr, #var, FILE, LINE); }
+#define DEBUG_REALLOC(var, orig, ptr) { debug_update(orig, ptr, #var, FILE, LINE); }
+#define DEBUG_FREE(var, ptr) { atomic_fetch_sub(&var, 1); debug_del(ptr, FILE, LINE); }
 #else
 #define DEBUG_ALLOC(var, ptr) { }
 #define DEBUG_REALLOC(var, orig, ptr) { }
@@ -61,4 +61,4 @@ extern void	debug_del(void *ptr, const char *file, int line);
 extern void	debug_report();
 extern void	debug_rreport(); // when called from ruby
 
-#endif /* __AGOO_DEBUG_H__ */
+#endif /* AGOO_DEBUG_H */

@@ -1,7 +1,7 @@
 // Copyright (c) 2018, Peter Ohler, All rights reserved.
 
-#ifndef __AGOO_PUB_H__
-#define __AGOO_PUB_H__
+#ifndef AGOO_PUB_H
+#define AGOO_PUB_H
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -37,4 +37,4 @@ extern Pub	pub_write(struct _Upgraded *up, const char *message, size_t mlen, boo
 extern Pub	pub_dup(Pub src);
 extern void	pub_destroy(Pub pub);
 
-#endif // __AGOO_PUB_H__
+#endif // AGOO_PUB_H

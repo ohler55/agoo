@@ -1,7 +1,7 @@
 // Copyright (c) 2018, Peter Ohler, All rights reserved.
 
-#ifndef __AGOO_RES_H__
-#define __AGOO_RES_H__
+#ifndef AGOO_RES_H
+#define AGOO_RES_H
 
 #include <stdatomic.h>
 #include <stdbool.h>
@@ -30,4 +30,4 @@ res_message(Res res) {
     return atomic_load(&res->message);
 }
 
-#endif // __AGOO_RES_H__
+#endif // AGOO_RES_H

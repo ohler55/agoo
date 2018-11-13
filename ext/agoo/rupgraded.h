@@ -1,7 +1,7 @@
 // Copyright (c) 2018, Peter Ohler, All rights reserved.
 
-#ifndef __AGOO_RUPGRADED_H__
-#define __AGOO_RUPGRADED_H__
+#ifndef AGOO_RUPGRADED_H
+#define AGOO_RUPGRADED_H
 
 #include <ruby.h>
 
@@ -14,4 +14,4 @@ extern Upgraded	rupgraded_create(struct _Con *c, VALUE obj, VALUE env);
 
 extern const char*	extract_subject(VALUE subject, int *slen);
 
-#endif // __AGOO_RUPGRADED_H__
+#endif // AGOO_RUPGRADED_H

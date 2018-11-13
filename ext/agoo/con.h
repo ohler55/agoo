@@ -1,7 +1,7 @@
 // Copyright (c) 2018, Peter Ohler, All rights reserved.
 
-#ifndef __AGOO_CON_H__
-#define __AGOO_CON_H__
+#ifndef AGOO_CON_H
+#define AGOO_CON_H
 
 #include <poll.h>
 #include <pthread.h>
@@ -62,4 +62,4 @@ extern bool		con_http_read(Con c);
 extern bool		con_http_write(Con c);
 extern short		con_http_events(Con c);
 
-#endif /* __AGOO_CON_H__ */
+#endif /* AGOO_CON_H */

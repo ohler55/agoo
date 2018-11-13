@@ -1,7 +1,7 @@
 // Copyright (c) 2018, Peter Ohler, All rights reserved.
 
-#ifndef __AGOO_SUBJECT_H__
-#define __AGOO_SUBJECT_H__
+#ifndef AGOO_SUBJECT_H
+#define AGOO_SUBJECT_H
 
 #include <stdbool.h>
 
@@ -14,4 +14,4 @@ extern Subject	subject_create(const char *pattern, int plen);
 extern void	subject_destroy(Subject subject);
 extern bool	subject_check(Subject subj, const char *subject);
 
-#endif // __AGOO_SUBJECT_H__
+#endif // AGOO_SUBJECT_H

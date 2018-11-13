@@ -1,7 +1,7 @@
 // Copyright (c) 2018, Peter Ohler, All rights reserved.
 
-#ifndef __AGOO_RHOOK_H__
-#define __AGOO_RHOOK_H__
+#ifndef AGOO_RHOOK_H
+#define AGOO_RHOOK_H
 
 #include <ruby.h>
 
@@ -9,5 +9,6 @@
 #include "method.h"
 
 extern Hook	rhook_create(Method method, const char *pattern, VALUE handler, Queue q);
+extern VALUE	resolve_classpath(const char *name, size_t len);
 
-#endif // __AGOO_RHOOK_H__
+#endif // AGOO_RHOOK_H

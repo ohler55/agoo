@@ -1,7 +1,7 @@
 // Copyright 2015, 2016, 2018 by Peter Ohler, All Rights Reserved
 
-#ifndef __AGOO_QUEUE_H__
-#define __AGOO_QUEUE_H__
+#ifndef AGOO_QUEUE_H
+#define AGOO_QUEUE_H
 
 #include <stdatomic.h>
 #include <stdbool.h>
@@ -37,4 +37,4 @@ extern int	queue_count(Queue q);
 
 extern void	queue_wakeup(Queue q);
 
-#endif /* __AGOO_QUEUE_H__ */
+#endif /* AGOO_QUEUE_H */

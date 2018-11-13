@@ -1,7 +1,7 @@
 // Copyright (c) 2018, Peter Ohler, All rights reserved.
 
-#ifndef __AGOO_ERR_H__
-#define __AGOO_ERR_H__
+#ifndef AGOO_ERR_H
+#define AGOO_ERR_H
 
 #include <errno.h>
 
@@ -42,4 +42,4 @@ extern int		err_no(Err err, const char *fmt, ...);
 extern const char*	err_str(ErrCode code);
 extern void		err_clear(Err err);
 
-#endif /* __AGOO_ERR_H__ */
+#endif /* AGOO_ERR_H */

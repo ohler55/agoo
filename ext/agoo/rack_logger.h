@@ -1,7 +1,7 @@
 // Copyright (c) 2018, Peter Ohler, All rights reserved.
 
-#ifndef __AGOO_RACK_LOGGER_H__
-#define __AGOO_RACK_LOGGER_H__
+#ifndef AGOO_RACK_LOGGER_H
+#define AGOO_RACK_LOGGER_H
 
 #include <ruby.h>
 
@@ -10,4 +10,4 @@
 extern void	rack_logger_init(VALUE mod);
 extern VALUE	rack_logger_new();
 
-#endif // __AGOO_RACK_LOGGER_H__
+#endif // AGOO_RACK_LOGGER_H

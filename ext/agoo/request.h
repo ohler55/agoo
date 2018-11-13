@@ -1,7 +1,7 @@
 // Copyright (c) 2018, Peter Ohler, All rights reserved.
 
-#ifndef __AGOO_REQUEST_H__
-#define __AGOO_REQUEST_H__
+#ifndef AGOO_REQUEST_H
+#define AGOO_REQUEST_H
 
 #include <stdint.h>
 
@@ -13,4 +13,4 @@ extern void	request_init(VALUE mod);
 extern VALUE	request_wrap(Req req);
 extern VALUE	request_env(Req req, VALUE self);
 
-#endif // __AGOO_REQUEST_H__
+#endif // AGOO_REQUEST_H

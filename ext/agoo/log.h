@@ -1,7 +1,7 @@
 // Copyright 2018 by Peter Ohler, All Rights Reserved
 
-#ifndef __AGOO_LOG_H__
-#define __AGOO_LOG_H__
+#ifndef AGOO_LOG_H
+#define AGOO_LOG_H
 
 #include <pthread.h>
 #include <stdarg.h>
@@ -125,4 +125,4 @@ extern void	log_start(bool with_pid);
 
 extern Color	find_color(const char *name);
 
-#endif /* __AGOO_LOG_H__ */
+#endif /* AGOO_LOG_H */

@@ -1,7 +1,7 @@
 // Copyright (c) 2018, Peter Ohler, All rights reserved.
 
-#ifndef __AGOO_UPGRADED_H__
-#define __AGOO_UPGRADED_H__
+#ifndef AGOO_UPGRADED_H
+#define AGOO_UPGRADED_H
 
 #include <pthread.h>
 #include <stdatomic.h>
@@ -48,4 +48,4 @@ extern void	upgraded_unsubscribe(Upgraded up, const char *subject, int slen, boo
 extern void	upgraded_close(Upgraded up, bool inc_ref);
 extern int	upgraded_pending(Upgraded up);
 
-#endif // __AGOO_UPGRADED_H__
+#endif // AGOO_UPGRADED_H

@@ -1,7 +1,7 @@
 // Copyright (c) 2018, Peter Ohler, All rights reserved.
 
-#ifndef __AGOO_METHOD_H__
-#define __AGOO_METHOD_H__
+#ifndef AGOO_METHOD_H
+#define AGOO_METHOD_H
 
 typedef enum {
     CONNECT	= 'C',
@@ -23,4 +23,4 @@ typedef enum {
     ON_ERROR	= 'F', // use for on_error callback
 } Method;
 
-#endif // __AGOO_METHOD_H__
+#endif // AGOO_METHOD_H

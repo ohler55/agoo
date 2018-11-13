@@ -1,7 +1,7 @@
 // Copyright (c) 2018, Peter Ohler, All rights reserved.
 
-#ifndef __AGOO_DOC_H__
-#define __AGOO_DOC_H__
+#ifndef AGOO_DOC_H
+#define AGOO_DOC_H
 
 #include <stdarg.h>
 
@@ -31,4 +31,4 @@ extern void	doc_location(Doc doc, int *linep, int *colp);
 
 extern struct _gqlValue*	doc_read_value(Err err, Doc doc);
 
-#endif // __AGOO_DOC_H__
+#endif // AGOO_DOC_H

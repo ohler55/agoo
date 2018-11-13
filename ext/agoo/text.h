@@ -1,7 +1,7 @@
 // Copyright 2016, 2018 by Peter Ohler, All Rights Reserved
 
-#ifndef __AGOO_TEXT_H__
-#define __AGOO_TEXT_H__
+#ifndef AGOO_TEXT_H
+#define AGOO_TEXT_H
 
 #include <stdatomic.h>
 #include <stdbool.h>
@@ -24,4 +24,4 @@ extern void	text_release(Text t);
 extern Text	text_append(Text t, const char *s, int len);
 extern Text	text_prepend(Text t, const char *s, int len);
 
-#endif /* __AGOO_TEXT_H__ */
+#endif /* AGOO_TEXT_H */

@@ -1,7 +1,7 @@
 // Copyright (c) 2018, Peter Ohler, All rights reserved.
 
-#ifndef __AGOO_WEBSOCKET_H__
-#define __AGOO_WEBSOCKET_H__
+#ifndef AGOO_WEBSOCKET_H
+#define AGOO_WEBSOCKET_H
 
 #define WS_OP_CONT	0x00
 #define WS_OP_TEXT	0x01
@@ -24,4 +24,4 @@ extern void		ws_req_close(Con c);
 extern void		ws_ping(Con c);
 extern void		ws_pong(Con c);
 
-#endif // __AGOO_WEBSOCKET_H__
+#endif // AGOO_WEBSOCKET_H

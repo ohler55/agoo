@@ -1,7 +1,7 @@
 // Copyright (c) 2018, Peter Ohler, All rights reserved.
 
-#ifndef __AGOO_HOOK_H__
-#define __AGOO_HOOK_H__
+#ifndef AGOO_HOOK_H
+#define AGOO_HOOK_H
 
 #include <stdbool.h>
 
@@ -41,4 +41,4 @@ extern void	hook_destroy(Hook hook);
 extern bool	hook_match(Hook hook, Method method, const Seg seg);
 extern Hook	hook_find(Hook hook, Method method, const Seg seg);
 
-#endif // __AGOO_HOOK_H__
+#endif // AGOO_HOOK_H
