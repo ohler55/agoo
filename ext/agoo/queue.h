@@ -3,9 +3,10 @@
 #ifndef AGOO_QUEUE_H
 #define AGOO_QUEUE_H
 
-#include <stdatomic.h>
 #include <stdbool.h>
 #include <stdlib.h>
+
+#include "atomic.h"
 
 typedef void	*QItem;
 

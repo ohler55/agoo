@@ -3,11 +3,11 @@
 #ifndef AGOO_RES_H
 #define AGOO_RES_H
 
-#include <stdatomic.h>
 #include <stdbool.h>
 
-#include "text.h"
+#include "atomic.h"
 #include "con.h"
+#include "text.h"
 
 struct _Con;
 

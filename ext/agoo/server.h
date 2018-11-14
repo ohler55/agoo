@@ -5,8 +5,8 @@
 
 #include <pthread.h>
 #include <stdbool.h>
-#include <stdatomic.h>
 
+#include "atomic.h"
 #include "bind.h"
 #include "err.h"
 #include "hook.h"

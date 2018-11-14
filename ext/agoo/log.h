@@ -5,11 +5,11 @@
 
 #include <pthread.h>
 #include <stdarg.h>
-#include <stdatomic.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 
+#include "atomic.h"
 #include "err.h"
 
 typedef enum {

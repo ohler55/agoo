@@ -3,7 +3,7 @@
 #ifndef AGOO_DEBUG_H
 #define AGOO_DEBUG_H
 
-#include <stdatomic.h>
+#include "atomic.h"
 
 #ifdef MEM_DEBUG
 #define DEBUG_ALLOC(var, ptr) { atomic_fetch_add(&var, 1); debug_add(ptr, #var, FILE, LINE); }

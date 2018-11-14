@@ -3,9 +3,9 @@
 #ifndef AGOO_RESPONSE_H
 #define AGOO_RESPONSE_H
 
-#include <stdatomic.h>
 #include <stdbool.h>
 
+#include "atomic.h"
 #include "server.h"
 #include "text.h"
 

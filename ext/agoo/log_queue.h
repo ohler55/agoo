@@ -3,9 +3,9 @@
 #ifndef AGOO_LOG_QUEUE_H
 #define AGOO_LOG_QUEUE_H
 
-#include <stdatomic.h>
 #include <stdbool.h>
 
+#include "atomic.h"
 #include "val.h"
 
 typedef struct _LogQueue {

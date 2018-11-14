@@ -4,9 +4,10 @@
 #define AGOO_UPGRADED_H
 
 #include <pthread.h>
-#include <stdatomic.h>
 #include <stdint.h>
 #include <stdbool.h>
+
+#include "atomic.h"
 
 struct _Con;
 struct _Subject;
