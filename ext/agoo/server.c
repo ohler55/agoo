@@ -194,8 +194,9 @@ server_shutdown(const char *app_name, void (*stop)()) {
 		    break;
 		}
 	    }
-	    stop();
-
+	    if (NULL != stop) {
+		stop();
+	    }
 	    while (NULL != the_server.hooks) {
 		Hook	h = the_server.hooks;
 

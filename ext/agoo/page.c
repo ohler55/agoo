@@ -419,18 +419,23 @@ page_immutable(Err err, const char *path, const char *content, int clen) {
 }
 
 static bool
+close_return_false(FILE *f) {
+    fclose(f);
+    return false;
+}
+
+static bool
 update_contents(Page p) {
     const char	*mime = path_mime(p->path);
     int		plen = (int)strlen(p->path);
-    FILE	*f;
     long	size;
     struct stat	fattr;
     long	msize;
     int		cnt;
     struct stat	fs;
     Text	t;
+    FILE	*f = fopen(p->path, "rb");
     
-    f = fopen(p->path, "rb");
     // On linux a directory is opened by fopen (sometimes? all the time?) so
     // fstat is called to get the file mode and verify it is a regular file or
     // a symlink.
@@ -467,12 +472,10 @@ update_contents(Page p) {
 	mime = "text/html";
     }
     if (0 != fseek(f, 0, SEEK_END)) {
-	fclose(f);
-	return false;
+	return close_return_false(f);
     }
     if (0 > (size = ftell(f))) {
-	fclose(f);
-	return false;
+	return close_return_false(f);
     }
     rewind(f);
 
@@ -480,15 +483,14 @@ update_contents(Page p) {
     // padding. Then add the content length.
     msize = sizeof(page_fmt) + 60 + size;
     if (NULL == (t = text_allocate((int)msize))) {
-	return false;
+	return close_return_false(f);
     }
     cnt = sprintf(t->text, page_fmt, mime, size);
     msize = cnt + size;
     if (0 < size) {
 	if (size != (long)fread(t->text + cnt, 1, size, f)) {
-	    fclose(f);
 	    text_release(t);
-	    return false;
+	    return close_return_false(f);
 	}
     }
     fclose(f);

@@ -491,7 +491,11 @@ con_http_read(Con c) {
 		check_upgrade(c);
 		req = c->req;
 		c->req = NULL;
-		queue_push(req->hook->queue, (void*)req);
+		if (req->hook->no_queue && FUNC_HOOK == req->hook->type) {
+		    req->hook->func(req);
+		} else {
+		    queue_push(req->hook->queue, (void*)req);
+		}
 		if (mlen < (long)c->bcnt) {
 		    memmove(c->buf, c->buf + mlen, c->bcnt - mlen);
 		    c->bcnt -= mlen;
