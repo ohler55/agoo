@@ -18,11 +18,11 @@ typedef struct _Slot {
     int			klen;
 } *Slot;
 
-typedef struct _Cache {
+typedef struct _cache {
     Slot		buckets[BUCKET_SIZE];
 } *Cache;
 
-struct _Cache		key_cache;
+struct _cache		key_cache;
 
 // The rack spec indicates the characters (),/:;<=>?@[]{} are invalid which
 // clearly is not consisten with RFC7230 so stick with the RFC.
@@ -483,7 +483,7 @@ void
 http_init() {
     const char	**kp = header_keys;
     
-    memset(&key_cache, 0, sizeof(struct _Cache));
+    memset(&key_cache, 0, sizeof(struct _cache));
     for (; NULL != *kp; kp++) {
 	key_set(*kp);
     }
@@ -507,7 +507,7 @@ http_cleanup() {
 }
 
 int
-http_header_ok(Err err, const char *key, int klen, const char *value, int vlen) {
+http_header_ok(agooErr err, const char *key, int klen, const char *value, int vlen) {
     int		len = klen;
     int64_t	h = calc_hash(key, &len);
     Slot	*bucket = get_bucketp(h);

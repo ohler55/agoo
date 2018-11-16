@@ -7,16 +7,16 @@
 #include "hook.h"
 #include "req.h"
 
-Hook
-hook_create(Method method, const char *pattern, void *handler, HookType type, Queue q) {
-    Hook	hook = (Hook)malloc(sizeof(struct _Hook));
+agooHook
+hook_create(agooMethod method, const char *pattern, void *handler, agooHookType type, agooQueue q) {
+    agooHook	hook = (agooHook)malloc(sizeof(struct _agooHook));
 
     if (NULL != hook) {
 	char	*pat = NULL;
 	
 	DEBUG_ALLOC(mem_hook, hook);
 	if (NULL == pattern) {
-	    if (NONE != method) {
+	    if (AGOO_NONE != method) {
 		pat = strdup("");
 	    }
 	} else {
@@ -35,16 +35,16 @@ hook_create(Method method, const char *pattern, void *handler, HookType type, Qu
     return hook;
 }
 
-Hook
-hook_func_create(Method method, const char *pattern, void (*func)(Req req), Queue q) {
-    Hook	hook = (Hook)malloc(sizeof(struct _Hook));
+agooHook
+hook_func_create(agooMethod method, const char *pattern, void (*func)(agooReq req), agooQueue q) {
+    agooHook	hook = (agooHook)malloc(sizeof(struct _agooHook));
 
     if (NULL != hook) {
 	char	*pat = NULL;
 	
 	DEBUG_ALLOC(mem_hook, hook);
 	if (NULL == pattern) {
-	    if (NONE != method) {
+	    if (AGOO_NONE != method) {
 		pat = strdup("");
 	    }
 	} else {
@@ -64,7 +64,7 @@ hook_func_create(Method method, const char *pattern, void (*func)(Req req), Queu
 }
 
 void
-hook_destroy(Hook hook) {
+hook_destroy(agooHook hook) {
     if (NULL != hook->pattern) {
 	DEBUG_FREE(mem_hook_pattern, hook->pattern);
 	free(hook->pattern);
@@ -74,7 +74,7 @@ hook_destroy(Hook hook) {
 }
 
 bool
-hook_match(Hook hook, Method method, const Seg path) {
+hook_match(agooHook hook, agooMethod method, const agooSeg path) {
     const char	*pat = hook->pattern;
     char	*p = path->start;
     char	*end = path->end;
@@ -82,7 +82,7 @@ hook_match(Hook hook, Method method, const Seg path) {
     if (1 < end - p && '/' == *(end - 1)) {
 	end--;
     }
-    if (method != hook->method && ALL != hook->method) {
+    if (method != hook->method && AGOO_ALL != hook->method) {
 	return false;
     }
     for (; '\0' != *pat && p < end; pat++) {
@@ -101,8 +101,8 @@ hook_match(Hook hook, Method method, const Seg path) {
     return '\0' == *pat && p == end;
 }
 
-Hook
-hook_find(Hook hook, Method method, const Seg path) {
+agooHook
+hook_find(agooHook hook, agooMethod method, const agooSeg path) {
     for (; NULL != hook; hook = hook->next) {
 	if (hook_match(hook, method, path)) {
 	    return hook;

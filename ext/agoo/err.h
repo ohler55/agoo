@@ -27,19 +27,19 @@ typedef enum {
     ERR_TOO_MANY,
     ERR_TYPE,
     ERR_LAST
-} ErrCode;
+} agooErrCode;
 
 // The struct used to report errors or status after a function returns. The
 // struct must be initialized before use as most calls that take an err
 // argument will return immediately if an error has already occurred.
-typedef struct _Err {
+typedef struct _agooErr {
     int		code;
     char	msg[256];
-} *Err;
+} *agooErr;
 
-extern int		err_set(Err err, int code, const char *fmt, ...);
-extern int		err_no(Err err, const char *fmt, ...);
-extern const char*	err_str(ErrCode code);
-extern void		err_clear(Err err);
+extern int		err_set(agooErr err, int code, const char *fmt, ...);
+extern int		err_no(agooErr err, const char *fmt, ...);
+extern const char*	err_str(agooErrCode code);
+extern void		err_clear(agooErr err);
 
 #endif /* AGOO_ERR_H */

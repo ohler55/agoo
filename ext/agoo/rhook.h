@@ -8,7 +8,7 @@
 #include "hook.h"
 #include "method.h"
 
-extern Hook	rhook_create(Method method, const char *pattern, VALUE handler, Queue q);
+extern agooHook	rhook_create(agooMethod method, const char *pattern, VALUE handler, agooQueue q);
 extern VALUE	resolve_classpath(const char *name, size_t len);
 
 #endif // AGOO_RHOOK_H

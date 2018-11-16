@@ -7,22 +7,22 @@
 
 #include "atomic.h"
 
-#define TEXT_MIN_SIZE	8
+#define AGOO_TEXT_MIN_SIZE	8
 
-typedef struct _Text {
+typedef struct _agooText {
     long	len; // length of valid text
     long	alen; // size of allocated text
     atomic_int	ref_cnt;
     bool	bin;
-    char	text[TEXT_MIN_SIZE];
-} *Text;
+    char	text[AGOO_TEXT_MIN_SIZE];
+} *agooText;
 
-extern Text	text_create(const char *str, int len);
-extern Text	text_dup(Text t);
-extern Text	text_allocate(int len);
-extern void	text_ref(Text t);
-extern void	text_release(Text t);
-extern Text	text_append(Text t, const char *s, int len);
-extern Text	text_prepend(Text t, const char *s, int len);
+extern agooText	text_create(const char *str, int len);
+extern agooText	text_dup(agooText t);
+extern agooText	text_allocate(int len);
+extern void	text_ref(agooText t);
+extern void	text_release(agooText t);
+extern agooText	text_append(agooText t, const char *s, int len);
+extern agooText	text_prepend(agooText t, const char *s, int len);
 
-#endif /* AGOO_TEXT_H */
+#endif // AGOO_TEXT_H

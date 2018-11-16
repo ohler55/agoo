@@ -9,40 +9,40 @@
 #include "kinds.h"
 
 struct _Server;
-struct _Upgraded;
-struct _Res;
+struct _agooUpgraded;
+struct _agooRes;
 
 typedef enum {
-    UP_NONE	= '\0',
-    UP_WS	= 'W',
-    UP_SSE	= 'S',
-} Upgrade;
+    AGOO_UP_NONE	= '\0',
+    AGOO_UP_WS		= 'W',
+    AGOO_UP_SSE		= 'S',
+} agooUpgrade;
 
-typedef struct _Str {
+typedef struct _agooStr {
     char		*start;
     unsigned int	len;
-} *Str;
+} *agooStr;
 
-typedef struct _Req {
-    Method		method;
-    struct _Res		*res;
+typedef struct _agooReq {
+    agooMethod			method;
+    struct _agooRes		*res;
 
-    Upgrade		upgrade;
-    struct _Upgraded	*up;
-    struct _Str		path;
-    struct _Str		query;
-    struct _Str		header;
-    struct _Str		body;
-    void		*env;
-    Hook		hook;
-    size_t		mlen;   // allocated msg length
-    char		msg[8]; // expanded to be full message
-} *Req;
+    agooUpgrade			upgrade;
+    struct _agooUpgraded	*up;
+    struct _agooStr		path;
+    struct _agooStr		query;
+    struct _agooStr		header;
+    struct _agooStr		body;
+    void			*env;
+    agooHook			hook;
+    size_t			mlen;   // allocated msg length
+    char			msg[8]; // expanded to be full message
+} *agooReq;
 
-extern Req		req_create(size_t mlen);
-extern void		req_destroy(Req req);
-extern const char*	req_host(Req r, int *lenp);
-extern int		req_port(Req r);
-extern const char*	req_query_value(Req r, const char *key, int klen, int *vlenp);
+extern agooReq		req_create(size_t mlen);
+extern void		req_destroy(agooReq req);
+extern const char*	req_host(agooReq r, int *lenp);
+extern int		req_port(agooReq r);
+extern const char*	req_query_value(agooReq r, const char *key, int klen, int *vlenp);
 
 #endif // AGOO_REQ_H

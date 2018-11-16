@@ -11,8 +11,8 @@
 #include "upgraded.h"
 
 static void
-destroy(Upgraded up) {
-    Subject	subject;
+destroy(agooUpgraded up) {
+    agooSubject	subject;
 
     if (NULL != up->on_destroy) {
 	up->on_destroy(up);
@@ -37,7 +37,7 @@ destroy(Upgraded up) {
 }
 
 void
-upgraded_release(Upgraded up) {
+upgraded_release(agooUpgraded up) {
     pthread_mutex_lock(&the_server.up_lock);
     if (atomic_fetch_sub(&up->ref_cnt, 1) <= 1) {
 	destroy(up);
@@ -46,7 +46,7 @@ upgraded_release(Upgraded up) {
 }
 
 void
-upgraded_release_con(Upgraded up) {
+upgraded_release_con(agooUpgraded up) {
     pthread_mutex_lock(&the_server.up_lock);
     up->con = NULL;
     if (atomic_fetch_sub(&up->ref_cnt, 1) <= 1) {
@@ -58,8 +58,8 @@ upgraded_release_con(Upgraded up) {
 // Called from the con_loop thread, no need to lock, this steals the subject
 // so the pub subject should set to NULL
 void
-upgraded_add_subject(Upgraded up, Subject subject) {
-    Subject	s;
+upgraded_add_subject(agooUpgraded up, agooSubject subject) {
+    agooSubject	s;
 
     for (s = up->subjects; NULL != s; s = s->next) {
 	if (0 == strcmp(subject->pattern, s->pattern)) {
@@ -72,15 +72,15 @@ upgraded_add_subject(Upgraded up, Subject subject) {
 }
 
 void
-upgraded_del_subject(Upgraded up, Subject subject) {
+upgraded_del_subject(agooUpgraded up, agooSubject subject) {
     if (NULL == subject) {
 	while (NULL != (subject = up->subjects)) {
 	    up->subjects = up->subjects->next;
 	    subject_destroy(subject);
 	}
     } else {
-	Subject	s;
-	Subject	prev = NULL;
+	agooSubject	s;
+	agooSubject	prev = NULL;
 
 	for (s = up->subjects; NULL != s; s = s->next) {
 	    if (0 == strcmp(subject->pattern, s->pattern)) {
@@ -98,8 +98,8 @@ upgraded_del_subject(Upgraded up, Subject subject) {
 }
 
 bool
-upgraded_match(Upgraded up, const char *subject) {
-    Subject	s;
+upgraded_match(agooUpgraded up, const char *subject) {
+    agooSubject	s;
 
     for (s = up->subjects; NULL != s; s = s->next) {
 	if (subject_check(s, subject)) {
@@ -110,13 +110,13 @@ upgraded_match(Upgraded up, const char *subject) {
 }
 
 void
-upgraded_ref(Upgraded up) {
+upgraded_ref(agooUpgraded up) {
     atomic_fetch_add(&up->ref_cnt, 1);
 }
 
 bool
-upgraded_write(Upgraded up, const char *message, size_t mlen, bool bin, bool inc_ref) {
-    Pub	p;
+upgraded_write(agooUpgraded up, const char *message, size_t mlen, bool bin, bool inc_ref) {
+    agooPub	p;
 
     if (0 < the_server.max_push_pending && the_server.max_push_pending <= atomic_load(&up->pending)) {
 	atomic_fetch_sub(&up->ref_cnt, 1);
@@ -134,7 +134,7 @@ upgraded_write(Upgraded up, const char *message, size_t mlen, bool bin, bool inc
 }
 
 void
-upgraded_subscribe(Upgraded up, const char *subject, int slen, bool inc_ref) {
+upgraded_subscribe(agooUpgraded up, const char *subject, int slen, bool inc_ref) {
     if (inc_ref) {
 	atomic_fetch_add(&up->ref_cnt, 1);
     }
@@ -143,7 +143,7 @@ upgraded_subscribe(Upgraded up, const char *subject, int slen, bool inc_ref) {
 }
 
 void
-upgraded_unsubscribe(Upgraded up, const char *subject, int slen, bool inc_ref) {
+upgraded_unsubscribe(agooUpgraded up, const char *subject, int slen, bool inc_ref) {
     if (inc_ref) {
 	atomic_fetch_add(&up->ref_cnt, 1);
     }
@@ -152,7 +152,7 @@ upgraded_unsubscribe(Upgraded up, const char *subject, int slen, bool inc_ref) {
 }
 
 void
-upgraded_close(Upgraded up, bool inc_ref) {
+upgraded_close(agooUpgraded up, bool inc_ref) {
     if (inc_ref) {
 	atomic_fetch_add(&up->ref_cnt, 1);
     }
@@ -161,17 +161,17 @@ upgraded_close(Upgraded up, bool inc_ref) {
 }
 
 int
-upgraded_pending(Upgraded up) {
+upgraded_pending(agooUpgraded up) {
     return atomic_load(&up->pending);
 }
 
-Upgraded
-upgraded_create(Con c, void * ctx, void *env) {
-    Upgraded	up = (Upgraded)malloc(sizeof(struct _Upgraded));
+agooUpgraded
+upgraded_create(agooCon c, void * ctx, void *env) {
+    agooUpgraded	up = (agooUpgraded)malloc(sizeof(struct _agooUpgraded));
 
     if (NULL != up) {
 	DEBUG_ALLOC(mem_upgraded, up);
-	memset(up, 0, sizeof(struct _Upgraded));
+	memset(up, 0, sizeof(struct _agooUpgraded));
 	up->con = c;
 	up->ctx = ctx;
 	up->env = env;

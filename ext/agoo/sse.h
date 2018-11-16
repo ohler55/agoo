@@ -3,10 +3,10 @@
 #ifndef AGOO_SSE_H
 #define AGOO_SSE_H
 
-struct _Req;
-struct _Text;
+struct _agooReq;
+struct _agooText;
 
-extern struct _Text*	sse_upgrade(struct _Req *req, struct _Text *t);
-extern struct _Text*	sse_expand(struct _Text *t);
+extern struct _agooText*	sse_upgrade(struct _agooReq *req, struct _agooText *t);
+extern struct _agooText*	sse_expand(struct _agooText *t);
 
 #endif // AGOO_SSE_H

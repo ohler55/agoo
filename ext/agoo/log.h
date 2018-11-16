@@ -19,12 +19,12 @@ typedef enum {
     INFO	= 3,
     DEBUG	= 4,
     UNKNOWN	= 5,
-} LogLevel;
+} agooLogLevel;
 
-typedef struct _Color {
+typedef struct _agooColor {
     const char	*name;
     const char	*ansi;
-} *Color;
+} *agooColor;
 
 #define BLACK		"black"
 #define RED		"red"
@@ -47,7 +47,7 @@ typedef struct _Log	*Log;
 typedef struct _LogCat {
     struct _LogCat	*next;
     char		label[32];
-    Color		color;
+    agooColor		color;
     int			level;
     bool		on;
 } *LogCat;
@@ -90,7 +90,7 @@ struct _Log {
     int			rsock;
     int			wsock;
 
-    void		(*on_error)(Err err);
+    void		(*on_error)(agooErr err);
 };
 
 extern struct _Log	the_log;
@@ -112,7 +112,7 @@ extern void	log_close();
 extern bool	log_flush(double timeout);
 extern void	log_rotate();
 
-extern void	log_cat_reg(LogCat cat, const char *label, LogLevel level, const char *color, bool on);
+extern void	log_cat_reg(LogCat cat, const char *label, agooLogLevel level, const char *color, bool on);
 extern void	log_cat_on(const char *label, bool on);
 extern LogCat	log_cat_find(const char *label);
 
@@ -123,6 +123,6 @@ extern void	log_catv(LogCat cat, const char *tid, const char *fmt, va_list ap);
 
 extern void	log_start(bool with_pid);
 
-extern Color	find_color(const char *name);
+extern agooColor	find_color(const char *name);
 
 #endif /* AGOO_LOG_H */

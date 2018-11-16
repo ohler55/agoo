@@ -13,15 +13,15 @@
 #include "debug.h"
 #include "log.h"
 
-Bind
-bind_port(Err err, int port) {
-    Bind	b = (Bind)malloc(sizeof(struct _Bind));
+agooBind
+bind_port(agooErr err, int port) {
+    agooBind	b = (agooBind)malloc(sizeof(struct _agooBind));
 
     if (NULL != b) {
 	char	id[1024];
 	
 	DEBUG_ALLOC(mem_bind, b);
-	memset(b, 0, sizeof(struct _Bind));
+	memset(b, 0, sizeof(struct _agooBind));
 	b->port = port;
 	b->family = AF_INET;
 	snprintf(id, sizeof(id) - 1, "http://:%d", port);
@@ -35,12 +35,12 @@ bind_port(Err err, int port) {
     return b;
 }
 
-static Bind
-url_tcp(Err err, const char *url, const char *scheme) {
+static agooBind
+url_tcp(agooErr err, const char *url, const char *scheme) {
     char		*colon = index(url, ':');
     struct in_addr	addr = { .s_addr = 0 };
     int			port;
-    Bind		b;
+    agooBind		b;
     
     if (NULL == colon) {
 	port = 80;
@@ -60,11 +60,11 @@ url_tcp(Err err, const char *url, const char *scheme) {
 	}
 	port = atoi(colon + 1);
     }
-    if (NULL != (b = (Bind)malloc(sizeof(struct _Bind)))) {
+    if (NULL != (b = (agooBind)malloc(sizeof(struct _agooBind)))) {
 	char	id[64];
 	
 	DEBUG_ALLOC(mem_bind, b);
-	memset(b, 0, sizeof(struct _Bind));
+	memset(b, 0, sizeof(struct _agooBind));
 
 	b->port = port;
 	b->addr4 = addr;
@@ -85,13 +85,13 @@ url_tcp(Err err, const char *url, const char *scheme) {
     return b;
 }
 
-static Bind
-url_tcp6(Err err, const char *url, const char *scheme) {
+static agooBind
+url_tcp6(agooErr err, const char *url, const char *scheme) {
     struct in6_addr	addr;
     char		*end = index(url, ']');
     int			port = 80;
     char		buf[256];
-    Bind		b;
+    agooBind		b;
     
     if (':' == *(end + 1)) {
 	port = atoi(end + 2);
@@ -103,11 +103,11 @@ url_tcp6(Err err, const char *url, const char *scheme) {
 	err_set(err, ERR_ARG, "%s bind address is not valid. (%s)", scheme, url);
 	return NULL;
     }
-    if (NULL != (b = (Bind)malloc(sizeof(struct _Bind)))) {
+    if (NULL != (b = (agooBind)malloc(sizeof(struct _agooBind)))) {
 	char	str[INET6_ADDRSTRLEN + 1];
 	
 	DEBUG_ALLOC(mem_bind, b);
-	memset(b, 0, sizeof(struct _Bind));
+	memset(b, 0, sizeof(struct _agooBind));
 
 	b->port = port;
 	b->addr6 = addr;
@@ -128,20 +128,20 @@ url_tcp6(Err err, const char *url, const char *scheme) {
     return b;
 }
 
-static Bind
-url_named(Err err, const char *url) {
+static agooBind
+url_named(agooErr err, const char *url) {
     if ('\0' == *url) {
 	err_set(err, ERR_ARG, "Named Unix sockets names must not be empty.");
 	return NULL;
     } else {
-	Bind	b = (Bind)malloc(sizeof(struct _Bind));
+	agooBind	b = (agooBind)malloc(sizeof(struct _agooBind));
 
 	if (NULL != b) {
 	    const char	*fmt = "unix://%s";
 	    char	id[1024];
 	
 	    DEBUG_ALLOC(mem_bind, b);
-	    memset(b, 0, sizeof(struct _Bind));
+	    memset(b, 0, sizeof(struct _agooBind));
 	    b->name = strdup(url);
 	    snprintf(id, sizeof(id) - 1, fmt, url);
 	    b->id = strdup(id);
@@ -158,14 +158,14 @@ url_named(Err err, const char *url) {
     return NULL;
 }
 
-static Bind
-url_ssl(Err err, const char *url) {
+static agooBind
+url_ssl(agooErr err, const char *url) {
     // TBD
     return NULL;
 }
 
-Bind
-bind_url(Err err, const char *url) {
+agooBind
+bind_url(agooErr err, const char *url) {
     if (0 == strncmp("tcp://", url, 6)) {
 	if ('[' == url[6]) {
 	    return url_tcp6(err, url + 6, "tcp");
@@ -207,7 +207,7 @@ bind_url(Err err, const char *url) {
 }
 
 void
-bind_destroy(Bind b) {
+bind_destroy(agooBind b) {
     DEBUG_FREE(mem_bind, b);
     free(b->id);
     free(b->name);
@@ -218,7 +218,7 @@ bind_destroy(Bind b) {
 }
 
 static int
-usual_listen(Err err, Bind b) {
+usual_listen(agooErr err, agooBind b) {
     int		optval = 1;
     int	domain = PF_INET;
 
@@ -267,7 +267,7 @@ usual_listen(Err err, Bind b) {
 }
 
 static int
-named_listen(Err err, Bind b) {
+named_listen(agooErr err, agooBind b) {
     struct sockaddr_un	addr;
 
     remove(b->name);
@@ -290,13 +290,13 @@ named_listen(Err err, Bind b) {
 }
 
 static int
-ssl_listen(Err err, Bind b) {
+ssl_listen(agooErr err, agooBind b) {
     // TBD
     return ERR_OK;
 }
 
 int
-bind_listen(Err err, Bind b) {
+bind_listen(agooErr err, agooBind b) {
     if (NULL != b->name) {
 	return named_listen(err, b);
     }
@@ -307,7 +307,7 @@ bind_listen(Err err, Bind b) {
 }
 
 void
-bind_close(Bind b) {
+bind_close(agooBind b) {
     if (0 != b->fd) {
 	close(b->fd);
 	b->fd = 0;

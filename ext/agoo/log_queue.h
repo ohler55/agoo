@@ -8,7 +8,7 @@
 #include "atomic.h"
 #include "val.h"
 
-typedef struct _LogQueue {
+typedef struct _agooLogQueue {
     opoMsg		*q;
     opoMsg		*end;
     _Atomic(opoMsg*)	head;
@@ -17,7 +17,7 @@ typedef struct _LogQueue {
     atomic_int		wait_state;
     int			rsock;
     int			wsock;
-} *LogQueue;
+} *agooLogQueue;
 
 extern void	queue_init(Queue q, size_t qsize);
 
@@ -27,4 +27,4 @@ extern opoMsg	queue_pop(Queue q, double timeout);
 extern bool	queue_empty(Queue q);
 extern int	queue_count(Queue q);
 
-#endif /* AGOO_LOG_QUEUE_H */
+#endif // AGOO_LOG_QUEUE_H

@@ -59,11 +59,11 @@ static ID	to_i_id;
 
 static const char	err500[] = "HTTP/1.1 500 Internal Server Error\r\n";
 
-struct _RServer	the_rserver = {};
+struct _rServer	the_rserver = {};
 
 static void
 server_mark(void *ptr) {
-    Upgraded	up;
+    agooUpgraded	up;
 
     rb_gc_mark(rserver);
     pthread_mutex_lock(&the_server.up_lock);
@@ -83,8 +83,8 @@ server_mark(void *ptr) {
 
 static void
 url_bind(VALUE rurl) {
-    struct _Err	err = ERR_INIT;
-    Bind	b = bind_url(&err, StringValuePtr(rurl));
+    struct _agooErr	err = ERR_INIT;
+    agooBind		b = bind_url(&err, StringValuePtr(rurl));
 
     if (ERR_OK != err.code) {
 	rb_raise(rb_eArgError, "%s", err.msg);
@@ -93,7 +93,7 @@ url_bind(VALUE rurl) {
 }
 
 static int
-configure(Err err, int port, const char *root, VALUE options) {
+configure(agooErr err, int port, const char *root, VALUE options) {
     pages_set_root(root);
     the_server.thread_cnt = 0;
     the_rserver.worker_cnt = 1;
@@ -176,7 +176,7 @@ configure(Err err, int port, const char *root, VALUE options) {
 	}
 	if (Qnil != (v = rb_hash_lookup(options, ID2SYM(rb_intern("graphql"))))) {
 	    const char	*path;
-	    Hook	hook;
+	    agooHook	hook;
 	    char	schema_path[256];
 	    long	plen;
 
@@ -192,11 +192,11 @@ configure(Err err, int port, const char *root, VALUE options) {
 	    memcpy(schema_path, path, plen);
 	    memcpy(schema_path + plen, "/schema", 8);
 
-	    hook = hook_func_create(GET, schema_path, gql_dump_hook, &the_server.eval_queue);
+	    hook = hook_func_create(AGOO_GET, schema_path, gql_dump_hook, &the_server.eval_queue);
 	    hook->next = the_server.hooks;
 	    the_server.hooks = hook;
 
-	    hook = hook_func_create(GET, path, gql_eval_hook, &the_server.eval_queue);
+	    hook = hook_func_create(AGOO_GET, path, gql_eval_hook, &the_server.eval_queue);
 	    hook->next = the_server.hooks;
 	    the_server.hooks = hook;
 	}
@@ -220,7 +220,7 @@ configure(Err err, int port, const char *root, VALUE options) {
 	}
     }
     if (0 < port) {
-	Bind	b = bind_port(err, port);
+	agooBind	b = bind_port(err, port);
 
 	if (ERR_OK != err->code) {
 	    rb_raise(rb_eArgError, "%s", err->msg);
@@ -251,10 +251,10 @@ configure(Err err, int port, const char *root, VALUE options) {
  */
 static VALUE
 rserver_init(int argc, VALUE *argv, VALUE self) {
-    struct _Err	err = ERR_INIT;
-    int		port;
-    const char	*root;
-    VALUE	options = Qnil;
+    struct _agooErr	err = ERR_INIT;
+    int			port;
+    const char		*root;
+    VALUE		options = Qnil;
 
     if (argc < 2 || 3 < argc) {
 	rb_raise(rb_eArgError, "Wrong number of arguments to Agoo::Server.configure.");
@@ -281,7 +281,7 @@ static const char	bad500[] = "HTTP/1.1 500 Internal Error\r\nConnection: Close\r
 
 static VALUE
 rescue_error(VALUE x) {
-    Req			req = (Req)x;
+    agooReq		req = (agooReq)x;
     volatile VALUE	info = rb_errinfo();
     volatile VALUE	msg = rb_funcall(info, rb_intern("message"), 0);
     const char		*classname = rb_obj_classname(info);
@@ -291,7 +291,7 @@ rescue_error(VALUE x) {
 	char	buf[1024];
 	int	len = (int)(strlen(classname) + 2 + strlen(ms));
 	int	cnt;
-	Text	message;
+	agooText	message;
 
 	if ((int)(sizeof(buf) - sizeof(bad500) + 7) <= len) {
 	    len = sizeof(buf) - sizeof(bad500) + 7;
@@ -320,7 +320,7 @@ rescue_error(VALUE x) {
 
 static VALUE
 handle_base_inner(void *x) {
-    Req			req = (Req)x;
+    agooReq			req = (agooReq)x;
     volatile VALUE	rr = request_wrap(req);
     volatile VALUE	rres = response_new();
 
@@ -342,12 +342,12 @@ handle_base(void *x) {
 }
 
 static int
-header_cb(VALUE key, VALUE value, Text *tp) {
-    const char	*ks = StringValuePtr(key);
-    int		klen = (int)RSTRING_LEN(key);
-    const char	*vs = StringValuePtr(value);
-    int		vlen = (int)RSTRING_LEN(value);
-    struct _Err	err = ERR_INIT;
+header_cb(VALUE key, VALUE value, agooText *tp) {
+    const char		*ks = StringValuePtr(key);
+    int			klen = (int)RSTRING_LEN(key);
+    const char		*vs = StringValuePtr(value);
+    int			vlen = (int)RSTRING_LEN(value);
+    struct _agooErr	err = ERR_INIT;
     
     if (the_server.pedantic) {
 	if (ERR_OK != http_header_ok(&err, ks, klen, vs, vlen)) {
@@ -364,7 +364,7 @@ header_cb(VALUE key, VALUE value, Text *tp) {
 }
 
 static VALUE
-header_each_cb(VALUE kv, Text *tp) {
+header_each_cb(VALUE kv, agooText *tp) {
     header_cb(rb_ary_entry(kv, 0), rb_ary_entry(kv, 1), tp);
 
     return Qnil;
@@ -378,7 +378,7 @@ body_len_cb(VALUE v, int *sizep) {
 }
 
 static VALUE
-body_append_cb(VALUE v, Text *tp) {
+body_append_cb(VALUE v, agooText *tp) {
     *tp = text_append(*tp, StringValuePtr(v), (int)RSTRING_LEN(v));
 
     return Qnil;
@@ -386,8 +386,8 @@ body_append_cb(VALUE v, Text *tp) {
 
 static VALUE
 handle_rack_inner(void *x) {
-    Req			req = (Req)x;
-    Text		t;
+    agooReq		req = (agooReq)x;
+    agooText		t;
     volatile VALUE	env = request_env(req, request_wrap(req));
     volatile VALUE	res = Qnil;
     volatile VALUE	hv;
@@ -437,7 +437,7 @@ handle_rack_inner(void *x) {
 	    bsize += (int)RSTRING_LEN(rb_ary_entry(bv, i));
 	}
     } else {
-	if (HEAD == req->method) {
+	if (AGOO_HEAD == req->method) {
 	    // Rack wraps the response in two layers, Rack::Lint and
 	    // Rack::BodyProxy. It each is called on either with the HEAD
 	    // method an exception is raised so the length can not be
@@ -481,27 +481,27 @@ handle_rack_inner(void *x) {
 	VALUE	handler = Qnil;
 
 	switch (req->upgrade) {
-	case UP_WS:
+	case AGOO_UP_WS:
 	    if (CON_WS != req->res->con_kind ||
 		Qnil == (handler = rb_hash_lookup(env, push_env_key))) {
 		strcpy(t->text, err500);
 		t->len = sizeof(err500) - 1;
 		break;
 	    }
-	    req->hook = hook_create(NONE, NULL, (void*)handler, PUSH_HOOK, &the_server.eval_queue);
+	    req->hook = hook_create(AGOO_NONE, NULL, (void*)handler, PUSH_HOOK, &the_server.eval_queue);
 	    rupgraded_create(req->res->con, handler, request_env(req, Qnil));
 
 	    t->len = snprintf(t->text, 1024, "HTTP/1.1 101 %s\r\n", status_msg);
 	    t = ws_add_headers(req, t);
 	    break;
-	case UP_SSE:
+	case AGOO_UP_SSE:
 	    if (CON_SSE != req->res->con_kind ||
 		Qnil == (handler = rb_hash_lookup(env, push_env_key))) {
 		strcpy(t->text, err500);
 		t->len = sizeof(err500) - 1;
 		break;
 	    }
-	    req->hook = hook_create(NONE, NULL, (void*)handler, PUSH_HOOK, &the_server.eval_queue);
+	    req->hook = hook_create(AGOO_NONE, NULL, (void*)handler, PUSH_HOOK, &the_server.eval_queue);
 	    rupgraded_create(req->res->con, handler, request_env(req, Qnil));
 	    t = sse_upgrade(req, t);
 	    res_set_message(req->res, t);
@@ -511,7 +511,7 @@ handle_rack_inner(void *x) {
 	    break;
 	}
     }
-    if (HEAD == req->method) {
+    if (AGOO_HEAD == req->method) {
 	bsize = 0;
     } else {
 	if (T_HASH == rb_type(hv)) {
@@ -553,7 +553,7 @@ handle_rack(void *x) {
 
 static VALUE
 handle_wab_inner(void *x) {
-    Req			req = (Req)x;
+    agooReq			req = (agooReq)x;
     volatile VALUE	rr = request_wrap(req);
     volatile VALUE	rres = response_new();
 
@@ -576,15 +576,15 @@ handle_wab(void *x) {
 
 static VALUE
 handle_push_inner(void *x) {
-    Req	req = (Req)x;
+    agooReq	req = (agooReq)x;
 
     switch (req->method) {
-    case ON_MSG:
+    case AGOO_ON_MSG:
 	if (req->up->on_msg && NULL != req->hook) {
 	    rb_funcall((VALUE)req->hook->handler, on_message_id, 2, (VALUE)req->up->wrap, rb_str_new(req->msg, req->mlen));
 	}
 	break;
-    case ON_BIN:
+    case AGOO_ON_BIN:
 	if (req->up->on_msg && NULL != req->hook) {
 	    volatile VALUE	rstr = rb_str_new(req->msg, req->mlen);
 
@@ -592,19 +592,19 @@ handle_push_inner(void *x) {
 	    rb_funcall((VALUE)req->hook->handler, on_message_id, 2, (VALUE)req->up->wrap, rstr);
 	}
 	break;
-    case ON_CLOSE:
+    case AGOO_ON_CLOSE:
 	upgraded_ref(req->up);
 	server_publish(pub_close(req->up));
 	if (req->up->on_close && NULL != req->hook) {
 	    rb_funcall((VALUE)req->hook->handler, on_close_id, 1, (VALUE)req->up->wrap);
 	}
 	break;
-    case ON_SHUTDOWN:
+    case AGOO_ON_SHUTDOWN:
 	if (NULL != req->hook) {
 	    rb_funcall((VALUE)req->hook->handler, rb_intern("on_shutdown"), 1, (VALUE)req->up->wrap);
 	}
 	break;
-    case ON_ERROR:
+    case AGOO_ON_ERROR:
 	if (req->up->on_error && NULL != req->hook) {
 	    volatile VALUE	rstr = rb_str_new(req->msg, req->mlen);
 
@@ -612,7 +612,7 @@ handle_push_inner(void *x) {
 	    rb_funcall((VALUE)req->hook->handler, on_error_id, 2, (VALUE)req->up->wrap, rstr);
 	}
 	break;
-    case ON_EMPTY:
+    case AGOO_ON_EMPTY:
 	if (req->up->on_empty && NULL != req->hook) {
 	    rb_funcall((VALUE)req->hook->handler, on_drained_id, 1, (VALUE)req->up->wrap);
 	}
@@ -632,7 +632,7 @@ handle_push(void *x) {
 }
 
 static void
-handle_protected(Req req, bool gvi) {
+handle_protected(agooReq req, bool gvi) {
     if (NULL == req->hook) {
 	return;
     }
@@ -672,7 +672,7 @@ handle_protected(Req req, bool gvi) {
     default: {
 	char	buf[256];
 	int	cnt = snprintf(buf, sizeof(buf), "HTTP/1.1 500 Internal Error\r\nConnection: Close\r\nContent-Length: 0\r\n\r\n");
-	Text	message = text_create(buf, cnt);
+	agooText	message = text_create(buf, cnt);
 
 	req->res->close = true;
 	res_set_message(req->res, message);
@@ -684,11 +684,11 @@ handle_protected(Req req, bool gvi) {
 
 static void*
 process_loop(void *ptr) {
-    Req	req;
+    agooReq	req;
     
     atomic_fetch_add(&the_server.running, 1);
     while (the_server.active) {
-	if (NULL != (req = (Req)queue_pop(&the_server.eval_queue, 0.1))) {
+	if (NULL != (req = (agooReq)queue_pop(&the_server.eval_queue, 0.1))) {
 	    handle_protected(req, true);
 	    req_destroy(req);
 	}
@@ -712,13 +712,13 @@ wrap_process_loop(void *ptr) {
  */
 static VALUE
 rserver_start(VALUE self) {
-    VALUE	*vp;
-    int		i;
-    int		pid;
-    double	giveup;
-    struct _Err	err = ERR_INIT;
-    VALUE	agoo = rb_const_get_at(rb_cObject, rb_intern("Agoo"));
-    VALUE	v = rb_const_get_at(agoo, rb_intern("VERSION"));
+    VALUE		*vp;
+    int			i;
+    int			pid;
+    double		giveup;
+    struct _agooErr	err = ERR_INIT;
+    VALUE		agoo = rb_const_get_at(rb_cObject, rb_intern("Agoo"));
+    VALUE		v = rb_const_get_at(agoo, rb_intern("VERSION"));
     
     *the_rserver.worker_pids = getpid();
 
@@ -747,10 +747,10 @@ rserver_start(VALUE self) {
 	rb_raise(rb_eStandardError, "%s", err.msg);
     }
     if (0 >= the_server.thread_cnt) {
-	Req		req;
+	agooReq		req;
 
 	while (the_server.active) {
-	    if (NULL != (req = (Req)queue_pop(&the_server.eval_queue, 0.1))) {
+	    if (NULL != (req = (agooReq)queue_pop(&the_server.eval_queue, 0.1))) {
 		handle_protected(req, false);
 		req_destroy(req);
 	    } else {
@@ -862,8 +862,8 @@ rserver_shutdown(VALUE self) {
  */
 static VALUE
 handle(VALUE self, VALUE method, VALUE pattern, VALUE handler) {
-    Hook	hook;
-    Method	meth = ALL;
+    agooHook	hook;
+    agooMethod	meth = AGOO_ALL;
     const char	*pat;
     ID		static_id = rb_intern("static?");
 
@@ -871,21 +871,21 @@ handle(VALUE self, VALUE method, VALUE pattern, VALUE handler) {
     pat = StringValuePtr(pattern);
 
     if (connect_sym == method) {
-	meth = CONNECT;
+	meth = AGOO_CONNECT;
     } else if (delete_sym == method) {
-	meth = DELETE;
+	meth = AGOO_DELETE;
     } else if (get_sym == method) {
-	meth = GET;
+	meth = AGOO_GET;
     } else if (head_sym == method) {
-	meth = HEAD;
+	meth = AGOO_HEAD;
     } else if (options_sym == method) {
-	meth = OPTIONS;
+	meth = AGOO_OPTIONS;
     } else if (post_sym == method) {
-	meth = POST;
+	meth = AGOO_POST;
     } else if (put_sym == method) {
-	meth = PUT;
+	meth = AGOO_PUT;
     } else if (Qnil == method) {
-	meth = ALL;
+	meth = AGOO_ALL;
     } else {
 	rb_raise(rb_eArgError, "invalid method");
     }
@@ -905,8 +905,8 @@ handle(VALUE self, VALUE method, VALUE pattern, VALUE handler) {
 	    if (T_ARRAY == rb_type(bv)) {
 		int		i;
 		int		bcnt = (int)RARRAY_LEN(bv);
-		Text		t = text_allocate(1024);
-		struct _Err	err = ERR_INIT;
+		agooText	t = text_allocate(1024);
+		struct _agooErr	err = ERR_INIT;
 		VALUE		v;
 
 		if (NULL == t) {
@@ -928,8 +928,8 @@ handle(VALUE self, VALUE method, VALUE pattern, VALUE handler) {
     if (NULL == (hook = rhook_create(meth, pat, handler, &the_server.eval_queue))) {
 	rb_raise(rb_eStandardError, "out of memory.");
     } else {
-	Hook	h;
-	Hook	prev = NULL;
+	agooHook	h;
+	agooHook	prev = NULL;
 
 	for (h = the_server.hooks; NULL != h; h = h->next) {
 	    prev = h;
@@ -953,7 +953,7 @@ handle(VALUE self, VALUE method, VALUE pattern, VALUE handler) {
  */
 static VALUE
 handle_not_found(VALUE self, VALUE handler) {
-    if (NULL == (the_server.hook404 = rhook_create(GET, "/", handler, &the_server.eval_queue))) {
+    if (NULL == (the_server.hook404 = rhook_create(AGOO_GET, "/", handler, &the_server.eval_queue))) {
 	rb_raise(rb_eStandardError, "out of memory.");
     }
     rb_gc_register_address((VALUE*)&the_server.hook404->handler);
@@ -970,7 +970,7 @@ handle_not_found(VALUE self, VALUE handler) {
  */
 static VALUE
 add_mime(VALUE self, VALUE suffix, VALUE type) {
-    struct _Err	err = ERR_INIT;
+    struct _agooErr	err = ERR_INIT;
     
     if (ERR_OK != mime_set(&err, StringValuePtr(suffix), StringValuePtr(type))) {
 	rb_raise(rb_eArgError, "%s", err.msg);
@@ -988,7 +988,7 @@ add_mime(VALUE self, VALUE suffix, VALUE type) {
  */
 static VALUE
 path_group(VALUE self, VALUE path, VALUE dirs) {
-    Group	g;
+    agooGroup	g;
 
     rb_check_type(path, T_STRING);
     rb_check_type(dirs, T_ARRAY);

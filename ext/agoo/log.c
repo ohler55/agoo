@@ -25,7 +25,7 @@
 #define RESET_COLOR	"\033[0m"
 #define RESET_SIZE	4
 
-static struct _Color	colors[] = {
+static struct _agooColor	colors[] = {
     { .name = "black",      .ansi = "\033[30;1m" },
     { .name = "red",        .ansi = "\033[31;1m" },
     { .name = "green",      .ansi = "\033[32;1m" },
@@ -58,10 +58,10 @@ struct _LogCat	resp_cat;
 struct _LogCat	eval_cat;
 struct _LogCat	push_cat;
 
-Color
+agooColor
 find_color(const char *name) {
     if (NULL != name) {
-	for (Color c = colors; NULL != c->name; c++) {
+	for (agooColor c = colors; NULL != c->name; c++) {
 	    if (0 == strcasecmp(c->name, name)) {
 		return c;
 	    }
@@ -364,7 +364,7 @@ open_log_file() {
     }
     the_log.file = fopen(path, "a");
     if (NULL == the_log.file) {
-	struct _Err	err;
+	struct _agooErr	err;
 
 	err_no(&err, "Failed to create '%s'.", path);
 	the_log.on_error(&err);
@@ -406,7 +406,7 @@ log_close() {
 }
 
 void
-log_cat_reg(LogCat cat, const char *label, LogLevel level, const char *color, bool on) {
+log_cat_reg(LogCat cat, const char *label, agooLogLevel level, const char *color, bool on) {
     LogCat	xcat = log_cat_find(label);
     
     if (NULL != xcat) {
@@ -575,7 +575,7 @@ log_start(bool with_pid) {
     the_log.with_pid = with_pid;
     if ('\0' != *the_log.dir) {
 	if (0 != mkdir(the_log.dir, 0770) && EEXIST != errno) {
-	    struct _Err	err;
+	    struct _agooErr	err;
 
 	    err_no(&err, "Failed to create '%s'", the_log.dir);
 	    the_log.on_error(&err);

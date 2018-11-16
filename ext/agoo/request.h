@@ -10,7 +10,7 @@
 #include "req.h"
 
 extern void	request_init(VALUE mod);
-extern VALUE	request_wrap(Req req);
-extern VALUE	request_env(Req req, VALUE self);
+extern VALUE	request_wrap(agooReq req);
+extern VALUE	request_env(agooReq req, VALUE self);
 
 #endif // AGOO_REQUEST_H

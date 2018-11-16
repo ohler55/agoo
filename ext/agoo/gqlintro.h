@@ -5,6 +5,6 @@
 
 #include "err.h"
 
-extern int	gql_intro_init(Err err);
+extern int	gql_intro_init(agooErr err);
 
 #endif // AGOO_GQLINTRO_H

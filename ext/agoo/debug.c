@@ -10,8 +10,8 @@
 
 #include "debug.h"
 
-typedef struct _Rec {
-    struct _Rec	*next;
+typedef struct _rec {
+    struct _rec	*next;
     void	*ptr;
     const char	*type;
     const char	*file;
@@ -159,7 +159,7 @@ debug_rreport() {
 
 void
 debug_add(void *ptr, const char *type, const char *file, int line) {
-    Rec	r = (Rec)malloc(sizeof(struct _Rec));
+    Rec	r = (Rec)malloc(sizeof(struct _rec));
     
     r->ptr = ptr;
     r->type = type;

@@ -15,14 +15,14 @@ Connection: keep-alive\r\n\
 \r\n\
 retry: 5\n\n";
 
-Text
-sse_upgrade(Req req, Text t) {
+agooText
+sse_upgrade(agooReq req, agooText t) {
     t->len = 0; // reset
     return text_append(t, up, sizeof(up) - 1);
 }
 
-Text
-sse_expand(Text t) {
+agooText
+sse_expand(agooText t) {
     t = text_prepend(t, prefix, sizeof(prefix) - 1);
     return text_append(t, suffix, sizeof(suffix) - 1);
 }

@@ -9,11 +9,11 @@
 #include "response.h"
 
 int
-response_len(Response res) {
+response_len(agooResponse res) {
     char	buf[256];
     const char *msg = http_code_message(res->code);
     int		len = snprintf(buf, sizeof(buf), "HTTP/1.1 %d %s\r\nContent-Length: %d\r\n", res->code, msg, res->blen);
-    Header	h;
+    agooHeader	h;
 
     for (h = res->headers; NULL != h; h = h->next) {
 	len += h->len;
@@ -25,8 +25,8 @@ response_len(Response res) {
 }
 
 void
-response_fill(Response res, char *buf) {
-    Header	h;
+response_fill(agooResponse res, char *buf) {
+    agooHeader	h;
     const char *msg = http_code_message(res->code);
 
     buf += sprintf(buf, "HTTP/1.1 %d %s\r\nContent-Length: %d\r\n", res->code, msg, res->blen);

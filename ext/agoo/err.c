@@ -11,7 +11,7 @@
 #endif
 
 int
-err_set(Err err, int code, const char *fmt, ...) {
+err_set(agooErr err, int code, const char *fmt, ...) {
     va_list	ap;
 
     va_start(ap, fmt);
@@ -23,7 +23,7 @@ err_set(Err err, int code, const char *fmt, ...) {
 }
 
 int
-err_no(Err err, const char *fmt, ...) {
+err_no(agooErr err, const char *fmt, ...) {
     int	cnt = 0;
     
     if (NULL != fmt) {
@@ -45,13 +45,13 @@ err_no(Err err, const char *fmt, ...) {
 }
 
 void
-err_clear(Err err) {
+err_clear(agooErr err) {
     err->code = ERR_OK;
     *err->msg = '\0';
 }
 
 const char*
-err_str(ErrCode code) {
+err_str(agooErrCode code) {
     const char	*str = NULL;
     
     if (code < ERR_START) {

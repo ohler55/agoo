@@ -7,9 +7,9 @@
 
 static VALUE	es_class = Qundef;
 
-typedef struct _ErrorStream {
-    Server	server;
-    Text	text;
+typedef struct _errorStream {
+    agooServer	server;
+    agooText	text;
 } *ErrorStream;
 
 static void
@@ -24,7 +24,7 @@ es_free(void *ptr) {
 
 VALUE
 error_stream_new() {
-    ErrorStream	es = ALLOC(struct _ErrorStream);
+    ErrorStream	es = ALLOC(struct _errorStream);
 
     DEBUG_ALLOC(mem_err_stream, es)
     es->text = text_allocate(1024);

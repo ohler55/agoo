@@ -247,7 +247,7 @@ rlog_color_set(VALUE self, VALUE label, VALUE color) {
     const char	*label_str = StringValuePtr(label);
     const char	*color_name = StringValuePtr(color);
     LogCat	cat = log_cat_find(label_str);
-    Color	c = find_color(color_name);
+    agooColor	c = find_color(color_name);
 
     if (NULL == cat) {
 	rb_raise(rb_eArgError, "%s is not a valid category.", label_str);
@@ -417,7 +417,7 @@ rlog_max_files(VALUE self, VALUE rmax) {
 }
 
 static void
-on_error(Err err) {
+on_error(agooErr err) {
     rb_raise(rb_eStandardError, "%s", err->msg);
 }
 

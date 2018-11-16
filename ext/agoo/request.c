@@ -62,21 +62,21 @@ static const char	accept_key[] = "Accept";
 static const char	event_stream_val[] = "text/event-stream";
 
 static VALUE
-req_method(Req r) {
+req_method(agooReq r) {
     VALUE	m;
 
     if (NULL == r) {
 	rb_raise(rb_eArgError, "Request is no longer valid.");
     }
     switch (r->method) {
-    case CONNECT:	m = connect_val;	break;
-    case DELETE:	m = delete_val;		break;
-    case GET:		m = get_val;		break;
-    case HEAD:		m = head_val;		break;
-    case OPTIONS:	m = options_val;	break;
-    case POST:		m = post_val;		break;
-    case PUT:		m = put_val;		break;
-    case PATCH:		m = patch_val;		break;
+    case AGOO_CONNECT:	m = connect_val;	break;
+    case AGOO_DELETE:	m = delete_val;		break;
+    case AGOO_GET:	m = get_val;		break;
+    case AGOO_HEAD:	m = head_val;		break;
+    case AGOO_OPTIONS:	m = options_val;	break;
+    case AGOO_POST:	m = post_val;		break;
+    case AGOO_PUT:	m = put_val;		break;
+    case AGOO_PATCH:	m = patch_val;		break;
     default:		m = Qnil;		break;
     }
     return m;
@@ -90,11 +90,11 @@ req_method(Req r) {
  */
 static VALUE
 method(VALUE self) {
-    return req_method((Req)DATA_PTR(self));
+    return req_method((agooReq)DATA_PTR(self));
 }
 
 static VALUE
-req_script_name(Req r) {
+req_script_name(agooReq r) {
     // The logic is a bit tricky here and for path_info. If the HTTP path is /
     // then the script_name must be empty and the path_info will be /. All
     // other cases are handled with the full path in script_name and path_info
@@ -115,11 +115,11 @@ req_script_name(Req r) {
  */
 static VALUE
 script_name(VALUE self) {
-    return req_script_name((Req)DATA_PTR(self));
+    return req_script_name((agooReq)DATA_PTR(self));
 }
 
 static VALUE
-req_path_info(Req r) {
+req_path_info(agooReq r) {
     if (NULL == r) {
 	rb_raise(rb_eArgError, "Request is no longer valid.");
     }
@@ -143,11 +143,11 @@ req_path_info(Req r) {
  */
 static VALUE
 path_info(VALUE self) {
-    return req_path_info((Req)DATA_PTR(self));
+    return req_path_info((agooReq)DATA_PTR(self));
 }
 
 static VALUE
-req_query_string(Req r) {
+req_query_string(agooReq r) {
     if (NULL == r) {
 	rb_raise(rb_eArgError, "Request is no longer valid.");
     }
@@ -165,11 +165,11 @@ req_query_string(Req r) {
  */
 static VALUE
 query_string(VALUE self) {
-    return req_query_string((Req)DATA_PTR(self));
+    return req_query_string((agooReq)DATA_PTR(self));
 }
 
 static VALUE
-req_server_name(Req r) {
+req_server_name(agooReq r) {
     int		len;
     const char	*host;
 
@@ -190,11 +190,11 @@ req_server_name(Req r) {
  */
 static VALUE
 server_name(VALUE self) {
-    return req_server_name((Req)DATA_PTR(self));
+    return req_server_name((agooReq)DATA_PTR(self));
 }
 
 static VALUE
-req_server_port(Req r) {
+req_server_port(agooReq r) {
     int		len;
     const char	*host;
     const char	*colon;
@@ -224,14 +224,14 @@ req_server_port(Req r) {
  */
 static VALUE
 server_port(VALUE self) {
-    return req_server_port((Req)DATA_PTR(self));
+    return req_server_port((agooReq)DATA_PTR(self));
 }
 
 static VALUE
-req_rack_upgrade(Req r) {
+req_rack_upgrade(agooReq r) {
     switch (r->upgrade) {
-    case UP_WS:		return websocket_sym;
-    case UP_SSE:	return sse_sym;
+    case AGOO_UP_WS:	return websocket_sym;
+    case AGOO_UP_SSE:	return sse_sym;
     default:		return Qnil;
     }
 }
@@ -244,7 +244,7 @@ req_rack_upgrade(Req r) {
  */
 static VALUE
 rack_upgrade(VALUE self) {
-    return req_rack_upgrade((Req)DATA_PTR(self));
+    return req_rack_upgrade((agooReq)DATA_PTR(self));
 }
 
 /* Document-method: rack_version
@@ -259,7 +259,7 @@ rack_version(VALUE self) {
 }
 
 static VALUE
-req_rack_url_scheme(Req r) {
+req_rack_url_scheme(agooReq r) {
     // TBD http or https when ssl is supported
     return http_val;
 }
@@ -272,11 +272,11 @@ req_rack_url_scheme(Req r) {
  */
 static VALUE
 rack_url_scheme(VALUE self) {
-    return req_rack_url_scheme((Req)DATA_PTR(self));
+    return req_rack_url_scheme((agooReq)DATA_PTR(self));
 }
 
 static VALUE
-req_rack_input(Req r) {
+req_rack_input(agooReq r) {
     if (NULL == r) {
 	rb_raise(rb_eArgError, "Request is no longer valid.");
     }
@@ -295,11 +295,11 @@ req_rack_input(Req r) {
  */
 static VALUE
 rack_input(VALUE self) {
-    return req_rack_input((Req)DATA_PTR(self));
+    return req_rack_input((agooReq)DATA_PTR(self));
 }
 
 static VALUE
-req_rack_errors(Req r) {
+req_rack_errors(agooReq r) {
     return error_stream_new();
 }
 
@@ -312,11 +312,11 @@ req_rack_errors(Req r) {
  */
 static VALUE
 rack_errors(VALUE self) {
-    return req_rack_errors((Req)DATA_PTR(self));
+    return req_rack_errors((agooReq)DATA_PTR(self));
 }
 
 static VALUE
-req_rack_multithread(Req r) {
+req_rack_multithread(agooReq r) {
     if (NULL == r) {
 	rb_raise(rb_eArgError, "Request is no longer valid.");
     }
@@ -334,7 +334,7 @@ req_rack_multithread(Req r) {
  */
 static VALUE
 rack_multithread(VALUE self) {
-    return req_rack_multithread((Req)DATA_PTR(self));
+    return req_rack_multithread((agooReq)DATA_PTR(self));
 }
 
 /* Document-method: rack_multiprocess
@@ -394,7 +394,7 @@ add_header_value(VALUE hh, const char *key, int klen, const char *val, int vlen)
 
 // TBD req.c
 static void
-fill_headers(Req r, VALUE hash) {
+fill_headers(agooReq r, VALUE hash) {
     char	*h = r->header.start;
     char	*end = h + r->header.len + 1; // +1 for last \r
     char	*key = h;
@@ -448,7 +448,7 @@ fill_headers(Req r, VALUE hash) {
 	    } else if (sizeof(accept_key) - 1 == klen && 0 == strncasecmp(key, accept_key, sizeof(accept_key) - 1)) {
 		if (sizeof(event_stream_val) - 1 == vend - val &&
 		    0 == strncasecmp(val, event_stream_val, sizeof(event_stream_val) - 1)) {
-		    r->upgrade = UP_SSE;
+		    r->upgrade = AGOO_UP_SSE;
 		}
 	    }
 	    key = h + 1;
@@ -461,7 +461,7 @@ fill_headers(Req r, VALUE hash) {
 	}
     }
     if (upgrade && ws) {
-	r->upgrade = UP_WS;
+	r->upgrade = AGOO_UP_WS;
     }
 }
 
@@ -473,7 +473,7 @@ fill_headers(Req r, VALUE hash) {
  */
 static VALUE
 headers(VALUE self) {
-    Req			r = DATA_PTR(self);
+    agooReq		r = DATA_PTR(self);
     volatile VALUE	h;
 
     if (NULL == r) {
@@ -494,7 +494,7 @@ headers(VALUE self) {
  */
 static VALUE
 body(VALUE self) {
-    Req		r = DATA_PTR(self);
+    agooReq	r = DATA_PTR(self);
 
     if (NULL == r) {
 	rb_raise(rb_eArgError, "Request is no longer valid.");
@@ -506,7 +506,7 @@ body(VALUE self) {
 }
 
 static VALUE
-req_rack_logger(Req req) {
+req_rack_logger(agooReq req) {
     return rack_logger_new();
 }
 
@@ -521,7 +521,7 @@ req_rack_logger(Req req) {
  */
 static VALUE
 rack_logger(VALUE self) {
-    return req_rack_logger((Req)DATA_PTR(self));
+    return req_rack_logger((agooReq)DATA_PTR(self));
 }
 
 /* Document-class: Agoo::Request
@@ -530,7 +530,7 @@ rack_logger(VALUE self) {
  * request is a more efficient encapsulation of the rack environment.
  */
 VALUE
-request_env(Req req, VALUE self) {
+request_env(agooReq req, VALUE self) {
     if (Qnil == (VALUE)req->env) {
 	volatile VALUE	env = rb_hash_new();
     
@@ -580,7 +580,7 @@ request_env(Req req, VALUE self) {
  */
 static VALUE
 to_h(VALUE self) {
-    Req		r = DATA_PTR(self);
+    agooReq	r = DATA_PTR(self);
 
     if (NULL == r) {
 	rb_raise(rb_eArgError, "Request is no longer valid.");
@@ -609,7 +609,7 @@ to_s(VALUE self) {
  */
 static VALUE
 call(VALUE self) {
-    Req			r = DATA_PTR(self);
+    agooReq		r = DATA_PTR(self);
     VALUE		args[1];
     volatile VALUE	io;
 
@@ -630,7 +630,7 @@ call(VALUE self) {
 }
 
 VALUE
-request_wrap(Req req) {
+request_wrap(agooReq req) {
     // freed from the C side of things
     return Data_Wrap_Struct(req_class, NULL, NULL, req);
 }

@@ -3,9 +3,9 @@
 #ifndef AGOO_SEG_H
 #define AGOO_SEG_H
 
-typedef struct _Seg {
+typedef struct _agooSeg {
     char	*start;
     char	*end;
-} *Seg;
+} *agooSeg;
 
 #endif // AGOO_SEG_H

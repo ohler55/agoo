@@ -9,6 +9,6 @@
 
 extern void	response_init(VALUE mod);
 extern VALUE	response_new();
-extern Text	response_text(VALUE self);
+extern agooText	response_text(VALUE self);
 
 #endif // AGOO_RRESPONSE_H

@@ -10,10 +10,10 @@
 #include "server.h"
 #include "req.h"
 
-Req
+agooReq
 req_create(size_t mlen) {
-    size_t	size = mlen + sizeof(struct _Req) - 7;
-    Req		req = (Req)malloc(size);
+    size_t	size = mlen + sizeof(struct _agooReq) - 7;
+    agooReq	req = (agooReq)malloc(size);
     
     if (NULL != req) {
 	DEBUG_ALLOC(mem_req, req);
@@ -26,7 +26,7 @@ req_create(size_t mlen) {
 }
 
 void
-req_destroy(Req req) {
+req_destroy(agooReq req) {
     DEBUG_FREE(mem_req, req);
     if (NULL != req->hook && PUSH_HOOK == req->hook->type) {
 	free(req->hook);
@@ -35,7 +35,7 @@ req_destroy(Req req) {
 }
 
 const char*
-req_host(Req r, int *lenp) {
+req_host(agooReq r, int *lenp) {
     const char	*host;
     const char	*colon;
 
@@ -54,7 +54,7 @@ req_host(Req r, int *lenp) {
 }
 
 int
-req_port(Req r) {
+req_port(agooReq r) {
     int		len;
     const char	*host;
     const char	*colon;
@@ -74,7 +74,7 @@ req_port(Req r) {
 }
 
 const char*
-req_query_value(Req r, const char *key, int klen, int *vlenp) {
+req_query_value(agooReq r, const char *key, int klen, int *vlenp) {
     const char	*value;
 
     if (NULL != (value = strstr(r->query.start, key))) {

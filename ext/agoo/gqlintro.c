@@ -39,7 +39,7 @@ schema_query_type_resolve(gqlRef target, const char *fieldName, gqlKeyVal *args)
 }
 
 static int
-create_schema_type(Err err) {
+create_schema_type(agooErr err) {
     if (NULL == (schema_type = gql_type_create(err, "__Schema", NULL, -1, true, NULL)) ||
 	NULL == gql_type_field(err, schema_type, "types", type_type, NULL, true, true, true, schema_types_resolve) ||
 	NULL == gql_type_field(err, schema_type, "queryType", type_type, NULL, true, false, false, schema_query_type_resolve) ||
@@ -66,7 +66,7 @@ create_schema_type(Err err) {
 //   ofType: __Type
 // }
 static int
-create_type_type(Err err) {
+create_type_type(agooErr err) {
     gqlField	fields = NULL;
     gqlField	enum_values = NULL;
     gqlValue	dv;
@@ -97,7 +97,7 @@ create_type_type(Err err) {
 }
 
 static int
-create_type_kind_type(Err err) {
+create_type_kind_type(agooErr err) {
     const char	*choices[] = {
 	"SCALAR",
 	"OBJECT",
@@ -130,7 +130,7 @@ create_type_kind_type(Err err) {
 //   deprecationReason: String
 // }
 static int
-create_field_type(Err err) {
+create_field_type(agooErr err) {
     if (NULL == (field_type = gql_type_create(err, "__Field", NULL, -1, true, NULL)) ||
 	NULL == gql_type_field(err, field_type, "name", &gql_string_type, NULL, true, false, false, NULL) ||
 	NULL == gql_type_field(err, field_type, "description", &gql_string_type, NULL, false, false, false, NULL) ||
@@ -153,7 +153,7 @@ create_field_type(Err err) {
 //   defaultValue: String
 // }
 static int
-create_input_type(Err err) {
+create_input_type(agooErr err) {
     if (NULL == (input_value_type = gql_type_create(err, "__InputValue", NULL, -1, true, NULL)) ||
 	NULL == gql_type_field(err, input_value_type, "name", &gql_string_type, NULL, true, false, false, NULL) ||
 	NULL == gql_type_field(err, input_value_type, "description", &gql_string_type, NULL, false, false, false, NULL) ||
@@ -174,7 +174,7 @@ create_input_type(Err err) {
 //   deprecationReason: String
 // }
 static int
-create_enum_type(Err err) {
+create_enum_type(agooErr err) {
     if (NULL == (enum_value_type = gql_type_create(err, "__EnumValue", NULL, -1, true, NULL)) ||
 	NULL == gql_type_field(err, enum_value_type, "name", &gql_string_type, NULL, true, false, false, NULL) ||
 	NULL == gql_type_field(err, enum_value_type, "description", &gql_string_type, NULL, false, false, false, NULL) ||
@@ -195,7 +195,7 @@ create_enum_type(Err err) {
 //   args: [__InputValue!]!
 // }
 static int
-create_directive_type(Err err) {
+create_directive_type(agooErr err) {
     if (NULL == (directive_type = gql_type_create(err, "__Directive", NULL, -1, true, NULL)) ||
 	NULL == gql_type_field(err, directive_type, "name", &gql_string_type, NULL, true, false, false, NULL) ||
 	NULL == gql_type_field(err, directive_type, "description", &gql_string_type, NULL, false, false, false, NULL) ||
@@ -210,7 +210,7 @@ create_directive_type(Err err) {
 }
 
 static int
-create_directive_location_type(Err err) {
+create_directive_location_type(agooErr err) {
     const char	*choices[] = {
 	"QUERY",
 	"MUTATION",
@@ -244,7 +244,7 @@ create_directive_location_type(Err err) {
 }
 
 static int
-create_dir_skip(Err err) {
+create_dir_skip(agooErr err) {
     gqlDir	dir = gql_directive_create(err, "skip", NULL, -1, true);
 
     if (NULL == dir) {
@@ -261,7 +261,7 @@ create_dir_skip(Err err) {
 }
 
 static int
-create_dir_include(Err err) {
+create_dir_include(agooErr err) {
     gqlDir	dir = gql_directive_create(err, "include", NULL, -1, true);
 
     if (NULL == dir) {
@@ -278,7 +278,7 @@ create_dir_include(Err err) {
 }
 
 static int
-create_dir_deprecated(Err err) {
+create_dir_deprecated(agooErr err) {
     gqlDir	dir = gql_directive_create(err, "deprecated", NULL, -1, true);
     gqlValue	dv;
 
@@ -296,7 +296,7 @@ create_dir_deprecated(Err err) {
 }
 
 int
-gql_intro_init(Err err) {
+gql_intro_init(agooErr err) {
     gqlField	f;
     
     if (ERR_OK != create_type_kind_type(err) ||

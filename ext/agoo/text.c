@@ -7,9 +7,9 @@
 #include "debug.h"
 #include "text.h"
 
-Text
+agooText
 text_create(const char *str, int len) {
-    Text	t = (Text)malloc(sizeof(struct _Text) - TEXT_MIN_SIZE + len + 1);
+    agooText	t = (agooText)malloc(sizeof(struct _agooText) - AGOO_TEXT_MIN_SIZE + len + 1);
 
     if (NULL != t) {
 	DEBUG_ALLOC(mem_text, t)
@@ -23,9 +23,9 @@ text_create(const char *str, int len) {
     return t;
 }
 
-Text
-text_dup(Text t0) {
-    Text	t = (Text)malloc(sizeof(struct _Text) - TEXT_MIN_SIZE + t0->alen + 1);
+agooText
+text_dup(agooText t0) {
+    agooText	t = (agooText)malloc(sizeof(struct _agooText) - AGOO_TEXT_MIN_SIZE + t0->alen + 1);
 
     if (NULL != t) {
 	DEBUG_ALLOC(mem_text, t)
@@ -38,9 +38,9 @@ text_dup(Text t0) {
     return t;
 }
 
-Text
+agooText
 text_allocate(int len) {
-    Text	t = (Text)malloc(sizeof(struct _Text) - TEXT_MIN_SIZE + len + 1);
+    agooText	t = (agooText)malloc(sizeof(struct _agooText) - AGOO_TEXT_MIN_SIZE + len + 1);
 
     if (NULL != t) {
 	DEBUG_ALLOC(mem_text, t)
@@ -54,30 +54,30 @@ text_allocate(int len) {
 }
 
 void
-text_ref(Text t) {
+text_ref(agooText t) {
     atomic_fetch_add(&t->ref_cnt, 1);
 }
 
 void
-text_release(Text t) {
+text_release(agooText t) {
     if (1 >= atomic_fetch_sub(&t->ref_cnt, 1)) {
 	DEBUG_FREE(mem_text, t);
 	free(t);
     }
 }
 
-Text
-text_append(Text t, const char *s, int len) {
+agooText
+text_append(agooText t, const char *s, int len) {
     if (0 >= len) {
 	len = (int)strlen(s);
     }
     if (t->alen <= t->len + len) {
 	long	new_len = t->alen + len + t->alen / 2;
-	size_t	size = sizeof(struct _Text) - TEXT_MIN_SIZE + new_len + 1;
+	size_t	size = sizeof(struct _agooText) - AGOO_TEXT_MIN_SIZE + new_len + 1;
 #ifdef MEM_DEBUG
-	Text	t0 = t;
+	agooText	t0 = t;
 #endif	
-	if (NULL == (t = (Text)realloc(t, size))) {
+	if (NULL == (t = (agooText)realloc(t, size))) {
 	    return NULL;
 	}
 	DEBUG_REALLOC(mem_text, t0, t);
@@ -90,19 +90,19 @@ text_append(Text t, const char *s, int len) {
     return t;
 }
 
-Text
-text_prepend(Text t, const char *s, int len) {
+agooText
+text_prepend(agooText t, const char *s, int len) {
     if (0 >= len) {
 	len = (int)strlen(s);
     }
     if (t->alen <= t->len + len) {
 	long	new_len = t->alen + len + t->alen / 2;
-	size_t	size = sizeof(struct _Text) - TEXT_MIN_SIZE + new_len + 1;
+	size_t	size = sizeof(struct _agooText) - AGOO_TEXT_MIN_SIZE + new_len + 1;
 #ifdef MEM_DEBUG
-	Text	t0 = t;
+	agooText	t0 = t;
 #endif	
 
-	if (NULL == (t = (Text)realloc(t, size))) {
+	if (NULL == (t = (agooText)realloc(t, size))) {
 	    return NULL;
 	}
 	DEBUG_REALLOC(mem_text, t0, t);

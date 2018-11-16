@@ -5,13 +5,13 @@
 
 #include <stdbool.h>
 
-typedef struct _Subject {
-    struct _Subject	*next;
+typedef struct _agooSubject {
+    struct _agooSubject	*next;
     char		pattern[8];
-} *Subject;
+} *agooSubject;
 
-extern Subject	subject_create(const char *pattern, int plen);
-extern void	subject_destroy(Subject subject);
-extern bool	subject_check(Subject subj, const char *subject);
+extern agooSubject	subject_create(const char *pattern, int plen);
+extern void	subject_destroy(agooSubject subject);
+extern bool	subject_check(agooSubject subj, const char *subject);
 
 #endif // AGOO_SUBJECT_H

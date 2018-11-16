@@ -12,8 +12,8 @@
 static const char	spaces[256] = "\n                                                                                                                                                                                                                                                               ";
 
 // Int type
-static Text
-null_to_text(Text text, gqlValue value, int indent, int depth) {
+static agooText
+null_to_text(agooText text, gqlValue value, int indent, int depth) {
     return text_append(text, "null", 4);
 }
 
@@ -29,8 +29,8 @@ struct _gqlType	gql_null_type = {
 };
 
 // Int type
-static Text
-int_to_text(Text text, gqlValue value, int indent, int depth) {
+static agooText
+int_to_text(agooText text, gqlValue value, int indent, int depth) {
     char	num[32];
     int		cnt;
     
@@ -51,8 +51,8 @@ struct _gqlType	gql_int_type = {
 };
 
 // I64 type, add on type.
-static Text
-i64_to_text(Text text, gqlValue value, int indent, int depth) {
+static agooText
+i64_to_text(agooText text, gqlValue value, int indent, int depth) {
     char	num[32];
     int		cnt;
     
@@ -78,7 +78,7 @@ string_destroy(gqlValue value) {
     free((char*)value->str);
 }
 
-static Text	string_to_text(Text text, gqlValue value, int indent, int depth);
+static agooText	string_to_text(agooText text, gqlValue value, int indent, int depth);
 
 struct _gqlType	gql_string_type = {
     .name = "String",
@@ -103,8 +103,8 @@ struct _gqlType	gql_str16_type = { // unregistered
     .to_json = string_to_text,
 };
 
-static Text
-string_to_text(Text text, gqlValue value, int indent, int depth) {
+static agooText
+string_to_text(agooText text, gqlValue value, int indent, int depth) {
     if (&gql_str16_type == value->type) {
 	text = text_append(text, "\"", 1);
 	text = text_append(text, value->str16, -1);
@@ -120,8 +120,8 @@ string_to_text(Text text, gqlValue value, int indent, int depth) {
 }
 
 // Bool type
-static Text
-bool_to_text(Text text, gqlValue value, int indent, int depth) {
+static agooText
+bool_to_text(agooText text, gqlValue value, int indent, int depth) {
     if (value->b) {
 	text = text_append(text, "true", 4);
     } else {
@@ -142,8 +142,8 @@ struct _gqlType	gql_bool_type = {
 };
 
 // Float type
-static Text
-float_to_text(Text text, gqlValue value, int indent, int depth) {
+static agooText
+float_to_text(agooText text, gqlValue value, int indent, int depth) {
     char	num[32];
     int		cnt;
     
@@ -201,7 +201,7 @@ read_zone(const char *s, int *vp) {
 }
 
 static int64_t
-time_parse(Err err, const char *str, int len) {
+time_parse(agooErr err, const char *str, int len) {
     const char	*s = str;
     const char	*end;
     struct tm	tm;
@@ -410,8 +410,8 @@ time_parse(Err err, const char *str, int len) {
     return secs - nsecs;
 }
 
-static Text
-time_to_text(Text text, gqlValue value, int indent, int depth) {
+static agooText
+time_to_text(agooText text, gqlValue value, int indent, int depth) {
     char	str[64];
     int		cnt;
     struct tm	tm;
@@ -458,7 +458,7 @@ hexVal(int c) {
 
 // 123e4567-e89b-12d3-a456-426655440000
 static int
-parse_uuid(Err err, const char *str, int len, uint64_t *hip, uint64_t *lop) {
+parse_uuid(agooErr err, const char *str, int len, uint64_t *hip, uint64_t *lop) {
     uint64_t	hi = 0;
     uint64_t	lo = 0;
     int		i;
@@ -510,8 +510,8 @@ parse_uuid(Err err, const char *str, int len, uint64_t *hip, uint64_t *lop) {
     return ERR_OK;
 }
 
-static Text
-uuid_to_text(Text text, gqlValue value, int indent, int depth) {
+static agooText
+uuid_to_text(agooText text, gqlValue value, int indent, int depth) {
     char	str[64];
     int		cnt = sprintf(str, "\"%08lx-%04lx-%04lx-%04lx-%012lx\"",
 			      (unsigned long)(value->uuid.hi >> 32),
@@ -540,8 +540,8 @@ url_destroy(gqlValue value) {
     free((char*)value->url);
 }
 
-static Text
-url_to_text(Text text, gqlValue value, int indent, int depth) {
+static agooText
+url_to_text(agooText text, gqlValue value, int indent, int depth) {
     if (NULL == value->url) {
 	return text_append(text, "null", 4);
     }
@@ -576,8 +576,8 @@ list_destroy(gqlValue value) {
     }
 }
 
-static Text
-list_to_json(Text text, gqlValue value, int indent, int depth) {
+static agooText
+list_to_json(agooText text, gqlValue value, int indent, int depth) {
     int		i = indent * depth;
     int		i2 = i + indent;
     int		d2 = depth + 1;
@@ -632,8 +632,8 @@ object_destroy(gqlValue value) {
     }
 }
 
-static Text
-object_to_json(Text text, gqlValue value, int indent, int depth) {
+static agooText
+object_to_json(agooText text, gqlValue value, int indent, int depth) {
     int		i = indent * depth;
     int		i2 = i + indent;
     int		d2 = depth + 1;
@@ -692,7 +692,7 @@ gql_value_destroy(gqlValue value) {
 }
 
 int
-gql_value_init(Err err) {
+gql_value_init(agooErr err) {
     if (ERR_OK != gql_type_set(err, &gql_int_type) ||
 	ERR_OK != gql_type_set(err, &gql_i64_type) ||
 	ERR_OK != gql_type_set(err, &gql_bool_type) ||
@@ -738,7 +738,7 @@ gql_string_set(gqlValue value, const char *str, int len) {
 }
 
 int
-gql_url_set(Err err, gqlValue value, const char *url, int len) {
+gql_url_set(agooErr err, gqlValue value, const char *url, int len) {
     value->type = &gql_url_type;
     if (NULL == url) {
 	value->url = NULL;
@@ -767,7 +767,7 @@ gql_time_set(gqlValue value, int64_t t) {
 }
 
 int
-gql_time_str_set(Err err, gqlValue value, const char *str, int len) {
+gql_time_str_set(agooErr err, gqlValue value, const char *str, int len) {
     if (0 >= len) {
 	len = (int)strlen(str);
     }
@@ -783,7 +783,7 @@ gql_uuid_set(gqlValue value, uint64_t hi, uint64_t lo) {
 }
 
 int
-gql_uuid_str_set(Err err, gqlValue value, const char *str, int len) {
+gql_uuid_str_set(agooErr err, gqlValue value, const char *str, int len) {
     uint64_t	hi = 0;
     uint64_t	lo = 0;
 
@@ -799,7 +799,7 @@ gql_uuid_str_set(Err err, gqlValue value, const char *str, int len) {
 extern void	gql_null_set(gqlValue value);
 
 gqlLink
-link_create(Err err, gqlValue item) {
+link_create(agooErr err, gqlValue item) {
     gqlLink	link = (gqlLink)malloc(sizeof(struct _gqlLink));
 
     if (NULL == link) {
@@ -814,7 +814,7 @@ link_create(Err err, gqlValue item) {
 }
 
 int
-gql_list_append(Err err, gqlValue list, gqlValue item) {
+gql_list_append(agooErr err, gqlValue list, gqlValue item) {
     gqlLink	link = link_create(err, item);
 
     if (NULL != link) {
@@ -832,7 +832,7 @@ gql_list_append(Err err, gqlValue list, gqlValue item) {
 }
 
 int
-gql_list_prepend(Err err, gqlValue list, gqlValue item) {
+gql_list_prepend(agooErr err, gqlValue list, gqlValue item) {
     gqlLink	link = link_create(err, item);
 
     if (NULL != link) {
@@ -843,7 +843,7 @@ gql_list_prepend(Err err, gqlValue list, gqlValue item) {
 }
 
 int
-gql_object_set(Err err, gqlValue obj, const char *key, gqlValue item) {
+gql_object_set(agooErr err, gqlValue obj, const char *key, gqlValue item) {
     gqlLink	link = link_create(err, item);
 
     if (NULL != link) {
@@ -877,7 +877,7 @@ value_create(gqlType type) {
 }
 
 gqlValue
-gql_int_create(Err err, int32_t i) {
+gql_int_create(agooErr err, int32_t i) {
     gqlValue	v = value_create(&gql_int_type);
     
     if (NULL != v) {
@@ -887,7 +887,7 @@ gql_int_create(Err err, int32_t i) {
 }
 
 gqlValue
-gql_i64_create(Err err, int64_t i) {
+gql_i64_create(agooErr err, int64_t i) {
     gqlValue	v = value_create(&gql_i64_type);
     
     if (NULL != v) {
@@ -897,7 +897,7 @@ gql_i64_create(Err err, int64_t i) {
 }
 
 gqlValue
-gql_string_create(Err err, const char *str, int len) {
+gql_string_create(agooErr err, const char *str, int len) {
     gqlValue	v;
     
     if (0 >= len) {
@@ -917,7 +917,7 @@ gql_string_create(Err err, const char *str, int len) {
 }
 
 gqlValue
-gql_url_create(Err err, const char *url, int len) {
+gql_url_create(agooErr err, const char *url, int len) {
     gqlValue	v = value_create(&gql_url_type);
     
     if (0 >= len) {
@@ -930,7 +930,7 @@ gql_url_create(Err err, const char *url, int len) {
 }
 
 gqlValue
-gql_bool_create(Err err, bool b) {
+gql_bool_create(agooErr err, bool b) {
     gqlValue	v = value_create(&gql_bool_type);
     
     if (NULL != v) {
@@ -940,7 +940,7 @@ gql_bool_create(Err err, bool b) {
 }
 
 gqlValue
-gql_float_create(Err err, double f) {
+gql_float_create(agooErr err, double f) {
     gqlValue	v = value_create(&gql_float_type);
     
     if (NULL != v) {
@@ -950,7 +950,7 @@ gql_float_create(Err err, double f) {
 }
 
 gqlValue
-gql_time_create(Err err, int64_t t) {
+gql_time_create(agooErr err, int64_t t) {
     gqlValue	v = value_create(&gql_time_type);
     
     if (NULL != v) {
@@ -960,7 +960,7 @@ gql_time_create(Err err, int64_t t) {
 }
 
 gqlValue
-gql_time_str_create(Err err, const char *str, int len) {
+gql_time_str_create(agooErr err, const char *str, int len) {
     gqlValue	v = value_create(&gql_time_type);
     
     if (NULL != v) {
@@ -973,7 +973,7 @@ gql_time_str_create(Err err, const char *str, int len) {
 }
 
 gqlValue
-gql_uuid_create(Err err, uint64_t hi, uint64_t lo) {
+gql_uuid_create(agooErr err, uint64_t hi, uint64_t lo) {
     gqlValue	v = value_create(&gql_uuid_type);
     
     if (NULL != v) {
@@ -985,7 +985,7 @@ gql_uuid_create(Err err, uint64_t hi, uint64_t lo) {
 
 // 123e4567-e89b-12d3-a456-426655440000
 gqlValue
-gql_uuid_str_create(Err err, const char *str, int len) {
+gql_uuid_str_create(agooErr err, const char *str, int len) {
     uint64_t	hi = 0;
     uint64_t	lo = 0;
     gqlValue	v;
@@ -1001,14 +1001,14 @@ gql_uuid_str_create(Err err, const char *str, int len) {
 }
 
 gqlValue
-gql_null_create(Err err) {
+gql_null_create(agooErr err) {
     gqlValue	v = value_create(&gql_null_type);
     
     return v;
 }
 
 gqlValue
-gql_list_create(Err err, gqlType itemType) {
+gql_list_create(agooErr err, gqlType itemType) {
     gqlValue	v = value_create(&list_type);
 
     if (NULL != v) {
@@ -1019,7 +1019,7 @@ gql_list_create(Err err, gqlType itemType) {
 }
 
 gqlValue
-gql_object_create(Err err) {
+gql_object_create(agooErr err) {
     gqlValue	v = value_create(&object_type);
 
     if (NULL != v) {
@@ -1029,7 +1029,7 @@ gql_object_create(Err err) {
     return v;
 }
 
-Text
-gql_value_json(Text text, gqlValue value, int indent, int depth) {
+agooText
+gql_value_json(agooText text, gqlValue value, int indent, int depth) {
     return value->type->to_json(text, value, indent, depth);
 }

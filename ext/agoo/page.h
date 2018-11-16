@@ -9,38 +9,38 @@
 #include "err.h"
 #include "text.h"
 
-typedef struct _Page {
-    Text		resp;
+typedef struct _agooPage {
+    agooText		resp;
     char		*path;
     time_t		mtime;
     double		last_check;
     bool		immutable;
-} *Page;
+} *agooPage;
 
-typedef struct _Dir {
-    struct _Dir		*next;
+typedef struct _agooDir {
+    struct _agooDir	*next;
     char		*path;
     int			plen;
-} *Dir;
+} *agooDir;
 
-typedef struct _Group {
-    struct _Group	*next;
+typedef struct _agooGroup {
+    struct _agooGroup	*next;
     char		*path;
     int			plen;
-    Dir			dirs;
-} *Group;
+    agooDir		dirs;
+} *agooGroup;
 
-extern void	pages_init();
-extern void	pages_set_root(const char *root);
-extern void	pages_cleanup();
+extern void		pages_init();
+extern void		pages_set_root(const char *root);
+extern void		pages_cleanup();
 
-extern Group	group_create(const char *path);
-extern void	group_add(Group g, const char *dir);
-extern Page	group_get(Err err, const char *path, int plen);
+extern agooGroup	group_create(const char *path);
+extern void		group_add(agooGroup g, const char *dir);
+extern agooPage		group_get(agooErr err, const char *path, int plen);
 
-extern Page	page_create(const char *path);
-extern Page	page_immutable(Err err, const char *path, const char *content, int clen);
-extern Page	page_get(Err err, const char *path, int plen);
-extern int	mime_set(Err err, const char *key, const char *value);
+extern agooPage		page_create(const char *path);
+extern agooPage		page_immutable(agooErr err, const char *path, const char *content, int clen);
+extern agooPage		page_get(agooErr err, const char *path, int plen);
+extern int		mime_set(agooErr err, const char *key, const char *value);
 
-#endif /* AGOO_PAGE_H */
+#endif // AGOO_PAGE_H

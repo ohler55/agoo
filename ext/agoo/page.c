@@ -21,27 +21,27 @@
 #define MIME_BUCKET_SIZE	64
 #define MIME_BUCKET_MASK	63
 
-typedef struct _Slot {
-    struct _Slot	*next;
+typedef struct _slot {
+    struct _slot	*next;
     char		key[MAX_KEY_LEN + 1];
-    Page		value;
+    agooPage		value;
     uint64_t		hash;
     int			klen;
 } *Slot;
 
-typedef struct _MimeSlot {
-    struct _MimeSlot	*next;
+typedef struct _mimeSlot {
+    struct _mimeSlot	*next;
     char		key[MAX_MIME_KEY_LEN + 1];
     char		*value;
     uint64_t		hash;
     int			klen;
 } *MimeSlot;
 
-typedef struct _Cache {
+typedef struct _cache {
     Slot		buckets[PAGE_BUCKET_SIZE];
     MimeSlot		muckets[MIME_BUCKET_SIZE];
     char		*root;
-    Group		groups;
+    agooGroup		groups;
 } *Cache;
 
 typedef struct _Mime {
@@ -99,7 +99,7 @@ static struct _Mime	mime_map[] = {
 
 static const char	page_fmt[] = "HTTP/1.1 200 OK\r\nContent-Type: %s\r\nContent-Length: %ld\r\n\r\n";
 
-static struct _Cache	cache = {
+static struct _cache	cache = {
     .buckets = {0},
     .muckets = {0},
     .root = NULL,
@@ -162,13 +162,13 @@ mime_get(const char *key) {
     return v;
 }
 
-Page
+agooPage
 cache_get(const char *key, int klen) {
     int		len = klen;
     int64_t	h = calc_hash(key, &len);
     Slot	*bucket = get_bucketp(h);
     Slot	s;
-    Page	v = NULL;
+    agooPage	v = NULL;
 
     for (s = *bucket; NULL != s; s = s->next) {
 	if (h == (int64_t)s->hash && len == (int)s->klen &&
@@ -181,7 +181,7 @@ cache_get(const char *key, int klen) {
 }
 
 int
-mime_set(Err err, const char *key, const char *value) {
+mime_set(agooErr err, const char *key, const char *value) {
     int		klen = (int)strlen(key);
     int		len = klen;
     int64_t	h = calc_hash(key, &len);
@@ -201,7 +201,7 @@ mime_set(Err err, const char *key, const char *value) {
 	    return ERR_OK;
 	}
     }
-    if (NULL == (s = (MimeSlot)malloc(sizeof(struct _MimeSlot)))) {
+    if (NULL == (s = (MimeSlot)malloc(sizeof(struct _mimeSlot)))) {
 	return err_set(err, ERR_ARG, "out of memory adding %s", key);
     }
     DEBUG_ALLOC(mem_mime_slot, s);
@@ -219,13 +219,13 @@ mime_set(Err err, const char *key, const char *value) {
     return ERR_OK;
 }
 
-static Page
-cache_set(const char *key, int klen, Page value) {
+static agooPage
+cache_set(const char *key, int klen, agooPage value) {
     int		len = klen;
     int64_t	h = calc_hash(key, &len);
     Slot	*bucket = get_bucketp(h);
     Slot	s;
-    Page	old = NULL;
+    agooPage	old = NULL;
     
     if (MAX_KEY_LEN < len) {
 	return value;
@@ -241,7 +241,7 @@ cache_set(const char *key, int klen, Page value) {
 	    return old;
 	}
     }
-    if (NULL == (s = (Slot)malloc(sizeof(struct _Slot)))) {
+    if (NULL == (s = (Slot)malloc(sizeof(struct _slot)))) {
 	return value;
     }
     DEBUG_ALLOC(mem_page_slot, s)
@@ -263,9 +263,9 @@ cache_set(const char *key, int klen, Page value) {
 void
 pages_init() {
     Mime	m;
-    struct _Err	err = ERR_INIT;
+    struct _agooErr	err = ERR_INIT;
     
-    memset(&cache, 0, sizeof(struct _Cache));
+    memset(&cache, 0, sizeof(struct _cache));
     cache.root = strdup(".");
     for (m = mime_map; NULL != m->suffix; m++) {
 	mime_set(&err, m->suffix, m->type);
@@ -283,7 +283,7 @@ pages_set_root(const char *root) {
 }
 
 static void
-page_destroy(Page p) {
+page_destroy(agooPage p) {
     if (NULL != p->resp) {
 	text_release(p->resp);
 	p->resp = NULL;
@@ -347,9 +347,9 @@ path_mime(const char *path) {
 
 // The page resp points to the page resp msg to save memory and reduce
 // allocations.
-Page
+agooPage
 page_create(const char *path) {
-    Page	p = (Page)malloc(sizeof(struct _Page));
+    agooPage	p = (agooPage)malloc(sizeof(struct _agooPage));
 
     if (NULL != p) {
 	DEBUG_ALLOC(mem_page, p);
@@ -367,9 +367,9 @@ page_create(const char *path) {
     return p;
 }
 
-Page
-page_immutable(Err err, const char *path, const char *content, int clen) {
-    Page	p = (Page)malloc(sizeof(struct _Page));
+agooPage
+page_immutable(agooErr err, const char *path, const char *content, int clen) {
+    agooPage	p = (agooPage)malloc(sizeof(struct _agooPage));
     const char	*mime = path_mime(path);
     long	msize;
     int		cnt;
@@ -425,7 +425,7 @@ close_return_false(FILE *f) {
 }
 
 static bool
-update_contents(Page p) {
+update_contents(agooPage p) {
     const char	*mime = path_mime(p->path);
     int		plen = (int)strlen(p->path);
     long	size;
@@ -433,7 +433,7 @@ update_contents(Page p) {
     long	msize;
     int		cnt;
     struct stat	fs;
-    Text	t;
+    agooText	t;
     FILE	*f = fopen(p->path, "rb");
     
     // On linux a directory is opened by fopen (sometimes? all the time?) so
@@ -513,7 +513,7 @@ update_contents(Page p) {
 }
 
 static void
-page_remove(Page p) {
+page_remove(agooPage p) {
     int		len = (int)strlen(p->path);
     int64_t	h = calc_hash(p->path, &len);
     Slot	*bucket = get_bucketp(h);
@@ -539,8 +539,8 @@ page_remove(Page p) {
     }
 }
 
-static Page
-page_check(Err err, Page page) {
+static agooPage
+page_check(agooErr err, agooPage page) {
     if (!page->immutable) {
 	double	now = dtime();
 
@@ -561,16 +561,16 @@ page_check(Err err, Page page) {
     return page;
 }
 
-Page
-page_get(Err err, const char *path, int plen) {
-    Page	page;
+agooPage
+page_get(agooErr err, const char *path, int plen) {
+    agooPage	page;
 
     if (NULL != strstr(path, "../")) {
 	return NULL;
     }
     if (NULL == (page = cache_get(path, plen))) {
 	if (NULL != cache.root) {
-	    Page	old;
+	    agooPage	old;
 	    char	full_path[2048];
 	    char	*s = stpcpy(full_path, cache.root);
 
@@ -584,7 +584,7 @@ page_get(Err err, const char *path, int plen) {
 	    strncpy(s, path, plen);
 	    s[plen] = '\0';
 	    if (NULL == (page = page_create(full_path))) {
-		err_set(err, ERR_MEMORY, "Failed to allocate memory for Page.");
+		err_set(err, ERR_MEMORY, "Failed to allocate memory for agooPage.");
 		return NULL;
 	    }
 	    if (!update_contents(page) || NULL == page->resp) {
@@ -602,13 +602,13 @@ page_get(Err err, const char *path, int plen) {
     return page;
 }
 
-Page
-group_get(Err err, const char *path, int plen) {
-    Page	page = NULL;
-    Group	g = NULL;
+agooPage
+group_get(agooErr err, const char *path, int plen) {
+    agooPage	page = NULL;
+    agooGroup	g = NULL;
     char	full_path[2048];
     char	*s = NULL;
-    Dir		d;
+    agooDir	d;
 
     if (NULL != strstr(path, "../")) {
 	return NULL;
@@ -652,10 +652,10 @@ group_get(Err err, const char *path, int plen) {
 	plen = (int)(s - full_path);
 	path = full_path;
 	if (NULL == (page = cache_get(path, plen))) {
-	    Page	old;
+	    agooPage	old;
 
 	    if (NULL == (page = page_create(path))) {
-		err_set(err, ERR_MEMORY, "Failed to allocate memory for Page.");
+		err_set(err, ERR_MEMORY, "Failed to allocate memory for agooPage.");
 		return NULL;
 	    }
 	    if (!update_contents(page) || NULL == page->resp) {
@@ -672,9 +672,9 @@ group_get(Err err, const char *path, int plen) {
     return page_check(err, page);
 }
 
-Group
+agooGroup
 group_create(const char *path) {
-    Group	g = (Group)malloc(sizeof(struct _Group));
+    agooGroup	g = (agooGroup)malloc(sizeof(struct _agooGroup));
 
     if (NULL != g) {
 	DEBUG_ALLOC(mem_group, g);
@@ -689,8 +689,8 @@ group_create(const char *path) {
 }
 
 void
-group_add(Group g, const char *dir) {
-    Dir	d = (Dir)malloc(sizeof(struct _Dir));
+group_add(agooGroup g, const char *dir) {
+    agooDir	d = (agooDir)malloc(sizeof(struct _agooDir));
 
     if (NULL != d) {
 	DEBUG_ALLOC(mem_dir, d);

@@ -19,7 +19,7 @@ pttttttttttttttttttttttttttp.p.t\
 ................................";
 
 void
-doc_init(Doc doc, const char *str, int len) {
+doc_init(agooDoc doc, const char *str, int len) {
     if (0 >= len) {
 	len = (int)strlen(str);
     }
@@ -33,7 +33,7 @@ doc_init(Doc doc, const char *str, int len) {
 }
 
 int
-doc_skip_white(Doc doc) {
+doc_skip_white(agooDoc doc) {
     const char	*start = doc->cur;
     
     for (; 'w' == char_map[*(uint8_t*)doc->cur]; doc->cur++) {
@@ -42,7 +42,7 @@ doc_skip_white(Doc doc) {
 }
 
 void
-doc_skip_comment(Doc doc) {
+doc_skip_comment(agooDoc doc) {
     for (; true; doc->cur++) {
 	switch (*doc->cur) {
 	case '\r':
@@ -55,7 +55,7 @@ doc_skip_comment(Doc doc) {
 }
 
 void
-doc_read_token(Doc doc) {
+doc_read_token(agooDoc doc) {
     if ('t' == char_map[*(uint8_t*)doc->cur] && '9' < *doc->cur) {
 	doc->cur++;
 	for (; 't' == char_map[*(uint8_t*)doc->cur]; doc->cur++) {
@@ -64,7 +64,7 @@ doc_read_token(Doc doc) {
 }
 
 void
-doc_next_token(Doc doc) {
+doc_next_token(agooDoc doc) {
     while (true) {
 	doc_skip_white(doc);
 	if ('#' == *doc->cur) {
@@ -77,7 +77,7 @@ doc_next_token(Doc doc) {
 
 // Just find end.
 int
-doc_read_string(Err err, Doc doc) {
+doc_read_string(agooErr err, agooDoc doc) {
     doc->cur++; // skip first "
     if ('"' == *doc->cur) { // a """ string or an empty string
 	doc->cur++;
@@ -108,7 +108,7 @@ doc_read_string(Err err, Doc doc) {
 }
 
 int
-doc_err(Doc doc, Err err, const char *fmt, ...) {
+doc_err(agooDoc doc, agooErr err, const char *fmt, ...) {
     va_list	ap;
     char	msg[248];
     int		line = 0;
@@ -123,7 +123,7 @@ doc_err(Doc doc, Err err, const char *fmt, ...) {
 }
 
 void
-doc_location(Doc doc, int *linep, int *colp) {
+doc_location(agooDoc doc, int *linep, int *colp) {
     const char	*s;
     int		line = 1;
     int		col = 1;
@@ -151,7 +151,7 @@ doc_location(Doc doc, int *linep, int *colp) {
 }
 
 gqlValue
-doc_read_value(Err err, Doc doc) {
+doc_read_value(agooErr err, agooDoc doc) {
     // TBD handle list and object as well as scalars, object is typeless
     // TBD put this in doc_read_value
     return NULL;

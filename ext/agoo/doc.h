@@ -9,26 +9,26 @@
 
 struct _gqlValue;
 
-typedef struct _Doc {
+typedef struct _agooDoc {
     const char	*str;
     const char	*cur;
     const char	*end;
-} *Doc;
+} *agooDoc;
 
-extern void	doc_init(Doc doc, const char *str, int len);
+extern void	doc_init(agooDoc doc, const char *str, int len);
 
-extern int	doc_skip_white(Doc doc);
-extern void	doc_skip_comment(Doc doc);
-extern int	doc_read_desc(Err err, Doc doc);
+extern int	doc_skip_white(agooDoc doc);
+extern void	doc_skip_comment(agooDoc doc);
+extern int	doc_read_desc(agooErr err, agooDoc doc);
 
-extern void	doc_next_token(Doc doc);
-extern void	doc_read_token(Doc doc);
+extern void	doc_next_token(agooDoc doc);
+extern void	doc_read_token(agooDoc doc);
 
-extern int	doc_read_string(Err err, Doc doc);
+extern int	doc_read_string(agooErr err, agooDoc doc);
 
-extern int	doc_err(Doc doc, Err err, const char *fmt, ...);
-extern void	doc_location(Doc doc, int *linep, int *colp);
+extern int	doc_err(agooDoc doc, agooErr err, const char *fmt, ...);
+extern void	doc_location(agooDoc doc, int *linep, int *colp);
 
-extern struct _gqlValue*	doc_read_value(Err err, Doc doc);
+extern struct _gqlValue*	doc_read_value(agooErr err, agooDoc doc);
 
 #endif // AGOO_DOC_H

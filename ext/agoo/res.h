@@ -9,24 +9,24 @@
 #include "con.h"
 #include "text.h"
 
-struct _Con;
+struct _agooCon;
 
-typedef struct _Res {
-    struct _Res		*next;
-    struct _Con		*con;
-    _Atomic(Text)	message;
-    ConKind		con_kind;
+typedef struct _agooRes {
+    struct _agooRes	*next;
+    struct _agooCon	*con;
+    _Atomic(agooText)	message;
+    agooConKind		con_kind;
     bool		close;
     bool		ping;
     bool		pong;
-} *Res;
+} *agooRes;
 
-extern Res	res_create(struct _Con *con);
-extern void	res_destroy(Res res);
-extern void	res_set_message(Res res, Text t);
+extern agooRes	res_create(struct _agooCon *con);
+extern void	res_destroy(agooRes res);
+extern void	res_set_message(agooRes res, agooText t);
 
-static inline Text
-res_message(Res res) {
+static inline agooText
+res_message(agooRes res) {
     return atomic_load(&res->message);
 }
 

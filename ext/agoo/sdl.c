@@ -9,7 +9,7 @@
 #include "sdl.h"
 
 static int
-extract_name(Err err, Doc doc, const char *key, int klen, char *name, size_t max) {
+extract_name(agooErr err, agooDoc doc, const char *key, int klen, char *name, size_t max) {
     const char	*start;
     size_t	nlen;
 
@@ -36,7 +36,7 @@ extract_name(Err err, Doc doc, const char *key, int klen, char *name, size_t max
 }
 
 static int
-make_scalar(Err err, Doc doc, const char *desc, int len) {
+make_scalar(agooErr err, agooDoc doc, const char *desc, int len) {
     char	name[256];
 
     if (ERR_OK != extract_name(err, doc, "scalar", 6, name, sizeof(name))) {
@@ -48,7 +48,7 @@ make_scalar(Err err, Doc doc, const char *desc, int len) {
 }
 
 static int
-make_enum(Err err, Doc doc, const char *desc, int len) {
+make_enum(agooErr err, agooDoc doc, const char *desc, int len) {
     char	name[256];
     const char	*start;
     gqlType	type;
@@ -84,7 +84,7 @@ make_enum(Err err, Doc doc, const char *desc, int len) {
 }
 
 static int
-make_union(Err err, Doc doc, const char *desc, int len) {
+make_union(agooErr err, agooDoc doc, const char *desc, int len) {
     char	name[256];
     const char	*start;
     gqlType	type;
@@ -119,7 +119,7 @@ make_union(Err err, Doc doc, const char *desc, int len) {
 }
 
 static int
-make_arg(Err err, Doc doc, gqlDir dir) {
+make_arg(agooErr err, agooDoc doc, gqlDir dir) {
     char	name[256];
     char	type_name[256];
     const char	*start;
@@ -192,7 +192,7 @@ make_arg(Err err, Doc doc, gqlDir dir) {
 }
 
 static int
-make_directive(Err err, Doc doc, const char *desc, int len) {
+make_directive(agooErr err, agooDoc doc, const char *desc, int len) {
     char	name[256];
     const char	*start;
     gqlDir	dir;
@@ -259,10 +259,10 @@ make_directive(Err err, Doc doc, const char *desc, int len) {
 }
 
 int
-sdl_parse(Err err, const char *str, int len) {
-    struct _Doc	doc;
-    const char	*desc = NULL;
-    const char	*desc_end = NULL;
+sdl_parse(agooErr err, const char *str, int len) {
+    struct _agooDoc	doc;
+    const char		*desc = NULL;
+    const char		*desc_end = NULL;
     
     doc_init(&doc, str, len);
 

@@ -10,7 +10,7 @@
 extern void		http_init();
 extern void		http_cleanup();
 
-extern int		http_header_ok(Err err, const char *key, int klen, const char *value, int vlen);
+extern int		http_header_ok(agooErr err, const char *key, int klen, const char *value, int vlen);
 
 extern const char*	http_code_message(int code);
 

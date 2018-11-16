@@ -7,13 +7,13 @@
 
 #define MAX_WORKERS	32
 
-typedef struct _RServer {
+typedef struct _rServer {
     int		worker_cnt;
     int		worker_pids[MAX_WORKERS];
     VALUE	*eval_threads; // Qnil terminated
 } *RServer;
 
-extern struct _RServer	the_rserver;
+extern struct _rServer	the_rserver;
 
 extern void	server_init(VALUE mod);
 extern VALUE	rserver_shutdown(VALUE self);

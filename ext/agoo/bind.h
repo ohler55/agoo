@@ -11,10 +11,10 @@
 #include "err.h"
 #include "kinds.h"
 
-struct _Con;
+struct _agooCon;
 
-typedef struct _Bind {
-    struct _Bind	*next;
+typedef struct _agooBind {
+    struct _agooBind	*next;
     int			fd;
     int			port;
     sa_family_t		family;
@@ -22,23 +22,23 @@ typedef struct _Bind {
 	struct in_addr	addr4;
 	struct in6_addr	addr6;
     };
-    ConKind		kind;
-    bool		(*read)(struct _Con *c);
-    bool		(*write)(struct _Con *c);
-    short		(*events)(struct _Con *c);
+    agooConKind		kind;
+    bool		(*read)(struct _agooCon *c);
+    bool		(*write)(struct _agooCon *c);
+    short		(*events)(struct _agooCon *c);
     char		scheme[8];
     char		*name; // if set then Unix file
     char		*key;  // if set then SSL
     char		*cert;
     char		*ca;
     char		*id;
-} *Bind;
+} *agooBind;
 
-extern Bind	bind_url(Err err, const char *url);
-extern Bind	bind_port(Err err, int port);
-extern void	bind_destroy(Bind b);
+extern agooBind	bind_url(agooErr err, const char *url);
+extern agooBind	bind_port(agooErr err, int port);
+extern void	bind_destroy(agooBind b);
 
-extern int	bind_listen(Err err, Bind b);
-extern void	bind_close(Bind b);
+extern int	bind_listen(agooErr err, agooBind b);
+extern void	bind_close(agooBind b);
 
 #endif // AGOO_BIND_H

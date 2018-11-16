@@ -6,9 +6,9 @@
 #include "debug.h"
 #include "res.h"
 
-Res
-res_create(Con con) {
-    Res	res = (Res)malloc(sizeof(struct _Res));
+agooRes
+res_create(agooCon con) {
+    agooRes	res = (agooRes)malloc(sizeof(struct _agooRes));
 
     if (NULL != res) {
 	DEBUG_ALLOC(mem_res, res)
@@ -24,9 +24,9 @@ res_create(Con con) {
 }
 
 void
-res_destroy(Res res) {
+res_destroy(agooRes res) {
     if (NULL != res) {
-	Text	message = res_message(res);
+	agooText	message = res_message(res);
 
 	if (NULL != message) {
 	    text_release(message);
@@ -37,7 +37,7 @@ res_destroy(Res res) {
 }
 
 void
-res_set_message(Res res, Text t) {
+res_set_message(agooRes res, agooText t) {
     if (NULL != t) {
 	text_ref(t);
     }

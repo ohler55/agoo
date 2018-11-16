@@ -9,7 +9,7 @@
 #include "queue.h"
 #include "seg.h"
 
-struct _Req;
+struct _agooReq;
 
 typedef enum {
     NO_HOOK		= '\0',
@@ -19,26 +19,26 @@ typedef enum {
     PUSH_HOOK		= 'P',
     FUNC_HOOK		= 'F',
     FAST_HOOK		= 'O', // for OpO
-} HookType;
+} agooHookType;
 
-typedef struct _Hook {
-    struct _Hook	*next;
-    Method		method;
+typedef struct _agooHook {
+    struct _agooHook	*next;
+    agooMethod		method;
     char		*pattern;
-    HookType		type;
+    agooHookType	type;
     union {
 	void		*handler;
-	void		(*func)(struct _Req *req);
+	void		(*func)(struct _agooReq *req);
     };
-    Queue		queue;
+    agooQueue		queue;
     bool		no_queue;
-} *Hook;
+} *agooHook;
 
-extern Hook	hook_create(Method method, const char *pattern, void *handler, HookType type, Queue q);
-extern Hook	hook_func_create(Method method, const char *pattern, void (*func)(struct _Req *req), Queue q);
-extern void	hook_destroy(Hook hook);
+extern agooHook	hook_create(agooMethod method, const char *pattern, void *handler, agooHookType type, agooQueue q);
+extern agooHook	hook_func_create(agooMethod method, const char *pattern, void (*func)(struct _agooReq *req), agooQueue q);
+extern void	hook_destroy(agooHook hook);
 
-extern bool	hook_match(Hook hook, Method method, const Seg seg);
-extern Hook	hook_find(Hook hook, Method method, const Seg seg);
+extern bool	hook_match(agooHook hook, agooMethod method, const agooSeg seg);
+extern agooHook	hook_find(agooHook hook, agooMethod method, const agooSeg seg);
 
 #endif // AGOO_HOOK_H

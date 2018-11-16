@@ -23,7 +23,7 @@ log_message(LogCat cat, VALUE message) {
 	return;
     }
     if (rb_block_given_p()) {
-	Text		text = text_create(StringValuePtr(rs), (int)RSTRING_LEN(rs));
+	agooText	text = text_create(StringValuePtr(rs), (int)RSTRING_LEN(rs));
 	volatile VALUE	x = rb_yield_values(0);
 
 	if (Qnil != x) {

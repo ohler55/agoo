@@ -16,18 +16,18 @@
 
 #include <pthread.h>
 
-typedef struct _Atom {
+typedef struct _agooAtom {
     volatile void	*value;
     pthread_mutex_t	lock;
-} *Atom;
+} *agooAtom;
 
-#define	_Atomic(T) struct _Atom
+#define	_agooAtomic(T) struct _agooAtom
 
-typedef struct _Atom	atomic_flag;
-typedef struct _Atom	atomic_int;
+typedef struct _agooAtom	atomic_flag;
+typedef struct _agooAtom	atomic_int;
 
 static inline void
-atomic_init(Atom a, void *value) {
+atomic_init(agooAtom a, void *value) {
     a->value = value;
     pthread_mutex_init(&a->lock, 0);
 }
@@ -35,14 +35,14 @@ atomic_init(Atom a, void *value) {
 #define atomic_store(a, v) _atomic_store((a), (void*)(v))
 
 static inline void
-_atomic_store(Atom a, void *value) {
+_atomic_store(agooAtom a, void *value) {
     pthread_mutex_lock(&a->lock);
     a->value = value;
     pthread_mutex_unlock(&a->lock);
 }
 
 static inline volatile void*
-atomic_load(Atom a) {
+atomic_load(agooAtom a) {
     volatile void	*value;
     
     pthread_mutex_lock(&a->lock);
@@ -53,7 +53,7 @@ atomic_load(Atom a) {
 }
 
 static inline int
-atomic_fetch_add(Atom a, int delta) {
+atomic_fetch_add(agooAtom a, int delta) {
     int	before;
     
     pthread_mutex_lock(&a->lock);
@@ -65,7 +65,7 @@ atomic_fetch_add(Atom a, int delta) {
 }
 
 static inline int
-atomic_fetch_sub(Atom a, int delta) {
+atomic_fetch_sub(agooAtom a, int delta) {
     int	before;
     
     pthread_mutex_lock(&a->lock);
@@ -77,14 +77,14 @@ atomic_fetch_sub(Atom a, int delta) {
 }
 
 static inline void
-atomic_flag_clear(Atom a) {
+atomic_flag_clear(agooAtom a) {
     pthread_mutex_lock(&a->lock);
     a->value = NULL;
     pthread_mutex_unlock(&a->lock);
 }
 
 static inline bool
-atomic_flag_test_and_set(Atom a) {
+atomic_flag_test_and_set(agooAtom a) {
     volatile void	*prev;
     
     pthread_mutex_lock(&a->lock);

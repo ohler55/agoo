@@ -5,6 +5,6 @@
 
 #include "err.h"
 
-extern int	sdl_parse(Err err, const char *str, int len);
+extern int	sdl_parse(agooErr err, const char *str, int len);
 
 #endif // AGOO_SDL_H

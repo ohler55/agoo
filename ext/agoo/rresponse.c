@@ -12,8 +12,8 @@ static VALUE	res_class = Qundef;
 
 static void
 response_free(void *ptr) {
-    Response	res = (Response)ptr;
-    Header	h;
+    agooResponse	res = (agooResponse)ptr;
+    agooHeader		h;
 
     while (NULL != (h = res->headers)) {
 	res->headers = h->next;
@@ -28,10 +28,10 @@ response_free(void *ptr) {
 
 VALUE
 response_new( ) {
-    Response	res = ALLOC(struct _Response);
+    agooResponse	res = ALLOC(struct _agooResponse);
 
     DEBUG_ALLOC(mem_response, res)
-    memset(res, 0, sizeof(struct _Response));
+    memset(res, 0, sizeof(struct _agooResponse));
     res->code = 200;
     
     return Data_Wrap_Struct(res_class, NULL, response_free, res);
@@ -45,9 +45,9 @@ response_new( ) {
  */
 static VALUE
 to_s(VALUE self) {
-    Response	res = (Response)DATA_PTR(self);
-    int		len = response_len(res);
-    char	*s = ALLOC_N(char, len + 1);
+    agooResponse	res = (agooResponse)DATA_PTR(self);
+    int			len = response_len(res);
+    char		*s = ALLOC_N(char, len + 1);
 
     DEBUG_ALLOC(mem_to_s, s)
     response_fill(res, s);
@@ -70,7 +70,7 @@ to_s(VALUE self) {
  */
 static VALUE
 body_get(VALUE self) {
-    Response	res = (Response)DATA_PTR(self);
+    agooResponse	res = (agooResponse)DATA_PTR(self);
 
     if (NULL == res->body) {
 	return Qnil;
@@ -93,7 +93,7 @@ body_get(VALUE self) {
  */
 static VALUE
 body_set(VALUE self, VALUE val) {
-    Response	res = (Response)DATA_PTR(self);
+    agooResponse	res = (agooResponse)DATA_PTR(self);
 
     if (T_STRING == rb_type(val)) {
 	res->body = strdup(StringValuePtr(val));
@@ -114,7 +114,7 @@ body_set(VALUE self, VALUE val) {
  */
 static VALUE
 code_get(VALUE self) {
-    return INT2NUM(((Response)DATA_PTR(self))->code);
+    return INT2NUM(((agooResponse)DATA_PTR(self))->code);
 }
 
 /* Document-method: code=
@@ -128,7 +128,7 @@ code_set(VALUE self, VALUE val) {
     int	code = NUM2INT(val);
 
     if (100 <= code && code < 600) {
-	((Response)DATA_PTR(self))->code = code;
+	((agooResponse)DATA_PTR(self))->code = code;
     } else {
 	rb_raise(rb_eArgError, "%d is not a valid HTTP status code.", code);
     }
@@ -143,10 +143,10 @@ code_set(VALUE self, VALUE val) {
  */
 static VALUE
 head_get(VALUE self, VALUE key) {
-    Response	res = (Response)DATA_PTR(self);
-    Header	h;
-    const char	*ks = StringValuePtr(key);
-    int		klen = (int)RSTRING_LEN(key);
+    agooResponse	res = (agooResponse)DATA_PTR(self);
+    agooHeader		h;
+    const char		*ks = StringValuePtr(key);
+    int			klen = (int)RSTRING_LEN(key);
     
     for (h = res->headers; NULL != h; h = h->next) {
 	if (0 == strncasecmp(h->text, ks, klen) && klen + 1 < h->len && ':' == h->text[klen]) {
@@ -164,14 +164,14 @@ head_get(VALUE self, VALUE key) {
  */
 static VALUE
 head_set(VALUE self, VALUE key, VALUE val) {
-    Response	res = (Response)DATA_PTR(self);
-    Header	h;
-    Header	prev = NULL;
-    const char	*ks = StringValuePtr(key);
-    const char	*vs;
-    int		klen = (int)RSTRING_LEN(key);
-    int		vlen;
-    int		hlen;
+    agooResponse	res = (agooResponse)DATA_PTR(self);
+    agooHeader		h;
+    agooHeader		prev = NULL;
+    const char		*ks = StringValuePtr(key);
+    const char		*vs;
+    int			klen = (int)RSTRING_LEN(key);
+    int			vlen;
+    int			hlen;
 
     for (h = res->headers; NULL != h; h = h->next) {
 	if (0 == strncasecmp(h->text, ks, klen) && klen + 1 < h->len && ':' == h->text[klen]) {
@@ -193,14 +193,14 @@ head_set(VALUE self, VALUE key, VALUE val) {
     vlen = (int)RSTRING_LEN(val);
 
     if (the_server.pedantic) {
-	struct _Err	err = ERR_INIT;
+	struct _agooErr	err = ERR_INIT;
 
 	if (ERR_OK != http_header_ok(&err, ks, klen, vs, vlen)) {
 	    rb_raise(rb_eArgError, "%s", err.msg);
 	}
     }
     hlen = klen + vlen + 4;
-    h = (Header)ALLOC_N(char, sizeof(struct _Header) - 8 + hlen + 1);
+    h = (agooHeader)ALLOC_N(char, sizeof(struct _agooHeader) - 8 + hlen + 1);
     DEBUG_ALLOC(mem_header, h)
 
     h->next = NULL;
@@ -219,11 +219,11 @@ head_set(VALUE self, VALUE key, VALUE val) {
     return Qnil;
 }
 
-Text
+agooText
 response_text(VALUE self) {
-    Response	res = (Response)DATA_PTR(self);
-    int		len = response_len(res);
-    Text	t = text_allocate(len);
+    agooResponse	res = (agooResponse)DATA_PTR(self);
+    int			len = response_len(res);
+    agooText		t = text_allocate(len);
 
     response_fill(res, t->text);
     t->len = len;

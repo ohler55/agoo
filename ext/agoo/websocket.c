@@ -24,8 +24,8 @@ static const char	ws_accept[] = "Sec-WebSocket-Accept: ";
 
 //static const uint8_t	close_msg[] = "\x88\x02\x03\xE8";
 
-Text
-ws_add_headers(Req req, Text t) {
+agooText
+ws_add_headers(agooReq req, agooText t) {
     int		klen = 0;
     const char	*key;
     
@@ -53,8 +53,8 @@ ws_add_headers(Req req, Text t) {
     return t;
 }
 
-Text
-ws_expand(Text t) {
+agooText
+ws_expand(agooText t) {
     uint8_t	buf[16];
     uint8_t	*b = buf;
     uint8_t	opcode = t->bin ? WS_OP_BIN : WS_OP_TEXT;
@@ -125,7 +125,7 @@ ws_decode(char *buf, size_t mlen) {
 
 // if -1 then err, 0 not ready yet, positive is completed length
 long
-ws_calc_len(Con c, uint8_t *buf, size_t cnt) {
+ws_calc_len(agooCon c, uint8_t *buf, size_t cnt) {
     uint8_t	*b = buf;
     bool	is_masked;
     uint64_t	plen;
@@ -165,7 +165,7 @@ ws_calc_len(Con c, uint8_t *buf, size_t cnt) {
 
 // Return true on error otherwise false.
 bool
-ws_create_req(Con c, long mlen) {
+ws_create_req(agooCon c, long mlen) {
     uint8_t	op = 0x0F & *c->buf;
     
     if (NULL == (c->req = req_create(mlen))) {
@@ -175,7 +175,7 @@ ws_create_req(Con c, long mlen) {
     if (NULL == c->up || the_server.ctx_nil_value == c->up->ctx) {
 	return true;
     }
-    memset(c->req, 0, sizeof(struct _Req));
+    memset(c->req, 0, sizeof(struct _agooReq));
     if ((long)c->bcnt <= mlen) {
 	memcpy(c->req->msg, c->buf, c->bcnt);
 	if ((long)c->bcnt < mlen) {
@@ -186,32 +186,32 @@ ws_create_req(Con c, long mlen) {
     }
     c->req->msg[mlen] = '\0';
     c->req->mlen = mlen;
-    c->req->method = (WS_OP_BIN == op) ? ON_BIN : ON_MSG;
-    c->req->upgrade = UP_NONE;
+    c->req->method = (WS_OP_BIN == op) ? AGOO_ON_BIN : AGOO_ON_MSG;
+    c->req->upgrade = AGOO_UP_NONE;
     c->req->up = c->up;
     c->req->res = NULL;
     if (c->up->on_msg) {
-	c->req->hook = hook_create(NONE, NULL, c->up->ctx, PUSH_HOOK, &the_server.eval_queue);
+	c->req->hook = hook_create(AGOO_NONE, NULL, c->up->ctx, PUSH_HOOK, &the_server.eval_queue);
     }
     return false;
 }
 
 void
-ws_req_close(Con c) {
+ws_req_close(agooCon c) {
     if (NULL != c->up && the_server.ctx_nil_value != c->up->ctx && c->up->on_close) {
-	Req	req = req_create(0);
+	agooReq	req = req_create(0);
 	    
 	req->up = c->up;
-	req->method = ON_CLOSE;
-	req->hook = hook_create(NONE, NULL, c->up->ctx, PUSH_HOOK, &the_server.eval_queue);
+	req->method = AGOO_ON_CLOSE;
+	req->hook = hook_create(AGOO_NONE, NULL, c->up->ctx, PUSH_HOOK, &the_server.eval_queue);
 	atomic_fetch_add(&c->up->ref_cnt, 1);
 	queue_push(&the_server.eval_queue, (void*)req);
     }
 }
 
 void
-ws_ping(Con c) {
-    Res	res;
+ws_ping(agooCon c) {
+    agooRes	res;
     
     if (NULL == (res = res_create(c))) {
 	log_cat(&error_cat, "Memory allocation of response failed on connection %llu.", (unsigned long long)c->id);
@@ -229,8 +229,8 @@ ws_ping(Con c) {
 }
 
 void
-ws_pong(Con c) {
-    Res	res;
+ws_pong(agooCon c) {
+    agooRes	res;
     
     if (NULL == (res = res_create(c))) {
 	log_cat(&error_cat, "Memory allocation of response failed on connection %llu.", (unsigned long long)c->id);

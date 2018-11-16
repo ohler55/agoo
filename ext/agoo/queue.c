@@ -27,20 +27,20 @@
 // 
 
 void
-queue_init(Queue q, size_t qsize) {
+queue_init(agooQueue q, size_t qsize) {
     queue_multi_init(q, qsize, false, false);
 }
 
 void
-queue_multi_init(Queue q, size_t qsize, bool multi_push, bool multi_pop) {
+queue_multi_init(agooQueue q, size_t qsize, bool multi_push, bool multi_pop) {
     if (qsize < 4) {
 	qsize = 4;
     }
-    q->q = (QItem*)malloc(sizeof(QItem) * qsize);
+    q->q = (agooQItem*)malloc(sizeof(agooQItem) * qsize);
     DEBUG_ALLOC(mem_qitem, q->q)
     q->end = q->q + qsize;
 
-    memset(q->q, 0, sizeof(QItem) * qsize);
+    memset(q->q, 0, sizeof(agooQItem) * qsize);
     q->head = q->q;
     q->tail = q->q + 1;
     atomic_flag_clear(&q->push_lock);
@@ -54,7 +54,7 @@ queue_multi_init(Queue q, size_t qsize, bool multi_push, bool multi_pop) {
 }
 
 void
-queue_cleanup(Queue q) {
+queue_cleanup(agooQueue q) {
     DEBUG_FREE(mem_qitem, q->q)
     free(q->q);
     q->q = NULL;
@@ -68,8 +68,8 @@ queue_cleanup(Queue q) {
 }
 
 void
-queue_push(Queue q, QItem item) {
-    QItem	*tail;
+queue_push(agooQueue q, agooQItem item) {
+    agooQItem	*tail;
 
     if (q->multi_push) {
 	while (atomic_flag_test_and_set(&q->push_lock)) {
@@ -97,16 +97,16 @@ queue_push(Queue q, QItem item) {
 }
 
 void
-queue_wakeup(Queue q) {
+queue_wakeup(agooQueue q) {
     if (0 != q->wsock) {
 	if (write(q->wsock, ".", 1)) {}
     }
 }
 
-QItem
-queue_pop(Queue q, double timeout) {
-    QItem	item;
-    QItem	*next;
+agooQItem
+queue_pop(agooQueue q, double timeout) {
+    agooQItem	item;
+    agooQItem	*next;
     
     if (q->multi_pop) {
 	while (atomic_flag_test_and_set(&q->pop_lock)) {
@@ -156,9 +156,9 @@ queue_pop(Queue q, double timeout) {
 
 // Called by the popper usually.
 bool
-queue_empty(Queue q) {
-    QItem	*head = atomic_load(&q->head);
-    QItem	*next = head + 1;
+queue_empty(agooQueue q) {
+    agooQItem	*head = atomic_load(&q->head);
+    agooQItem	*next = head + 1;
 
     if (q->end <= next) {
 	next = q->q;
@@ -170,7 +170,7 @@ queue_empty(Queue q) {
 }
 
 int
-queue_listen(Queue q) {
+queue_listen(agooQueue q) {
     if (0 == q->rsock) {
 	int	fd[2];
 
@@ -187,7 +187,7 @@ queue_listen(Queue q) {
 }
 
 void
-queue_release(Queue q) {
+queue_release(agooQueue q) {
     char	buf[8];
 
     // clear pipe
@@ -197,7 +197,7 @@ queue_release(Queue q) {
 }
 
 int
-queue_count(Queue q) {
+queue_count(agooQueue q) {
     int	size = (int)(q->end - q->q);
     
     return (q->tail - q->head + size) % size;

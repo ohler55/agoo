@@ -8,6 +8,6 @@ typedef enum {
     CON_HTTP	= 'H',
     CON_WS	= 'W',
     CON_SSE	= 'S',
-} ConKind;
+} agooConKind;
 
 #endif // AGOO_KINDS_H

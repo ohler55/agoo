@@ -10,9 +10,9 @@
 #include "text.h"
 #include "upgraded.h"
 
-Pub
-pub_close(Upgraded up) {
-    Pub	p = (Pub)malloc(sizeof(struct _Pub));
+agooPub
+pub_close(agooUpgraded up) {
+    agooPub	p = (agooPub)malloc(sizeof(struct _agooPub));
 
     if (NULL != p) {
 	DEBUG_ALLOC(mem_pub, p);
@@ -25,9 +25,9 @@ pub_close(Upgraded up) {
     return p;
 }
 
-Pub
-pub_subscribe(Upgraded up, const char *subject, int slen) {
-    Pub	p = (Pub)malloc(sizeof(struct _Pub));
+agooPub
+pub_subscribe(agooUpgraded up, const char *subject, int slen) {
+    agooPub	p = (agooPub)malloc(sizeof(struct _agooPub));
 
     if (NULL != p) {
 	DEBUG_ALLOC(mem_pub, p);
@@ -40,9 +40,9 @@ pub_subscribe(Upgraded up, const char *subject, int slen) {
     return p;
 }
 
-Pub
-pub_unsubscribe(Upgraded up, const char *subject, int slen) {
-    Pub	p = (Pub)malloc(sizeof(struct _Pub));
+agooPub
+pub_unsubscribe(agooUpgraded up, const char *subject, int slen) {
+    agooPub	p = (agooPub)malloc(sizeof(struct _agooPub));
 
     if (NULL != p) {
 	DEBUG_ALLOC(mem_pub, p);
@@ -59,9 +59,9 @@ pub_unsubscribe(Upgraded up, const char *subject, int slen) {
     return p;
 }
 
-Pub
+agooPub
 pub_publish(const char *subject, int slen, const char *message, size_t mlen) {
-    Pub	p = (Pub)malloc(sizeof(struct _Pub));
+    agooPub	p = (agooPub)malloc(sizeof(struct _agooPub));
 
     if (NULL != p) {
 	DEBUG_ALLOC(mem_pub, p);
@@ -77,11 +77,11 @@ pub_publish(const char *subject, int slen, const char *message, size_t mlen) {
     return p;
 }
 
-Pub
-pub_write(Upgraded up, const char *message, size_t mlen, bool bin) {
+agooPub
+pub_write(agooUpgraded up, const char *message, size_t mlen, bool bin) {
     // Allocate an extra 16 bytes so the message can be expanded in place if a
     // WebSocket write.
-    Pub	p = (Pub)malloc(sizeof(struct _Pub));
+    agooPub	p = (agooPub)malloc(sizeof(struct _agooPub));
 
     if (NULL != p) {
 	DEBUG_ALLOC(mem_pub, p);
@@ -98,9 +98,9 @@ pub_write(Upgraded up, const char *message, size_t mlen, bool bin) {
     return p;
 }
 
-Pub
-pub_dup(Pub src) {
-    Pub	p = (Pub)malloc(sizeof(struct _Pub));
+agooPub
+pub_dup(agooPub src) {
+    agooPub	p = (agooPub)malloc(sizeof(struct _agooPub));
 
     if (NULL != p) {
 	DEBUG_ALLOC(mem_pub, p);
@@ -115,7 +115,7 @@ pub_dup(Pub src) {
 }
 
 void
-pub_destroy(Pub pub) {
+pub_destroy(agooPub pub) {
     if (NULL != pub->msg) {
 	text_release(pub->msg);
     }

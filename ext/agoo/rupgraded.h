@@ -7,10 +7,10 @@
 
 #include "upgraded.h"
 
-struct _Con;
+struct _agooCon;
 
-extern void	upgraded_init(VALUE mod);
-extern Upgraded	rupgraded_create(struct _Con *c, VALUE obj, VALUE env);
+extern void		upgraded_init(VALUE mod);
+extern agooUpgraded	rupgraded_create(struct _agooCon *c, VALUE obj, VALUE env);
 
 extern const char*	extract_subject(VALUE subject, int *slen);
 

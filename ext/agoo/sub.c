@@ -5,9 +5,9 @@
 
 #include "sub.h"
 
-Sub
+agooSub
 sub_new(uint64_t cid, uint64_t id, const char *subject, size_t slen) {
-    Sub	s = (Sub)malloc(sizeof(struct _Sub) - 8 + slen + 1);
+    agooSub	s = (agooSub)malloc(sizeof(struct _agooSub) - 8 + slen + 1);
 
     if (NULL != s) {
 	s->cid = cid;
@@ -19,7 +19,7 @@ sub_new(uint64_t cid, uint64_t id, const char *subject, size_t slen) {
 }
 
 bool
-sub_match(Sub s, const char *subject, size_t slen) {
+sub_match(agooSub s, const char *subject, size_t slen) {
     const char	*pat = s->subject;
     const char	*end = subject + slen;
 
@@ -39,16 +39,16 @@ sub_match(Sub s, const char *subject, size_t slen) {
 }
 
 void
-sub_init(SubCache sc) {
-    memset(sc, 0, sizeof(struct _SubCache));
+sub_init(agooSubCache sc) {
+    memset(sc, 0, sizeof(struct _agooSubCache));
 }
 
 void
-sub_cleanup(SubCache sc) {
-    Sub	s;
-    Sub	head;
-    Sub	*bucket;
-    int	i;
+sub_cleanup(agooSubCache sc) {
+    agooSub	s;
+    agooSub	head;
+    agooSub	*bucket;
+    int		i;
     
     for (i = 0, bucket = sc->buckets; i < SUB_BUCKET_SIZE; i++, bucket++) {
 	head = *bucket;
@@ -66,16 +66,16 @@ calc_hash(uint64_t cid, uint64_t sid) {
 }
 
 void
-sub_add(SubCache sc, Sub s) {
-    Sub	*bucket = sc->buckets + calc_hash(s->cid, s->id);
+sub_add(agooSubCache sc, agooSub s) {
+    agooSub	*bucket = sc->buckets + calc_hash(s->cid, s->id);
 
     s->next = *bucket;
     *bucket = s;
 }
 
-Sub
-sub_get(SubCache sc, uint64_t cid, uint64_t sid) {
-    Sub	s = *(sc->buckets + calc_hash(cid, sid));
+agooSub
+sub_get(agooSubCache sc, uint64_t cid, uint64_t sid) {
+    agooSub	s = *(sc->buckets + calc_hash(cid, sid));
     
     for (; NULL != s; s = s->next) {
 	if (s->cid == cid && s->id == sid) {
@@ -86,16 +86,16 @@ sub_get(SubCache sc, uint64_t cid, uint64_t sid) {
 }
 
 void
-sub_del(SubCache sc, uint64_t cid, uint64_t sid) {
-    Sub	*bucket = sc->buckets + calc_hash(cid, sid);
+sub_del(agooSubCache sc, uint64_t cid, uint64_t sid) {
+    agooSub	*bucket = sc->buckets + calc_hash(cid, sid);
 
     if (NULL != *bucket) {
-	Sub	s = *bucket;
+	agooSub	s = *bucket;
 
 	if (s->cid == cid && s->id == sid) {
 	    *bucket = s->next;
 	} else {
-	    Sub	prev = s;
+	    agooSub	prev = s;
 	    
 	    for (s = s->next; NULL != s; s = s->next) {
 		if (s->cid == cid && s->id == sid) {

@@ -22,9 +22,9 @@ static VALUE	websocket_sym;
 static ID	on_open_id = 0;
 static ID	to_s_id = 0;
 
-static Upgraded
+static agooUpgraded
 get_upgraded(VALUE self) {
-    Upgraded	up = NULL;
+    agooUpgraded	up = NULL;
 
     if (the_server.active) {
 	pthread_mutex_lock(&the_server.up_lock);
@@ -68,7 +68,7 @@ extract_subject(VALUE subject, int *slen) {
  */
 static VALUE
 rup_write(VALUE self, VALUE msg) {
-    Upgraded	up = get_upgraded(self);
+    agooUpgraded	up = get_upgraded(self);
     const char	*message;
     size_t	mlen;
     bool	bin = false;
@@ -104,7 +104,7 @@ rup_write(VALUE self, VALUE msg) {
  */
 static VALUE
 rup_subscribe(VALUE self, VALUE subject) {
-    Upgraded	up;
+    agooUpgraded	up;
     int		slen;
     const char	*subj = extract_subject(subject, &slen);
 
@@ -125,7 +125,7 @@ rup_subscribe(VALUE self, VALUE subject) {
  */
 static VALUE
 rup_unsubscribe(int argc, VALUE *argv, VALUE self) {
-    Upgraded	up;
+    agooUpgraded	up;
     const char	*subject = NULL;
     int		slen = 0;
 
@@ -146,7 +146,7 @@ rup_unsubscribe(int argc, VALUE *argv, VALUE self) {
  */
 static VALUE
 rup_close(VALUE self) {
-    Upgraded	up = get_upgraded(self);
+    agooUpgraded	up = get_upgraded(self);
 
     if (NULL != up) {
 	upgraded_close(up, false);
@@ -163,7 +163,7 @@ rup_close(VALUE self) {
  */
 static VALUE
 rup_pending(VALUE self) {
-    Upgraded	up = get_upgraded(self);
+    agooUpgraded	up = get_upgraded(self);
     int		pending = -1;
     
     if (NULL != up) {
@@ -181,7 +181,7 @@ rup_pending(VALUE self) {
  */
 static VALUE
 rup_open(VALUE self) {
-    Upgraded	up = get_upgraded(self);
+    agooUpgraded	up = get_upgraded(self);
     int		pending = -1;
     
     if (NULL != up) {
@@ -203,7 +203,7 @@ rup_protocol(VALUE self) {
     VALUE	pro = Qnil;
 
     if (the_server.active) {
-	Upgraded	up;
+	agooUpgraded	up;
 	
 	pthread_mutex_lock(&the_server.up_lock);
 	if (NULL != (up = DATA_PTR(self)) && NULL != up->con) {
@@ -224,16 +224,16 @@ rup_protocol(VALUE self) {
 }
 
 static void
-on_destroy(Upgraded up) {
+on_destroy(agooUpgraded up) {
     if (Qnil != (VALUE)up->wrap) {
 	DATA_PTR((VALUE)up->wrap) = NULL;
 	up->wrap = (void*)Qnil;
     }
 }
 
-Upgraded
-rupgraded_create(Con c, VALUE obj, VALUE env) {
-    Upgraded	up;
+agooUpgraded
+rupgraded_create(agooCon c, VALUE obj, VALUE env) {
+    agooUpgraded	up;
 
     if (!the_server.active) {
 	rb_raise(rb_eIOError, "Server shutdown.");
@@ -265,11 +265,11 @@ extern VALUE	ragoo_publish(VALUE self, VALUE subject, VALUE message);
  * call-seq: env()
  *
  * Returns the environment passed to the call method that initiated the
- * Upgraded Object creation.
+ * agooUpgraded Object creation.
  */
 static VALUE
 env(VALUE self) {
-    Upgraded	up = get_upgraded(self);
+    agooUpgraded	up = get_upgraded(self);
 
     if (NULL != up) {
 	return (VALUE)up->env;

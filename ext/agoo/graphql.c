@@ -187,7 +187,7 @@ gql_directive_get(const char *name) {
 }
 
 int
-gql_type_set(Err err, gqlType type) {
+gql_type_set(agooErr err, gqlType type) {
     uint64_t	h = calc_hash(type->name);
 
     if (h <= 0) {
@@ -242,7 +242,7 @@ type_remove(gqlType type) {
 }
 
 int
-gql_init(Err err) {
+gql_init(agooErr err) {
     memset(buckets, 0, sizeof(buckets));
 
     if (ERR_OK != gql_value_init(err) ||
@@ -291,7 +291,7 @@ gql_destroy() {
 }
 
 static gqlType
-type_create(Err err, const char *name, const char *desc, int dlen, bool locked) {
+type_create(agooErr err, const char *name, const char *desc, int dlen, bool locked) {
     gqlType	type = (gqlType)malloc(sizeof(struct _gqlType));
 
     if (NULL == type) {
@@ -320,20 +320,20 @@ type_create(Err err, const char *name, const char *desc, int dlen, bool locked) 
     return type;
 }
 
-Text
-gql_object_to_json(Text text, gqlValue value, int indent, int depth) {
+agooText
+gql_object_to_json(agooText text, gqlValue value, int indent, int depth) {
     // TBD
     return text;
 }
 
-Text
-gql_object_to_graphql(Text text, gqlValue value, int indent, int depth) {
+agooText
+gql_object_to_graphql(agooText text, gqlValue value, int indent, int depth) {
     // TBD
     return text;
 }
 
 gqlType
-gql_type_create(Err err, const char *name, const char *desc, int dlen, bool locked, gqlType *interfaces) {
+gql_type_create(agooErr err, const char *name, const char *desc, int dlen, bool locked, gqlType *interfaces) {
     gqlType	type = type_create(err, name, desc, dlen, locked);
 
     if (NULL != type) {
@@ -366,7 +366,7 @@ gql_type_create(Err err, const char *name, const char *desc, int dlen, bool lock
 }
 
 gqlField
-gql_type_field(Err err,
+gql_type_field(agooErr err,
 	       gqlType type,
 	       const char *name,
 	       gqlType return_type,
@@ -411,7 +411,7 @@ gql_type_field(Err err,
 }
 
 gqlArg
-gql_field_arg(Err		err,
+gql_field_arg(agooErr		err,
 	      gqlField		field,
 	      const char	*name,
 	      gqlType		type,
@@ -448,14 +448,14 @@ gql_field_arg(Err		err,
     return a;
 }
 
-Text
-gql_union_to_json(Text text, gqlValue value, int indent, int depth) {
+agooText
+gql_union_to_json(agooText text, gqlValue value, int indent, int depth) {
     // TBD
     return text;
 }
 
 gqlType
-gql_union_create(Err err, const char *name, const char *desc, int dlen, bool locked) {
+gql_union_create(agooErr err, const char *name, const char *desc, int dlen, bool locked) {
     gqlType	type = type_create(err, name, desc, dlen, locked);
 
     if (NULL != type) {
@@ -467,7 +467,7 @@ gql_union_create(Err err, const char *name, const char *desc, int dlen, bool loc
 }
 
 int
-gql_union_add(Err err, gqlType type, const char *name, int len) {
+gql_union_add(agooErr err, gqlType type, const char *name, int len) {
     gqlTypeLink	link = (gqlTypeLink)malloc(sizeof(gqlTypeLink));
 
     if (NULL == link) {
@@ -491,14 +491,14 @@ gql_union_add(Err err, gqlType type, const char *name, int len) {
     return ERR_OK;
 }
 
-Text
-gql_enum_to_json(Text text, gqlValue value, int indent, int depth) {
+agooText
+gql_enum_to_json(agooText text, gqlValue value, int indent, int depth) {
     // TBD
     return text;
 }
 
 gqlType
-gql_enum_create(Err err, const char *name, const char *desc, int dlen, bool locked) {
+gql_enum_create(agooErr err, const char *name, const char *desc, int dlen, bool locked) {
     gqlType	type = type_create(err, name, desc, dlen, locked);
 
     if (NULL != type) {
@@ -510,7 +510,7 @@ gql_enum_create(Err err, const char *name, const char *desc, int dlen, bool lock
 }
 
 int
-gql_enum_add(Err err, gqlType type, const char *value, int len) {
+gql_enum_add(agooErr err, gqlType type, const char *value, int len) {
     gqlStrLink	link = (gqlStrLink)malloc(sizeof(gqlStrLink));
 
     if (NULL == link) {
@@ -527,7 +527,7 @@ gql_enum_add(Err err, gqlType type, const char *value, int len) {
 }
 
 int
-gql_enum_append(Err err, gqlType type, const char *value, int len) {
+gql_enum_append(agooErr err, gqlType type, const char *value, int len) {
     gqlStrLink	link = (gqlStrLink)malloc(sizeof(gqlStrLink));
 
     if (NULL == link) {
@@ -551,14 +551,14 @@ gql_enum_append(Err err, gqlType type, const char *value, int len) {
     return ERR_OK;
 }
 
-static Text
-fragment_to_json(Text text, gqlValue value, int indent, int depth) {
+static agooText
+fragment_to_json(agooText text, gqlValue value, int indent, int depth) {
     // TBD
     return text;
 }
 
 gqlType
-gql_fragment_create(Err err, const char *name, const char *desc, int dlen, bool locked, gqlType on) {
+gql_fragment_create(agooErr err, const char *name, const char *desc, int dlen, bool locked, gqlType on) {
     gqlType	type = type_create(err, name, desc, dlen, locked);
 
     if (NULL != type) {
@@ -570,14 +570,14 @@ gql_fragment_create(Err err, const char *name, const char *desc, int dlen, bool 
     return type;
 }
 
-static Text
-input_to_json(Text text, gqlValue value, int indent, int depth) {
+static agooText
+input_to_json(agooText text, gqlValue value, int indent, int depth) {
     // TBD
     return text;
 }
 
 gqlType
-gql_input_create(Err err, const char *name, const char *desc, int dlen, bool locked) {
+gql_input_create(agooErr err, const char *name, const char *desc, int dlen, bool locked) {
     gqlType	type = type_create(err, name, desc, dlen, locked);
 
     if (NULL != type) {
@@ -588,14 +588,14 @@ gql_input_create(Err err, const char *name, const char *desc, int dlen, bool loc
     return type;
 }
 
-static Text
-interface_to_json(Text text, gqlValue value, int indent, int depth) {
+static agooText
+interface_to_json(agooText text, gqlValue value, int indent, int depth) {
     // TBD
     return text;
 }
 
 gqlType
-gql_interface_create(Err err, const char *name, const char *desc, int dlen, bool locked) {
+gql_interface_create(agooErr err, const char *name, const char *desc, int dlen, bool locked) {
     gqlType	type = type_create(err, name, desc, dlen, locked);
 
     if (NULL != type) {
@@ -606,8 +606,8 @@ gql_interface_create(Err err, const char *name, const char *desc, int dlen, bool
     return type;
 }
 
-static Text
-scalar_to_json(Text text, gqlValue value, int indent, int depth) {
+static agooText
+scalar_to_json(agooText text, gqlValue value, int indent, int depth) {
     if (NULL == value->str) {
 	text = text_append(text, "null", 4);
     } else {
@@ -620,7 +620,7 @@ scalar_to_json(Text text, gqlValue value, int indent, int depth) {
 
 // Create a scalar type that will be represented as a string.
 gqlType
-gql_scalar_create(Err err, const char *name, const char *desc, int dlen, bool locked) {
+gql_scalar_create(agooErr err, const char *name, const char *desc, int dlen, bool locked) {
     gqlType	type = type_create(err, name, desc, dlen, locked);
 
     if (NULL != type) {
@@ -633,7 +633,7 @@ gql_scalar_create(Err err, const char *name, const char *desc, int dlen, bool lo
 }
 
 gqlDir
-gql_directive_create(Err err, const char *name, const char *desc, int dlen, bool locked) {
+gql_directive_create(agooErr err, const char *name, const char *desc, int dlen, bool locked) {
     gqlDir	dir;
     
     if (NULL == (dir = (gqlDir)malloc(sizeof(struct _gqlDir)))) {
@@ -660,7 +660,7 @@ gql_directive_create(Err err, const char *name, const char *desc, int dlen, bool
 }
 
 gqlArg
-gql_dir_arg(Err 		err,
+gql_dir_arg(agooErr 		err,
 	    gqlDir 		dir,
 	    const char 		*name,
 	    const char 		*type_name,
@@ -703,7 +703,7 @@ gql_dir_arg(Err 		err,
 }
 
 int
-gql_directive_on(Err err, gqlDir d, const char *on, int len) {
+gql_directive_on(agooErr err, gqlDir d, const char *on, int len) {
     gqlStrLink	link = (gqlStrLink)malloc(sizeof(gqlStrLink));
     gqlStrLink	loc;
 
@@ -747,8 +747,8 @@ desc_len(const char *desc) {
     return (int)(d - desc) * special;
 }
 
-static Text
-desc_sdl(Text text, const char *desc, int indent) {
+static agooText
+desc_sdl(agooText text, const char *desc, int indent) {
     if (NULL != desc) {
 	int	cnt = desc_len(desc);
 
@@ -801,8 +801,8 @@ desc_sdl(Text text, const char *desc, int indent) {
     return text;
 }
 
-static Text
-arg_sdl(Text text, gqlArg a, bool with_desc, bool last) {
+static agooText
+arg_sdl(agooText text, gqlArg a, bool with_desc, bool last) {
     if (with_desc) {
 	text = desc_sdl(text, a->desc, 4);
     }
@@ -823,8 +823,8 @@ arg_sdl(Text text, gqlArg a, bool with_desc, bool last) {
     return text;
 }
 
-static Text
-field_sdl(Text text, gqlField f, bool with_desc) {
+static agooText
+field_sdl(agooText text, gqlField f, bool with_desc) {
     if (with_desc) {
 	text = desc_sdl(text, f->desc, 2);
     }
@@ -858,8 +858,8 @@ field_sdl(Text text, gqlField f, bool with_desc) {
     return text;
 }
 
-Text
-gql_type_sdl(Text text, gqlType type, bool with_desc) {
+agooText
+gql_type_sdl(agooText text, gqlType type, bool with_desc) {
     if (with_desc) {
 	desc_sdl(text, type->desc, 0);
     }
@@ -952,8 +952,8 @@ gql_type_sdl(Text text, gqlType type, bool with_desc) {
     return text;
 }
 
-Text
-gql_directive_sdl(Text text, gqlDir d, bool with_desc) {
+agooText
+gql_directive_sdl(agooText text, gqlDir d, bool with_desc) {
     gqlStrLink	link;
     
     if (with_desc) {
@@ -997,8 +997,8 @@ type_cmp(const void *v0, const void *v1) {
     return t0->kind - t1->kind;
 }
 
-Text
-gql_schema_sdl(Text text, bool with_desc, bool all) {
+agooText
+gql_schema_sdl(agooText text, bool with_desc, bool all) {
     Slot	*bucket;
     Slot	s;
     gqlType	type;
@@ -1045,10 +1045,10 @@ gql_schema_sdl(Text text, bool with_desc, bool all) {
 }
 
 void
-gql_dump_hook(Req req) {
+gql_dump_hook(agooReq req) {
     char	buf[256];
     int		cnt;
-    Text	text = text_allocate(4094);
+    agooText	text = text_allocate(4094);
     bool	all = false;
     bool	with_desc = true;
     int		vlen;
@@ -1069,7 +1069,7 @@ gql_dump_hook(Req req) {
 }
 
 void
-gql_eval_hook(Req req) {
+gql_eval_hook(agooReq req) {
     // TBD detect introspection
     //  start resolving by callout to some global handler as needed
     //   pass target, field, args

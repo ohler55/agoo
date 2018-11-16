@@ -53,9 +53,9 @@ resolve_classpath(const char *name, size_t len) {
     return resolve_classname(clas, class_name);
 }
 
-Hook
-rhook_create(Method method, const char *pattern, VALUE handler, Queue q) {
-    Hook	hook = hook_create(method, pattern, NULL, RACK_HOOK, q);
+agooHook
+rhook_create(agooMethod method, const char *pattern, VALUE handler, agooQueue q) {
+    agooHook	hook = hook_create(method, pattern, NULL, RACK_HOOK, q);
 
     if (NULL != hook) {
 	if (T_STRING == rb_type(handler)) {

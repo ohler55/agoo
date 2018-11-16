@@ -7,9 +7,9 @@
 #include "debug.h"
 #include "subject.h"
 
-Subject
+agooSubject
 subject_create(const char *pattern, int plen) {
-    Subject	subject = (Subject)malloc(sizeof(struct _Subject) - 7 + plen);
+    agooSubject	subject = (agooSubject)malloc(sizeof(struct _agooSubject) - 7 + plen);
 
     if (NULL != subject) {
 	DEBUG_ALLOC(mem_subject, subject);
@@ -21,13 +21,13 @@ subject_create(const char *pattern, int plen) {
 }
 
 void
-subject_destroy(Subject subject) {
+subject_destroy(agooSubject subject) {
     DEBUG_FREE(mem_subject, subject);
     free(subject);
 }
 
 bool
-subject_check(Subject subj, const char *subject) {
+subject_check(agooSubject subj, const char *subject) {
     const char	*pat = subj->pattern;
 
     for (; '\0' != *pat && '\0' != *subject; subject++) {
