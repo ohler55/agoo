@@ -22,11 +22,11 @@ class StaticTest < Minitest::Test
 			  classic: true,
 			  colorize: true,
 			  states: {
-			    INFO: false,
-			    DEBUG: false,
-			    connect: false,
-			    request: false,
-			    response: false,
+			    INFO: true,
+			    DEBUG: true,
+			    connect: true,
+			    request: true,
+			    response: true,
 			    eval: true,
 			  })
 
@@ -34,10 +34,12 @@ class StaticTest < Minitest::Test
       Agoo::Server.add_mime('odd', 'text/odd')
       Agoo::Server.start()
       fetch_index_test
+=begin
       mime_test
       fetch_auto_index_test
       fetch_nested_test
       fetch_not_found_test
+=end
     ensure
       Agoo::shutdown
     end

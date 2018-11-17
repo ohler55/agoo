@@ -11,6 +11,7 @@ $CFLAGS += " -DPLATFORM_LINUX" if 'x86_64-linux' == RUBY_PLATFORM
 CONFIG['warnflags'].slice!(/ -Wsuggest-attribute=format/)
 
 have_header('stdatomic.h')
+#have_header('sys/epoll.h')
 
 create_makefile(File.join(extension_name, extension_name))
 

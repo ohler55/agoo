@@ -48,7 +48,7 @@ server_setup() {
 static void
 add_con_loop() {
     struct _agooErr	err = ERR_INIT;
-    agooConLoop	loop = conloop_create(&err, 0);
+    agooConLoop		loop = conloop_create(&err, 0);
 
     if (NULL != loop) {
 	loop->next = the_server.con_loops;
@@ -62,7 +62,7 @@ listen_loop(void *x) {
     int			optval = 1;
     struct pollfd	pa[100];
     struct pollfd	*p;
-    struct _agooErr		err = ERR_INIT;
+    struct _agooErr	err = ERR_INIT;
     struct sockaddr_in	client_addr;
     int			client_sock;
     int			pcnt = 0;
@@ -146,25 +146,26 @@ listen_loop(void *x) {
 int
 server_start(agooErr err, const char *app_name, const char *version) {
     double	giveup;
+    int		xcnt = 0;
     
     pthread_create(&the_server.listen_thread, NULL, listen_loop, NULL);
+    xcnt++;
     the_server.con_loops = conloop_create(err, 0);
     the_server.loop_cnt = 1;
-
-    if (1 > the_server.thread_cnt) {
-	the_server.thread_cnt = 1;
-    }
+    xcnt++;
+    
     // If the eval thread count is 1 that implies the eval load is low so
     // might as well create the maximum number of con threads as is
     // reasonable.
-    if (1 == the_server.thread_cnt) {
+    if (1 >= the_server.thread_cnt) {
 	while (the_server.loop_cnt < the_server.loop_max) {
 	    add_con_loop();
+	    xcnt++;
 	}
     }
     giveup = dtime() + 1.0;
     while (dtime() < giveup) {
-	if (2 <= (long)atomic_load(&the_server.running)) {
+	if (xcnt <= (long)atomic_load(&the_server.running)) {
 	    break;
 	}
 	dsleep(0.01);

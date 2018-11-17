@@ -15,6 +15,7 @@
 #include "log.h"
 #include "page.h"
 #include "pub.h"
+#include "ready.h"
 #include "res.h"
 #include "seg.h"
 #include "server.h"
@@ -81,6 +82,7 @@ con_destroy(agooCon c) {
 	upgraded_release_con(c->up);
 	c->up = NULL;
     }
+    log_cat(&con_cat, "Connection %llu closed.", (unsigned long long)c->id);
     DEBUG_FREE(mem_con, c)
     free(c);
 }
@@ -456,6 +458,7 @@ con_http_read(agooCon c) {
 		} else {
 		    c->bcnt = 0;
 		    *c->buf = '\0';
+
 		    return false;
 		}
 		continue;
@@ -615,21 +618,15 @@ con_ws_read(agooCon c) {
     return false;
 }
 
-// return true to remove/close connection
-static bool
-con_read(agooCon c) {
-    if (NULL != c->bind->read) {
-	return c->bind->read(c);
-    }
-    return true;
-}
-
-// return true to remove/close connection
+// return false to remove/close connection
 bool
 con_http_write(agooCon c) {
     agooText	message = res_message(c->res_head);
     ssize_t	cnt;
 
+    if (NULL == message) {
+	return true;
+    }
     c->timeout = dtime() + CON_TIMEOUT;
     if (0 == c->wcnt) {
 	if (resp_cat.on) {
@@ -652,11 +649,11 @@ con_http_write(agooCon c) {
     }
     if (0 > (cnt = send(c->sock, message->text + c->wcnt, message->len - c->wcnt, MSG_DONTWAIT))) {
 	if (EAGAIN == errno) {
-	    return false;
+	    return true;
 	}
 	log_cat(&error_cat, "Socket error @ %llu.", (unsigned long long)c->id);
 
-	return true;
+	return false;
     }
     c->wcnt += cnt;
     if (c->wcnt == message->len) { // finished
@@ -670,10 +667,9 @@ con_http_write(agooCon c) {
 	c->wcnt = 0;
 	res_destroy(res);
 
-	return done;
+	return !done;
     }
-
-    return false;
+    return true;
 }
 
 static const char	ping_msg[] = "\x89\x00";
@@ -692,7 +688,7 @@ con_ws_write(agooCon c) {
 		int	len;
 
 		if (EAGAIN == errno) {
-		    return false;
+		    return true;
 		}
 		len = snprintf(msg, sizeof(msg) - 1, "Socket error @ %llu.", (unsigned long long)c->id);
 		push_error(c->up, msg, len);
@@ -701,7 +697,7 @@ con_ws_write(agooCon c) {
 		ws_req_close(c);
 		res_destroy(res);
 	
-		return true;
+		return false;
 	    }
 	} else if (res->pong) {
 	    if (0 > (cnt = send(c->sock, pong_msg, sizeof(pong_msg) - 1, 0))) {
@@ -709,7 +705,7 @@ con_ws_write(agooCon c) {
 		int	len;
 
 		if (EAGAIN == errno) {
-		    return false;
+		    return true;
 		}
 		len = snprintf(msg, sizeof(msg) - 1, "Socket error @ %llu.", (unsigned long long)c->id);
 		push_error(c->up, msg, len);
@@ -717,7 +713,7 @@ con_ws_write(agooCon c) {
 		ws_req_close(c);
 		res_destroy(res);
 	
-		return true;
+		return false;
 	    }
 	} else {
 	    ws_req_close(c);
@@ -726,13 +722,14 @@ con_ws_write(agooCon c) {
 		c->res_tail = NULL;
 	    }
 	    res_destroy(res);
-	    return true;
+
+	    return false;
 	}
 	c->res_head = res->next;
 	if (res == c->res_tail) {
 	    c->res_tail = NULL;
 	}
-	return false;
+	return true;
     }
     c->timeout = dtime() + CON_TIMEOUT;
     if (0 == c->wcnt) {
@@ -756,14 +753,14 @@ con_ws_write(agooCon c) {
 	int	len;
 
 	if (EAGAIN == errno) {
-	    return false;
+	    return true;
 	}
 	len = snprintf(msg, sizeof(msg) - 1, "Socket error @ %llu.", (unsigned long long)c->id);
 	push_error(c->up, msg, len);
 	log_cat(&error_cat, "Socket error @ %llu.", (unsigned long long)c->id);
 	ws_req_close(c);
 	
-	return true;
+	return false;
     }
     c->wcnt += cnt;
     if (c->wcnt == message->len) { // finished
@@ -777,9 +774,9 @@ con_ws_write(agooCon c) {
 	c->wcnt = 0;
 	res_destroy(res);
 
-	return done;
+	return !done;
     }
-    return false;
+    return true;
 }
 
 static bool
@@ -791,7 +788,8 @@ con_sse_write(agooCon c) {
     if (NULL == message) {
 	ws_req_close(c);
 	res_destroy(res);
-	return true;
+
+	return false;
     }
     c->timeout = dtime() + CON_TIMEOUT *2;
     if (0 == c->wcnt) {
@@ -811,14 +809,14 @@ con_sse_write(agooCon c) {
 	int	len;
 
 	if (EAGAIN == errno) {
-	    return false;
+	    return true;
 	}
 	len = snprintf(msg, sizeof(msg) - 1, "Socket error @ %llu.", (unsigned long long)c->id);
 	push_error(c->up, msg, len);
 	log_cat(&error_cat, "Socket error @ %llu.", (unsigned long long)c->id);
 	ws_req_close(c);
 	
-	return true;
+	return false;
     }
     c->wcnt += cnt;
     if (c->wcnt == message->len) { // finished
@@ -832,33 +830,9 @@ con_sse_write(agooCon c) {
 	c->wcnt = 0;
 	res_destroy(res);
 
-	return done;
+	return !done;
     }
-    return false;
-}
-
-static bool
-con_write(agooCon c) {
-    bool	remove = true;
-    agooConKind	kind = c->res_head->con_kind;
-
-    if (NULL != c->bind->write) {
-	remove = c->bind->write(c);
-    }
-    //if (kind != c->kind && CON_ANY != kind) {
-    if (CON_ANY != kind) {
-	switch (kind) {
-	case CON_WS:
-	    c->bind = &ws_bind;
-	    break;
-	case CON_SSE:
-	    c->bind = &sse_bind;
-	    break;
-	default:
-	    break;
-	}
-    }
-    return remove;
+    return true;
 }
 
 static void
@@ -1008,35 +982,6 @@ con_sse_events(agooCon c) {
     return events;
 }
 
-static struct pollfd*
-poll_setup(agooCon c, agooQueue q, struct pollfd *pp) {
-    // The first two pollfd are for the con_queue and the pub_queue in that
-    // order.
-    pp->fd = queue_listen(&the_server.con_queue);
-    pp->events = POLLIN;
-    pp->revents = 0;
-    pp++;
-    pp->fd = queue_listen(q);
-    pp->events = POLLIN;
-    pp->revents = 0;
-    pp++;
-    for (; NULL != c; c = c->next) {
-	if (c->dead || 0 == c->sock) {
-	    continue;
-	}
-	if (c->hijacked) {
-	    c->sock = 0;
-	    continue;
-	}
-	c->pp = pp;
-	pp->fd = c->sock;
-	pp->events = c->bind->events(c);
-	pp->revents = 0;
-	pp++;
-    }
-    return pp;
-}
-
 static bool
 remove_dead_res(agooCon c) {
     agooRes	res;
@@ -1054,158 +999,199 @@ remove_dead_res(agooCon c) {
     return NULL == c->res_head;
 }
 
+static agooReadyIO
+con_ready_io(void *ctx) {
+    agooCon	c = (agooCon)ctx;
+
+    if (NULL != c->bind) {
+	switch (c->bind->events(c)) {
+	case POLLIN:		return AGOO_READY_IN;
+	case POLLOUT:		return AGOO_READY_OUT;
+	case POLLIN | POLLOUT:	return AGOO_READY_BOTH;
+	default:		break;
+	}
+    }
+    return AGOO_READY_NONE;
+}
+
+static bool
+con_ready_check(void *ctx, double now) {
+    agooCon	c = (agooCon)ctx;
+
+    if (c->dead || 0 == c->sock) {
+	if (remove_dead_res(c)) {	
+	    con_destroy(c);
+    
+	    return false;
+	}
+    } else if (0.0 == c->timeout || now < c->timeout) {
+	return true;
+    } else if (c->closing) {
+	if (remove_dead_res(c)) {
+	    con_destroy(c);
+
+	    return false;
+	}
+    } else if (CON_WS == c->bind->kind || CON_SSE == c->bind->kind) {
+	c->timeout = dtime() + CON_TIMEOUT;
+	ws_ping(c);
+
+	return true;
+    } else {
+	c->closing = true;
+	c->timeout = now + 0.5;
+
+	return true;
+    }
+    return true;
+}
+
+static bool
+con_ready_read(agooReady ready, void *ctx) {
+    agooCon	c = (agooCon)ctx;
+
+    if (NULL != c->bind->read) {
+	if (!c->bind->read(c)) {
+	    return true;
+	}
+    }
+    return false;
+}
+
+static bool
+con_ready_write(void *ctx) {
+    agooCon	c = (agooCon)ctx;
+
+    if (NULL != c->res_head) {
+	agooConKind	kind = c->res_head->con_kind;
+
+	if (NULL != c->bind->write) {
+	    if (c->bind->write(c)) {
+		//if (kind != c->kind && CON_ANY != kind) {
+		if (CON_ANY != kind) {
+		    switch (kind) {
+		    case CON_WS:
+			c->bind = &ws_bind;
+			break;
+		    case CON_SSE:
+			c->bind = &sse_bind;
+			break;
+		    default:
+			break;
+		    }
+		}
+		return true;
+	    }
+	}
+    }
+    return false;
+}
+
+static void
+con_ready_destroy(void *ctx) {
+    con_destroy((agooCon)ctx);
+}
+
+static struct _agooHandler	con_handler = {
+    .io = con_ready_io,
+    .check = con_ready_check,
+    .read = con_ready_read,
+    .write = con_ready_write,
+    .error = NULL,
+    .destroy = con_ready_destroy, 
+};
+
+static agooReadyIO
+queue_ready_io(void *ctx) {
+    return AGOO_READY_IN;
+}
+
+static bool
+con_queue_ready_read(agooReady ready, void *ctx) {
+    struct _agooErr	err = ERR_INIT;
+    agooCon		c;
+    
+    queue_release(&the_server.con_queue);
+    while (NULL != (c = (agooCon)queue_pop(&the_server.con_queue, 0.0))) {
+	if (ERR_OK != agoo_ready_add(&err, ready, c->sock, &con_handler, c)) {
+	    log_cat(&error_cat, "Failed to add connection to manager. %s", err.msg);
+	    err_clear(&err);
+	}
+    }
+    return true;
+}
+
+static struct _agooHandler	con_queue_handler = {
+    .io = queue_ready_io,
+    .check = NULL,
+    .read = con_queue_ready_read,
+    .write = NULL,
+    .error = NULL, 
+    .destroy = NULL, 
+};
+
+static bool
+pub_queue_ready_read(agooReady ready, void *ctx) {
+    agooConLoop	loop = (agooConLoop)ctx;
+    agooPub	pub;
+
+    queue_release(&loop->pub_queue);
+    while (NULL != (pub = (agooPub)queue_pop(&loop->pub_queue, 0.0))) {
+	process_pub_con(pub);
+    }
+    return true;
+}
+
+static struct _agooHandler	pub_queue_handler = {
+    .io = queue_ready_io,
+    .check = NULL,
+    .read = pub_queue_ready_read,
+    .write = NULL,
+    .error = NULL, 
+    .destroy = NULL, 
+};
+
 void*
 con_loop(void *x) {
     agooConLoop		loop = (agooConLoop)x;
-    agooCon		c;
-    agooCon		prev;
-    agooCon		next;
-    agooCon		cons = NULL;
-    size_t		size = sizeof(struct pollfd) * INITIAL_POLL_SIZE;
-    struct pollfd	*pa = (struct pollfd*)malloc(size);
-    struct pollfd	*pend = pa + INITIAL_POLL_SIZE;
-    struct pollfd	*pp;
-    int			ccnt = 0;
-    int			i;
-    double		now;
+    struct _agooErr	err = ERR_INIT;
+    agooReady		ready = agoo_ready_create(&err);
     agooPub		pub;
+    agooCon		c;
+    int			con_queue_fd = queue_listen(&the_server.con_queue);
+    int			pub_queue_fd = queue_listen(&loop->pub_queue);
 
+    if (NULL == ready) {
+	log_cat(&error_cat, "Failed to create connection manager. %s", err.msg);
+	exit(EXIT_FAILURE);
+	return NULL;
+    }
+    if (ERR_OK != agoo_ready_add(&err, ready, con_queue_fd, &con_queue_handler, NULL) ||
+	ERR_OK != agoo_ready_add(&err, ready, pub_queue_fd, &pub_queue_handler, loop)) {
+	log_cat(&error_cat, "Failed to add queue connection to manager. %s", err.msg);
+	exit(EXIT_FAILURE);
+	return NULL;
+    }
     atomic_fetch_add(&the_server.running, 1);
-    memset(pa, 0, size);
+    
     while (the_server.active) {
 	while (NULL != (c = (agooCon)queue_pop(&the_server.con_queue, 0.0))) {
-	    c->next = cons;
-	    cons = c;
-	    ccnt++;
-	    if (pend - pa < ccnt + 2) {
-		size_t	cnt = (pend - pa) * 2;
-
-		size = sizeof(struct pollfd) * cnt;
-		if (NULL == (pa = (struct pollfd*)malloc(size))) {
-		    log_cat(&error_cat, "Out of memory.");
-		    log_close();
-		    exit(EXIT_FAILURE);
-
-		    return NULL;
-		}
-		pend = pa + cnt;
+	    if (ERR_OK != agoo_ready_add(&err, ready, c->sock, &con_handler, c)) {
+		log_cat(&error_cat, "Failed to add connection to manager. %s", err.msg);
+		err_clear(&err);
 	    }
 	}
 	while (NULL != (pub = (agooPub)queue_pop(&loop->pub_queue, 0.0))) {
 	    process_pub_con(pub);
 	}
-	pp = poll_setup(cons, &loop->pub_queue, pa);
-	if (0 > (i = poll(pa, (nfds_t)(pp - pa), 10))) {
-	    if (EAGAIN == errno) {
-		continue;
-	    }
-	    log_cat(&error_cat, "Polling error. %s.", strerror(errno));
-	    // Either a signal or something bad like out of memory. Might as well exit.
-	    break;
-	}
-	now = dtime();
-	if (0 < i) {
-	    // Check con_queue if an event is waiting.
-	    if (0 != (pa->revents & POLLIN)) {
-		queue_release(&the_server.con_queue);
-		while (NULL != (c = (agooCon)queue_pop(&the_server.con_queue, 0.0))) {
-		    c->next = cons;
-		    cons = c;
-		    ccnt++;
-		    if (pend - pa < ccnt + 2) {
-			size_t	cnt = (pend - pa) * 2;
-
-			size = sizeof(struct pollfd) * cnt;
-			if (NULL == (pa = (struct pollfd*)malloc(size))) {
-			    log_cat(&error_cat, "Out of memory.");
-			    log_close();
-			    exit(EXIT_FAILURE);
-
-			    return NULL;
-			}
-			pend = pa + cnt;
-		    }
-		}
-	    }
-	    // Check pub_queue if an event is waiting.
-	    if (0 != (pa[1].revents & POLLIN)) {
-		queue_release(&loop->pub_queue);
-		while (NULL != (pub = (agooPub)queue_pop(&loop->pub_queue, 0.0))) {
-		    process_pub_con(pub);
-		}
-	    }
-	}
-	prev = NULL;
-	for (c = cons; NULL != c; c = next) {
-	    next = c->next;
-	    if (0 == c->sock || NULL == c->pp) {
-		continue;
-	    }
-	    pp = c->pp;
-	    if (0 != (pp->revents & POLLIN)) {
-		if (con_read(c)) {
-		    c->dead = true;
-		    goto CON_CHECK;
-		}
-	    }
-	    if (0 != (pp->revents & POLLOUT)) {
-		if (con_write(c)) {
-		    c->dead = true;
-		    goto CON_CHECK;
-		}
-	    }
-	    if (0 != (pp->revents & (POLLERR | POLLHUP | POLLNVAL))) {
-		if (0 < c->bcnt) {
-		    if (0 != (pp->revents & (POLLHUP | POLLNVAL))) {
-			log_cat(&error_cat, "Socket %llu closed.", (unsigned long long)c->id);
-		    } else if (!c->closing) {
-			log_cat(&error_cat, "Socket %llu error. %s", (unsigned long long)c->id, strerror(errno));
-		    }
-		}
-		c->dead = true;
-		goto CON_CHECK;
-	    }
-	CON_CHECK:
-	    if (c->dead || 0 == c->sock) {
-		if (remove_dead_res(c)) {
-		    goto CON_RM;
-		}
-	    } else if (0.0 == c->timeout || now < c->timeout) {
-		prev = c;
-		continue;
-	    } else if (c->closing) {
-		if (remove_dead_res(c)) {
-		    goto CON_RM;
-		}
-	    } else if (CON_WS == c->bind->kind || CON_SSE == c->bind->kind) {
-		c->timeout = dtime() + CON_TIMEOUT;
-		ws_ping(c);
-		continue;
-	    } else {
-		c->closing = true;
-		c->timeout = now + 0.5;
-		prev = c;
-		continue;
-	    }
-	    prev = c;
-	    continue;
-	CON_RM:
-	    if (NULL == prev) {
-		cons = next;
-	    } else {
-		prev->next = next;
-	    }
-	    ccnt--;
-	    log_cat(&con_cat, "Connection %llu closed.", (unsigned long long)c->id);
-	    con_destroy(c);
+	if (ERR_OK != agoo_ready_go(&err, ready)) {
+	    log_cat(&error_cat, "IO error. %s", err.msg);
+	    err_clear(&err);
 	}
     }
-    while (NULL != (c = cons)) {
-	cons = c->next;
-	con_destroy(c);
-    }
+    agoo_ready_destroy(ready);
     atomic_fetch_sub(&the_server.running, 1);
-    
+
     return NULL;
 }
 
