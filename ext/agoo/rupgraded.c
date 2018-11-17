@@ -69,9 +69,9 @@ extract_subject(VALUE subject, int *slen) {
 static VALUE
 rup_write(VALUE self, VALUE msg) {
     agooUpgraded	up = get_upgraded(self);
-    const char	*message;
-    size_t	mlen;
-    bool	bin = false;
+    const char		*message;
+    size_t		mlen;
+    bool		bin = false;
 
     if (NULL == up) {
 	return Qfalse;
@@ -105,8 +105,8 @@ rup_write(VALUE self, VALUE msg) {
 static VALUE
 rup_subscribe(VALUE self, VALUE subject) {
     agooUpgraded	up;
-    int		slen;
-    const char	*subj = extract_subject(subject, &slen);
+    int			slen;
+    const char		*subj = extract_subject(subject, &slen);
 
     if (NULL != (up = get_upgraded(self))) {
 	upgraded_subscribe(up, subj, slen, false);
@@ -126,8 +126,8 @@ rup_subscribe(VALUE self, VALUE subject) {
 static VALUE
 rup_unsubscribe(int argc, VALUE *argv, VALUE self) {
     agooUpgraded	up;
-    const char	*subject = NULL;
-    int		slen = 0;
+    const char		*subject = NULL;
+    int			slen = 0;
 
     if (0 < argc) {
 	subject = extract_subject(argv[0], &slen);
@@ -164,7 +164,7 @@ rup_close(VALUE self) {
 static VALUE
 rup_pending(VALUE self) {
     agooUpgraded	up = get_upgraded(self);
-    int		pending = -1;
+    int			pending = -1;
     
     if (NULL != up) {
 	pending = upgraded_pending(up);
@@ -182,10 +182,10 @@ rup_pending(VALUE self) {
 static VALUE
 rup_open(VALUE self) {
     agooUpgraded	up = get_upgraded(self);
-    int		pending = -1;
+    int			pending = -1;
     
     if (NULL != up) {
-	pending = atomic_load(&up->pending);
+	pending = (int)(long)atomic_load(&up->pending);
 	atomic_fetch_sub(&up->ref_cnt, 1);
     }
     return 0 <= pending ? Qtrue : Qfalse;

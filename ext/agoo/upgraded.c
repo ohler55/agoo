@@ -118,7 +118,7 @@ bool
 upgraded_write(agooUpgraded up, const char *message, size_t mlen, bool bin, bool inc_ref) {
     agooPub	p;
 
-    if (0 < the_server.max_push_pending && the_server.max_push_pending <= atomic_load(&up->pending)) {
+    if (0 < the_server.max_push_pending && the_server.max_push_pending <= (long)atomic_load(&up->pending)) {
 	atomic_fetch_sub(&up->ref_cnt, 1);
 	// Too many pending messages.
 	return false;
@@ -162,7 +162,7 @@ upgraded_close(agooUpgraded up, bool inc_ref) {
 
 int
 upgraded_pending(agooUpgraded up) {
-    return atomic_load(&up->pending);
+    return (int)(long)atomic_load(&up->pending);
 }
 
 agooUpgraded
@@ -176,7 +176,8 @@ upgraded_create(agooCon c, void * ctx, void *env) {
 	up->ctx = ctx;
 	up->env = env;
 	atomic_init(&up->pending, 0);
-	atomic_init(&up->ref_cnt, 1); // start with 1 for the Con reference
+	atomic_init(&up->ref_cnt, 0);
+	atomic_store(&up->ref_cnt, 1); // start with 1 for the Con reference
     }
     return up;
 }

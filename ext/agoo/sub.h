@@ -9,12 +9,12 @@
 #define SUB_BUCKET_SIZE	1024
 #define SUB_BUCKET_MASK	1023
 
-struct _Con;
+struct _agooCon;
 
 typedef struct _agooSub {
     struct _agooSub	*next;
     uint64_t		cid;
-    struct _Con		*con;
+    struct _agooCon	*con;
     uint64_t		id;
     uint64_t		key; // hash key
     char		subject[8];

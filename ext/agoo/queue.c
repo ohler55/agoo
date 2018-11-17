@@ -41,11 +41,11 @@ queue_multi_init(agooQueue q, size_t qsize, bool multi_push, bool multi_pop) {
     q->end = q->q + qsize;
 
     memset(q->q, 0, sizeof(agooQItem) * qsize);
-    q->head = q->q;
-    q->tail = q->q + 1;
-    atomic_flag_clear(&q->push_lock);
-    atomic_flag_clear(&q->pop_lock);
-    q->wait_state = 0;
+    atomic_init(&q->head, q->q);
+    atomic_init(&q->tail, q->q + 1);
+    agoo_atomic_flag_init(&q->push_lock);
+    agoo_atomic_flag_init(&q->pop_lock);
+    atomic_init(&q->wait_state, 0);
     q->multi_push = multi_push;
     q->multi_pop = multi_pop;
     // Create when/if needed.
@@ -77,11 +77,11 @@ queue_push(agooQueue q, agooQItem item) {
 	}
     }
     // Wait for head to move on.
-    while (atomic_load(&q->head) == q->tail) {
+    while (atomic_load(&q->head) == atomic_load(&q->tail)) {
 	dsleep(RETRY_SECS);
     }
-    *q->tail = item;
-    tail = q->tail + 1;
+    *(agooQItem*)atomic_load(&q->tail) = item;
+    tail = (agooQItem*)atomic_load(&q->tail) + 1;
 
     if (q->end <= tail) {
 	tail = q->q;
@@ -90,7 +90,7 @@ queue_push(agooQueue q, agooQItem item) {
     if (q->multi_push) {
 	atomic_flag_clear(&q->push_lock);
     }
-    if (0 != q->wsock && WAITING == atomic_load(&q->wait_state)) {
+    if (0 != q->wsock && WAITING == (long)atomic_load(&q->wait_state)) {
 	if (write(q->wsock, ".", 1)) {}
 	atomic_store(&q->wait_state, NOTIFIED);
     }
@@ -113,16 +113,16 @@ queue_pop(agooQueue q, double timeout) {
 	    dsleep(RETRY_SECS);
 	}
     }
-    item = *q->head;
+    item = *(agooQItem*)atomic_load(&q->head);
 
     if (NULL != item) {
-	*q->head = NULL;
+	*(agooQItem*)atomic_load(&q->head) = NULL;
 	if (q->multi_pop) {
 	    atomic_flag_clear(&q->pop_lock);
 	}
 	return item;
     }
-    next = q->head + 1;
+    next = (agooQItem*)atomic_load(&q->head) + 1;
 
     if (q->end <= next) {
 	next = q->q;
@@ -145,9 +145,8 @@ queue_pop(agooQueue q, double timeout) {
 	}
     }
     atomic_store(&q->head, next);
-
-    item = *q->head;
-    *q->head = NULL;
+    item = *next;
+    *next = NULL;
     if (q->multi_pop) {
 	atomic_flag_clear(&q->pop_lock);
     }
@@ -163,7 +162,7 @@ queue_empty(agooQueue q) {
     if (q->end <= next) {
 	next = q->q;
     }
-    if (NULL == *head && q->tail == next) {
+    if (NULL == *head && atomic_load(&q->tail) == next) {
 	return true;
     }
     return false;
@@ -200,6 +199,6 @@ int
 queue_count(agooQueue q) {
     int	size = (int)(q->end - q->q);
     
-    return (q->tail - q->head + size) % size;
+    return ((agooQItem*)atomic_load(&q->tail) - (agooQItem*)atomic_load(&q->head) + size) % size;
 }
 

@@ -15,7 +15,7 @@ rack_logger_new() {
 }
 
 static void
-log_message(LogCat cat, VALUE message) {
+log_message(agooLogCat cat, VALUE message) {
     volatile VALUE	rs = rb_funcall(message, rb_intern("to_s"), 0);
     
     rb_check_type(rs, T_STRING);

@@ -42,28 +42,28 @@ typedef struct _agooColor {
 #define PURPLE		"purple"
 #define DARK_CYAN	"dark_cyan"
 
-typedef struct _Log	*Log;
+typedef struct _agooLog	*agooLog;
 
-typedef struct _LogCat {
-    struct _LogCat	*next;
+typedef struct _agooLogCat {
+    struct _agooLogCat	*next;
     char		label[32];
     agooColor		color;
     int			level;
     bool		on;
-} *LogCat;
+} *agooLogCat;
 
-typedef struct _LogEntry {
-    LogCat		cat;
+typedef struct _agooLogEntry {
+    agooLogCat		cat;
     int64_t		when; // nano UTC
     char		*whatp;
     char		what[104];
     volatile bool	ready;
     char		*tidp;
     char		tid[40];
-} *LogEntry;
+} *agooLogEntry;
 	
-struct _Log {
-    LogCat		cats;
+struct _agooLog {
+    agooLogCat		cats;
     char		dir[1024];
     char		app[16];
     FILE		*file;    // current output file
@@ -81,10 +81,10 @@ struct _Log {
     int64_t		day_end;
     char		day_buf[16];
 
-    LogEntry		q;
-    LogEntry		end;
-    _Atomic(LogEntry)	head;
-    _Atomic(LogEntry)	tail;
+    agooLogEntry		q;
+    agooLogEntry		end;
+    _Atomic(agooLogEntry)	head;
+    _Atomic(agooLogEntry)	tail;
     atomic_flag		push_lock;
     atomic_int		wait_state;
     int			rsock;
@@ -93,17 +93,17 @@ struct _Log {
     void		(*on_error)(agooErr err);
 };
 
-extern struct _Log	the_log;
-extern struct _LogCat	fatal_cat;
-extern struct _LogCat	error_cat;
-extern struct _LogCat	warn_cat;
-extern struct _LogCat	info_cat;
-extern struct _LogCat	debug_cat;
-extern struct _LogCat	con_cat;
-extern struct _LogCat	req_cat;
-extern struct _LogCat	resp_cat;
-extern struct _LogCat	eval_cat;
-extern struct _LogCat	push_cat;
+extern struct _agooLog		the_log;
+extern struct _agooLogCat	fatal_cat;
+extern struct _agooLogCat	error_cat;
+extern struct _agooLogCat	warn_cat;
+extern struct _agooLogCat	info_cat;
+extern struct _agooLogCat	debug_cat;
+extern struct _agooLogCat	con_cat;
+extern struct _agooLogCat	req_cat;
+extern struct _agooLogCat	resp_cat;
+extern struct _agooLogCat	eval_cat;
+extern struct _agooLogCat	push_cat;
 
 extern void	log_init(const char *app);
 extern void	open_log_file();
@@ -112,14 +112,14 @@ extern void	log_close();
 extern bool	log_flush(double timeout);
 extern void	log_rotate();
 
-extern void	log_cat_reg(LogCat cat, const char *label, agooLogLevel level, const char *color, bool on);
-extern void	log_cat_on(const char *label, bool on);
-extern LogCat	log_cat_find(const char *label);
+extern void		log_cat_reg(agooLogCat cat, const char *label, agooLogLevel level, const char *color, bool on);
+extern void		log_cat_on(const char *label, bool on);
+extern agooLogCat	log_cat_find(const char *label);
 
 // Function to call to make a log entry.
-extern void	log_cat(LogCat cat, const char *fmt, ...);
-extern void	log_tid_cat(LogCat cat, const char *tid, const char *fmt, ...);
-extern void	log_catv(LogCat cat, const char *tid, const char *fmt, va_list ap);
+extern void	log_cat(agooLogCat cat, const char *fmt, ...);
+extern void	log_tid_cat(agooLogCat cat, const char *tid, const char *fmt, ...);
+extern void	log_catv(agooLogCat cat, const char *tid, const char *fmt, va_list ap);
 
 extern void	log_start(bool with_pid);
 

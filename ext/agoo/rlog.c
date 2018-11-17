@@ -84,7 +84,7 @@ rlog_configure(VALUE self, VALUE options) {
 	}
 	if (Qnil != (v = rb_hash_lookup(options, ID2SYM(rb_intern("states"))))) {
 	    if (T_HASH == rb_type(v)) {
-		LogCat	cat = the_log.cats;
+		agooLogCat	cat = the_log.cats;
 		VALUE	cv;
 		
 		for (; NULL != cat; cat = cat->next) {
@@ -226,7 +226,7 @@ rlog_debug(VALUE self, VALUE msg) {
  */
 static VALUE
 rlog_color_get(VALUE self, VALUE label) {
-    LogCat	cat = log_cat_find(StringValuePtr(label));
+    agooLogCat	cat = log_cat_find(StringValuePtr(label));
 
     if (NULL == cat) {
 	return Qnil;
@@ -246,7 +246,7 @@ static VALUE
 rlog_color_set(VALUE self, VALUE label, VALUE color) {
     const char	*label_str = StringValuePtr(label);
     const char	*color_name = StringValuePtr(color);
-    LogCat	cat = log_cat_find(label_str);
+    agooLogCat	cat = log_cat_find(label_str);
     agooColor	c = find_color(color_name);
 
     if (NULL == cat) {
@@ -269,7 +269,7 @@ rlog_color_set(VALUE self, VALUE label, VALUE color) {
  */
 static VALUE
 rlog_on_get(VALUE self, VALUE label) {
-    LogCat	cat = log_cat_find(StringValuePtr(label));
+    agooLogCat	cat = log_cat_find(StringValuePtr(label));
 
     if (NULL == cat) {
 	return Qfalse;
@@ -286,7 +286,7 @@ rlog_on_get(VALUE self, VALUE label) {
 static VALUE
 rlog_on_set(VALUE self, VALUE label, VALUE state) {
     const char	*label_str = StringValuePtr(label);
-    LogCat	cat = log_cat_find(label_str);
+    agooLogCat	cat = log_cat_find(label_str);
 
     if (NULL == cat) {
 	rb_raise(rb_eArgError, "%s is not a valid category.", label_str);
@@ -305,7 +305,7 @@ rlog_on_set(VALUE self, VALUE label, VALUE state) {
 static VALUE
 rlog_log(VALUE self, VALUE label, VALUE msg) {
     const char	*label_str = StringValuePtr(label);
-    LogCat	cat = log_cat_find(label_str);
+    agooLogCat	cat = log_cat_find(label_str);
 
     if (NULL == cat) {
 	rb_raise(rb_eArgError, "%s is not a valid category.", label_str);

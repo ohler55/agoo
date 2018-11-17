@@ -44,13 +44,13 @@ typedef struct _cache {
     agooGroup		groups;
 } *Cache;
 
-typedef struct _Mime {
+typedef struct _mime {
     const char	*suffix;
     const char	*type;
 } *Mime;
 
 // These are used for the initial load.
-static struct _Mime	mime_map[] = {
+static struct _mime	mime_map[] = {
     { "asc", "text/plain" },
     { "avi", "video/x-msvideo" },
     { "bin", "application/octet-stream" },

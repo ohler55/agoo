@@ -15,8 +15,8 @@
 #define BUCKET_MASK	63
 #define BAD_NAME	(uint64_t)-1
 
-typedef struct _Slot {
-    struct _Slot	*next;
+typedef struct _slot {
+    struct _slot	*next;
     gqlType		type;
     uint64_t		hash;
 } *Slot;
@@ -203,7 +203,7 @@ gql_type_set(agooErr err, gqlType type) {
 		return ERR_OK;
 	    }
 	}
-	if (NULL == (s = (Slot)malloc(sizeof(struct _Slot)))) {
+	if (NULL == (s = (Slot)malloc(sizeof(struct _slot)))) {
 	    return err_set(err, ERR_MEMORY, "Failed to allocation memory for a GraphQL type.");
 	}
 	DEBUG_ALLOC(mem_graphql_slot, s);

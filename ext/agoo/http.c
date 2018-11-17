@@ -11,8 +11,8 @@
 #define BUCKET_MASK	1023
 #define MAX_KEY_UNIQ	9
 
-typedef struct _Slot {
-    struct _Slot	*next;
+typedef struct _slot {
+    struct _slot	*next;
     const char		*key;
     uint64_t		hash;
     int			klen;
@@ -469,7 +469,7 @@ key_set(const char *key) {
     Slot	*bucket = get_bucketp(h);
     Slot	s;
     
-    if (NULL != (s = (Slot)malloc(sizeof(struct _Slot)))) {
+    if (NULL != (s = (Slot)malloc(sizeof(struct _slot)))) {
 	DEBUG_ALLOC(mem_http_slot, s)
 	s->hash = h;
 	s->klen = len;

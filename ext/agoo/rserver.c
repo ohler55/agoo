@@ -97,7 +97,7 @@ configure(agooErr err, int port, const char *root, VALUE options) {
     pages_set_root(root);
     the_server.thread_cnt = 0;
     the_rserver.worker_cnt = 1;
-    the_server.running = 0;
+    atomic_init(&the_server.running, 0);
     the_server.listen_thread = 0;
     the_server.con_loops = NULL;
     the_server.root_first = false;
@@ -773,7 +773,7 @@ rserver_start(VALUE self) {
 	    // releases ownership so do that and then see if the threads has
 	    // been started yet.
 	    rb_thread_schedule();
-	    if (2 + the_server.thread_cnt <= atomic_load(&the_server.running)) {
+	    if (2 + the_server.thread_cnt <= (long)atomic_load(&the_server.running)) {
 		break;
 	    }
 	}
@@ -791,7 +791,7 @@ stop_runners() {
 	double	timeout = dtime() + 2.0;
 
 	while (dtime() < timeout) {
-	    if (0 >= atomic_load(&the_server.running)) {
+	    if (0 >= (long)atomic_load(&the_server.running)) {
 		break;
 	    }
 	    dsleep(0.02);

@@ -46,17 +46,17 @@ static struct _agooColor	colors[] = {
 
 static const char	level_chars[] = { 'F', 'E', 'W', 'I', 'D', '?' };
 
-struct _Log	the_log = {NULL};
-struct _LogCat	fatal_cat;
-struct _LogCat	error_cat;
-struct _LogCat	warn_cat;
-struct _LogCat	info_cat;
-struct _LogCat	debug_cat;
-struct _LogCat	con_cat;
-struct _LogCat	req_cat;
-struct _LogCat	resp_cat;
-struct _LogCat	eval_cat;
-struct _LogCat	push_cat;
+struct _agooLog	the_log = {NULL};
+struct _agooLogCat	fatal_cat;
+struct _agooLogCat	error_cat;
+struct _agooLogCat	warn_cat;
+struct _agooLogCat	info_cat;
+struct _agooLogCat	debug_cat;
+struct _agooLogCat	con_cat;
+struct _agooLogCat	req_cat;
+struct _agooLogCat	resp_cat;
+struct _agooLogCat	eval_cat;
+struct _agooLogCat	push_cat;
 
 agooColor
 find_color(const char *name) {
@@ -72,13 +72,13 @@ find_color(const char *name) {
 
 static bool
 log_queue_empty() {
-    LogEntry	head = atomic_load(&the_log.head);
-    LogEntry	next = head + 1;
+    agooLogEntry	head = atomic_load(&the_log.head);
+    agooLogEntry	next = head + 1;
 
     if (the_log.end <= next) {
 	next = the_log.q;
     }
-    if (!head->ready && the_log.tail == next) {
+    if (!head->ready && atomic_load(&the_log.tail) == next) {
 	return true;
     }
     return false;
@@ -111,14 +111,15 @@ log_release() {
     atomic_store(&the_log.wait_state, NOT_WAITING);
 }
 
-static LogEntry
+static agooLogEntry
 log_queue_pop(double timeout) {
-    LogEntry	e = the_log.head;
-    LogEntry	next;
+    agooLogEntry	e = atomic_load(&the_log.head);
+    agooLogEntry	next;
+
     if (e->ready) {
 	return e;
     }
-    next = the_log.head + 1;
+    next = (agooLogEntry)atomic_load(&the_log.head) + 1;
     if (the_log.end <= next) {
 	next = the_log.q;
     }
@@ -138,12 +139,12 @@ log_queue_pop(double timeout) {
     }
     atomic_store(&the_log.head, next);
 
-    return the_log.head;
+    return next;
 }
 
 
 static int
-jwrite(LogEntry e, FILE *file) {
+jwrite(agooLogEntry e, FILE *file) {
     // TBD make e->what JSON friendly
     if (NULL == e->tidp && '\0' == *e->tid) {
 	return fprintf(file, "{\"when\":%lld.%09lld,\"where\":\"%s\",\"level\":%d,\"what\":\"%s\"}\n",
@@ -166,7 +167,7 @@ jwrite(LogEntry e, FILE *file) {
 // I 2015/05/23 11:22:33.123456789 label: The contents of the what field.
 // I 2015/05/23 11:22:33.123456789 [tid] label: The contents of the what field.
 static int
-classic_write(LogEntry e, FILE *file) {
+classic_write(agooLogEntry e, FILE *file) {
     time_t	t = (time_t)(e->when / 1000000000LL);
     int		hour = 0;
     int		min = 0;
@@ -302,7 +303,7 @@ log_rotate() {
 
 static void*
 loop(void *ctx) {
-    LogEntry	e;
+    agooLogEntry	e;
 
     while (!the_log.done || !log_queue_empty()) {
 	if (NULL != (e = log_queue_pop(0.5))) {
@@ -406,8 +407,8 @@ log_close() {
 }
 
 void
-log_cat_reg(LogCat cat, const char *label, agooLogLevel level, const char *color, bool on) {
-    LogCat	xcat = log_cat_find(label);
+log_cat_reg(agooLogCat cat, const char *label, agooLogLevel level, const char *color, bool on) {
+    agooLogCat	xcat = log_cat_find(label);
     
     if (NULL != xcat) {
 	cat = xcat;
@@ -425,7 +426,7 @@ log_cat_reg(LogCat cat, const char *label, agooLogLevel level, const char *color
 
 void
 log_cat_on(const char *label, bool on) {
-    LogCat	cat;
+    agooLogCat	cat;
 
     for (cat = the_log.cats; NULL != cat; cat = cat->next) {
 	if (NULL == label || 0 == strcasecmp(label, cat->label)) {
@@ -435,9 +436,9 @@ log_cat_on(const char *label, bool on) {
     }
 }
 
-LogCat
+agooLogCat
 log_cat_find(const char *label) {
-    LogCat	cat;
+    agooLogCat	cat;
 
     for (cat = the_log.cats; NULL != cat; cat = cat->next) {
 	if (0 == strcasecmp(label, cat->label)) {
@@ -468,7 +469,7 @@ now_nano() {
 #endif
 
 static void
-set_entry(LogEntry e, LogCat cat, const char *tid, const char *fmt, va_list ap) {
+set_entry(agooLogEntry e, agooLogCat cat, const char *tid, const char *fmt, va_list ap) {
     int		cnt;
     va_list	ap2;
 
@@ -502,16 +503,16 @@ set_entry(LogEntry e, LogCat cat, const char *tid, const char *fmt, va_list ap) 
 }
 
 void
-log_catv(LogCat cat, const char *tid, const char *fmt, va_list ap) {
+log_catv(agooLogCat cat, const char *tid, const char *fmt, va_list ap) {
     if (cat->on && !the_log.done) {
-	LogEntry	e;
-	LogEntry	tail;
+	agooLogEntry	e;
+	agooLogEntry	tail;
 	
 	while (atomic_flag_test_and_set(&the_log.push_lock)) {
 	    dsleep(RETRY_SECS);
 	}
 	if (0 == the_log.thread) {
-	    struct _LogEntry	entry;
+	    struct _agooLogEntry	entry;
 	    
 	    set_entry(&entry, cat, tid, fmt, ap);
 	    if (the_log.classic) {
@@ -524,19 +525,19 @@ log_catv(LogCat cat, const char *tid, const char *fmt, va_list ap) {
 	    return;
 	}
 	// Wait for head to move on.
-	while (atomic_load(&the_log.head) == the_log.tail) {
+	while (atomic_load(&the_log.head) == atomic_load(&the_log.tail)) {
 	    dsleep(RETRY_SECS);
 	}
-	e = the_log.tail;
+	e = atomic_load(&the_log.tail);
 	set_entry(e, cat, tid, fmt, ap);
-	tail = the_log.tail + 1;
+	tail = e + 1;
 	if (the_log.end <= tail) {
 	    tail = the_log.q;
 	}
 	atomic_store(&the_log.tail, tail);
 	atomic_flag_clear(&the_log.push_lock);
 
-	if (0 != the_log.wsock && WAITING == atomic_load(&the_log.wait_state)) {
+	if (0 != the_log.wsock && WAITING == (int)(long)atomic_load(&the_log.wait_state)) {
 	    if (write(the_log.wsock, ".", 1)) {}
 	    atomic_store(&the_log.wait_state, NOTIFIED);
 	}
@@ -544,7 +545,7 @@ log_catv(LogCat cat, const char *tid, const char *fmt, va_list ap) {
 }
 
 void
-log_cat(LogCat cat, const char *fmt, ...) {
+log_cat(agooLogCat cat, const char *fmt, ...) {
     va_list	ap;
 
     va_start(ap, fmt);
@@ -553,7 +554,7 @@ log_cat(LogCat cat, const char *fmt, ...) {
 }
 
 void
-log_tid_cat(LogCat cat, const char *tid, const char *fmt, ...) {
+log_tid_cat(agooLogCat cat, const char *tid, const char *fmt, ...) {
     va_list	ap;
 
     va_start(ap, fmt);
@@ -610,15 +611,15 @@ log_init(const char *app) {
     *the_log.day_buf = '\0';
     the_log.thread = 0;
 
-    the_log.q = (LogEntry)malloc(sizeof(struct _LogEntry) * qsize);
+    the_log.q = (agooLogEntry)malloc(sizeof(struct _agooLogEntry) * qsize);
     DEBUG_ALLOC(mem_log_entry, the_log.q)
     the_log.end = the_log.q + qsize;
-    memset(the_log.q, 0, sizeof(struct _LogEntry) * qsize);
-    the_log.head = the_log.q;
-    the_log.tail = the_log.q + 1;
+    memset(the_log.q, 0, sizeof(struct _agooLogEntry) * qsize);
+    atomic_init(&the_log.head, the_log.q);
+    atomic_init(&the_log.tail, the_log.q + 1);
 
-    atomic_flag_clear(&the_log.push_lock);
-    the_log.wait_state = NOT_WAITING;
+    agoo_atomic_flag_init(&the_log.push_lock);
+    atomic_init(&the_log.wait_state, NOT_WAITING);
     // Create when/if needed.
     the_log.rsock = 0;
     the_log.wsock = 0;

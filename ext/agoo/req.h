@@ -8,7 +8,6 @@
 #include "hook.h"
 #include "kinds.h"
 
-struct _Server;
 struct _agooUpgraded;
 struct _agooRes;
 

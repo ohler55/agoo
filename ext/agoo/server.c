@@ -151,9 +151,20 @@ server_start(agooErr err, const char *app_name, const char *version) {
     the_server.con_loops = conloop_create(err, 0);
     the_server.loop_cnt = 1;
 
+    if (1 > the_server.thread_cnt) {
+	the_server.thread_cnt = 1;
+    }
+    // If the eval thread count is 1 that implies the eval load is low so
+    // might as well create the maximum number of con threads as is
+    // reasonable.
+    if (1 == the_server.thread_cnt) {
+	while (the_server.loop_cnt < the_server.loop_max) {
+	    add_con_loop();
+	}
+    }
     giveup = dtime() + 1.0;
     while (dtime() < giveup) {
-	if (2 <= atomic_load(&the_server.running)) {
+	if (2 <= (long)atomic_load(&the_server.running)) {
 	    break;
 	}
 	dsleep(0.01);
@@ -197,7 +208,7 @@ server_shutdown(const char *app_name, void (*stop)()) {
 	    for (loop = the_server.con_loops; NULL != loop; loop = loop->next) {
 		pthread_detach(loop->thread);
 	    }
-	    while (0 < atomic_load(&the_server.running)) {
+	    while (0 < (long)atomic_load(&the_server.running)) {
 		dsleep(0.1);
 		if (giveup < dtime()) {
 		    break;
