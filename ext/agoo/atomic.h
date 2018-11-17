@@ -7,7 +7,7 @@
 
 #include <stdatomic.h>
 
-#define	AGOO_ATOMIC_INT_INIT	0
+#define	AGOO_ATOMIC_INT_INIT(v)	(v)
 
 static inline void
 agoo_atomic_flag_init(atomic_flag *flagp) {
@@ -33,7 +33,7 @@ typedef struct _agooAtom {
 
 #define	_Atomic(T) struct _agooAtom
 
-#define	AGOO_ATOMIC_INT_INIT	{ .value = NULL, .lock = PTHREAD_MUTEX_INITIALIZER }
+#define	AGOO_ATOMIC_INT_INIT(v)	{ .value = (v), .lock = PTHREAD_MUTEX_INITIALIZER }
 #define	ATOMIC_FLAG_INIT	{ .value = NULL, .lock = PTHREAD_MUTEX_INITIALIZER }
 
 typedef struct _agooAtom	atomic_flag;
