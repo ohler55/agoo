@@ -4,7 +4,6 @@
 #define AGOO_RLOG_H
 
 #include <ruby.h>
-#include "log.h"
 
 extern void	rlog_init(VALUE mod);
 

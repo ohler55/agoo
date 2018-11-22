@@ -8,7 +8,7 @@
 #include "req.h"
 
 agooHook
-hook_create(agooMethod method, const char *pattern, void *handler, agooHookType type, agooQueue q) {
+agoo_hook_create(agooMethod method, const char *pattern, void *handler, agooHookType type, agooQueue q) {
     agooHook	hook = (agooHook)malloc(sizeof(struct _agooHook));
 
     if (NULL != hook) {
@@ -36,7 +36,7 @@ hook_create(agooMethod method, const char *pattern, void *handler, agooHookType 
 }
 
 agooHook
-hook_func_create(agooMethod method, const char *pattern, void (*func)(agooReq req), agooQueue q) {
+agoo_hook_func_create(agooMethod method, const char *pattern, void (*func)(agooReq req), agooQueue q) {
     agooHook	hook = (agooHook)malloc(sizeof(struct _agooHook));
 
     if (NULL != hook) {
@@ -64,7 +64,7 @@ hook_func_create(agooMethod method, const char *pattern, void (*func)(agooReq re
 }
 
 void
-hook_destroy(agooHook hook) {
+agoo_hook_destroy(agooHook hook) {
     if (NULL != hook->pattern) {
 	DEBUG_FREE(mem_hook_pattern, hook->pattern);
 	free(hook->pattern);
@@ -74,7 +74,7 @@ hook_destroy(agooHook hook) {
 }
 
 bool
-hook_match(agooHook hook, agooMethod method, const agooSeg path) {
+agoo_hook_match(agooHook hook, agooMethod method, const agooSeg path) {
     const char	*pat = hook->pattern;
     char	*p = path->start;
     char	*end = path->end;
@@ -102,9 +102,9 @@ hook_match(agooHook hook, agooMethod method, const agooSeg path) {
 }
 
 agooHook
-hook_find(agooHook hook, agooMethod method, const agooSeg path) {
+agoo_hook_find(agooHook hook, agooMethod method, const agooSeg path) {
     for (; NULL != hook; hook = hook->next) {
-	if (hook_match(hook, method, path)) {
+	if (agoo_hook_match(hook, method, path)) {
 	    return hook;
 	}
     }

@@ -22,7 +22,7 @@ typedef struct _agooResponse {
     char	*body;
 } *agooResponse;
 
-extern int	response_len(agooResponse res);
-extern void	response_fill(agooResponse res, char *buf);
+extern int	agoo_response_len(agooResponse res);
+extern void	agoo_response_fill(agooResponse res, char *buf);
 
 #endif // AGOO_RESPONSE_H

@@ -46,17 +46,17 @@ static struct _agooColor	colors[] = {
 
 static const char	level_chars[] = { 'F', 'E', 'W', 'I', 'D', '?' };
 
-struct _agooLog	the_log = {NULL};
-struct _agooLogCat	fatal_cat;
-struct _agooLogCat	error_cat;
-struct _agooLogCat	warn_cat;
-struct _agooLogCat	info_cat;
-struct _agooLogCat	debug_cat;
-struct _agooLogCat	con_cat;
-struct _agooLogCat	req_cat;
-struct _agooLogCat	resp_cat;
-struct _agooLogCat	eval_cat;
-struct _agooLogCat	push_cat;
+struct _agooLog	agoo_log = {NULL};
+struct _agooLogCat	agoo_fatal_cat;
+struct _agooLogCat	agoo_error_cat;
+struct _agooLogCat	agoo_warn_cat;
+struct _agooLogCat	agoo_info_cat;
+struct _agooLogCat	agoo_debug_cat;
+struct _agooLogCat	agoo_con_cat;
+struct _agooLogCat	agoo_req_cat;
+struct _agooLogCat	agoo_resp_cat;
+struct _agooLogCat	agoo_eval_cat;
+struct _agooLogCat	agoo_push_cat;
 
 agooColor
 find_color(const char *name) {
@@ -71,73 +71,73 @@ find_color(const char *name) {
 }
 
 static bool
-log_queue_empty() {
-    agooLogEntry	head = atomic_load(&the_log.head);
+agoo_log_queue_empty() {
+    agooLogEntry	head = atomic_load(&agoo_log.head);
     agooLogEntry	next = head + 1;
 
-    if (the_log.end <= next) {
-	next = the_log.q;
+    if (agoo_log.end <= next) {
+	next = agoo_log.q;
     }
-    if (!head->ready && atomic_load(&the_log.tail) == next) {
+    if (!head->ready && atomic_load(&agoo_log.tail) == next) {
 	return true;
     }
     return false;
 }
 
 static int
-log_listen() {
-    if (0 == the_log.rsock) {
+agoo_log_listen() {
+    if (0 == agoo_log.rsock) {
 	int	fd[2];
 
 	if (0 == pipe(fd)) {
 	    fcntl(fd[0], F_SETFL, O_NONBLOCK);
 	    fcntl(fd[1], F_SETFL, O_NONBLOCK);
-	    the_log.rsock = fd[0];
-	    the_log.wsock = fd[1];
+	    agoo_log.rsock = fd[0];
+	    agoo_log.wsock = fd[1];
 	}
     }
-    atomic_store(&the_log.wait_state, WAITING);
+    atomic_store(&agoo_log.wait_state, WAITING);
     
-    return the_log.rsock;
+    return agoo_log.rsock;
 }
 
 static void
-log_release() {
+agoo_log_release() {
     char	buf[8];
 
     // clear pipe
-    while (0 < read(the_log.rsock, buf, sizeof(buf))) {
+    while (0 < read(agoo_log.rsock, buf, sizeof(buf))) {
     }
-    atomic_store(&the_log.wait_state, NOT_WAITING);
+    atomic_store(&agoo_log.wait_state, NOT_WAITING);
 }
 
 static agooLogEntry
-log_queue_pop(double timeout) {
-    agooLogEntry	e = atomic_load(&the_log.head);
+agoo_log_queue_pop(double timeout) {
+    agooLogEntry	e = atomic_load(&agoo_log.head);
     agooLogEntry	next;
 
     if (e->ready) {
 	return e;
     }
-    next = (agooLogEntry)atomic_load(&the_log.head) + 1;
-    if (the_log.end <= next) {
-	next = the_log.q;
+    next = (agooLogEntry)atomic_load(&agoo_log.head) + 1;
+    if (agoo_log.end <= next) {
+	next = agoo_log.q;
     }
     // If the next is the tail then wait for something to be appended.
-    for (int cnt = (int)(timeout / (double)WAIT_MSECS * 1000.0); atomic_load(&the_log.tail) == next; cnt--) {
+    for (int cnt = (int)(timeout / (double)WAIT_MSECS * 1000.0); atomic_load(&agoo_log.tail) == next; cnt--) {
 	struct pollfd	pa;
 
 	if (cnt <= 0) {
 	    return NULL;
 	}
-	pa.fd = log_listen();
+	pa.fd = agoo_log_listen();
 	pa.events = POLLIN;
 	pa.revents = 0;
 	if (0 < poll(&pa, 1, WAIT_MSECS)) {
-	    log_release();
+	    agoo_log_release();
 	}
     }
-    atomic_store(&the_log.head, next);
+    atomic_store(&agoo_log.head, next);
 
     return next;
 }
@@ -176,9 +176,9 @@ classic_write(agooLogEntry e, FILE *file) {
     char	levelc = level_chars[e->cat->level];
     int		cnt = 0;
     
-    t += the_log.zone;
-    if (the_log.day_start <= t && t < the_log.day_end) {
-	t -= the_log.day_start;
+    t += agoo_log.zone;
+    if (agoo_log.day_start <= t && t < agoo_log.day_end) {
+	t -= agoo_log.day_start;
 	hour = (int)(t / 3600);
 	min = t % 3600 / 60;
 	sec = t % 60;
@@ -188,20 +188,20 @@ classic_write(agooLogEntry e, FILE *file) {
 	hour = tm->tm_hour;
 	min = tm->tm_min;
 	sec = tm->tm_sec;
-	sprintf(the_log.day_buf, "%04d/%02d/%02d ", tm->tm_year + 1900, tm->tm_mon + 1, tm->tm_mday);
-	the_log.day_start = t - (hour * 3600 + min * 60 + sec);
-	the_log.day_end = the_log.day_start + 86400;
+	sprintf(agoo_log.day_buf, "%04d/%02d/%02d ", tm->tm_year + 1900, tm->tm_mon + 1, tm->tm_mday);
+	agoo_log.day_start = t - (hour * 3600 + min * 60 + sec);
+	agoo_log.day_end = agoo_log.day_start + 86400;
     }
-    if (the_log.colorize) {
+    if (agoo_log.colorize) {
 	if (NULL == e->tidp && '\0' == *e->tid) {
 	    cnt = fprintf(file, "%s%c %s%02d:%02d:%02d.%09lld %s: %s%s\n",
-			  e->cat->color->ansi, levelc, the_log.day_buf, hour, min, sec, frac,
+			  e->cat->color->ansi, levelc, agoo_log.day_buf, hour, min, sec, frac,
 			  e->cat->label,
 			  (NULL == e->whatp ? e->what : e->whatp),
 			  RESET_COLOR);
 	} else {
 	    cnt = fprintf(file, "%s%c %s%02d:%02d:%02d.%09lld [%s] %s: %s%s\n",
-			  e->cat->color->ansi, levelc, the_log.day_buf, hour, min, sec, frac,
+			  e->cat->color->ansi, levelc, agoo_log.day_buf, hour, min, sec, frac,
 			  (NULL == e->tidp ? e->tid : e->tidp),
 			  e->cat->label,
 			  (NULL == e->whatp ? e->what : e->whatp),
@@ -210,12 +210,12 @@ classic_write(agooLogEntry e, FILE *file) {
     } else {
 	if (NULL == e->tidp && '\0' == *e->tid) {
 	    cnt += fprintf(file, "%c %s%02d:%02d:%02d.%09lld %s: %s\n",
-			   levelc, the_log.day_buf, hour, min, sec, frac,
+			   levelc, agoo_log.day_buf, hour, min, sec, frac,
 			   e->cat->label,
 			   (NULL == e->whatp ? e->what : e->whatp));
 	} else {
 	    cnt += fprintf(file, "%c %s%02d:%02d:%02d.%09lld [%s] %s: %s\n",
-			   levelc, the_log.day_buf, hour, min, sec, frac,
+			   levelc, agoo_log.day_buf, hour, min, sec, frac,
 			   (NULL == e->tidp ? e->tid : e->tidp),
 			   e->cat->label,
 			   (NULL == e->whatp ? e->what : e->whatp));
@@ -232,17 +232,17 @@ remove_old_logs() {
     long		seq;
     char		*end;
     char		path[1500];
-    DIR			*dir = opendir(the_log.dir);
+    DIR			*dir = opendir(agoo_log.dir);
     char		prefix[64];
     int			psize;
     char		name[64];
 
-    if (the_log.with_pid) {
-	psize = sprintf(prefix, "%s_%d.log.", the_log.app, getpid());
-	sprintf(name, "%s_%d.log", the_log.app, getpid());
+    if (agoo_log.with_pid) {
+	psize = sprintf(prefix, "%s_%d.log.", agoo_log.app, getpid());
+	sprintf(name, "%s_%d.log", agoo_log.app, getpid());
     } else {
-	psize = sprintf(prefix, "%s.log.", the_log.app);
-	sprintf(name, "%s.log", the_log.app);
+	psize = sprintf(prefix, "%s.log.", agoo_log.app);
+	sprintf(name, "%s.log", agoo_log.app);
     }
     while (NULL != (de = readdir(dir))) {
 	if ('.' == *de->d_name || '\0' == *de->d_name) {
@@ -256,8 +256,8 @@ remove_old_logs() {
 	    continue;
 	}
 	seq = strtol(de->d_name + psize, &end, 10);
-	if (the_log.max_files < seq) {
-	    snprintf(path, sizeof(path), "%s/%s", the_log.dir, de->d_name);
+	if (agoo_log.max_files < seq) {
+	    snprintf(path, sizeof(path), "%s/%s", agoo_log.dir, de->d_name);
 	    remove(path);
 	}
     }
@@ -265,38 +265,38 @@ remove_old_logs() {
 }
 
 void
-log_rotate() {
+agoo_log_rotate() {
     char	from[1060];
     char	to[1060];
 
-    if (NULL != the_log.file) {
-	fclose(the_log.file);
-	the_log.file = NULL;
+    if (NULL != agoo_log.file) {
+	fclose(agoo_log.file);
+	agoo_log.file = NULL;
     }
-    if (the_log.with_pid) {
+    if (agoo_log.with_pid) {
 	char	name[32];
 
-	sprintf(name, "%s_%d.log", the_log.app, getpid());
-	for (int seq = the_log.max_files; 0 < seq; seq--) {
-	    snprintf(to, sizeof(to) - 1, "%s/%s_%d.log.%d", the_log.dir, the_log.app, getpid(), seq + 1);
-	    snprintf(from, sizeof(from) - 1, "%s/%s_%d.log.%d", the_log.dir, the_log.app, getpid(), seq);
+	sprintf(name, "%s_%d.log", agoo_log.app, getpid());
+	for (int seq = agoo_log.max_files; 0 < seq; seq--) {
+	    snprintf(to, sizeof(to) - 1, "%s/%s_%d.log.%d", agoo_log.dir, agoo_log.app, getpid(), seq + 1);
+	    snprintf(from, sizeof(from) - 1, "%s/%s_%d.log.%d", agoo_log.dir, agoo_log.app, getpid(), seq);
 	    rename(from, to);
 	}
-	snprintf(to, sizeof(to) - 1, "%s/%s_%d.log.%d", the_log.dir, the_log.app, getpid(), 1);
-	snprintf(from, sizeof(from) - 1, "%s/%s", the_log.dir, name);
+	snprintf(to, sizeof(to) - 1, "%s/%s_%d.log.%d", agoo_log.dir, agoo_log.app, getpid(), 1);
+	snprintf(from, sizeof(from) - 1, "%s/%s", agoo_log.dir, name);
     } else {
-	for (int seq = the_log.max_files; 0 < seq; seq--) {
-	    snprintf(to, sizeof(to) - 1, "%s/%s.log.%d", the_log.dir, the_log.app, seq + 1);
-	    snprintf(from, sizeof(from) - 1, "%s/%s.log.%d", the_log.dir, the_log.app, seq);
+	for (int seq = agoo_log.max_files; 0 < seq; seq--) {
+	    snprintf(to, sizeof(to) - 1, "%s/%s.log.%d", agoo_log.dir, agoo_log.app, seq + 1);
+	    snprintf(from, sizeof(from) - 1, "%s/%s.log.%d", agoo_log.dir, agoo_log.app, seq);
 	    rename(from, to);
 	}
-	snprintf(to, sizeof(to) - 1, "%s/%s.log.%d", the_log.dir, the_log.app, 1);
-	snprintf(from, sizeof(from) - 1, "%s/%s.log", the_log.dir, the_log.app);
+	snprintf(to, sizeof(to) - 1, "%s/%s.log.%d", agoo_log.dir, agoo_log.app, 1);
+	snprintf(from, sizeof(from) - 1, "%s/%s.log", agoo_log.dir, agoo_log.app);
     }
     rename(from, to);
 
-    the_log.file = fopen(from, "w");
-    the_log.size = 0;
+    agoo_log.file = fopen(from, "w");
+    agoo_log.size = 0;
 
     remove_old_logs();
 }
@@ -305,32 +305,32 @@ static void*
 loop(void *ctx) {
     agooLogEntry	e;
 
-    while (!the_log.done || !log_queue_empty()) {
-	if (NULL != (e = log_queue_pop(0.5))) {
-	    if (the_log.console) {
-		if (the_log.classic) {
+    while (!agoo_log.done || !agoo_log_queue_empty()) {
+	if (NULL != (e = agoo_log_queue_pop(0.5))) {
+	    if (agoo_log.console) {
+		if (agoo_log.classic) {
 		    classic_write(e, stdout);
 		} else {
 		    jwrite(e, stdout);
 		}
 	    }
-	    if (NULL != the_log.file) {
-		if (the_log.classic) {
-		    the_log.size += classic_write(e, the_log.file);
+	    if (NULL != agoo_log.file) {
+		if (agoo_log.classic) {
+		    agoo_log.size += classic_write(e, agoo_log.file);
 		} else {
-		    the_log.size += jwrite(e, the_log.file);
+		    agoo_log.size += jwrite(e, agoo_log.file);
 		}
-		if (the_log.max_size <= the_log.size) {
-		    log_rotate();
+		if (agoo_log.max_size <= agoo_log.size) {
+		    agoo_log_rotate();
 		}
 	    }
 	    if (NULL != e->whatp) {
 		free(e->whatp);
-		DEBUG_FREE(mem_log_what, e->whatp)
+		DEBUG_FREE(mem_agoo_log_what, e->whatp)
 	    }
 	    if (NULL != e->tidp) {
 		free(e->tidp);
-		DEBUG_FREE(mem_log_tid, e->tidp)
+		DEBUG_FREE(mem_agoo_log_tid, e->tidp)
 	    }
 	    e->ready = false;
 	}
@@ -339,76 +339,76 @@ loop(void *ctx) {
 }
 
 bool
-log_flush(double timeout) {
+agoo_log_flush(double timeout) {
     timeout += dtime();
     
-    while (!the_log.done && !log_queue_empty()) {
+    while (!agoo_log.done && !agoo_log_queue_empty()) {
 	if (timeout < dtime()) {
 	    return false;
 	}
 	dsleep(0.001);
     }
-    if (NULL != the_log.file) {
-	fflush(the_log.file);
+    if (NULL != agoo_log.file) {
+	fflush(agoo_log.file);
     }
     return true;
 }
 
 void
-open_log_file() {
+agoo_log_open_file() {
     char	path[1500];
 
-    if (the_log.with_pid) {
-	snprintf(path, sizeof(path), "%s/%s_%d.log", the_log.dir, the_log.app, getpid());
+    if (agoo_log.with_pid) {
+	snprintf(path, sizeof(path), "%s/%s_%d.log", agoo_log.dir, agoo_log.app, getpid());
     } else {
-	snprintf(path, sizeof(path), "%s/%s.log", the_log.dir, the_log.app);
+	snprintf(path, sizeof(path), "%s/%s.log", agoo_log.dir, agoo_log.app);
     }
-    the_log.file = fopen(path, "a");
-    if (NULL == the_log.file) {
+    agoo_log.file = fopen(path, "a");
+    if (NULL == agoo_log.file) {
 	struct _agooErr	err;
 
-	err_no(&err, "Failed to create '%s'.", path);
-	the_log.on_error(&err);
+	agoo_err_no(&err, "Failed to create '%s'.", path);
+	agoo_log.on_error(&err);
     }
-    the_log.size = ftell(the_log.file);
-    if (the_log.max_size <= the_log.size) {
-	log_rotate();
+    agoo_log.size = ftell(agoo_log.file);
+    if (agoo_log.max_size <= agoo_log.size) {
+	agoo_log_rotate();
     }
     // TBD open rsock and wsock
 }
 
 void
-log_close() {
-    the_log.done = true;
+agoo_log_close() {
+    agoo_log.done = true;
     // TBD wake up loop like push does
-    log_cat_on(NULL, false);
-    if (0 != the_log.thread) {
-	pthread_join(the_log.thread, NULL);
-	the_log.thread = 0;
+    agoo_log_cat_on(NULL, false);
+    if (0 != agoo_log.thread) {
+	pthread_join(agoo_log.thread, NULL);
+	agoo_log.thread = 0;
     }
-    if (NULL != the_log.file) {
-	fclose(the_log.file);
-	the_log.file = NULL;
+    if (NULL != agoo_log.file) {
+	fclose(agoo_log.file);
+	agoo_log.file = NULL;
     }
-    if (NULL != the_log.q) {
-	DEBUG_FREE(mem_log_entry, the_log.q);
-	free(the_log.q);
-	the_log.q = NULL;
-	the_log.end = NULL;
+    if (NULL != agoo_log.q) {
+	DEBUG_FREE(mem_agoo_log_entry, agoo_log.q);
+	free(agoo_log.q);
+	agoo_log.q = NULL;
+	agoo_log.end = NULL;
     }
-    if (0 < the_log.wsock) {
-	close(the_log.wsock);
-	the_log.wsock = 0;
+    if (0 < agoo_log.wsock) {
+	close(agoo_log.wsock);
+	agoo_log.wsock = 0;
     }
-    if (0 < the_log.rsock) {
-	close(the_log.rsock);
-	the_log.rsock = 0;
+    if (0 < agoo_log.rsock) {
+	close(agoo_log.rsock);
+	agoo_log.rsock = 0;
     }
 }
 
 void
-log_cat_reg(agooLogCat cat, const char *label, agooLogLevel level, const char *color, bool on) {
-    agooLogCat	xcat = log_cat_find(label);
+agoo_log_cat_reg(agooLogCat cat, const char *label, agooLogLevel level, const char *color, bool on) {
+    agooLogCat	xcat = agoo_log_cat_find(label);
     
     if (NULL != xcat) {
 	cat = xcat;
@@ -419,16 +419,16 @@ log_cat_reg(agooLogCat cat, const char *label, agooLogLevel level, const char *c
     cat->color = find_color(color);
     cat->on = on;
     if (NULL == xcat) {
-	cat->next = the_log.cats;
-	the_log.cats = cat;
+	cat->next = agoo_log.cats;
+	agoo_log.cats = cat;
     }
 }
 
 void
-log_cat_on(const char *label, bool on) {
+agoo_log_cat_on(const char *label, bool on) {
     agooLogCat	cat;
 
-    for (cat = the_log.cats; NULL != cat; cat = cat->next) {
+    for (cat = agoo_log.cats; NULL != cat; cat = cat->next) {
 	if (NULL == label || 0 == strcasecmp(label, cat->label)) {
 	    cat->on = on;
 	    break;
@@ -437,10 +437,10 @@ log_cat_on(const char *label, bool on) {
 }
 
 agooLogCat
-log_cat_find(const char *label) {
+agoo_log_cat_find(const char *label) {
     agooLogCat	cat;
 
-    for (cat = the_log.cats; NULL != cat; cat = cat->next) {
+    for (cat = agoo_log.cats; NULL != cat; cat = cat->next) {
 	if (0 == strcasecmp(label, cat->label)) {
 	    return cat;
 	}
@@ -503,137 +503,137 @@ set_entry(agooLogEntry e, agooLogCat cat, const char *tid, const char *fmt, va_l
 }
 
 void
-log_catv(agooLogCat cat, const char *tid, const char *fmt, va_list ap) {
-    if (cat->on && !the_log.done) {
+agoo_log_catv(agooLogCat cat, const char *tid, const char *fmt, va_list ap) {
+    if (cat->on && !agoo_log.done) {
 	agooLogEntry	e;
 	agooLogEntry	tail;
 	
-	while (atomic_flag_test_and_set(&the_log.push_lock)) {
+	while (atomic_flag_test_and_set(&agoo_log.push_lock)) {
 	    dsleep(RETRY_SECS);
 	}
-	if (0 == the_log.thread) {
+	if (0 == agoo_log.thread) {
 	    struct _agooLogEntry	entry;
 	    
 	    set_entry(&entry, cat, tid, fmt, ap);
-	    if (the_log.classic) {
+	    if (agoo_log.classic) {
 		classic_write(&entry, stdout);
 	    } else {
 		jwrite(&entry, stdout);
 	    }
-	    atomic_flag_clear(&the_log.push_lock);
+	    atomic_flag_clear(&agoo_log.push_lock);
 
 	    return;
 	}
 	// Wait for head to move on.
-	while (atomic_load(&the_log.head) == atomic_load(&the_log.tail)) {
+	while (atomic_load(&agoo_log.head) == atomic_load(&agoo_log.tail)) {
 	    dsleep(RETRY_SECS);
 	}
-	e = atomic_load(&the_log.tail);
+	e = atomic_load(&agoo_log.tail);
 	set_entry(e, cat, tid, fmt, ap);
 	tail = e + 1;
-	if (the_log.end <= tail) {
-	    tail = the_log.q;
+	if (agoo_log.end <= tail) {
+	    tail = agoo_log.q;
 	}
-	atomic_store(&the_log.tail, tail);
-	atomic_flag_clear(&the_log.push_lock);
+	atomic_store(&agoo_log.tail, tail);
+	atomic_flag_clear(&agoo_log.push_lock);
 
-	if (0 != the_log.wsock && WAITING == (int)(long)atomic_load(&the_log.wait_state)) {
-	    if (write(the_log.wsock, ".", 1)) {}
-	    atomic_store(&the_log.wait_state, NOTIFIED);
+	if (0 != agoo_log.wsock && WAITING == (int)(long)atomic_load(&agoo_log.wait_state)) {
+	    if (write(agoo_log.wsock, ".", 1)) {}
+	    atomic_store(&agoo_log.wait_state, NOTIFIED);
 	}
     }
 }
 
 void
-log_cat(agooLogCat cat, const char *fmt, ...) {
+agoo_log_cat(agooLogCat cat, const char *fmt, ...) {
     va_list	ap;
 
     va_start(ap, fmt);
-    log_catv(cat, NULL, fmt, ap);
+    agoo_log_catv(cat, NULL, fmt, ap);
     va_end(ap);
 }
 
 void
-log_tid_cat(agooLogCat cat, const char *tid, const char *fmt, ...) {
+agoo_log_tid_cat(agooLogCat cat, const char *tid, const char *fmt, ...) {
     va_list	ap;
 
     va_start(ap, fmt);
-    log_catv(cat, tid, fmt, ap);
+    agoo_log_catv(cat, tid, fmt, ap);
     va_end(ap);
 }
 
 void
-log_start(bool with_pid) {
-    if (0 != the_log.thread) {
+agoo_log_start(bool with_pid) {
+    if (0 != agoo_log.thread) {
 	// Already started.
 	return;
     }
-    if (NULL != the_log.file) {
-	fclose(the_log.file);
-	the_log.file = NULL;
+    if (NULL != agoo_log.file) {
+	fclose(agoo_log.file);
+	agoo_log.file = NULL;
 	// TBD close rsock and wsock
     }
-    the_log.with_pid = with_pid;
-    if ('\0' != *the_log.dir) {
-	if (0 != mkdir(the_log.dir, 0770) && EEXIST != errno) {
+    agoo_log.with_pid = with_pid;
+    if ('\0' != *agoo_log.dir) {
+	if (0 != mkdir(agoo_log.dir, 0770) && EEXIST != errno) {
 	    struct _agooErr	err;
 
-	    err_no(&err, "Failed to create '%s'", the_log.dir);
-	    the_log.on_error(&err);
+	    agoo_err_no(&err, "Failed to create '%s'", agoo_log.dir);
+	    agoo_log.on_error(&err);
 	}
-	open_log_file();
+	agoo_log_open_file();
     }
-    pthread_create(&the_log.thread, NULL, loop, NULL);
+    pthread_create(&agoo_log.thread, NULL, loop, NULL);
 }
 
 void
-log_init(const char *app) {
+agoo_log_init(const char *app) {
     time_t	t = time(NULL);
     struct tm	*tm = localtime(&t);
     int		qsize = 1024;
 
-    strncpy(the_log.app, app, sizeof(the_log.app));
-    the_log.app[sizeof(the_log.app) - 1] = '\0';
-    the_log.cats = NULL;
-    *the_log.dir = '\0';
-    the_log.file = NULL;
-    the_log.max_files = 3;
-    the_log.max_size = 100000000; // 100M
-    the_log.size = 0;
-    the_log.done = false;
-    the_log.console = true;
-    the_log.classic = true;
-    the_log.colorize = true;
-    the_log.with_pid = false;
-    the_log.zone = (int)(timegm(tm) - t);
-    the_log.day_start = 0;
-    the_log.day_end = 0;
-    *the_log.day_buf = '\0';
-    the_log.thread = 0;
+    strncpy(agoo_log.app, app, sizeof(agoo_log.app));
+    agoo_log.app[sizeof(agoo_log.app) - 1] = '\0';
+    agoo_log.cats = NULL;
+    *agoo_log.dir = '\0';
+    agoo_log.file = NULL;
+    agoo_log.max_files = 3;
+    agoo_log.max_size = 100000000; // 100M
+    agoo_log.size = 0;
+    agoo_log.done = false;
+    agoo_log.console = true;
+    agoo_log.classic = true;
+    agoo_log.colorize = true;
+    agoo_log.with_pid = false;
+    agoo_log.zone = (int)(timegm(tm) - t);
+    agoo_log.day_start = 0;
+    agoo_log.day_end = 0;
+    *agoo_log.day_buf = '\0';
+    agoo_log.thread = 0;
 
-    the_log.q = (agooLogEntry)malloc(sizeof(struct _agooLogEntry) * qsize);
-    DEBUG_ALLOC(mem_log_entry, the_log.q)
-    the_log.end = the_log.q + qsize;
-    memset(the_log.q, 0, sizeof(struct _agooLogEntry) * qsize);
-    atomic_init(&the_log.head, the_log.q);
-    atomic_init(&the_log.tail, the_log.q + 1);
+    agoo_log.q = (agooLogEntry)malloc(sizeof(struct _agooLogEntry) * qsize);
+    DEBUG_ALLOC(mem_log_entry, agoo_log.q)
+    agoo_log.end = agoo_log.q + qsize;
+    memset(agoo_log.q, 0, sizeof(struct _agooLogEntry) * qsize);
+    atomic_init(&agoo_log.head, agoo_log.q);
+    atomic_init(&agoo_log.tail, agoo_log.q + 1);
 
-    agoo_atomic_flag_init(&the_log.push_lock);
-    atomic_init(&the_log.wait_state, NOT_WAITING);
+    agoo_atomic_flag_init(&agoo_log.push_lock);
+    atomic_init(&agoo_log.wait_state, NOT_WAITING);
     // Create when/if needed.
-    the_log.rsock = 0;
-    the_log.wsock = 0;
+    agoo_log.rsock = 0;
+    agoo_log.wsock = 0;
 
-    log_cat_reg(&fatal_cat, "FATAL",    FATAL, RED, true);
-    log_cat_reg(&error_cat, "ERROR",    ERROR, RED, true);
-    log_cat_reg(&warn_cat,  "WARN",     WARN,  YELLOW, true);
-    log_cat_reg(&info_cat,  "INFO",     INFO,  GREEN, true);
-    log_cat_reg(&debug_cat, "DEBUG",    DEBUG, GRAY, false);
-    log_cat_reg(&con_cat,   "connect",  INFO,  GREEN, false);
-    log_cat_reg(&req_cat,   "request",  INFO,  CYAN, false);
-    log_cat_reg(&resp_cat,  "response", INFO,  DARK_CYAN, false);
-    log_cat_reg(&eval_cat,  "eval",     INFO,  BLUE, false);
-    log_cat_reg(&push_cat,  "push",     INFO,  DARK_CYAN, false);
+    agoo_log_cat_reg(&agoo_fatal_cat, "FATAL",    AGOO_FATAL, AGOO_RED, true);
+    agoo_log_cat_reg(&agoo_error_cat, "ERROR",    AGOO_ERROR, AGOO_RED, true);
+    agoo_log_cat_reg(&agoo_warn_cat,  "WARN",     AGOO_WARN,  AGOO_YELLOW, true);
+    agoo_log_cat_reg(&agoo_info_cat,  "INFO",     AGOO_INFO,  AGOO_GREEN, true);
+    agoo_log_cat_reg(&agoo_debug_cat, "DEBUG",    AGOO_DEBUG, AGOO_GRAY, false);
+    agoo_log_cat_reg(&agoo_con_cat,   "connect",  AGOO_INFO,  AGOO_GREEN, false);
+    agoo_log_cat_reg(&agoo_req_cat,   "request",  AGOO_INFO,  AGOO_CYAN, false);
+    agoo_log_cat_reg(&agoo_resp_cat,  "response", AGOO_INFO,  AGOO_DARK_CYAN, false);
+    agoo_log_cat_reg(&agoo_eval_cat,  "eval",     AGOO_INFO,  AGOO_BLUE, false);
+    agoo_log_cat_reg(&agoo_push_cat,  "push",     AGOO_INFO,  AGOO_DARK_CYAN, false);
 
-    //log_start(false);
+    //agoo_log_start(false);
 }

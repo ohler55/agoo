@@ -7,6 +7,7 @@
 
 #include "debug.h"
 #include "error_stream.h"
+#include "log.h"
 #include "pub.h"
 #include "rack_logger.h"
 #include "request.h"
@@ -20,7 +21,7 @@
 void
 agoo_shutdown() {
     rserver_shutdown(Qnil);
-    log_close();
+    agoo_log_close();
 }
 
 /* Document-method: shutdown
@@ -49,7 +50,7 @@ ragoo_publish(VALUE self, VALUE subject, VALUE message) {
     const char	*subj = extract_subject(subject, &slen);
 
     rb_check_type(message, T_STRING);
-    server_publish(pub_publish(subj, slen, StringValuePtr(message), (int)RSTRING_LEN(message)));
+    agoo_server_publish(agoo_pub_publish(subj, slen, StringValuePtr(message), (int)RSTRING_LEN(message)));
 
     return Qnil;
 }
@@ -66,7 +67,7 @@ static VALUE
 ragoo_unsubscribe(VALUE self, VALUE subject) {
     rb_check_type(subject, T_STRING);
 
-    server_publish(pub_unsubscribe(NULL, StringValuePtr(subject), (int)RSTRING_LEN(subject)));
+    agoo_server_publish(agoo_pub_unsubscribe(NULL, StringValuePtr(subject), (int)RSTRING_LEN(subject)));
 
     return Qnil;
 }

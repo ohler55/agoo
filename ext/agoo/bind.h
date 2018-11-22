@@ -34,11 +34,11 @@ typedef struct _agooBind {
     char		*id;
 } *agooBind;
 
-extern agooBind	bind_url(agooErr err, const char *url);
-extern agooBind	bind_port(agooErr err, int port);
-extern void	bind_destroy(agooBind b);
+extern agooBind	agoo_bind_url(agooErr err, const char *url);
+extern agooBind	agoo_bind_port(agooErr err, int port);
+extern void	agoo_bind_destroy(agooBind b);
 
-extern int	bind_listen(agooErr err, agooBind b);
-extern void	bind_close(agooBind b);
+extern int	agoo_bind_listen(agooErr err, agooBind b);
+extern void	agoo_bind_close(agooBind b);
 
 #endif // AGOO_BIND_H

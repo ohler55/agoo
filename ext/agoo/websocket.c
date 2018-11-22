@@ -25,12 +25,12 @@ static const char	ws_accept[] = "Sec-WebSocket-Accept: ";
 //static const uint8_t	close_msg[] = "\x88\x02\x03\xE8";
 
 agooText
-ws_add_headers(agooReq req, agooText t) {
+agoo_ws_add_headers(agooReq req, agooText t) {
     int		klen = 0;
     const char	*key;
     
-    t = text_append(t, up_con, sizeof(up_con) - 1);
-    if (NULL != (key = con_header_value(req->header.start, req->header.len, "Sec-WebSocket-Key", &klen)) &&
+    t = agoo_text_append(t, up_con, sizeof(up_con) - 1);
+    if (NULL != (key = agoo_con_header_value(req->header.start, req->header.len, "Sec-WebSocket-Key", &klen)) &&
 	klen + sizeof(ws_magic) < MAX_KEY_LEN) {
 	char		buf[MAX_KEY_LEN];
 	unsigned char	sha[32];
@@ -41,23 +41,23 @@ ws_add_headers(agooReq req, agooText t) {
 	sha1((unsigned char*)buf, len, sha);
 	len = b64_to(sha, SHA1_DIGEST_SIZE, buf);
 
-	t = text_append(t, ws_accept, sizeof(ws_accept) - 1);
-	t = text_append(t, buf, len);
-	t = text_append(t, "\r\n", 2);
+	t = agoo_text_append(t, ws_accept, sizeof(ws_accept) - 1);
+	t = agoo_text_append(t, buf, len);
+	t = agoo_text_append(t, "\r\n", 2);
     }
-    if (NULL != (key = con_header_value(req->header.start, req->header.len, "Sec-WebSocket-Protocol", &klen))) {
-	t = text_append(t, ws_protocol, sizeof(ws_protocol) - 1);
-	t = text_append(t, key, klen);
-	t = text_append(t, "\r\n", 2);
+    if (NULL != (key = agoo_con_header_value(req->header.start, req->header.len, "Sec-WebSocket-Protocol", &klen))) {
+	t = agoo_text_append(t, ws_protocol, sizeof(ws_protocol) - 1);
+	t = agoo_text_append(t, key, klen);
+	t = agoo_text_append(t, "\r\n", 2);
     }
     return t;
 }
 
 agooText
-ws_expand(agooText t) {
+agoo_ws_expand(agooText t) {
     uint8_t	buf[16];
     uint8_t	*b = buf;
-    uint8_t	opcode = t->bin ? WS_OP_BIN : WS_OP_TEXT;
+    uint8_t	opcode = t->bin ? AGOO_WS_OP_BIN : AGOO_WS_OP_TEXT;
 
     *b++ = 0x80 | (uint8_t)opcode;
     // send unmasked
@@ -75,11 +75,11 @@ ws_expand(agooText t) {
 	    *b++ = (uint8_t)((t->len >> i) & 0xFF);
 	}
     }
-    return text_prepend(t, (const char*)buf, (int)(b - buf));
+    return agoo_text_prepend(t, (const char*)buf, (int)(b - buf));
 }
 
 size_t
-ws_decode(char *buf, size_t mlen) {
+agoo_ws_decode(char *buf, size_t mlen) {
     uint8_t	*b = (uint8_t*)buf;
     bool	is_masked;
     uint8_t	*payload;
@@ -125,13 +125,13 @@ ws_decode(char *buf, size_t mlen) {
 
 // if -1 then err, 0 not ready yet, positive is completed length
 long
-ws_calc_len(agooCon c, uint8_t *buf, size_t cnt) {
+agoo_ws_calc_len(agooCon c, uint8_t *buf, size_t cnt) {
     uint8_t	*b = buf;
     bool	is_masked;
     uint64_t	plen;
 
     if (0 == (0x80 & *b)) {
-	log_cat(&error_cat, "FIN must be 1. Websocket continuation not implemented on connection %llu.", (unsigned long long)c->id);
+	agoo_log_cat(&agoo_error_cat, "FIN must be 1. Websocket continuation not implemented on connection %llu.", (unsigned long long)c->id);
 	return -1;
     }
     b++;
@@ -165,14 +165,14 @@ ws_calc_len(agooCon c, uint8_t *buf, size_t cnt) {
 
 // Return true on error otherwise false.
 bool
-ws_create_req(agooCon c, long mlen) {
+agoo_ws_create_req(agooCon c, long mlen) {
     uint8_t	op = 0x0F & *c->buf;
     
-    if (NULL == (c->req = req_create(mlen))) {
-	log_cat(&error_cat, "Out of memory attempting to allocate request.");
+    if (NULL == (c->req = agoo_req_create(mlen))) {
+	agoo_log_cat(&agoo_error_cat, "Out of memory attempting to allocate request.");
 	return true;
     }
-    if (NULL == c->up || the_server.ctx_nil_value == c->up->ctx) {
+    if (NULL == c->up || agoo_server.ctx_nil_value == c->up->ctx) {
 	return true;
     }
     memset(c->req, 0, sizeof(struct _agooReq));
@@ -186,35 +186,35 @@ ws_create_req(agooCon c, long mlen) {
     }
     c->req->msg[mlen] = '\0';
     c->req->mlen = mlen;
-    c->req->method = (WS_OP_BIN == op) ? AGOO_ON_BIN : AGOO_ON_MSG;
+    c->req->method = (AGOO_WS_OP_BIN == op) ? AGOO_ON_BIN : AGOO_ON_MSG;
     c->req->upgrade = AGOO_UP_NONE;
     c->req->up = c->up;
     c->req->res = NULL;
     if (c->up->on_msg) {
-	c->req->hook = hook_create(AGOO_NONE, NULL, c->up->ctx, PUSH_HOOK, &the_server.eval_queue);
+	c->req->hook = agoo_hook_create(AGOO_NONE, NULL, c->up->ctx, PUSH_HOOK, &agoo_server.eval_queue);
     }
     return false;
 }
 
 void
-ws_req_close(agooCon c) {
-    if (NULL != c->up && the_server.ctx_nil_value != c->up->ctx && c->up->on_close) {
-	agooReq	req = req_create(0);
+agoo_ws_req_close(agooCon c) {
+    if (NULL != c->up && agoo_server.ctx_nil_value != c->up->ctx && c->up->on_close) {
+	agooReq	req = agoo_req_create(0);
 	    
 	req->up = c->up;
 	req->method = AGOO_ON_CLOSE;
-	req->hook = hook_create(AGOO_NONE, NULL, c->up->ctx, PUSH_HOOK, &the_server.eval_queue);
+	req->hook = agoo_hook_create(AGOO_NONE, NULL, c->up->ctx, PUSH_HOOK, &agoo_server.eval_queue);
 	atomic_fetch_add(&c->up->ref_cnt, 1);
-	queue_push(&the_server.eval_queue, (void*)req);
+	agoo_queue_push(&agoo_server.eval_queue, (void*)req);
     }
 }
 
 void
-ws_ping(agooCon c) {
+agoo_ws_ping(agooCon c) {
     agooRes	res;
     
-    if (NULL == (res = res_create(c))) {
-	log_cat(&error_cat, "Memory allocation of response failed on connection %llu.", (unsigned long long)c->id);
+    if (NULL == (res = agoo_res_create(c))) {
+	agoo_log_cat(&agoo_error_cat, "Memory allocation of response failed on connection %llu.", (unsigned long long)c->id);
     } else {
 	if (NULL == c->res_tail) {
 	    c->res_head = res;
@@ -223,17 +223,17 @@ ws_ping(agooCon c) {
 	}
 	c->res_tail = res;
 	res->close = false;
-	res->con_kind = CON_WS;
+	res->con_kind = AGOO_CON_WS;
 	res->ping = true;
     }
 }
 
 void
-ws_pong(agooCon c) {
+agoo_ws_pong(agooCon c) {
     agooRes	res;
     
-    if (NULL == (res = res_create(c))) {
-	log_cat(&error_cat, "Memory allocation of response failed on connection %llu.", (unsigned long long)c->id);
+    if (NULL == (res = agoo_res_create(c))) {
+	agoo_log_cat(&agoo_error_cat, "Memory allocation of response failed on connection %llu.", (unsigned long long)c->id);
     } else {
 	if (NULL == c->res_tail) {
 	    c->res_head = res;
@@ -242,7 +242,7 @@ ws_pong(agooCon c) {
 	}
 	c->res_tail = res;
 	res->close = false;
-	res->con_kind = CON_WS;
+	res->con_kind = AGOO_CON_WS;
 	res->pong = true;
     }
 }

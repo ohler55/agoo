@@ -176,7 +176,7 @@ req_server_name(agooReq r) {
     if (NULL == r) {
 	rb_raise(rb_eArgError, "Request is no longer valid.");
     }
-    if (NULL == (host = req_host(r, &len))) {
+    if (NULL == (host = agoo_req_host(r, &len))) {
 	return rb_str_new2("unknown");
     }
     return rb_str_new(host, len);
@@ -202,7 +202,7 @@ req_server_port(agooReq r) {
     if (NULL == r) {
 	rb_raise(rb_eArgError, "Request is no longer valid.");
     }
-    if (NULL == (host = con_header_value(r->header.start, r->header.len, "Host", &len))) {
+    if (NULL == (host = agoo_con_header_value(r->header.start, r->header.len, "Host", &len))) {
 	return Qnil;
     }
     for (colon = host + len - 1; host < colon; colon--) {
@@ -320,7 +320,7 @@ req_rack_multithread(agooReq r) {
     if (NULL == r) {
 	rb_raise(rb_eArgError, "Request is no longer valid.");
     }
-    if (1 < the_server.thread_cnt) {
+    if (1 < agoo_server.thread_cnt) {
 	return Qtrue;
     }
     return Qfalse;

@@ -51,7 +51,7 @@ create_schema_type(agooErr err) {
     }
     schema_type->core = true;
     
-    return ERR_OK;
+    return AGOO_ERR_OK;
 }
 
 // type __Type {
@@ -93,7 +93,7 @@ create_type_type(agooErr err) {
 
 	return err->code;
     }
-    return ERR_OK;
+    return AGOO_ERR_OK;
 }
 
 static int
@@ -114,7 +114,7 @@ create_type_kind_type(agooErr err) {
     type_kind_type = gql_enum_create(err, "__TypeKind", NULL, -1, true);
     type_kind_type->core = true;
     for (cp = choices; NULL != *cp; cp++) {
-	if (ERR_OK != gql_enum_append(err, type_kind_type, *cp, -1)) {
+	if (AGOO_ERR_OK != gql_enum_append(err, type_kind_type, *cp, -1)) {
 	    return err->code;
 	}
     }
@@ -143,7 +143,7 @@ create_field_type(agooErr err) {
     }
     field_type->core = true;
     
-    return ERR_OK;
+    return AGOO_ERR_OK;
 }
 
 // type __InputValue {
@@ -164,7 +164,7 @@ create_input_type(agooErr err) {
     }
     input_value_type->core = true;
     
-    return ERR_OK;
+    return AGOO_ERR_OK;
 }
 
 // type __EnumValue {
@@ -185,7 +185,7 @@ create_enum_type(agooErr err) {
     }
     enum_value_type->core = true;
     
-    return ERR_OK;
+    return AGOO_ERR_OK;
 }
 
 // type __Directive {
@@ -206,7 +206,7 @@ create_directive_type(agooErr err) {
     }
     directive_type->core = true;
     
-    return ERR_OK;
+    return AGOO_ERR_OK;
 }
 
 static int
@@ -236,7 +236,7 @@ create_directive_location_type(agooErr err) {
     directive_location_type = gql_enum_create(err, "__DirectiveLocation", NULL, -1, true);
     directive_location_type->core = true;
     for (cp = choices; NULL != *cp; cp++) {
-	if (ERR_OK != gql_enum_append(err, directive_location_type, *cp, -1)) {
+	if (AGOO_ERR_OK != gql_enum_append(err, directive_location_type, *cp, -1)) {
 	    return err->code;
 	}
     }
@@ -250,14 +250,14 @@ create_dir_skip(agooErr err) {
     if (NULL == dir) {
 	return err->code;
     }
-    if (ERR_OK != gql_directive_on(err, dir, "FIELD", -1) ||
-	ERR_OK != gql_directive_on(err, dir, "FRAGMENT_SPREAD", -1) ||
-	ERR_OK != gql_directive_on(err, dir, "INLINE_FRAGMENT", -1) ||
+    if (AGOO_ERR_OK != gql_directive_on(err, dir, "FIELD", -1) ||
+	AGOO_ERR_OK != gql_directive_on(err, dir, "FRAGMENT_SPREAD", -1) ||
+	AGOO_ERR_OK != gql_directive_on(err, dir, "INLINE_FRAGMENT", -1) ||
 	NULL == gql_dir_arg(err, dir, "if", "Boolean", NULL, -1, NULL, true)) {
 
 	return err->code;
     }
-    return ERR_OK;
+    return AGOO_ERR_OK;
 }
 
 static int
@@ -267,14 +267,14 @@ create_dir_include(agooErr err) {
     if (NULL == dir) {
 	return err->code;
     }
-    if (ERR_OK != gql_directive_on(err, dir, "FIELD", -1) ||
-	ERR_OK != gql_directive_on(err, dir, "FRAGMENT_SPREAD", -1) ||
-	ERR_OK != gql_directive_on(err, dir, "INLINE_FRAGMENT", -1) ||
+    if (AGOO_ERR_OK != gql_directive_on(err, dir, "FIELD", -1) ||
+	AGOO_ERR_OK != gql_directive_on(err, dir, "FRAGMENT_SPREAD", -1) ||
+	AGOO_ERR_OK != gql_directive_on(err, dir, "INLINE_FRAGMENT", -1) ||
 	NULL == gql_dir_arg(err, dir, "if", "Boolean", NULL, -1, NULL, true)) {
 
 	return err->code;
     }
-    return ERR_OK;
+    return AGOO_ERR_OK;
 }
 
 static int
@@ -285,31 +285,31 @@ create_dir_deprecated(agooErr err) {
     if (NULL == dir) {
 	return err->code;
     }
-    if (ERR_OK != gql_directive_on(err, dir, "FIELD_DEFINITION", -1) ||
-	ERR_OK != gql_directive_on(err, dir, "ENUM_VALUE", -1) ||
+    if (AGOO_ERR_OK != gql_directive_on(err, dir, "FIELD_DEFINITION", -1) ||
+	AGOO_ERR_OK != gql_directive_on(err, dir, "ENUM_VALUE", -1) ||
 	NULL == (dv = gql_string_create(err, "No longer supported", -1)) ||
 	NULL == gql_dir_arg(err, dir, "reason", "String", NULL, -1, dv, false)) {
 
 	return err->code;
     }
-    return ERR_OK;
+    return AGOO_ERR_OK;
 }
 
 int
 gql_intro_init(agooErr err) {
     gqlField	f;
     
-    if (ERR_OK != create_type_kind_type(err) ||
-	ERR_OK != create_input_type(err) ||
-	ERR_OK != create_type_type(err) ||
-	ERR_OK != create_enum_type(err) ||
-	ERR_OK != create_field_type(err) ||
-	ERR_OK != create_directive_location_type(err) ||
-	ERR_OK != create_directive_type(err) ||
-	ERR_OK != create_schema_type(err) ||
-	ERR_OK != create_dir_deprecated(err) ||
-	ERR_OK != create_dir_include(err) ||
-	ERR_OK != create_dir_skip(err)) {
+    if (AGOO_ERR_OK != create_type_kind_type(err) ||
+	AGOO_ERR_OK != create_input_type(err) ||
+	AGOO_ERR_OK != create_type_type(err) ||
+	AGOO_ERR_OK != create_enum_type(err) ||
+	AGOO_ERR_OK != create_field_type(err) ||
+	AGOO_ERR_OK != create_directive_location_type(err) ||
+	AGOO_ERR_OK != create_directive_type(err) ||
+	AGOO_ERR_OK != create_schema_type(err) ||
+	AGOO_ERR_OK != create_dir_deprecated(err) ||
+	AGOO_ERR_OK != create_dir_include(err) ||
+	AGOO_ERR_OK != create_dir_skip(err)) {
 
 	return err->code;
     }
@@ -329,5 +329,5 @@ gql_intro_init(agooErr err) {
 	    break;
 	}
     }
-    return ERR_OK;
+    return AGOO_ERR_OK;
 }

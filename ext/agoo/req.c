@@ -11,14 +11,14 @@
 #include "req.h"
 
 agooReq
-req_create(size_t mlen) {
+agoo_req_create(size_t mlen) {
     size_t	size = mlen + sizeof(struct _agooReq) - 7;
     agooReq	req = (agooReq)malloc(size);
     
     if (NULL != req) {
 	DEBUG_ALLOC(mem_req, req);
 	memset(req, 0, size);
-	req->env = the_server.env_nil_value;
+	req->env = agoo_server.env_nil_value;
 	req->mlen = mlen;
 	req->hook = NULL;
     }
@@ -26,7 +26,7 @@ req_create(size_t mlen) {
 }
 
 void
-req_destroy(agooReq req) {
+agoo_req_destroy(agooReq req) {
     DEBUG_FREE(mem_req, req);
     if (NULL != req->hook && PUSH_HOOK == req->hook->type) {
 	free(req->hook);
@@ -35,11 +35,11 @@ req_destroy(agooReq req) {
 }
 
 const char*
-req_host(agooReq r, int *lenp) {
+agoo_req_host(agooReq r, int *lenp) {
     const char	*host;
     const char	*colon;
 
-    if (NULL == (host = con_header_value(r->header.start, r->header.len, "Host", lenp))) {
+    if (NULL == (host = agoo_con_header_value(r->header.start, r->header.len, "Host", lenp))) {
 	return NULL;
     }
     for (colon = host + *lenp - 1; host < colon; colon--) {
@@ -54,12 +54,12 @@ req_host(agooReq r, int *lenp) {
 }
 
 int
-req_port(agooReq r) {
+agoo_req_port(agooReq r) {
     int		len;
     const char	*host;
     const char	*colon;
     
-    if (NULL == (host = con_header_value(r->header.start, r->header.len, "Host", &len))) {
+    if (NULL == (host = agoo_con_header_value(r->header.start, r->header.len, "Host", &len))) {
 	return 0;
     }
     for (colon = host + len - 1; host < colon; colon--) {
@@ -74,7 +74,7 @@ req_port(agooReq r) {
 }
 
 const char*
-req_query_value(agooReq r, const char *key, int klen, int *vlenp) {
+agoo_req_query_value(agooReq r, const char *key, int klen, int *vlenp) {
     const char	*value;
 
     if (NULL != (value = strstr(r->query.start, key))) {

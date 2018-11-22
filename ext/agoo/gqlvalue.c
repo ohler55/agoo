@@ -14,7 +14,7 @@ static const char	spaces[256] = "\n                                             
 // Int type
 static agooText
 null_to_text(agooText text, gqlValue value, int indent, int depth) {
-    return text_append(text, "null", 4);
+    return agoo_text_append(text, "null", 4);
 }
 
 struct _gqlType	gql_null_type = {
@@ -36,7 +36,7 @@ int_to_text(agooText text, gqlValue value, int indent, int depth) {
     
     cnt = snprintf(num, sizeof(num), "%lld", (long long)value->i);
 
-    return text_append(text, num, cnt);
+    return agoo_text_append(text, num, cnt);
 }
 
 struct _gqlType	gql_int_type = {
@@ -58,7 +58,7 @@ i64_to_text(agooText text, gqlValue value, int indent, int depth) {
     
     cnt = snprintf(num, sizeof(num), "%lld", (long long)value->i64);
 
-    return text_append(text, num, cnt);
+    return agoo_text_append(text, num, cnt);
 }
 
 struct _gqlType	gql_i64_type = {
@@ -106,15 +106,15 @@ struct _gqlType	gql_str16_type = { // unregistered
 static agooText
 string_to_text(agooText text, gqlValue value, int indent, int depth) {
     if (&gql_str16_type == value->type) {
-	text = text_append(text, "\"", 1);
-	text = text_append(text, value->str16, -1);
-	text = text_append(text, "\"", 1);
+	text = agoo_text_append(text, "\"", 1);
+	text = agoo_text_append(text, value->str16, -1);
+	text = agoo_text_append(text, "\"", 1);
     } else if (NULL == value->str) {
-	text = text_append(text, "null", 4);
+	text = agoo_text_append(text, "null", 4);
     } else {
-	text = text_append(text, "\"", 1);
-	text = text_append(text, value->str, -1);
-	text = text_append(text, "\"", 1);
+	text = agoo_text_append(text, "\"", 1);
+	text = agoo_text_append(text, value->str, -1);
+	text = agoo_text_append(text, "\"", 1);
     }
     return text;
 }
@@ -123,9 +123,9 @@ string_to_text(agooText text, gqlValue value, int indent, int depth) {
 static agooText
 bool_to_text(agooText text, gqlValue value, int indent, int depth) {
     if (value->b) {
-	text = text_append(text, "true", 4);
+	text = agoo_text_append(text, "true", 4);
     } else {
-	text = text_append(text, "false", 5);
+	text = agoo_text_append(text, "false", 5);
     }
     return text;
 }
@@ -149,7 +149,7 @@ float_to_text(agooText text, gqlValue value, int indent, int depth) {
     
     cnt = snprintf(num, sizeof(num), "%g", value->f);
 
-    return text_append(text, num, cnt);
+    return agoo_text_append(text, num, cnt);
 }
 
 struct _gqlType	gql_float_type = {
@@ -214,7 +214,7 @@ time_parse(agooErr err, const char *str, int len) {
 	len = (int)strlen(str);
     }
     if (len < 10 || 36 < len) {
-	err_set(err, ERR_PARSE, "Invalid time format.");
+	agoo_err_set(err, AGOO_ERR_PARSE, "Invalid time format.");
 	return 0;
     }
     end = str + len;
@@ -224,7 +224,7 @@ time_parse(agooErr err, const char *str, int len) {
 	neg = true;
     }
     if (NULL == (s = read_num(s, 4, &tm.tm_year))) {
-	err_set(err, ERR_PARSE, "Invalid time format.");
+	agoo_err_set(err, AGOO_ERR_PARSE, "Invalid time format.");
 	return 0;
     }
     if (neg) {
@@ -233,24 +233,24 @@ time_parse(agooErr err, const char *str, int len) {
     }
     tm.tm_year -= 1900;
     if ('-' != *s) {
-	err_set(err, ERR_PARSE, "Invalid time format.");
+	agoo_err_set(err, AGOO_ERR_PARSE, "Invalid time format.");
 	return 0;
     }
     s++;
 
     if (NULL == (s = read_num(s, 2, &tm.tm_mon))) {
-	err_set(err, ERR_PARSE, "Invalid time format.");
+	agoo_err_set(err, AGOO_ERR_PARSE, "Invalid time format.");
 	return 0;
     }
     tm.tm_mon--;
     if ('-' != *s) {
-	err_set(err, ERR_PARSE, "Invalid time format.");
+	agoo_err_set(err, AGOO_ERR_PARSE, "Invalid time format.");
 	return 0;
     }
     s++;
 
     if (NULL == (s = read_num(s, 2, &tm.tm_mday))) {
-	err_set(err, ERR_PARSE, "Invalid time format.");
+	agoo_err_set(err, AGOO_ERR_PARSE, "Invalid time format.");
 	return 0;
     }
 
@@ -263,7 +263,7 @@ time_parse(agooErr err, const char *str, int len) {
 	if (s == end) {
 	    return (int64_t)timegm(&tm) * 1000000000LL;
 	}
-	err_set(err, ERR_PARSE, "Invalid time format.");
+	agoo_err_set(err, AGOO_ERR_PARSE, "Invalid time format.");
 	return 0;
     case '-':
 	neg = true;
@@ -272,7 +272,7 @@ time_parse(agooErr err, const char *str, int len) {
 	int	v = 0;
 	
 	if (NULL == (s = read_zone(s, &v))) {
-	    err_set(err, ERR_PARSE, "Invalid time format.");
+	    agoo_err_set(err, AGOO_ERR_PARSE, "Invalid time format.");
 	    return 0;
 	}
 	if (neg) {
@@ -281,41 +281,41 @@ time_parse(agooErr err, const char *str, int len) {
 	if (s == end) {
 	    return ((int64_t)timegm(&tm) - (int64_t)v) * 1000000000LL;
 	}
-	err_set(err, ERR_PARSE, "Invalid time format.");
+	agoo_err_set(err, AGOO_ERR_PARSE, "Invalid time format.");
 	return 0;
     }
     case 'T':
 	break;
     default:
-	err_set(err, ERR_PARSE, "Invalid time format.");
+	agoo_err_set(err, AGOO_ERR_PARSE, "Invalid time format.");
 	return 0;
     }
     // T encountered, need space for time and zone
     if (end - s < 9) {
-	err_set(err, ERR_PARSE, "Invalid time format.");
+	agoo_err_set(err, AGOO_ERR_PARSE, "Invalid time format.");
 	return 0;
     }
     if (NULL == (s = read_num(s, 2, &tm.tm_hour))) {
 	return 0;
     }
     if (':' != *s) {
-	err_set(err, ERR_PARSE, "Invalid time format.");
+	agoo_err_set(err, AGOO_ERR_PARSE, "Invalid time format.");
 	return 0;
     }
     s++;
 
     if (NULL == (s = read_num(s, 2, &tm.tm_min))) {
-	err_set(err, ERR_PARSE, "Invalid time format.");
+	agoo_err_set(err, AGOO_ERR_PARSE, "Invalid time format.");
 	return 0;
     }
     if (':' != *s) {
-	err_set(err, ERR_PARSE, "Invalid time format.");
+	agoo_err_set(err, AGOO_ERR_PARSE, "Invalid time format.");
 	return 0;
     }
     s++;
 
     if (NULL == (s = read_num(s, 2, &tm.tm_sec))) {
-	err_set(err, ERR_PARSE, "Invalid time format.");
+	agoo_err_set(err, AGOO_ERR_PARSE, "Invalid time format.");
 	return 0;
     }
     switch (*s++) {
@@ -323,7 +323,7 @@ time_parse(agooErr err, const char *str, int len) {
 	if (s == end) {
 	    return (int64_t)timegm(&tm) * 1000000000LL;
 	}
-	err_set(err, ERR_PARSE, "Invalid time format.");
+	agoo_err_set(err, AGOO_ERR_PARSE, "Invalid time format.");
 	return 0;
     case '-':
 	neg = true;
@@ -332,11 +332,11 @@ time_parse(agooErr err, const char *str, int len) {
 	int	v = 0;
 
 	if (end - s < 5) {
-	    err_set(err, ERR_PARSE, "Invalid time format.");
+	    agoo_err_set(err, AGOO_ERR_PARSE, "Invalid time format.");
 	    return 0;
 	}
 	if (NULL == (s = read_zone(s, &v))) {
-	    err_set(err, ERR_PARSE, "Invalid time format.");
+	    agoo_err_set(err, AGOO_ERR_PARSE, "Invalid time format.");
 	    return 0;
 	}
 	if (neg) {
@@ -345,18 +345,18 @@ time_parse(agooErr err, const char *str, int len) {
 	if (s == end) {
 	    return ((int64_t)timegm(&tm) - (int64_t)v) * 1000000000LL;
 	}
-	err_set(err, ERR_PARSE, "Invalid time format.");
+	agoo_err_set(err, AGOO_ERR_PARSE, "Invalid time format.");
 	return 0;
     }
     case '.':
 	break;
     default:
-	err_set(err, ERR_PARSE, "Invalid time format.");
+	agoo_err_set(err, AGOO_ERR_PARSE, "Invalid time format.");
 	return 0;
     }
     for (; 0 < i; i--, s++) {
 	if (end <= s) {
-	    err_set(err, ERR_PARSE, "Invalid time format.");
+	    agoo_err_set(err, AGOO_ERR_PARSE, "Invalid time format.");
 	    return 0;
 	}	
 	if ('0' <= *s && *s <= '9') {
@@ -373,7 +373,7 @@ time_parse(agooErr err, const char *str, int len) {
 	if (s == end) {
 	    break;
 	}
-	err_set(err, ERR_PARSE, "Invalid time format.");
+	agoo_err_set(err, AGOO_ERR_PARSE, "Invalid time format.");
 	return 0;
     case '-':
 	neg = true;
@@ -382,11 +382,11 @@ time_parse(agooErr err, const char *str, int len) {
 	int	v = 0;
 
 	if (end - s < 5) {
-	    err_set(err, ERR_PARSE, "Invalid time format.");
+	    agoo_err_set(err, AGOO_ERR_PARSE, "Invalid time format.");
 	    return 0;
 	}
 	if (NULL == (s = read_zone(s, &v))) {
-	    err_set(err, ERR_PARSE, "Invalid time format.");
+	    agoo_err_set(err, AGOO_ERR_PARSE, "Invalid time format.");
 	    return 0;
 	}
 	if (neg) {
@@ -395,12 +395,12 @@ time_parse(agooErr err, const char *str, int len) {
 	if (s == end) {
 	    return ((int64_t)timegm(&tm) - (int64_t)v) * 1000000000LL + nsecs;
 	}
-	err_set(err, ERR_PARSE, "Invalid time format.");
+	agoo_err_set(err, AGOO_ERR_PARSE, "Invalid time format.");
 	return 0;
     }
     default:
 	if (s != end) {
-	    err_set(err, ERR_PARSE, "Invalid time format.");
+	    agoo_err_set(err, AGOO_ERR_PARSE, "Invalid time format.");
 	    return 0;
 	}
     }
@@ -427,7 +427,7 @@ time_to_text(agooText text, gqlValue value, int indent, int depth) {
 		  1900 + tm.tm_year, 1 + tm.tm_mon, tm.tm_mday,
 		  tm.tm_hour, tm.tm_min, tm.tm_sec, (long)nsecs);
     
-    return text_append(text, str, cnt);
+    return agoo_text_append(text, str, cnt);
 }
 
 struct _gqlType	gql_time_type = {
@@ -468,46 +468,46 @@ parse_uuid(agooErr err, const char *str, int len, uint64_t *hip, uint64_t *lop) 
 	len = (int)strlen(str);
     }
     if (36 != len || '-' != str[8] || '-' != str[13] || '-' != str[18] || '-' != str[23]) {
-	return err_set(err, ERR_PARSE, "not UUID format");
+	return agoo_err_set(err, AGOO_ERR_PARSE, "not UUID format");
     }
     for (i = 0; i < 8; i++, str++) {
 	if (0 > (n = hexVal(*str))) {
-	    return err_set(err, ERR_PARSE, "not UUID format");
+	    return agoo_err_set(err, AGOO_ERR_PARSE, "not UUID format");
 	}
 	hi = (hi << 4) + n;
     }
     str++;
     for (i = 0; i < 4; i++, str++) {
 	if (0 > (n = hexVal(*str))) {
-	    return err_set(err, ERR_PARSE, "not UUID format");
+	    return agoo_err_set(err, AGOO_ERR_PARSE, "not UUID format");
 	}
 	hi = (hi << 4) + n;
     }
     str++;
     for (i = 0; i < 4; i++, str++) {
 	if (0 > (n = hexVal(*str))) {
-	    return err_set(err, ERR_PARSE, "not UUID format");
+	    return agoo_err_set(err, AGOO_ERR_PARSE, "not UUID format");
 	}
 	hi = (hi << 4) + n;
     }
     str++;
     for (i = 0; i < 4; i++, str++) {
 	if (0 > (n = hexVal(*str))) {
-	    return err_set(err, ERR_PARSE, "not UUID format");
+	    return agoo_err_set(err, AGOO_ERR_PARSE, "not UUID format");
 	}
 	lo = (lo << 4) + n;
     }
     str++;
     for (i = 0; i < 12; i++, str++) {
 	if (0 > (n = hexVal(*str))) {
-	    return err_set(err, ERR_PARSE, "not UUID format");
+	    return agoo_err_set(err, AGOO_ERR_PARSE, "not UUID format");
 	}
 	lo = (lo << 4) + n;
     }
     *hip = hi;
     *lop = lo;
 
-    return ERR_OK;
+    return AGOO_ERR_OK;
 }
 
 static agooText
@@ -520,7 +520,7 @@ uuid_to_text(agooText text, gqlValue value, int indent, int depth) {
 			      (unsigned long)(value->uuid.lo >> 48),
 			      (unsigned long)(value->uuid.lo & 0x0000FFFFFFFFFFFFUL));
 
-    return text_append(text, str, cnt);
+    return agoo_text_append(text, str, cnt);
 }
 
 struct _gqlType	gql_uuid_type = {
@@ -543,11 +543,11 @@ url_destroy(gqlValue value) {
 static agooText
 url_to_text(agooText text, gqlValue value, int indent, int depth) {
     if (NULL == value->url) {
-	return text_append(text, "null", 4);
+	return agoo_text_append(text, "null", 4);
     }
-    text = text_append(text, "\"", 1);
-    text = text_append(text, value->url, -1);
-    text = text_append(text, "\"", 1);
+    text = agoo_text_append(text, "\"", 1);
+    text = agoo_text_append(text, value->url, -1);
+    text = agoo_text_append(text, "\"", 1);
 
     return text;
 }
@@ -591,18 +591,18 @@ list_to_json(agooText text, gqlValue value, int indent, int depth) {
 	i2 = sizeof(spaces) - 1;
 	i = i2 - indent;
     }
-    text = text_append(text, "[", 1);
+    text = agoo_text_append(text, "[", 1);
     for (link = value->members; NULL != link; link = link->next) {
-	text = text_append(text, spaces, i2);
+	text = agoo_text_append(text, spaces, i2);
 	text = link->value->type->to_json(text, link->value, indent, d2);
 	if (NULL != link->next) {
-	    text = text_append(text, ",", 1);
+	    text = agoo_text_append(text, ",", 1);
 	}
     }
     if (0 < indent) {
-	text = text_append(text, spaces, i);
+	text = agoo_text_append(text, spaces, i);
     }
-    text = text_append(text, "]", 1);
+    text = agoo_text_append(text, "]", 1);
 
     return text;
 }
@@ -647,25 +647,25 @@ object_to_json(agooText text, gqlValue value, int indent, int depth) {
 	i2 = sizeof(spaces) - 1;
 	i = i2 - indent;
     }
-    text = text_append(text, "{", 1);
+    text = agoo_text_append(text, "{", 1);
     for (link = value->members; NULL != link; link = link->next) {
-	text = text_append(text, spaces, i2);
-	text = text_append(text, "\"", 1);
-	text = text_append(text, link->key, -1);
+	text = agoo_text_append(text, spaces, i2);
+	text = agoo_text_append(text, "\"", 1);
+	text = agoo_text_append(text, link->key, -1);
 	if (0 < indent) {
-	    text = text_append(text, "\": ", 3);
+	    text = agoo_text_append(text, "\": ", 3);
 	} else {
-	    text = text_append(text, "\":", 2);
+	    text = agoo_text_append(text, "\":", 2);
 	}
 	text = link->value->type->to_json(text, link->value, indent, d2);
 	if (NULL != link->next) {
-	    text = text_append(text, ",", 1);
+	    text = agoo_text_append(text, ",", 1);
 	}
     }
     if (0 < indent) {
-	text = text_append(text, spaces, i);
+	text = agoo_text_append(text, spaces, i);
     }
-    text = text_append(text, "}", 1);
+    text = agoo_text_append(text, "}", 1);
 
     return text;
 }
@@ -693,17 +693,17 @@ gql_value_destroy(gqlValue value) {
 
 int
 gql_value_init(agooErr err) {
-    if (ERR_OK != gql_type_set(err, &gql_int_type) ||
-	ERR_OK != gql_type_set(err, &gql_i64_type) ||
-	ERR_OK != gql_type_set(err, &gql_bool_type) ||
-	ERR_OK != gql_type_set(err, &gql_float_type) ||
-	ERR_OK != gql_type_set(err, &gql_time_type) ||
-	ERR_OK != gql_type_set(err, &gql_uuid_type) ||
-	ERR_OK != gql_type_set(err, &gql_url_type) ||
-	ERR_OK != gql_type_set(err, &gql_string_type)) {
+    if (AGOO_ERR_OK != gql_type_set(err, &gql_int_type) ||
+	AGOO_ERR_OK != gql_type_set(err, &gql_i64_type) ||
+	AGOO_ERR_OK != gql_type_set(err, &gql_bool_type) ||
+	AGOO_ERR_OK != gql_type_set(err, &gql_float_type) ||
+	AGOO_ERR_OK != gql_type_set(err, &gql_time_type) ||
+	AGOO_ERR_OK != gql_type_set(err, &gql_uuid_type) ||
+	AGOO_ERR_OK != gql_type_set(err, &gql_url_type) ||
+	AGOO_ERR_OK != gql_type_set(err, &gql_string_type)) {
 	return err->code;
     }
-    return ERR_OK;
+    return AGOO_ERR_OK;
 }
 
 /// set functions /////////////////////////////////////////////////////////////
@@ -748,7 +748,7 @@ gql_url_set(agooErr err, gqlValue value, const char *url, int len) {
 	}
 	value->url = strndup(url, len);
     }
-    return ERR_OK;
+    return AGOO_ERR_OK;
 }
 
 void
@@ -787,13 +787,13 @@ gql_uuid_str_set(agooErr err, gqlValue value, const char *str, int len) {
     uint64_t	hi = 0;
     uint64_t	lo = 0;
 
-    if (ERR_OK != parse_uuid(err, str, len, &hi, &lo)) {
+    if (AGOO_ERR_OK != parse_uuid(err, str, len, &hi, &lo)) {
 	return err->code;
     }
     value->uuid.hi = hi;
     value->uuid.lo = lo;
 
-    return ERR_OK;
+    return AGOO_ERR_OK;
 }
 
 extern void	gql_null_set(gqlValue value);
@@ -803,7 +803,7 @@ link_create(agooErr err, gqlValue item) {
     gqlLink	link = (gqlLink)malloc(sizeof(struct _gqlLink));
 
     if (NULL == link) {
-	err_set(err, ERR_MEMORY, "Failed to allocation memory for a list link.");
+	agoo_err_set(err, AGOO_ERR_MEMORY, "Failed to allocation memory for a list link.");
     } else {
 	DEBUG_ALLOC(mem_graphql_link, link);
 	link->next = NULL;
@@ -828,7 +828,7 @@ gql_list_append(agooErr err, gqlValue list, gqlValue item) {
 	    last->next = link;
 	}
     }
-    return ERR_OK;
+    return AGOO_ERR_OK;
 }
 
 int
@@ -839,7 +839,7 @@ gql_list_prepend(agooErr err, gqlValue list, gqlValue item) {
 	link->next = list->members;
 	list->members = link;
     }
-    return ERR_OK;
+    return AGOO_ERR_OK;
 }
 
 int
@@ -859,7 +859,7 @@ gql_object_set(agooErr err, gqlValue obj, const char *key, gqlValue item) {
 	    last->next = link;
 	}
     }
-    return ERR_OK;
+    return AGOO_ERR_OK;
 }
 
 /// create functions //////////////////////////////////////////////////////////
@@ -990,7 +990,7 @@ gql_uuid_str_create(agooErr err, const char *str, int len) {
     uint64_t	lo = 0;
     gqlValue	v;
 
-    if (ERR_OK != parse_uuid(err, str, len, &hi, &lo)) {
+    if (AGOO_ERR_OK != parse_uuid(err, str, len, &hi, &lo)) {
 	return NULL;
     }
     if (NULL != (v = value_create(&gql_uuid_type))) {

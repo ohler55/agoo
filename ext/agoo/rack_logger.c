@@ -19,22 +19,22 @@ log_message(agooLogCat cat, VALUE message) {
     volatile VALUE	rs = rb_funcall(message, rb_intern("to_s"), 0);
     
     rb_check_type(rs, T_STRING);
-    if (!the_server.active) {
+    if (!agoo_server.active) {
 	return;
     }
     if (rb_block_given_p()) {
-	agooText	text = text_create(StringValuePtr(rs), (int)RSTRING_LEN(rs));
+	agooText	text = agoo_text_create(StringValuePtr(rs), (int)RSTRING_LEN(rs));
 	volatile VALUE	x = rb_yield_values(0);
 
 	if (Qnil != x) {
 	    rs = rb_funcall(x, rb_intern("to_s"), 0);
-	    text = text_append(text, ": ", 2);
-	    text = text_append(text, StringValuePtr(rs), (int)RSTRING_LEN(rs));
+	    text = agoo_text_append(text, ": ", 2);
+	    text = agoo_text_append(text, StringValuePtr(rs), (int)RSTRING_LEN(rs));
 	}
-	log_cat(cat, "%s", text->text);
-	text_release(text);
+	agoo_log_cat(cat, "%s", text->text);
+	agoo_text_release(text);
     } else {
-	log_cat(cat, "%s", StringValuePtr(rs));
+	agoo_log_cat(cat, "%s", StringValuePtr(rs));
     }
 }
 
@@ -46,7 +46,7 @@ log_message(agooLogCat cat, VALUE message) {
  */
 static VALUE
 rl_debug(VALUE self, VALUE message) {
-    log_message(&debug_cat, message);
+    log_message(&agoo_debug_cat, message);
     return Qnil;
 }
 
@@ -58,7 +58,7 @@ rl_debug(VALUE self, VALUE message) {
  */
 static VALUE
 rl_info(VALUE self, VALUE message) {
-    log_message(&info_cat, message);
+    log_message(&agoo_info_cat, message);
     return Qnil;
 }
 
@@ -70,7 +70,7 @@ rl_info(VALUE self, VALUE message) {
  */
 static VALUE
 rl_warn(VALUE self, VALUE message) {
-    log_message(&warn_cat, message);
+    log_message(&agoo_warn_cat, message);
     return Qnil;
 }
 
@@ -82,7 +82,7 @@ rl_warn(VALUE self, VALUE message) {
  */
 static VALUE
 rl_error(VALUE self, VALUE message) {
-    log_message(&error_cat, message);
+    log_message(&agoo_error_cat, message);
     return Qnil;
 }
 
@@ -94,7 +94,7 @@ rl_error(VALUE self, VALUE message) {
  */
 static VALUE
 rl_fatal(VALUE self, VALUE message) {
-    log_message(&fatal_cat, message);
+    log_message(&agoo_fatal_cat, message);
     exit(0);
     return Qnil;
 }

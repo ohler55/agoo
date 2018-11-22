@@ -29,7 +29,6 @@
 #include "rupgraded.h"
 #include "server.h"
 #include "sse.h"
-#include "sub.h"
 #include "upgraded.h"
 #include "websocket.h"
 
@@ -66,8 +65,8 @@ server_mark(void *ptr) {
     agooUpgraded	up;
 
     rb_gc_mark(rserver);
-    pthread_mutex_lock(&the_server.up_lock);
-    for (up = the_server.up_list; NULL != up; up = up->next) {
+    pthread_mutex_lock(&agoo_server.up_lock);
+    for (up = agoo_server.up_list; NULL != up; up = up->next) {
 	if (Qnil != (VALUE)up->ctx) {
 	    rb_gc_mark((VALUE)up->ctx);
 	}
@@ -78,30 +77,30 @@ server_mark(void *ptr) {
 	    rb_gc_mark((VALUE)up->wrap);
 	}
     }
-    pthread_mutex_unlock(&the_server.up_lock);
+    pthread_mutex_unlock(&agoo_server.up_lock);
 }
 
 static void
 url_bind(VALUE rurl) {
-    struct _agooErr	err = ERR_INIT;
-    agooBind		b = bind_url(&err, StringValuePtr(rurl));
+    struct _agooErr	err = AGOO_ERR_INIT;
+    agooBind		b = agoo_bind_url(&err, StringValuePtr(rurl));
 
-    if (ERR_OK != err.code) {
+    if (AGOO_ERR_OK != err.code) {
 	rb_raise(rb_eArgError, "%s", err.msg);
     }
-    server_bind(b);
+    agoo_server_bind(b);
 }
 
 static int
 configure(agooErr err, int port, const char *root, VALUE options) {
-    pages_set_root(root);
-    the_server.thread_cnt = 0;
+    agoo_pages_set_root(root);
+    agoo_server.thread_cnt = 0;
     the_rserver.worker_cnt = 1;
-    atomic_init(&the_server.running, 0);
-    the_server.listen_thread = 0;
-    the_server.con_loops = NULL;
-    the_server.root_first = false;
-    the_server.binds = NULL;
+    atomic_init(&agoo_server.running, 0);
+    agoo_server.listen_thread = 0;
+    agoo_server.con_loops = NULL;
+    agoo_server.root_first = false;
+    agoo_server.binds = NULL;
 
     if (Qnil != options) {
 	VALUE	v;
@@ -110,7 +109,7 @@ configure(agooErr err, int port, const char *root, VALUE options) {
 	    int	tc = FIX2INT(v);
 
 	    if (1 <= tc || tc < 1000) {
-		the_server.thread_cnt = tc;
+		agoo_server.thread_cnt = tc;
 	    } else {
 		rb_raise(rb_eArgError, "thread_count must be between 1 and 1000.");
 	    }
@@ -128,16 +127,16 @@ configure(agooErr err, int port, const char *root, VALUE options) {
 	    int	mpp = FIX2INT(v);
 
 	    if (0 <= mpp || mpp < 1000) {
-		the_server.max_push_pending = mpp;
+		agoo_server.max_push_pending = mpp;
 	    } else {
 		rb_raise(rb_eArgError, "max_push_pending must be between 0 and 1000.");
 	    }
 	}
 	if (Qnil != (v = rb_hash_lookup(options, ID2SYM(rb_intern("pedantic"))))) {
-	    the_server.pedantic = (Qtrue == v);
+	    agoo_server.pedantic = (Qtrue == v);
 	}
 	if (Qnil != (v = rb_hash_lookup(options, ID2SYM(rb_intern("root_first"))))) {
-	    the_server.root_first = (Qtrue == v);
+	    agoo_server.root_first = (Qtrue == v);
 	}
 	if (Qnil != (v = rb_hash_lookup(options, ID2SYM(rb_intern("Port"))))) {
 	    if (rb_cInteger == rb_obj_class(v)) {
@@ -181,7 +180,7 @@ configure(agooErr err, int port, const char *root, VALUE options) {
 	    long	plen;
 
 	    rb_check_type(v, T_STRING);
-	    if (ERR_OK != gql_init(err)) {
+	    if (AGOO_ERR_OK != gql_init(err)) {
 		return err->code;
 	    }
 	    path = StringValuePtr(v);
@@ -192,42 +191,42 @@ configure(agooErr err, int port, const char *root, VALUE options) {
 	    memcpy(schema_path, path, plen);
 	    memcpy(schema_path + plen, "/schema", 8);
 
-	    hook = hook_func_create(AGOO_GET, schema_path, gql_dump_hook, &the_server.eval_queue);
-	    hook->next = the_server.hooks;
-	    the_server.hooks = hook;
+	    hook = agoo_hook_func_create(AGOO_GET, schema_path, gql_dump_hook, &agoo_server.eval_queue);
+	    hook->next = agoo_server.hooks;
+	    agoo_server.hooks = hook;
 
-	    hook = hook_func_create(AGOO_GET, path, gql_eval_hook, &the_server.eval_queue);
-	    hook->next = the_server.hooks;
-	    the_server.hooks = hook;
+	    hook = agoo_hook_func_create(AGOO_GET, path, gql_eval_hook, &agoo_server.eval_queue);
+	    hook->next = agoo_server.hooks;
+	    agoo_server.hooks = hook;
 	}
 	if (Qnil != (v = rb_hash_lookup(options, ID2SYM(rb_intern("quiet"))))) {
 	    if (Qtrue == v) {
-		info_cat.on = false;
+		agoo_info_cat.on = false;
 	    }
 	}
 	if (Qnil != (v = rb_hash_lookup(options, ID2SYM(rb_intern("debug"))))) {
 	    if (Qtrue == v) {
-		error_cat.on = true;
-		warn_cat.on = true;
-		info_cat.on = true;
-		debug_cat.on = true;
-		con_cat.on = true;
-		req_cat.on = true;
-		resp_cat.on = true;
-		eval_cat.on = true;
-		push_cat.on = true;
+		agoo_error_cat.on = true;
+		agoo_warn_cat.on = true;
+		agoo_info_cat.on = true;
+		agoo_debug_cat.on = true;
+		agoo_con_cat.on = true;
+		agoo_req_cat.on = true;
+		agoo_resp_cat.on = true;
+		agoo_eval_cat.on = true;
+		agoo_push_cat.on = true;
 	    }
 	}
     }
     if (0 < port) {
-	agooBind	b = bind_port(err, port);
+	agooBind	b = agoo_bind_port(err, port);
 
-	if (ERR_OK != err->code) {
+	if (AGOO_ERR_OK != err->code) {
 	    rb_raise(rb_eArgError, "%s", err->msg);
 	}
-	server_bind(b);
+	agoo_server_bind(b);
     }
-    return ERR_OK;
+    return AGOO_ERR_OK;
 }
 
 /* Document-method: init
@@ -251,7 +250,7 @@ configure(agooErr err, int port, const char *root, VALUE options) {
  */
 static VALUE
 rserver_init(int argc, VALUE *argv, VALUE self) {
-    struct _agooErr	err = ERR_INIT;
+    struct _agooErr	err = AGOO_ERR_INIT;
     int			port;
     const char		*root;
     VALUE		options = Qnil;
@@ -265,14 +264,14 @@ rserver_init(int argc, VALUE *argv, VALUE self) {
     if (3 <= argc) {
 	options = argv[2];
     }
-    server_setup();
-    the_server.ctx_nil_value = (void*)Qnil;
-    the_server.env_nil_value = (void*)Qnil;
+    agoo_server_setup();
+    agoo_server.ctx_nil_value = (void*)Qnil;
+    agoo_server.env_nil_value = (void*)Qnil;
 
-    if (ERR_OK != configure(&err, port, root, options)) {
+    if (AGOO_ERR_OK != configure(&err, port, root, options)) {
 	rb_raise(rb_eArgError, "%s", err.msg);
     }
-    the_server.inited = true;
+    agoo_server.inited = true;
 
     return Qnil;
 }
@@ -297,11 +296,11 @@ rescue_error(VALUE x) {
 	    len = sizeof(buf) - sizeof(bad500) + 7;
 	}
 	cnt = snprintf(buf, sizeof(buf), "%s%d\r\n\r\n%s: %s", bad500, len, classname, ms);
-	message = text_create(buf, cnt);
+	message = agoo_text_create(buf, cnt);
 
 	req->res->close = true;
-	res_set_message(req->res, message);
-	queue_wakeup(&the_server.con_queue);
+	agoo_res_set_message(req->res, message);
+	agoo_queue_wakeup(&agoo_server.con_queue);
     } else {
 /*
 	volatile VALUE	bt = rb_funcall(info, rb_intern("backtrace"), 0);
@@ -313,7 +312,7 @@ rescue_error(VALUE x) {
 	    rline = rb_ary_entry(bt, i);
 	}
 */
-	log_cat(&error_cat, "%s: %s", classname, ms);
+	agoo_log_cat(&agoo_error_cat, "%s: %s", classname, ms);
     }
     return Qfalse;
 }
@@ -328,8 +327,8 @@ handle_base_inner(void *x) {
 	rb_funcall((VALUE)req->hook->handler, on_request_id, 2, rr, rres);
     }
     DATA_PTR(rr) = NULL;
-    res_set_message(req->res, response_text(rres));
-    queue_wakeup(&the_server.con_queue);
+    agoo_res_set_message(req->res, response_text(rres));
+    agoo_queue_wakeup(&agoo_server.con_queue);
 
     return Qfalse;
 }
@@ -347,18 +346,18 @@ header_cb(VALUE key, VALUE value, agooText *tp) {
     int			klen = (int)RSTRING_LEN(key);
     const char		*vs = StringValuePtr(value);
     int			vlen = (int)RSTRING_LEN(value);
-    struct _agooErr	err = ERR_INIT;
+    struct _agooErr	err = AGOO_ERR_INIT;
     
-    if (the_server.pedantic) {
-	if (ERR_OK != http_header_ok(&err, ks, klen, vs, vlen)) {
+    if (agoo_server.pedantic) {
+	if (AGOO_ERR_OK != agoo_http_header_ok(&err, ks, klen, vs, vlen)) {
 	    rb_raise(rb_eArgError, "%s", err.msg);
 	}
     }
     if (0 != strcasecmp("Content-Length", ks)) {
-	*tp = text_append(*tp, ks, klen);
-	*tp = text_append(*tp, ": ", 2);
-	*tp = text_append(*tp, vs, vlen);
-	*tp = text_append(*tp, "\r\n", 2);
+	*tp = agoo_text_append(*tp, ks, klen);
+	*tp = agoo_text_append(*tp, ": ", 2);
+	*tp = agoo_text_append(*tp, vs, vlen);
+	*tp = agoo_text_append(*tp, "\r\n", 2);
     }
     return ST_CONTINUE;
 }
@@ -379,7 +378,7 @@ body_len_cb(VALUE v, int *sizep) {
 
 static VALUE
 body_append_cb(VALUE v, agooText *tp) {
-    *tp = text_append(*tp, StringValuePtr(v), (int)RSTRING_LEN(v));
+    *tp = agoo_text_append(*tp, StringValuePtr(v), (int)RSTRING_LEN(v));
 
     return Qnil;
 }
@@ -401,7 +400,7 @@ handle_rack_inner(void *x) {
     }
     res = rb_funcall((VALUE)req->hook->handler, call_id, 1, env);
     if (req->res->con->hijacked) {
-	queue_wakeup(&the_server.con_queue);
+	agoo_queue_wakeup(&agoo_server.con_queue);
 	return Qfalse;
     }
     rb_check_type(res, T_ARRAY);
@@ -414,7 +413,7 @@ handle_rack_inner(void *x) {
     } else {
 	code = NUM2INT(rb_funcall(hv, to_i_id, 0));
     }
-    status_msg = http_code_message(code);
+    status_msg = agoo_http_code_message(code);
     if ('\0' == *status_msg) {
 	rb_raise(rb_eArgError, "invalid rack call() response status code (%d).", code);
     }
@@ -426,7 +425,7 @@ handle_rack_inner(void *x) {
     if (!rb_respond_to(bv, each_id)) {
 	rb_raise(rb_eArgError, "invalid rack call() response body does not respond to each.");
     }
-    if (NULL == (t = text_allocate(1024))) {
+    if (NULL == (t = agoo_text_allocate(1024))) {
 	rb_raise(rb_eArgError, "failed to allocate response.");
     }
     if (T_ARRAY == rb_type(bv)) {
@@ -482,30 +481,30 @@ handle_rack_inner(void *x) {
 
 	switch (req->upgrade) {
 	case AGOO_UP_WS:
-	    if (CON_WS != req->res->con_kind ||
+	    if (AGOO_CON_WS != req->res->con_kind ||
 		Qnil == (handler = rb_hash_lookup(env, push_env_key))) {
 		strcpy(t->text, err500);
 		t->len = sizeof(err500) - 1;
 		break;
 	    }
-	    req->hook = hook_create(AGOO_NONE, NULL, (void*)handler, PUSH_HOOK, &the_server.eval_queue);
+	    req->hook = agoo_hook_create(AGOO_NONE, NULL, (void*)handler, PUSH_HOOK, &agoo_server.eval_queue);
 	    rupgraded_create(req->res->con, handler, request_env(req, Qnil));
 
 	    t->len = snprintf(t->text, 1024, "HTTP/1.1 101 %s\r\n", status_msg);
-	    t = ws_add_headers(req, t);
+	    t = agoo_ws_add_headers(req, t);
 	    break;
 	case AGOO_UP_SSE:
-	    if (CON_SSE != req->res->con_kind ||
+	    if (AGOO_CON_SSE != req->res->con_kind ||
 		Qnil == (handler = rb_hash_lookup(env, push_env_key))) {
 		strcpy(t->text, err500);
 		t->len = sizeof(err500) - 1;
 		break;
 	    }
-	    req->hook = hook_create(AGOO_NONE, NULL, (void*)handler, PUSH_HOOK, &the_server.eval_queue);
+	    req->hook = agoo_hook_create(AGOO_NONE, NULL, (void*)handler, PUSH_HOOK, &agoo_server.eval_queue);
 	    rupgraded_create(req->res->con, handler, request_env(req, Qnil));
-	    t = sse_upgrade(req, t);
-	    res_set_message(req->res, t);
-	    queue_wakeup(&the_server.con_queue);
+	    t = agoo_sse_upgrade(req, t);
+	    agoo_res_set_message(req->res, t);
+	    agoo_queue_wakeup(&agoo_server.con_queue);
 	    return Qfalse;
 	default:
 	    break;
@@ -520,7 +519,7 @@ handle_rack_inner(void *x) {
 	    rb_iterate(rb_each, hv, header_each_cb, (VALUE)&t);
 	}
     }
-    t = text_append(t, "\r\n", 2);
+    t = agoo_text_append(t, "\r\n", 2);
     if (0 < bsize) {
 	if (T_ARRAY == rb_type(bv)) {
 	    VALUE	v;
@@ -529,14 +528,14 @@ handle_rack_inner(void *x) {
 
 	    for (i = 0; i < bcnt; i++) {
 		v = rb_ary_entry(bv, i);
-		t = text_append(t, StringValuePtr(v), (int)RSTRING_LEN(v));
+		t = agoo_text_append(t, StringValuePtr(v), (int)RSTRING_LEN(v));
 	    }
 	} else {
 	    rb_iterate(rb_each, bv, body_append_cb, (VALUE)&t);
 	}
     }
-    res_set_message(req->res, t);
-    queue_wakeup(&the_server.con_queue);
+    agoo_res_set_message(req->res, t);
+    agoo_queue_wakeup(&agoo_server.con_queue);
 
     return Qfalse;
 }
@@ -561,8 +560,8 @@ handle_wab_inner(void *x) {
 	rb_funcall((VALUE)req->hook->handler, on_request_id, 2, rr, rres);
     }
     DATA_PTR(rr) = NULL;
-    res_set_message(req->res, response_text(rres));
-    queue_wakeup(&the_server.con_queue);
+    agoo_res_set_message(req->res, response_text(rres));
+    agoo_queue_wakeup(&agoo_server.con_queue);
 
     return Qfalse;
 }
@@ -593,8 +592,8 @@ handle_push_inner(void *x) {
 	}
 	break;
     case AGOO_ON_CLOSE:
-	upgraded_ref(req->up);
-	server_publish(pub_close(req->up));
+	agoo_upgraded_ref(req->up);
+	agoo_server_publish(agoo_pub_close(req->up));
 	if (req->up->on_close && NULL != req->hook) {
 	    rb_funcall((VALUE)req->hook->handler, on_close_id, 1, (VALUE)req->up->wrap);
 	}
@@ -620,7 +619,7 @@ handle_push_inner(void *x) {
     default:
 	break;
     }
-    upgraded_release(req->up);
+    agoo_upgraded_release(req->up);
     
     return Qfalse;
 }
@@ -667,16 +666,16 @@ handle_protected(agooReq req, bool gvi) {
 	break;
     case FUNC_HOOK:
 	req->hook->func(req);
-	queue_wakeup(&the_server.con_queue);
+	agoo_queue_wakeup(&agoo_server.con_queue);
 	break;
     default: {
 	char	buf[256];
 	int	cnt = snprintf(buf, sizeof(buf), "HTTP/1.1 500 Internal Error\r\nConnection: Close\r\nContent-Length: 0\r\n\r\n");
-	agooText	message = text_create(buf, cnt);
+	agooText	message = agoo_text_create(buf, cnt);
 
 	req->res->close = true;
-	res_set_message(req->res, message);
-	queue_wakeup(&the_server.con_queue);
+	agoo_res_set_message(req->res, message);
+	agoo_queue_wakeup(&agoo_server.con_queue);
 	break;
     }
     }
@@ -686,14 +685,14 @@ static void*
 process_loop(void *ptr) {
     agooReq	req;
     
-    atomic_fetch_add(&the_server.running, 1);
-    while (the_server.active) {
-	if (NULL != (req = (agooReq)queue_pop(&the_server.eval_queue, 0.1))) {
+    atomic_fetch_add(&agoo_server.running, 1);
+    while (agoo_server.active) {
+	if (NULL != (req = (agooReq)agoo_queue_pop(&agoo_server.eval_queue, 0.1))) {
 	    handle_protected(req, true);
-	    req_destroy(req);
+	    agoo_req_destroy(req);
 	}
     }
-    atomic_fetch_sub(&the_server.running, 1);
+    atomic_fetch_sub(&agoo_server.running, 1);
 
     return NULL;
 }
@@ -716,13 +715,13 @@ rserver_start(VALUE self) {
     int			i;
     int			pid;
     double		giveup;
-    struct _agooErr	err = ERR_INIT;
+    struct _agooErr	err = AGOO_ERR_INIT;
     VALUE		agoo = rb_const_get_at(rb_cObject, rb_intern("Agoo"));
     VALUE		v = rb_const_get_at(agoo, rb_intern("VERSION"));
     
     *the_rserver.worker_pids = getpid();
 
-    if (ERR_OK != setup_listen(&err)) {
+    if (AGOO_ERR_OK != setup_listen(&err)) {
 	rb_raise(rb_eIOError, "%s", err.msg);
     }
     for (i = 1; i < the_rserver.worker_cnt; i++) {
@@ -734,35 +733,35 @@ rserver_start(VALUE self) {
 	    pid = NUM2INT(rpid);
 	}
 	if (0 > pid) { // error, use single process
-	    log_cat(&error_cat, "Failed to fork. %s.", strerror(errno));
+	    agoo_log_cat(&agoo_error_cat, "Failed to fork. %s.", strerror(errno));
 	    break;
 	} else if (0 == pid) {
-	    log_start(true);
+	    agoo_log_start(true);
 	    break;
 	} else {
 	    the_rserver.worker_pids[i] = pid;
 	}
     }
-    if (ERR_OK != server_start(&err, "Agoo", StringValuePtr(v))) {
+    if (AGOO_ERR_OK != agoo_server_start(&err, "Agoo", StringValuePtr(v))) {
 	rb_raise(rb_eStandardError, "%s", err.msg);
     }
-    if (0 >= the_server.thread_cnt) {
+    if (0 >= agoo_server.thread_cnt) {
 	agooReq		req;
 
-	while (the_server.active) {
-	    if (NULL != (req = (agooReq)queue_pop(&the_server.eval_queue, 0.1))) {
+	while (agoo_server.active) {
+	    if (NULL != (req = (agooReq)agoo_queue_pop(&agoo_server.eval_queue, 0.1))) {
 		handle_protected(req, false);
-		req_destroy(req);
+		agoo_req_destroy(req);
 	    } else {
 		rb_thread_schedule();
 	    }
 
 	}
     } else {
-	the_rserver.eval_threads = (VALUE*)malloc(sizeof(VALUE) * (the_server.thread_cnt + 1));
-	DEBUG_ALLOC(mem_eval_threads, the_server.eval_threads);
+	the_rserver.eval_threads = (VALUE*)malloc(sizeof(VALUE) * (agoo_server.thread_cnt + 1));
+	DEBUG_ALLOC(mem_eval_threads, agoo_server.eval_threads);
 
-	for (i = the_server.thread_cnt, vp = the_rserver.eval_threads; 0 < i; i--, vp++) {
+	for (i = agoo_server.thread_cnt, vp = the_rserver.eval_threads; 0 < i; i--, vp++) {
 	    *vp = rb_thread_create(wrap_process_loop, NULL);
 	}
 	*vp = Qnil;
@@ -773,7 +772,7 @@ rserver_start(VALUE self) {
 	    // releases ownership so do that and then see if the threads has
 	    // been started yet.
 	    rb_thread_schedule();
-	    if (2 + the_server.thread_cnt <= (long)atomic_load(&the_server.running)) {
+	    if (2 + agoo_server.thread_cnt <= (long)atomic_load(&agoo_server.running)) {
 		break;
 	    }
 	}
@@ -791,7 +790,7 @@ stop_runners() {
 	double	timeout = dtime() + 2.0;
 
 	while (dtime() < timeout) {
-	    if (0 >= (long)atomic_load(&the_server.running)) {
+	    if (0 >= (long)atomic_load(&agoo_server.running)) {
 		break;
 	    }
 	    dsleep(0.02);
@@ -810,8 +809,8 @@ stop_runners() {
  */
 VALUE
 rserver_shutdown(VALUE self) {
-    if (the_server.inited) {
-	server_shutdown("Agoo", stop_runners);
+    if (agoo_server.inited) {
+	agoo_server_shutdown("Agoo", stop_runners);
 
 	if (1 < the_rserver.worker_cnt && getpid() == *the_rserver.worker_pids) {
 	    int	i;
@@ -829,11 +828,11 @@ rserver_shutdown(VALUE self) {
 		    }
 		    if (0 < waitpid(the_rserver.worker_pids[i], &status, WNOHANG)) {
 			if (WIFEXITED(status)) {
-			    //printf("exited, status=%d for %d\n", the_server.worker_pids[i], WEXITSTATUS(status));
+			    //printf("exited, status=%d for %d\n", agoo_server.worker_pids[i], WEXITSTATUS(status));
 			    the_rserver.worker_pids[i] = 0;
 			    exit_cnt++;
 			} else if (WIFSIGNALED(status)) {
-			    //printf("*** killed by signal %d for %d\n", the_server.worker_pids[i], WTERMSIG(status));
+			    //printf("*** killed by signal %d for %d\n", agoo_server.worker_pids[i], WTERMSIG(status));
 			    the_rserver.worker_pids[i] = 0;
 			    exit_cnt++;
 			}
@@ -905,8 +904,8 @@ handle(VALUE self, VALUE method, VALUE pattern, VALUE handler) {
 	    if (T_ARRAY == rb_type(bv)) {
 		int		i;
 		int		bcnt = (int)RARRAY_LEN(bv);
-		agooText	t = text_allocate(1024);
-		struct _agooErr	err = ERR_INIT;
+		agooText	t = agoo_text_allocate(1024);
+		struct _agooErr	err = AGOO_ERR_INIT;
 		VALUE		v;
 
 		if (NULL == t) {
@@ -914,30 +913,30 @@ handle(VALUE self, VALUE method, VALUE pattern, VALUE handler) {
 		}
 		for (i = 0; i < bcnt; i++) {
 		    v = rb_ary_entry(bv, i);
-		    t = text_append(t, StringValuePtr(v), (int)RSTRING_LEN(v));
+		    t = agoo_text_append(t, StringValuePtr(v), (int)RSTRING_LEN(v));
 		}
-		if (NULL == page_immutable(&err, pat, t->text, t->len)) {
+		if (NULL == agoo_page_immutable(&err, pat, t->text, t->len)) {
 		    rb_raise(rb_eArgError, "%s", err.msg);
 		}
-		text_release(t);
+		agoo_text_release(t);
 
 		return Qnil;
 	    }
 	}
     }
-    if (NULL == (hook = rhook_create(meth, pat, handler, &the_server.eval_queue))) {
+    if (NULL == (hook = rhook_create(meth, pat, handler, &agoo_server.eval_queue))) {
 	rb_raise(rb_eStandardError, "out of memory.");
     } else {
 	agooHook	h;
 	agooHook	prev = NULL;
 
-	for (h = the_server.hooks; NULL != h; h = h->next) {
+	for (h = agoo_server.hooks; NULL != h; h = h->next) {
 	    prev = h;
 	}
 	if (NULL != prev) {
 	    prev->next = hook;
 	} else {
-	    the_server.hooks = hook;
+	    agoo_server.hooks = hook;
 	}
 	rb_gc_register_address((VALUE*)&hook->handler);
     }
@@ -953,10 +952,10 @@ handle(VALUE self, VALUE method, VALUE pattern, VALUE handler) {
  */
 static VALUE
 handle_not_found(VALUE self, VALUE handler) {
-    if (NULL == (the_server.hook404 = rhook_create(AGOO_GET, "/", handler, &the_server.eval_queue))) {
+    if (NULL == (agoo_server.hook404 = rhook_create(AGOO_GET, "/", handler, &agoo_server.eval_queue))) {
 	rb_raise(rb_eStandardError, "out of memory.");
     }
-    rb_gc_register_address((VALUE*)&the_server.hook404->handler);
+    rb_gc_register_address((VALUE*)&agoo_server.hook404->handler);
     
     return Qnil;
 }
@@ -970,9 +969,9 @@ handle_not_found(VALUE self, VALUE handler) {
  */
 static VALUE
 add_mime(VALUE self, VALUE suffix, VALUE type) {
-    struct _agooErr	err = ERR_INIT;
+    struct _agooErr	err = AGOO_ERR_INIT;
     
-    if (ERR_OK != mime_set(&err, StringValuePtr(suffix), StringValuePtr(type))) {
+    if (AGOO_ERR_OK != mime_set(&err, StringValuePtr(suffix), StringValuePtr(type))) {
 	rb_raise(rb_eArgError, "%s", err.msg);
     }
     return Qnil;
@@ -1049,5 +1048,5 @@ server_init(VALUE mod) {
     rserver = Data_Wrap_Struct(rb_cObject, server_mark, NULL, strdup("dummy"));
     rb_gc_register_address(&rserver);
 
-    http_init();
+    agoo_http_init();
 }

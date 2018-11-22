@@ -480,7 +480,7 @@ key_set(const char *key) {
 }
 
 void
-http_init() {
+agoo_http_init() {
     const char	**kp = header_keys;
     
     memset(&key_cache, 0, sizeof(struct _cache));
@@ -490,7 +490,7 @@ http_init() {
 }
 
 void
-http_cleanup() {
+agoo_http_cleanup() {
     Slot	*sp = key_cache.buckets;
     Slot	s;
     Slot	n;
@@ -507,7 +507,7 @@ http_cleanup() {
 }
 
 int
-http_header_ok(agooErr err, const char *key, int klen, const char *value, int vlen) {
+agoo_http_header_ok(agooErr err, const char *key, int klen, const char *value, int vlen) {
     int		len = klen;
     int64_t	h = calc_hash(key, &len);
     Slot	*bucket = get_bucketp(h);
@@ -530,26 +530,26 @@ http_header_ok(agooErr err, const char *key, int klen, const char *value, int vl
 	strncpy(buf, key, klen);
 	buf[klen] = '\0';
 
-	return err_set(err, ERR_ARG, "%s is not a valid HTTP header key.", buf);
+	return agoo_err_set(err, AGOO_ERR_ARG, "%s is not a valid HTTP header key.", buf);
     }
     // Now check the value.
     found = false; // reuse as indicator for in a quoted string
     for (; 0 < vlen; vlen--, value++) {
 	if ('o' != header_value_chars[(uint8_t)*value]) {
-	    return err_set(err, ERR_ARG, "%02x is not a valid HTTP header value character.", *value);
+	    return agoo_err_set(err, AGOO_ERR_ARG, "%02x is not a valid HTTP header value character.", *value);
 	}
 	if ('"' == *value) {
 	    found = !found;
 	}
     }
     if (found) {
-	return err_set(err, ERR_ARG, "HTTP header has unmatched quote.");
+	return agoo_err_set(err, AGOO_ERR_ARG, "HTTP header has unmatched quote.");
     }
-    return ERR_OK;
+    return AGOO_ERR_OK;
 }
 
 const char*
-http_code_message(int code) {
+agoo_http_code_message(int code) {
     const char	*msg = "";
     
     switch (code) {

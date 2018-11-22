@@ -16,13 +16,13 @@ Connection: keep-alive\r\n\
 retry: 5\n\n";
 
 agooText
-sse_upgrade(agooReq req, agooText t) {
+agoo_sse_upgrade(agooReq req, agooText t) {
     t->len = 0; // reset
-    return text_append(t, up, sizeof(up) - 1);
+    return agoo_text_append(t, up, sizeof(up) - 1);
 }
 
 agooText
-sse_expand(agooText t) {
-    t = text_prepend(t, prefix, sizeof(prefix) - 1);
-    return text_append(t, suffix, sizeof(suffix) - 1);
+agoo_sse_expand(agooText t) {
+    t = agoo_text_prepend(t, prefix, sizeof(prefix) - 1);
+    return agoo_text_append(t, suffix, sizeof(suffix) - 1);
 }

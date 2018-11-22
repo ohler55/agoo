@@ -14,7 +14,7 @@
 #include "log.h"
 
 agooBind
-bind_port(agooErr err, int port) {
+agoo_bind_port(agooErr err, int port) {
     agooBind	b = (agooBind)malloc(sizeof(struct _agooBind));
 
     if (NULL != b) {
@@ -27,7 +27,7 @@ bind_port(agooErr err, int port) {
 	snprintf(id, sizeof(id) - 1, "http://:%d", port);
 	strcpy(b->scheme, "http");
 	b->id = strdup(id);
-	b->kind = CON_HTTP;
+	b->kind = AGOO_CON_HTTP;
 	b->read = NULL;
 	b->write = NULL;
 	b->events = NULL;
@@ -45,7 +45,7 @@ url_tcp(agooErr err, const char *url, const char *scheme) {
     if (NULL == colon) {
 	port = 80;
     } else if (15 < colon - url) {
-	err_set(err, ERR_ARG, "%s bind address is not valid, too long. (%s)", scheme, url);
+	agoo_err_set(err, AGOO_ERR_ARG, "%s bind address is not valid, too long. (%s)", scheme, url);
 	return NULL;
     } else if (':' == *url) {
 	port = atoi(colon + 1);
@@ -55,7 +55,7 @@ url_tcp(agooErr err, const char *url, const char *scheme) {
 	strncpy(buf, url, colon - url);
 	buf[colon - url] = '\0';
 	if (0 == inet_aton(buf, &addr)) {
-	    err_set(err, ERR_ARG, "%s bind address is not valid. (%s)", scheme, url);
+	    agoo_err_set(err, AGOO_ERR_ARG, "%s bind address is not valid. (%s)", scheme, url);
 	    return NULL;
 	}
 	port = atoi(colon + 1);
@@ -73,14 +73,14 @@ url_tcp(agooErr err, const char *url, const char *scheme) {
 	b->id = strdup(id);
 	strncpy(b->scheme, scheme, sizeof(b->scheme));
 	b->scheme[sizeof(b->scheme) - 1] = '\0';
-	b->kind = CON_HTTP;
+	b->kind = AGOO_CON_HTTP;
 	b->read = NULL;
 	b->write = NULL;
 	b->events = NULL;
 
 	return b;
     }
-    err_set(err, ERR_MEMORY, "Failed to allocate memory for a Bind.");
+    agoo_err_set(err, AGOO_ERR_MEMORY, "Failed to allocate memory for a Bind.");
     
     return b;
 }
@@ -100,7 +100,7 @@ url_tcp6(agooErr err, const char *url, const char *scheme) {
     buf[end - url - 1] = '\0';
     memset(&addr, 0, sizeof(addr));
     if (0 == inet_pton(AF_INET6, buf, &addr)) {
-	err_set(err, ERR_ARG, "%s bind address is not valid. (%s)", scheme, url);
+	agoo_err_set(err, AGOO_ERR_ARG, "%s bind address is not valid. (%s)", scheme, url);
 	return NULL;
     }
     if (NULL != (b = (agooBind)malloc(sizeof(struct _agooBind)))) {
@@ -116,14 +116,14 @@ url_tcp6(agooErr err, const char *url, const char *scheme) {
 	b->id = strdup(buf);
 	strncpy(b->scheme, scheme, sizeof(b->scheme));
 	b->scheme[sizeof(b->scheme) - 1] = '\0';
-	b->kind = CON_HTTP;
+	b->kind = AGOO_CON_HTTP;
 	b->read = NULL;
 	b->write = NULL;
 	b->events = NULL;
 
 	return b;
     }
-    err_set(err, ERR_MEMORY, "Failed to allocate memory for a Bind.");
+    agoo_err_set(err, AGOO_ERR_MEMORY, "Failed to allocate memory for a Bind.");
     
     return b;
 }
@@ -131,7 +131,7 @@ url_tcp6(agooErr err, const char *url, const char *scheme) {
 static agooBind
 url_named(agooErr err, const char *url) {
     if ('\0' == *url) {
-	err_set(err, ERR_ARG, "Named Unix sockets names must not be empty.");
+	agoo_err_set(err, AGOO_ERR_ARG, "Named Unix sockets names must not be empty.");
 	return NULL;
     } else {
 	agooBind	b = (agooBind)malloc(sizeof(struct _agooBind));
@@ -146,14 +146,14 @@ url_named(agooErr err, const char *url) {
 	    snprintf(id, sizeof(id) - 1, fmt, url);
 	    b->id = strdup(id);
 	    strcpy(b->scheme, "unix");
-	    b->kind = CON_HTTP;
+	    b->kind = AGOO_CON_HTTP;
 	    b->read = NULL;
 	    b->write = NULL;
 	    b->events = NULL;
 	}
 	return b;
     }
-    err_set(err, ERR_MEMORY, "Failed to allocate memory for a Bind.");
+    agoo_err_set(err, AGOO_ERR_MEMORY, "Failed to allocate memory for a Bind.");
 
     return NULL;
 }
@@ -165,7 +165,7 @@ url_ssl(agooErr err, const char *url) {
 }
 
 agooBind
-bind_url(agooErr err, const char *url) {
+agoo_bind_url(agooErr err, const char *url) {
     if (0 == strncmp("tcp://", url, 6)) {
 	if ('[' == url[6]) {
 	    return url_tcp6(err, url + 6, "tcp");
@@ -207,7 +207,7 @@ bind_url(agooErr err, const char *url) {
 }
 
 void
-bind_destroy(agooBind b) {
+agoo_bind_destroy(agooBind b) {
     DEBUG_FREE(mem_bind, b);
     free(b->id);
     free(b->name);
@@ -226,9 +226,9 @@ usual_listen(agooErr err, agooBind b) {
 	domain = PF_INET6;
     }
     if (0 >= (b->fd = socket(domain, SOCK_STREAM, IPPROTO_TCP))) {
-	log_cat(&error_cat, "Server failed to open server socket on port %d. %s.", b->port, strerror(errno));
+	agoo_log_cat(&agoo_error_cat, "Server failed to open server socket on port %d. %s.", b->port, strerror(errno));
 
-	return err_set(err, errno, "Server failed to open server socket. %s.", strerror(errno));
+	return agoo_err_set(err, errno, "Server failed to open server socket. %s.", strerror(errno));
     }
 #ifdef OSX_OS 
     setsockopt(b->fd, SOL_SOCKET, SO_NOSIGPIPE, &optval, sizeof(optval));
@@ -244,9 +244,9 @@ usual_listen(agooErr err, agooBind b) {
 	addr.sin6_addr = b->addr6;
 	addr.sin6_port = htons(b->port);
 	if (0 > bind(b->fd, (struct sockaddr*)&addr, sizeof(addr))) {
-	    log_cat(&error_cat, "Server failed to bind server socket. %s.", strerror(errno));
+	    agoo_log_cat(&agoo_error_cat, "Server failed to bind server socket. %s.", strerror(errno));
 
-	    return err_set(err, errno, "Server failed to bind server socket. %s.", strerror(errno));
+	    return agoo_err_set(err, errno, "Server failed to bind server socket. %s.", strerror(errno));
 	}
     } else {
 	struct sockaddr_in	addr;
@@ -256,14 +256,14 @@ usual_listen(agooErr err, agooBind b) {
 	addr.sin_addr = b->addr4;
 	addr.sin_port = htons(b->port);
 	if (0 > bind(b->fd, (struct sockaddr*)&addr, sizeof(addr))) {
-	    log_cat(&error_cat, "Server failed to bind server socket. %s.", strerror(errno));
+	    agoo_log_cat(&agoo_error_cat, "Server failed to bind server socket. %s.", strerror(errno));
 
-	    return err_set(err, errno, "Server failed to bind server socket. %s.", strerror(errno));
+	    return agoo_err_set(err, errno, "Server failed to bind server socket. %s.", strerror(errno));
 	}
     }
     listen(b->fd, 1000);
 
-    return ERR_OK;
+    return AGOO_ERR_OK;
 }
 
 static int
@@ -272,31 +272,31 @@ named_listen(agooErr err, agooBind b) {
 
     remove(b->name);
     if (0 >= (b->fd = socket(AF_UNIX, SOCK_STREAM, 0))) {
-	log_cat(&error_cat, "Server failed to open server socket on %s. %s.", b->name, strerror(errno));
+	agoo_log_cat(&agoo_error_cat, "Server failed to open server socket on %s. %s.", b->name, strerror(errno));
 
-	return err_set(err, errno, "Server failed to open server socket on %s. %s.", b->name, strerror(errno));
+	return agoo_err_set(err, errno, "Server failed to open server socket on %s. %s.", b->name, strerror(errno));
     }
     memset(&addr, 0, sizeof(addr));
     addr.sun_family = AF_UNIX;
     strcpy(addr.sun_path, b->name);
     if (0 > bind(b->fd, (struct sockaddr*)&addr, sizeof(addr))) {
-	log_cat(&error_cat, "Server failed to bind server socket. %s.", strerror(errno));
+	agoo_log_cat(&agoo_error_cat, "Server failed to bind server socket. %s.", strerror(errno));
 
-	return err_set(err, errno, "Server failed to bind server socket. %s.", strerror(errno));
+	return agoo_err_set(err, errno, "Server failed to bind server socket. %s.", strerror(errno));
     }
     listen(b->fd, 100);
 
-    return ERR_OK;
+    return AGOO_ERR_OK;
 }
 
 static int
 ssl_listen(agooErr err, agooBind b) {
     // TBD
-    return ERR_OK;
+    return AGOO_ERR_OK;
 }
 
 int
-bind_listen(agooErr err, agooBind b) {
+agoo_bind_listen(agooErr err, agooBind b) {
     if (NULL != b->name) {
 	return named_listen(err, b);
     }
@@ -307,7 +307,7 @@ bind_listen(agooErr err, agooBind b) {
 }
 
 void
-bind_close(agooBind b) {
+agoo_bind_close(agooBind b) {
     if (0 != b->fd) {
 	close(b->fd);
 	b->fd = 0;

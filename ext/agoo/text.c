@@ -8,7 +8,7 @@
 #include "text.h"
 
 agooText
-text_create(const char *str, int len) {
+agoo_text_create(const char *str, int len) {
     agooText	t = (agooText)malloc(sizeof(struct _agooText) - AGOO_TEXT_MIN_SIZE + len + 1);
 
     if (NULL != t) {
@@ -24,7 +24,7 @@ text_create(const char *str, int len) {
 }
 
 agooText
-text_dup(agooText t0) {
+agoo_text_dup(agooText t0) {
     agooText	t = (agooText)malloc(sizeof(struct _agooText) - AGOO_TEXT_MIN_SIZE + t0->alen + 1);
 
     if (NULL != t) {
@@ -39,7 +39,7 @@ text_dup(agooText t0) {
 }
 
 agooText
-text_allocate(int len) {
+agoo_text_allocate(int len) {
     agooText	t = (agooText)malloc(sizeof(struct _agooText) - AGOO_TEXT_MIN_SIZE + len + 1);
 
     if (NULL != t) {
@@ -54,12 +54,12 @@ text_allocate(int len) {
 }
 
 void
-text_ref(agooText t) {
+agoo_text_ref(agooText t) {
     atomic_fetch_add(&t->ref_cnt, 1);
 }
 
 void
-text_release(agooText t) {
+agoo_text_release(agooText t) {
     if (1 >= atomic_fetch_sub(&t->ref_cnt, 1)) {
 	DEBUG_FREE(mem_text, t);
 	free(t);
@@ -67,7 +67,7 @@ text_release(agooText t) {
 }
 
 agooText
-text_append(agooText t, const char *s, int len) {
+agoo_text_append(agooText t, const char *s, int len) {
     if (0 >= len) {
 	len = (int)strlen(s);
     }
@@ -91,7 +91,7 @@ text_append(agooText t, const char *s, int len) {
 }
 
 agooText
-text_prepend(agooText t, const char *s, int len) {
+agoo_text_prepend(agooText t, const char *s, int len) {
     if (0 >= len) {
 	len = (int)strlen(s);
     }

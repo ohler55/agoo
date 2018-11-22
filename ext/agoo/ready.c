@@ -58,7 +58,7 @@ link_create(agooErr err, int fd, void *ctx, agooHandler handler) {
     Link	link = (Link)malloc(sizeof(struct _link));
 
     if (NULL == link) {
-	err_set(err, ERR_MEMORY, "Failed to allocate memory for a connection link.");
+	agoo_err_set(err, AGOO_ERR_MEMORY, "Failed to allocate memory for a connection link.");
     } else {
 	//DEBUG_ALLOC(mem_???, c);
 	link->next = NULL;
@@ -75,7 +75,7 @@ agoo_ready_create(agooErr err) {
     agooReady	ready = (agooReady)malloc(sizeof(struct _agooReady));
 
     if (NULL == ready) {
-	err_set(err, ERR_MEMORY, "Failed to allocate memory for a connection manager.");
+	agoo_err_set(err, AGOO_ERR_MEMORY, "Failed to allocate memory for a connection manager.");
     } else {
 	//DEBUG_ALLOC(mem_???, c);
 	ready->links = NULL;
@@ -83,7 +83,7 @@ agoo_ready_create(agooErr err) {
 	ready->next_check = dtime() + CHECK_FREQ;
 #if HAVE_SYS_EPOLL_H
 	if (0 > (ready->epoll_fd = epoll_create(1))) {
-	    err_no(err, "epoll create failed");
+	    agoo_err_no(err, "epoll create failed");
 	    return NULL;
 	}
 #else
@@ -146,7 +146,7 @@ agoo_ready_add(agooErr		err,
 	    },
 	};
 	if (0 > epoll_ctl(ready->epoll_fd, EPOLL_CTL_ADD, fd, &event)) {
-	    err_no(err, "epoll add failed");
+	    agoo_err_no(err, "epoll add failed");
 	    return err->code;
 	}
     }
@@ -156,9 +156,9 @@ agoo_ready_add(agooErr		err,
 	size_t	size = cnt * sizeof(struct pollfd);
 	
 	if (NULL == (ready->pa = (struct pollfd*)realloc(ready->pa, size))) {
-	    err_set(err, ERR_MEMORY, "Failed to allocate memory for a connection pool.");
-	    log_cat(&error_cat, "Out of memory.");
-	    log_close();
+	    agoo_err_set(err, AGOO_ERR_MEMORY, "Failed to allocate memory for a connection pool.");
+	    agoo_log_cat(&agoo_error_cat, "Out of memory.");
+	    agoo_log_close();
 	    exit(EXIT_FAILURE);
 
 	    return err->code;
@@ -167,7 +167,7 @@ agoo_ready_add(agooErr		err,
 	memset(ready->pa, 0, size);
     }
 #endif
-    return ERR_OK;
+    return AGOO_ERR_OK;
 }
 
 static void
@@ -189,7 +189,7 @@ ready_remove(agooReady ready, Link link) {
 	    },
 	};
 	if (0 > epoll_ctl(ready->epoll_fd, EPOLL_CTL_DEL, link->fd, &event)) {
-	    log_cat(&error_cat, "epoll delete failed. %s", strerror(errno));
+	    agoo_log_cat(&agoo_error_cat, "epoll delete failed. %s", strerror(errno));
 	}
     }
 #endif
@@ -236,14 +236,14 @@ agoo_ready_go(agooErr err, agooReady ready) {
 	}
 	if (event.events != link->events) {
 	    if (0 > epoll_ctl(ready->epoll_fd, EPOLL_CTL_MOD, link->fd, &event)) {
-		err_no(err, "epoll modifiy failed");
+		agoo_err_no(err, "epoll modifiy failed");
 	    }
 	    link->events = event.events;
 	}
     }
     if (0 > (cnt = epoll_wait(ready->epoll_fd, events, sizeof(events) / sizeof(*events), MAX_WAIT))) {
-	err_no(err, "Polling error.");
-	log_cat(&error_cat, "%s", err->msg);
+	agoo_err_no(err, "Polling error.");
+	agoo_log_cat(&agoo_error_cat, "%s", err->msg);
 	return err->code;
     }
     for (ep = events; 0 < cnt; ep++, cnt--) {
@@ -296,10 +296,10 @@ agoo_ready_go(agooErr err, agooReady ready) {
     }
     if (0 > (i = poll(ready->pa, (nfds_t)(pp - ready->pa), MAX_WAIT))) {
 	if (EAGAIN == errno) {
-	    return ERR_OK;
+	    return AGOO_ERR_OK;
 	}
-	err_no(err, "Polling error.");
-	log_cat(&error_cat, "%s", err->msg);
+	agoo_err_no(err, "Polling error.");
+	agoo_log_cat(&agoo_error_cat, "%s", err->msg);
 	return err->code;
     }
     if (0 < i) {
@@ -344,7 +344,7 @@ agoo_ready_go(agooErr err, agooReady ready) {
 	}
 	ready->next_check = dtime() + CHECK_FREQ;
     }
-    return ERR_OK;
+    return AGOO_ERR_OK;
 }
 
 void

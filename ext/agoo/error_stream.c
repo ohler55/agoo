@@ -27,7 +27,7 @@ error_stream_new() {
     ErrorStream	es = ALLOC(struct _errorStream);
 
     DEBUG_ALLOC(mem_err_stream, es)
-    es->text = text_allocate(1024);
+    es->text = agoo_text_allocate(1024);
     
     return Data_Wrap_Struct(es_class, NULL, es_free, es);
 }
@@ -43,8 +43,8 @@ static VALUE
 es_puts(VALUE self, VALUE str) {
     ErrorStream	es = (ErrorStream)DATA_PTR(self);
 
-    es->text = text_append(es->text, StringValuePtr(str), (int)RSTRING_LEN(str));
-    es->text = text_append(es->text, "\n", 1);
+    es->text = agoo_text_append(es->text, StringValuePtr(str), (int)RSTRING_LEN(str));
+    es->text = agoo_text_append(es->text, "\n", 1);
 
     return Qnil;
 }
@@ -60,7 +60,7 @@ es_write(VALUE self, VALUE str) {
     ErrorStream	es = (ErrorStream)DATA_PTR(self);
     int		cnt = (int)RSTRING_LEN(str);
     
-    es->text = text_append(es->text, StringValuePtr(str), cnt);
+    es->text = agoo_text_append(es->text, StringValuePtr(str), cnt);
 
     return INT2NUM(cnt);
 }
@@ -75,7 +75,7 @@ static VALUE
 es_flush(VALUE self) {
     ErrorStream	es = (ErrorStream)DATA_PTR(self);
 
-    log_cat(&error_cat, "%s", es->text->text);
+    agoo_log_cat(&agoo_error_cat, "%s", es->text->text);
     es->text->len = 0;
 
     return self;

@@ -24,18 +24,18 @@ typedef struct _agooQueue {
     int			wsock;
 } *agooQueue;
 
-extern void		queue_init(agooQueue q, size_t qsize);
+extern void		agoo_queue_init(agooQueue q, size_t qsize);
 
-extern void		queue_multi_init(agooQueue q, size_t qsize, bool multi_push, bool multi_pop);
+extern void		agoo_queue_multi_init(agooQueue q, size_t qsize, bool multi_push, bool multi_pop);
 
-extern void		queue_cleanup(agooQueue q);
-extern void		queue_push(agooQueue q, agooQItem item);
-extern agooQItem	queue_pop(agooQueue q, double timeout);
-extern bool		queue_empty(agooQueue q);
-extern int		queue_listen(agooQueue q);
-extern void		queue_release(agooQueue q);
-extern int		queue_count(agooQueue q);
+extern void		agoo_queue_cleanup(agooQueue q);
+extern void		agoo_queue_push(agooQueue q, agooQItem item);
+extern agooQItem	agoo_queue_pop(agooQueue q, double timeout);
+extern bool		agoo_queue_empty(agooQueue q);
+extern int		agoo_queue_listen(agooQueue q);
+extern void		agoo_queue_release(agooQueue q);
+extern int		agoo_queue_count(agooQueue q);
 
-extern void		queue_wakeup(agooQueue q);
+extern void		agoo_queue_wakeup(agooQueue q);
 
 #endif // AGOO_QUEUE_H

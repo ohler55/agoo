@@ -5,28 +5,28 @@
 
 #include <errno.h>
 
-#define ERR_START	300
-#define ERR_INIT	{ 0, { 0 } }
+#define AGOO_ERR_START	300
+#define AGOO_ERR_INIT	{ 0, { 0 } }
 
 typedef enum {
-    ERR_OK	= 0,
-    ERR_MEMORY	= ENOMEM,
-    ERR_DENIED	= EACCES,
-    ERR_IMPL	= ENOSYS,
-    ERR_PARSE	= ERR_START,
-    ERR_READ,
-    ERR_WRITE,
-    ERR_OVERFLOW,
-    ERR_ARG,
-    ERR_NOT_FOUND,
-    ERR_THREAD,
-    ERR_NETWORK,
-    ERR_LOCK,
-    ERR_FREE,
-    ERR_IN_USE,
-    ERR_TOO_MANY,
-    ERR_TYPE,
-    ERR_LAST
+    AGOO_ERR_OK	= 0,
+    AGOO_ERR_MEMORY	= ENOMEM,
+    AGOO_ERR_DENIED	= EACCES,
+    AGOO_ERR_IMPL	= ENOSYS,
+    AGOO_ERR_PARSE	= AGOO_ERR_START,
+    AGOO_ERR_READ,
+    AGOO_ERR_WRITE,
+    AGOO_ERR_OVERFLOW,
+    AGOO_ERR_ARG,
+    AGOO_ERR_NOT_FOUND,
+    AGOO_ERR_THREAD,
+    AGOO_ERR_NETWORK,
+    AGOO_ERR_LOCK,
+    AGOO_ERR_FREE,
+    AGOO_ERR_IN_USE,
+    AGOO_ERR_TOO_MANY,
+    AGOO_ERR_TYPE,
+    AGOO_ERR_LAST
 } agooErrCode;
 
 // The struct used to report errors or status after a function returns. The
@@ -37,9 +37,9 @@ typedef struct _agooErr {
     char	msg[256];
 } *agooErr;
 
-extern int		err_set(agooErr err, int code, const char *fmt, ...);
-extern int		err_no(agooErr err, const char *fmt, ...);
-extern const char*	err_str(agooErrCode code);
-extern void		err_clear(agooErr err);
+extern int		agoo_err_set(agooErr err, int code, const char *fmt, ...);
+extern int		agoo_err_no(agooErr err, const char *fmt, ...);
+extern const char*	agoo_err_str(agooErrCode code);
+extern void		agoo_err_clear(agooErr err);
 
 #endif /* AGOO_ERR_H */

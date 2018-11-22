@@ -9,9 +9,9 @@
 #include "response.h"
 
 int
-response_len(agooResponse res) {
+agoo_response_len(agooResponse res) {
     char	buf[256];
-    const char *msg = http_code_message(res->code);
+    const char *msg = agoo_http_code_message(res->code);
     int		len = snprintf(buf, sizeof(buf), "HTTP/1.1 %d %s\r\nContent-Length: %d\r\n", res->code, msg, res->blen);
     agooHeader	h;
 
@@ -25,9 +25,9 @@ response_len(agooResponse res) {
 }
 
 void
-response_fill(agooResponse res, char *buf) {
+agoo_response_fill(agooResponse res, char *buf) {
     agooHeader	h;
-    const char *msg = http_code_message(res->code);
+    const char *msg = agoo_http_code_message(res->code);
 
     buf += sprintf(buf, "HTTP/1.1 %d %s\r\nContent-Length: %d\r\n", res->code, msg, res->blen);
 

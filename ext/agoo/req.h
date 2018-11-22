@@ -38,10 +38,10 @@ typedef struct _agooReq {
     char			msg[8]; // expanded to be full message
 } *agooReq;
 
-extern agooReq		req_create(size_t mlen);
-extern void		req_destroy(agooReq req);
-extern const char*	req_host(agooReq r, int *lenp);
-extern int		req_port(agooReq r);
-extern const char*	req_query_value(agooReq r, const char *key, int klen, int *vlenp);
+extern agooReq		agoo_req_create(size_t mlen);
+extern void		agoo_req_destroy(agooReq req);
+extern const char*	agoo_req_host(agooReq r, int *lenp);
+extern int		agoo_req_port(agooReq r);
+extern const char*	agoo_req_query_value(agooReq r, const char *key, int klen, int *vlenp);
 
 #endif // AGOO_REQ_H

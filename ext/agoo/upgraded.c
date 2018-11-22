@@ -18,7 +18,7 @@ destroy(agooUpgraded up) {
 	up->on_destroy(up);
     }
     if (NULL == up->prev) {
-	the_server.up_list = up->next;
+	agoo_server.up_list = up->next;
 	if (NULL != up->next) {
 	    up->next->prev = NULL;
 	}
@@ -30,40 +30,40 @@ destroy(agooUpgraded up) {
     }
     while (NULL != (subject = up->subjects)) {
 	up->subjects = up->subjects->next;
-	subject_destroy(subject);
+	agoo_subject_destroy(subject);
     }
     DEBUG_FREE(mem_upgraded, up);
     free(up);
 }
 
 void
-upgraded_release(agooUpgraded up) {
-    pthread_mutex_lock(&the_server.up_lock);
+agoo_upgraded_release(agooUpgraded up) {
+    pthread_mutex_lock(&agoo_server.up_lock);
     if (atomic_fetch_sub(&up->ref_cnt, 1) <= 1) {
 	destroy(up);
     }    
-    pthread_mutex_unlock(&the_server.up_lock);
+    pthread_mutex_unlock(&agoo_server.up_lock);
 }
 
 void
-upgraded_release_con(agooUpgraded up) {
-    pthread_mutex_lock(&the_server.up_lock);
+agoo_upgraded_release_con(agooUpgraded up) {
+    pthread_mutex_lock(&agoo_server.up_lock);
     up->con = NULL;
     if (atomic_fetch_sub(&up->ref_cnt, 1) <= 1) {
 	destroy(up);
     }
-    pthread_mutex_unlock(&the_server.up_lock);
+    pthread_mutex_unlock(&agoo_server.up_lock);
 }
 
 // Called from the con_loop thread, no need to lock, this steals the subject
 // so the pub subject should set to NULL
 void
-upgraded_add_subject(agooUpgraded up, agooSubject subject) {
+agoo_upgraded_add_subject(agooUpgraded up, agooSubject subject) {
     agooSubject	s;
 
     for (s = up->subjects; NULL != s; s = s->next) {
 	if (0 == strcmp(subject->pattern, s->pattern)) {
-	    subject_destroy(subject);
+	    agoo_subject_destroy(subject);
 	    return;
 	}
     }
@@ -72,11 +72,11 @@ upgraded_add_subject(agooUpgraded up, agooSubject subject) {
 }
 
 void
-upgraded_del_subject(agooUpgraded up, agooSubject subject) {
+agoo_upgraded_del_subject(agooUpgraded up, agooSubject subject) {
     if (NULL == subject) {
 	while (NULL != (subject = up->subjects)) {
 	    up->subjects = up->subjects->next;
-	    subject_destroy(subject);
+	    agoo_subject_destroy(subject);
 	}
     } else {
 	agooSubject	s;
@@ -89,7 +89,7 @@ upgraded_del_subject(agooUpgraded up, agooSubject subject) {
 		} else {
 		    prev->next = s->next;
 		}
-		subject_destroy(s);
+		agoo_subject_destroy(s);
 		break;
 	    }
 	    prev = s;
@@ -98,11 +98,11 @@ upgraded_del_subject(agooUpgraded up, agooSubject subject) {
 }
 
 bool
-upgraded_match(agooUpgraded up, const char *subject) {
+agoo_upgraded_match(agooUpgraded up, const char *subject) {
     agooSubject	s;
 
     for (s = up->subjects; NULL != s; s = s->next) {
-	if (subject_check(s, subject)) {
+	if (agoo_subject_check(s, subject)) {
 	    return true;
 	}
     }
@@ -110,15 +110,15 @@ upgraded_match(agooUpgraded up, const char *subject) {
 }
 
 void
-upgraded_ref(agooUpgraded up) {
+agoo_upgraded_ref(agooUpgraded up) {
     atomic_fetch_add(&up->ref_cnt, 1);
 }
 
 bool
-upgraded_write(agooUpgraded up, const char *message, size_t mlen, bool bin, bool inc_ref) {
+agoo_upgraded_write(agooUpgraded up, const char *message, size_t mlen, bool bin, bool inc_ref) {
     agooPub	p;
 
-    if (0 < the_server.max_push_pending && the_server.max_push_pending <= (long)atomic_load(&up->pending)) {
+    if (0 < agoo_server.max_push_pending && agoo_server.max_push_pending <= (long)atomic_load(&up->pending)) {
 	atomic_fetch_sub(&up->ref_cnt, 1);
 	// Too many pending messages.
 	return false;
@@ -126,47 +126,47 @@ upgraded_write(agooUpgraded up, const char *message, size_t mlen, bool bin, bool
     if (inc_ref) {
 	atomic_fetch_add(&up->ref_cnt, 1);
     }
-    p = pub_write(up, message, mlen, bin);
+    p = agoo_pub_write(up, message, mlen, bin);
     atomic_fetch_add(&up->pending, 1);
-    server_publish(p);
+    agoo_server_publish(p);
 
     return true;
 }
 
 void
-upgraded_subscribe(agooUpgraded up, const char *subject, int slen, bool inc_ref) {
+agoo_upgraded_subscribe(agooUpgraded up, const char *subject, int slen, bool inc_ref) {
     if (inc_ref) {
 	atomic_fetch_add(&up->ref_cnt, 1);
     }
     atomic_fetch_add(&up->pending, 1);
-    server_publish(pub_subscribe(up, subject, slen));
+    agoo_server_publish(agoo_pub_subscribe(up, subject, slen));
 }
 
 void
-upgraded_unsubscribe(agooUpgraded up, const char *subject, int slen, bool inc_ref) {
+agoo_upgraded_unsubscribe(agooUpgraded up, const char *subject, int slen, bool inc_ref) {
     if (inc_ref) {
 	atomic_fetch_add(&up->ref_cnt, 1);
     }
     atomic_fetch_add(&up->pending, 1);
-    server_publish(pub_unsubscribe(up, subject, slen));
+    agoo_server_publish(agoo_pub_unsubscribe(up, subject, slen));
 }
 
 void
-upgraded_close(agooUpgraded up, bool inc_ref) {
+agoo_upgraded_close(agooUpgraded up, bool inc_ref) {
     if (inc_ref) {
 	atomic_fetch_add(&up->ref_cnt, 1);
     }
     atomic_fetch_add(&up->pending, 1);
-    server_publish(pub_close(up));
+    agoo_server_publish(agoo_pub_close(up));
 }
 
 int
-upgraded_pending(agooUpgraded up) {
+agoo_upgraded_pending(agooUpgraded up) {
     return (int)(long)atomic_load(&up->pending);
 }
 
 agooUpgraded
-upgraded_create(agooCon c, void * ctx, void *env) {
+agoo_upgraded_create(agooCon c, void * ctx, void *env) {
     agooUpgraded	up = (agooUpgraded)malloc(sizeof(struct _agooUpgraded));
 
     if (NULL != up) {
