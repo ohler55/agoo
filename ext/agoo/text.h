@@ -17,12 +17,12 @@ typedef struct _agooText {
     char	text[AGOO_TEXT_MIN_SIZE];
 } *agooText;
 
-extern agooText	text_create(const char *str, int len);
-extern agooText	text_dup(agooText t);
-extern agooText	text_allocate(int len);
-extern void	text_ref(agooText t);
-extern void	text_release(agooText t);
-extern agooText	text_append(agooText t, const char *s, int len);
-extern agooText	text_prepend(agooText t, const char *s, int len);
+extern agooText	agoo_text_create(const char *str, int len);
+extern agooText	agoo_text_dup(agooText t);
+extern agooText	agoo_text_allocate(int len);
+extern void	agoo_text_ref(agooText t);
+extern void	agoo_text_release(agooText t);
+extern agooText	agoo_text_append(agooText t, const char *s, int len);
+extern agooText	agoo_text_prepend(agooText t, const char *s, int len);
 
 #endif // AGOO_TEXT_H

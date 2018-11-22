@@ -14,6 +14,7 @@
 
 #include "debug.h"
 #include "dtime.h"
+#include "log.h"
 #include "rlog.h"
 
 static VALUE	log_mod = Qundef;
@@ -52,14 +53,14 @@ rlog_configure(VALUE self, VALUE options) {
 
 	if (Qnil != (v = rb_hash_lookup(options, ID2SYM(rb_intern("dir"))))) {
 	    rb_check_type(v, T_STRING);
-	    strncpy(the_log.dir, StringValuePtr(v), sizeof(the_log.dir));
-	    the_log.dir[sizeof(the_log.dir) - 1] = '\0';
+	    strncpy(agoo_log.dir, StringValuePtr(v), sizeof(agoo_log.dir));
+	    agoo_log.dir[sizeof(agoo_log.dir) - 1] = '\0';
 	}
 	if (Qnil != (v = rb_hash_lookup(options, ID2SYM(rb_intern("max_files"))))) {
 	    int	max = FIX2INT(v);
 
 	    if (1 <= max || max < 100) {
-		the_log.max_files = max;
+		agoo_log.max_files = max;
 	    } else {
 		rb_raise(rb_eArgError, "max_files must be between 1 and 100.");
 	    }
@@ -68,23 +69,23 @@ rlog_configure(VALUE self, VALUE options) {
 	    int	max = FIX2INT(v);
 
 	    if (1 <= max) {
-		the_log.max_size = max;
+		agoo_log.max_size = max;
 	    } else {
 		rb_raise(rb_eArgError, "max_size must be 1 or more.");
 	    }
 	}
 	if (Qnil != (v = rb_hash_lookup(options, ID2SYM(rb_intern("console"))))) {
-	    the_log.console = (Qtrue == v);
+	    agoo_log.console = (Qtrue == v);
 	}
 	if (Qnil != (v = rb_hash_lookup(options, ID2SYM(rb_intern("classic"))))) {
-	    the_log.classic = (Qtrue == v);
+	    agoo_log.classic = (Qtrue == v);
 	}
 	if (Qnil != (v = rb_hash_lookup(options, ID2SYM(rb_intern("colorize"))))) {
-	    the_log.colorize = (Qtrue == v);
+	    agoo_log.colorize = (Qtrue == v);
 	}
 	if (Qnil != (v = rb_hash_lookup(options, ID2SYM(rb_intern("states"))))) {
 	    if (T_HASH == rb_type(v)) {
-		agooLogCat	cat = the_log.cats;
+		agooLogCat	cat = agoo_log.cats;
 		VALUE	cv;
 		
 		for (; NULL != cat; cat = cat->next) {
@@ -101,15 +102,15 @@ rlog_configure(VALUE self, VALUE options) {
 	    }
 	}
     }
-    if (NULL != the_log.file) {
-	fclose(the_log.file);
-	the_log.file = NULL;
+    if (NULL != agoo_log.file) {
+	fclose(agoo_log.file);
+	agoo_log.file = NULL;
     }
-    if ('\0' != *the_log.dir) {
-	if (0 != mkdir(the_log.dir, 0770) && EEXIST != errno) {
-	    rb_raise(rb_eIOError, "Failed to create '%s'.", the_log.dir);
+    if ('\0' != *agoo_log.dir) {
+	if (0 != mkdir(agoo_log.dir, 0770) && EEXIST != errno) {
+	    rb_raise(rb_eIOError, "Failed to create '%s'.", agoo_log.dir);
 	}
-	open_log_file();
+	agoo_log_open_file();
     }
     return Qnil;
 }
@@ -122,7 +123,7 @@ rlog_configure(VALUE self, VALUE options) {
  */
 static VALUE
 rlog_shutdown(VALUE self) {
-    log_close();
+    agoo_log_close();
     return Qnil;
 }
 
@@ -134,7 +135,7 @@ rlog_shutdown(VALUE self) {
  */
 static VALUE
 rlog_errorp(VALUE self) {
-    return error_cat.on ? Qtrue : Qfalse;
+    return agoo_error_cat.on ? Qtrue : Qfalse;
 }
 
 /* Document-method: warn?
@@ -145,7 +146,7 @@ rlog_errorp(VALUE self) {
  */
 static VALUE
 rlog_warnp(VALUE self) {
-    return warn_cat.on ? Qtrue : Qfalse;
+    return agoo_warn_cat.on ? Qtrue : Qfalse;
 }
 
 /* Document-method: info?
@@ -156,7 +157,7 @@ rlog_warnp(VALUE self) {
  */
 static VALUE
 rlog_infop(VALUE self) {
-    return info_cat.on ? Qtrue : Qfalse;
+    return agoo_info_cat.on ? Qtrue : Qfalse;
 }
 
 /* Document-method: debug?
@@ -167,7 +168,7 @@ rlog_infop(VALUE self) {
  */
 static VALUE
 rlog_debugp(VALUE self) {
-    return debug_cat.on ? Qtrue : Qfalse;
+    return agoo_debug_cat.on ? Qtrue : Qfalse;
 }
 
 /* Document-method: error
@@ -178,7 +179,7 @@ rlog_debugp(VALUE self) {
  */
 static VALUE
 rlog_error(VALUE self, VALUE msg) {
-    log_cat(&error_cat, "%s", StringValuePtr(msg));
+    agoo_log_cat(&agoo_error_cat, "%s", StringValuePtr(msg));
     return Qnil;
 }
 
@@ -190,7 +191,7 @@ rlog_error(VALUE self, VALUE msg) {
  */
 static VALUE
 rlog_warn(VALUE self, VALUE msg) {
-    log_cat(&warn_cat, "%s", StringValuePtr(msg));
+    agoo_log_cat(&agoo_warn_cat, "%s", StringValuePtr(msg));
     return Qnil;
 }
 
@@ -202,7 +203,7 @@ rlog_warn(VALUE self, VALUE msg) {
  */
 static VALUE
 rlog_info(VALUE self, VALUE msg) {
-    log_cat(&info_cat, "%s", StringValuePtr(msg));
+    agoo_log_cat(&agoo_info_cat, "%s", StringValuePtr(msg));
     return Qnil;
 }
 
@@ -214,7 +215,7 @@ rlog_info(VALUE self, VALUE msg) {
  */
 static VALUE
 rlog_debug(VALUE self, VALUE msg) {
-    log_cat(&debug_cat, "%s", StringValuePtr(msg));
+    agoo_log_cat(&agoo_debug_cat, "%s", StringValuePtr(msg));
     return Qnil;
 }
 
@@ -226,7 +227,7 @@ rlog_debug(VALUE self, VALUE msg) {
  */
 static VALUE
 rlog_color_get(VALUE self, VALUE label) {
-    agooLogCat	cat = log_cat_find(StringValuePtr(label));
+    agooLogCat	cat = agoo_log_cat_find(StringValuePtr(label));
 
     if (NULL == cat) {
 	return Qnil;
@@ -246,7 +247,7 @@ static VALUE
 rlog_color_set(VALUE self, VALUE label, VALUE color) {
     const char	*label_str = StringValuePtr(label);
     const char	*color_name = StringValuePtr(color);
-    agooLogCat	cat = log_cat_find(label_str);
+    agooLogCat	cat = agoo_log_cat_find(label_str);
     agooColor	c = find_color(color_name);
 
     if (NULL == cat) {
@@ -269,7 +270,7 @@ rlog_color_set(VALUE self, VALUE label, VALUE color) {
  */
 static VALUE
 rlog_on_get(VALUE self, VALUE label) {
-    agooLogCat	cat = log_cat_find(StringValuePtr(label));
+    agooLogCat	cat = agoo_log_cat_find(StringValuePtr(label));
 
     if (NULL == cat) {
 	return Qfalse;
@@ -286,7 +287,7 @@ rlog_on_get(VALUE self, VALUE label) {
 static VALUE
 rlog_on_set(VALUE self, VALUE label, VALUE state) {
     const char	*label_str = StringValuePtr(label);
-    agooLogCat	cat = log_cat_find(label_str);
+    agooLogCat	cat = agoo_log_cat_find(label_str);
 
     if (NULL == cat) {
 	rb_raise(rb_eArgError, "%s is not a valid category.", label_str);
@@ -305,12 +306,12 @@ rlog_on_set(VALUE self, VALUE label, VALUE state) {
 static VALUE
 rlog_log(VALUE self, VALUE label, VALUE msg) {
     const char	*label_str = StringValuePtr(label);
-    agooLogCat	cat = log_cat_find(label_str);
+    agooLogCat	cat = agoo_log_cat_find(label_str);
 
     if (NULL == cat) {
 	rb_raise(rb_eArgError, "%s is not a valid category.", label_str);
     }
-    log_cat(cat, "%s", StringValuePtr(msg));
+    agoo_log_cat(cat, "%s", StringValuePtr(msg));
     
     return Qnil;
 }
@@ -326,7 +327,7 @@ static VALUE
 rlog_flush(VALUE self, VALUE to) {
     double	timeout = NUM2DBL(to);
     
-    if (!log_flush(timeout)) {
+    if (!agoo_log_flush(timeout)) {
 	rb_raise(rb_eStandardError, "timed out waiting for log flush.");
     }
     return Qnil;
@@ -340,7 +341,7 @@ rlog_flush(VALUE self, VALUE to) {
  */
 static VALUE
 rlog_rotate(VALUE self) {
-    log_rotate();
+    agoo_log_rotate();
     return Qnil;
 }
 
@@ -352,7 +353,7 @@ rlog_rotate(VALUE self) {
  */
 static VALUE
 rlog_console(VALUE self, VALUE on) {
-    the_log.console = (Qtrue == on);
+    agoo_log.console = (Qtrue == on);
     return Qnil;
 }
 
@@ -364,7 +365,7 @@ rlog_console(VALUE self, VALUE on) {
  */
 static VALUE
 rlog_classic(VALUE self) {
-    the_log.classic = true;
+    agoo_log.classic = true;
     return Qnil;
 }
 
@@ -376,7 +377,7 @@ rlog_classic(VALUE self) {
  */
 static VALUE
 rlog_json(VALUE self) {
-    the_log.classic = false;
+    agoo_log.classic = false;
     return Qnil;
 }
 
@@ -391,7 +392,7 @@ rlog_max_size(VALUE self, VALUE rmax) {
     int	max = FIX2INT(rmax);
 
     if (1 <= max) {
-	the_log.max_size = max;
+	agoo_log.max_size = max;
     } else {
 	rb_raise(rb_eArgError, "max_size must be 1 or more.");
     }
@@ -409,7 +410,7 @@ rlog_max_files(VALUE self, VALUE rmax) {
     int	max = FIX2INT(rmax);
 
     if (1 <= max || max < 100) {
-	the_log.max_files = max;
+	agoo_log.max_files = max;
     } else {
 	rb_raise(rb_eArgError, "max_files must be between 1 and 100.");
     }
@@ -463,8 +464,8 @@ rlog_init(VALUE mod) {
     rb_define_module_function(log_mod, "max_size=", rlog_max_size, 1);
     rb_define_module_function(log_mod, "max_files=", rlog_max_files, 1);
 
-    the_log.on_error = on_error;
+    agoo_log.on_error = on_error;
     
-    log_init("agoo");
-    log_start(false);
+    agoo_log_init("agoo");
+    agoo_log_start(false);
 }

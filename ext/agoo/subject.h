@@ -10,8 +10,8 @@ typedef struct _agooSubject {
     char		pattern[8];
 } *agooSubject;
 
-extern agooSubject	subject_create(const char *pattern, int plen);
-extern void	subject_destroy(agooSubject subject);
-extern bool	subject_check(agooSubject subj, const char *subject);
+extern agooSubject	agoo_subject_create(const char *pattern, int plen);
+extern void		agoo_subject_destroy(agooSubject subject);
+extern bool		agoo_subject_check(agooSubject subj, const char *subject);
 
 #endif // AGOO_SUBJECT_H

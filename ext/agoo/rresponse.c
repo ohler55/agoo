@@ -46,11 +46,11 @@ response_new( ) {
 static VALUE
 to_s(VALUE self) {
     agooResponse	res = (agooResponse)DATA_PTR(self);
-    int			len = response_len(res);
+    int			len = agoo_response_len(res);
     char		*s = ALLOC_N(char, len + 1);
 
     DEBUG_ALLOC(mem_to_s, s)
-    response_fill(res, s);
+    agoo_response_fill(res, s);
     
     return rb_str_new(s, len);
 }
@@ -192,10 +192,10 @@ head_set(VALUE self, VALUE key, VALUE val) {
     vs = StringValuePtr(val);
     vlen = (int)RSTRING_LEN(val);
 
-    if (the_server.pedantic) {
-	struct _agooErr	err = ERR_INIT;
+    if (agoo_server.pedantic) {
+	struct _agooErr	err = AGOO_ERR_INIT;
 
-	if (ERR_OK != http_header_ok(&err, ks, klen, vs, vlen)) {
+	if (AGOO_ERR_OK != agoo_http_header_ok(&err, ks, klen, vs, vlen)) {
 	    rb_raise(rb_eArgError, "%s", err.msg);
 	}
     }
@@ -222,10 +222,10 @@ head_set(VALUE self, VALUE key, VALUE val) {
 agooText
 response_text(VALUE self) {
     agooResponse	res = (agooResponse)DATA_PTR(self);
-    int			len = response_len(res);
-    agooText		t = text_allocate(len);
+    int			len = agoo_response_len(res);
+    agooText		t = agoo_text_allocate(len);
 
-    response_fill(res, t->text);
+    agoo_response_fill(res, t->text);
     t->len = len;
 
     return t;

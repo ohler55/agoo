@@ -34,11 +34,11 @@ typedef struct _agooHook {
     bool		no_queue;
 } *agooHook;
 
-extern agooHook	hook_create(agooMethod method, const char *pattern, void *handler, agooHookType type, agooQueue q);
-extern agooHook	hook_func_create(agooMethod method, const char *pattern, void (*func)(struct _agooReq *req), agooQueue q);
-extern void	hook_destroy(agooHook hook);
+extern agooHook	agoo_hook_create(agooMethod method, const char *pattern, void *handler, agooHookType type, agooQueue q);
+extern agooHook	agoo_hook_func_create(agooMethod method, const char *pattern, void (*func)(struct _agooReq *req), agooQueue q);
+extern void	agoo_hook_destroy(agooHook hook);
 
-extern bool	hook_match(agooHook hook, agooMethod method, const agooSeg seg);
-extern agooHook	hook_find(agooHook hook, agooMethod method, const agooSeg seg);
+extern bool	agoo_hook_match(agooHook hook, agooMethod method, const agooSeg seg);
+extern agooHook	agoo_hook_find(agooHook hook, agooMethod method, const agooSeg seg);
 
 #endif // AGOO_HOOK_H

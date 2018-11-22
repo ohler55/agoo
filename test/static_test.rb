@@ -22,11 +22,11 @@ class StaticTest < Minitest::Test
 			  classic: true,
 			  colorize: true,
 			  states: {
-			    INFO: true,
-			    DEBUG: true,
-			    connect: true,
-			    request: true,
-			    response: true,
+			    INFO: false,
+			    DEBUG: false,
+			    connect: false,
+			    request: false,
+			    response: false,
 			    eval: true,
 			  })
 

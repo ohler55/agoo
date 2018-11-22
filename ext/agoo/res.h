@@ -21,12 +21,12 @@ typedef struct _agooRes {
     bool		pong;
 } *agooRes;
 
-extern agooRes	res_create(struct _agooCon *con);
-extern void	res_destroy(agooRes res);
-extern void	res_set_message(agooRes res, agooText t);
+extern agooRes	agoo_res_create(struct _agooCon *con);
+extern void	agoo_res_destroy(agooRes res);
+extern void	agoo_res_set_message(agooRes res, agooText t);
 
 static inline agooText
-res_message(agooRes res) {
+agoo_res_message(agooRes res) {
     return atomic_load(&res->message);
 }
 

@@ -26,12 +26,12 @@ static agooUpgraded
 get_upgraded(VALUE self) {
     agooUpgraded	up = NULL;
 
-    if (the_server.active) {
-	pthread_mutex_lock(&the_server.up_lock);
+    if (agoo_server.active) {
+	pthread_mutex_lock(&agoo_server.up_lock);
 	if (NULL != (up = DATA_PTR(self))) {
 	    atomic_fetch_add(&up->ref_cnt, 1);
 	}
-	pthread_mutex_unlock(&the_server.up_lock);
+	pthread_mutex_unlock(&agoo_server.up_lock);
     }
     return up;
 }
@@ -88,7 +88,7 @@ rup_write(VALUE self, VALUE msg) {
 	message = StringValuePtr(rs);
 	mlen = RSTRING_LEN(rs);
     }
-    return upgraded_write(up, message, mlen, bin, false) ? Qtrue : Qfalse;
+    return agoo_upgraded_write(up, message, mlen, bin, false) ? Qtrue : Qfalse;
 }
 
 /* Document-method: subscribe
@@ -109,7 +109,7 @@ rup_subscribe(VALUE self, VALUE subject) {
     const char		*subj = extract_subject(subject, &slen);
 
     if (NULL != (up = get_upgraded(self))) {
-	upgraded_subscribe(up, subj, slen, false);
+	agoo_upgraded_subscribe(up, subj, slen, false);
     }
     return Qnil;
 }
@@ -133,7 +133,7 @@ rup_unsubscribe(int argc, VALUE *argv, VALUE self) {
 	subject = extract_subject(argv[0], &slen);
     }
     if (NULL != (up = get_upgraded(self))) {
-	upgraded_unsubscribe(up, subject, slen, false);
+	agoo_upgraded_unsubscribe(up, subject, slen, false);
     }
     return Qnil;
 }
@@ -149,7 +149,7 @@ rup_close(VALUE self) {
     agooUpgraded	up = get_upgraded(self);
 
     if (NULL != up) {
-	upgraded_close(up, false);
+	agoo_upgraded_close(up, false);
     }
     return Qnil;
 }
@@ -167,7 +167,7 @@ rup_pending(VALUE self) {
     int			pending = -1;
     
     if (NULL != up) {
-	pending = upgraded_pending(up);
+	pending = agoo_upgraded_pending(up);
 	atomic_fetch_sub(&up->ref_cnt, 1);
     }
     return INT2NUM(pending);
@@ -202,23 +202,23 @@ static VALUE
 rup_protocol(VALUE self) {
     VALUE	pro = Qnil;
 
-    if (the_server.active) {
+    if (agoo_server.active) {
 	agooUpgraded	up;
 	
-	pthread_mutex_lock(&the_server.up_lock);
+	pthread_mutex_lock(&agoo_server.up_lock);
 	if (NULL != (up = DATA_PTR(self)) && NULL != up->con) {
 	    switch (up->con->bind->kind) {
-	    case CON_WS:
+	    case AGOO_CON_WS:
 		pro = websocket_sym;
 		break;
-	    case CON_SSE:
+	    case AGOO_CON_SSE:
 		pro = sse_sym;
 		break;
 	    default:
 		break;
 	    }
 	}
-	pthread_mutex_unlock(&the_server.up_lock);
+	pthread_mutex_unlock(&agoo_server.up_lock);
     }
     return pro;
 }
@@ -235,10 +235,10 @@ agooUpgraded
 rupgraded_create(agooCon c, VALUE obj, VALUE env) {
     agooUpgraded	up;
 
-    if (!the_server.active) {
+    if (!agoo_server.active) {
 	rb_raise(rb_eIOError, "Server shutdown.");
     }
-    if (NULL != (up = upgraded_create(c, (void*)obj, (void*)env))) {
+    if (NULL != (up = agoo_upgraded_create(c, (void*)obj, (void*)env))) {
 	up->on_empty = rb_respond_to(obj, rb_intern("on_drained"));
 	up->on_close = rb_respond_to(obj, rb_intern("on_close"));
 	up->on_shut = rb_respond_to(obj, rb_intern("on_shutdown"));
@@ -248,7 +248,7 @@ rupgraded_create(agooCon c, VALUE obj, VALUE env) {
 
 	up->wrap = (void*)Data_Wrap_Struct(upgraded_class, NULL, NULL, up);
 
-	server_add_upgraded(up);
+	agoo_server_add_upgraded(up);
 	
 	if (rb_respond_to(obj, on_open_id)) {
 	    rb_funcall(obj, on_open_id, 1, (VALUE)up->wrap);

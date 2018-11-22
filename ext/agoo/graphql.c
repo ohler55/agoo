@@ -191,7 +191,7 @@ gql_type_set(agooErr err, gqlType type) {
     uint64_t	h = calc_hash(type->name);
 
     if (h <= 0) {
-	return err_set(err, ERR_ARG, "%s is not a valid GraphQL type name.", type->name);
+	return agoo_err_set(err, AGOO_ERR_ARG, "%s is not a valid GraphQL type name.", type->name);
     } else {
 	Slot	*bucket = get_bucketp(h);
 	Slot	s;
@@ -200,11 +200,11 @@ gql_type_set(agooErr err, gqlType type) {
 	    if (h == s->hash && 0 == strcmp(s->type->name, type->name)) {
 		type_destroy(s->type);
 		s->type = type;
-		return ERR_OK;
+		return AGOO_ERR_OK;
 	    }
 	}
 	if (NULL == (s = (Slot)malloc(sizeof(struct _slot)))) {
-	    return err_set(err, ERR_MEMORY, "Failed to allocation memory for a GraphQL type.");
+	    return agoo_err_set(err, AGOO_ERR_MEMORY, "Failed to allocation memory for a GraphQL type.");
 	}
 	DEBUG_ALLOC(mem_graphql_slot, s);
 	s->hash = h;
@@ -212,7 +212,7 @@ gql_type_set(agooErr err, gqlType type) {
 	s->next = *bucket;
 	*bucket = s;
     }
-    return ERR_OK;
+    return AGOO_ERR_OK;
 }
 
 static void
@@ -245,8 +245,8 @@ int
 gql_init(agooErr err) {
     memset(buckets, 0, sizeof(buckets));
 
-    if (ERR_OK != gql_value_init(err) ||
-	ERR_OK != gql_intro_init(err)) {
+    if (AGOO_ERR_OK != gql_value_init(err) ||
+	AGOO_ERR_OK != gql_intro_init(err)) {
 
 	return err->code;
     }
@@ -261,7 +261,7 @@ gql_init(agooErr err) {
 
 	return err->code;
     }
-    return ERR_OK;
+    return AGOO_ERR_OK;
 }
 
 void
@@ -295,7 +295,7 @@ type_create(agooErr err, const char *name, const char *desc, int dlen, bool lock
     gqlType	type = (gqlType)malloc(sizeof(struct _gqlType));
 
     if (NULL == type) {
-	err_set(err, ERR_MEMORY, "Failed to allocation memory for a GraphQL Type.");
+	agoo_err_set(err, AGOO_ERR_MEMORY, "Failed to allocation memory for a GraphQL Type.");
     } else {
 	DEBUG_ALLOC(mem_graphql_type, type);
 	type->name = strdup(name);
@@ -312,7 +312,7 @@ type_create(agooErr err, const char *name, const char *desc, int dlen, bool lock
 	type->core = false;
 	type->dir = NULL;
 
-	if (ERR_OK != gql_type_set(err, type)) {
+	if (AGOO_ERR_OK != gql_type_set(err, type)) {
 	    gql_type_destroy(type);
 	    type = NULL;
 	}
@@ -351,7 +351,7 @@ gql_type_create(agooErr err, const char *name, const char *desc, int dlen, bool 
 	    }
 	    if (0 < cnt) {
 		if (NULL == (type->interfaces = (gqlType*)malloc(sizeof(gqlType) * (cnt + 1)))) {
-		    err_set(err, ERR_MEMORY, "Failed to allocation memory for a GraphQL type interfaces.");
+		    agoo_err_set(err, AGOO_ERR_MEMORY, "Failed to allocation memory for a GraphQL type interfaces.");
 		    free(type);
 		    return NULL;
 		}
@@ -378,7 +378,7 @@ gql_type_field(agooErr err,
     gqlField	f = (gqlField)malloc(sizeof(struct _gqlField));
     
     if (NULL == f) {
-	err_set(err, ERR_MEMORY, "Failed to allocation memory for a GraphQL field.");
+	agoo_err_set(err, AGOO_ERR_MEMORY, "Failed to allocation memory for a GraphQL field.");
     } else {
 	DEBUG_ALLOC(mem_graphql_field, f);
 	f->next = NULL;
@@ -421,7 +421,7 @@ gql_field_arg(agooErr		err,
     gqlArg	a = (gqlArg)malloc(sizeof(struct _gqlArg));
     
     if (NULL == a) {
-	err_set(err, ERR_MEMORY, "Failed to allocation memory for a GraphQL field argument.");
+	agoo_err_set(err, AGOO_ERR_MEMORY, "Failed to allocation memory for a GraphQL field argument.");
     } else {
 	DEBUG_ALLOC(mem_graphql_arg, a);
 	a->next = NULL;
@@ -471,7 +471,7 @@ gql_union_add(agooErr err, gqlType type, const char *name, int len) {
     gqlTypeLink	link = (gqlTypeLink)malloc(sizeof(gqlTypeLink));
 
     if (NULL == link) {
-	err_set(err, ERR_MEMORY, "Failed to allocation memory for a GraphQL Union value.");
+	agoo_err_set(err, AGOO_ERR_MEMORY, "Failed to allocation memory for a GraphQL Union value.");
     }
     if (0 >= len) {
 	len = (int)strlen(name);
@@ -488,7 +488,7 @@ gql_union_add(agooErr err, gqlType type, const char *name, int len) {
 	link->next = NULL;
 	last->next = link;
     }
-    return ERR_OK;
+    return AGOO_ERR_OK;
 }
 
 agooText
@@ -514,7 +514,7 @@ gql_enum_add(agooErr err, gqlType type, const char *value, int len) {
     gqlStrLink	link = (gqlStrLink)malloc(sizeof(gqlStrLink));
 
     if (NULL == link) {
-	err_set(err, ERR_MEMORY, "Failed to allocation memory for a GraphQL Enum value.");
+	agoo_err_set(err, AGOO_ERR_MEMORY, "Failed to allocation memory for a GraphQL Enum value.");
     }
     if (0 >= len) {
 	len = (int)strlen(value);
@@ -523,7 +523,7 @@ gql_enum_add(agooErr err, gqlType type, const char *value, int len) {
     type->choices = link;
     link->str = strndup(value, len);
     
-    return ERR_OK;
+    return AGOO_ERR_OK;
 }
 
 int
@@ -531,7 +531,7 @@ gql_enum_append(agooErr err, gqlType type, const char *value, int len) {
     gqlStrLink	link = (gqlStrLink)malloc(sizeof(gqlStrLink));
 
     if (NULL == link) {
-	err_set(err, ERR_MEMORY, "Failed to allocation memory for a GraphQL Enum value.");
+	agoo_err_set(err, AGOO_ERR_MEMORY, "Failed to allocation memory for a GraphQL Enum value.");
     }
     if (0 >= len) {
 	len = (int)strlen(value);
@@ -548,7 +548,7 @@ gql_enum_append(agooErr err, gqlType type, const char *value, int len) {
 	link->next = NULL;
 	last->next = link;
     }
-    return ERR_OK;
+    return AGOO_ERR_OK;
 }
 
 static agooText
@@ -609,11 +609,11 @@ gql_interface_create(agooErr err, const char *name, const char *desc, int dlen, 
 static agooText
 scalar_to_json(agooText text, gqlValue value, int indent, int depth) {
     if (NULL == value->str) {
-	text = text_append(text, "null", 4);
+	text = agoo_text_append(text, "null", 4);
     } else {
-	text = text_append(text, "\"", 1);
-	text = text_append(text, value->str, -1);
-	text = text_append(text, "\"", 1);
+	text = agoo_text_append(text, "\"", 1);
+	text = agoo_text_append(text, value->str, -1);
+	text = agoo_text_append(text, "\"", 1);
     }
     return text;
 }
@@ -637,7 +637,7 @@ gql_directive_create(agooErr err, const char *name, const char *desc, int dlen, 
     gqlDir	dir;
     
     if (NULL == (dir = (gqlDir)malloc(sizeof(struct _gqlDir)))) {
-	err_set(err, ERR_MEMORY, "Failed to allocation memory for a GraphQL directive.");
+	agoo_err_set(err, AGOO_ERR_MEMORY, "Failed to allocation memory for a GraphQL directive.");
 	return NULL;
     }
     DEBUG_ALLOC(mem_graphql_directive, dir);
@@ -672,7 +672,7 @@ gql_dir_arg(agooErr 		err,
     gqlArg	a = (gqlArg)malloc(sizeof(struct _gqlArg));
     
     if (NULL == a) {
-	err_set(err, ERR_MEMORY, "Failed to allocation memory for a GraphQL directive argument.");
+	agoo_err_set(err, AGOO_ERR_MEMORY, "Failed to allocation memory for a GraphQL directive argument.");
     } else {
 	DEBUG_ALLOC(mem_graphql_arg, a);
 	a->next = NULL;
@@ -708,7 +708,7 @@ gql_directive_on(agooErr err, gqlDir d, const char *on, int len) {
     gqlStrLink	loc;
 
     if (NULL == link) {
-	err_set(err, ERR_MEMORY, "Failed to allocation memory for a GraphQL directive location.");
+	agoo_err_set(err, AGOO_ERR_MEMORY, "Failed to allocation memory for a GraphQL directive location.");
     }
     if (0 >= len) {
 	len = (int)strlen(on);
@@ -724,7 +724,7 @@ gql_directive_on(agooErr err, gqlDir d, const char *on, int len) {
     }
     link->str = strndup(on, len);
     
-    return ERR_OK;
+    return AGOO_ERR_OK;
 }
 
 void
@@ -753,14 +753,14 @@ desc_sdl(agooText text, const char *desc, int indent) {
 	int	cnt = desc_len(desc);
 
 	if (0 < indent) {
-	    text = text_append(text, spaces, indent);
+	    text = agoo_text_append(text, spaces, indent);
 	}
 	if (0 <= cnt) {
-	    text = text_append(text, "\"", 1);
-	    text = text_append(text, desc, cnt);
-	    text = text_append(text, "\"\n", 2);
+	    text = agoo_text_append(text, "\"", 1);
+	    text = agoo_text_append(text, desc, cnt);
+	    text = agoo_text_append(text, "\"\n", 2);
 	} else {
-	    text = text_append(text, "\"\"\"\n", 4);
+	    text = agoo_text_append(text, "\"\"\"\n", 4);
 	    if (0 < indent) {
 		const char	*start = desc;
 		const char	*d = desc;
@@ -772,29 +772,29 @@ desc_sdl(agooText text, const char *desc, int indent) {
 			if ('\n' == *d) {
 			    d++;
 			}
-			text = text_append(text, spaces, indent);
-			text = text_append(text, start, len);
-			text = text_append(text, "\n", 1);
+			text = agoo_text_append(text, spaces, indent);
+			text = agoo_text_append(text, start, len);
+			text = agoo_text_append(text, "\n", 1);
 			start = d;
 		    } else if ('\n' == *d) {
-			text = text_append(text, spaces, indent);
-			text = text_append(text, start, (int)(d - start));
-			text = text_append(text, "\n", 1);
+			text = agoo_text_append(text, spaces, indent);
+			text = agoo_text_append(text, start, (int)(d - start));
+			text = agoo_text_append(text, "\n", 1);
 			d++;
 			start = d;
 		    }
 		}
-		text = text_append(text, spaces, indent);
-		text = text_append(text, start, (int)(d - start));
+		text = agoo_text_append(text, spaces, indent);
+		text = agoo_text_append(text, start, (int)(d - start));
 	    } else {
-		text = text_append(text, desc, -1);
+		text = agoo_text_append(text, desc, -1);
 	    }
 	    if (0 < indent) {
-		text = text_append(text, "\n", 1);
-		text = text_append(text, spaces, indent);
-		text = text_append(text, "\"\"\"\n", 4);
+		text = agoo_text_append(text, "\n", 1);
+		text = agoo_text_append(text, spaces, indent);
+		text = agoo_text_append(text, "\"\"\"\n", 4);
 	    } else {
-		text = text_append(text, "\n\"\"\"\n", 5);
+		text = agoo_text_append(text, "\n\"\"\"\n", 5);
 	    }
 	}
     }
@@ -806,19 +806,19 @@ arg_sdl(agooText text, gqlArg a, bool with_desc, bool last) {
     if (with_desc) {
 	text = desc_sdl(text, a->desc, 4);
     }
-    text = text_append(text, a->name, -1);
+    text = agoo_text_append(text, a->name, -1);
     if (a->required) {
-	text = text_append(text, "!: ", 3);
+	text = agoo_text_append(text, "!: ", 3);
     } else {
-	text = text_append(text, ": ", 2);
+	text = agoo_text_append(text, ": ", 2);
     }
-    text = text_append(text, a->type_name, -1);
+    text = agoo_text_append(text, a->type_name, -1);
     if (NULL != a->default_value) {
-	text = text_append(text, " = ", 3);
+	text = agoo_text_append(text, " = ", 3);
 	text = gql_value_json(text, a->default_value, 0, 0);
     }
     if (!last) {
-	text = text_append(text, ", ", 2);
+	text = agoo_text_append(text, ", ", 2);
     }
     return text;
 }
@@ -828,32 +828,32 @@ field_sdl(agooText text, gqlField f, bool with_desc) {
     if (with_desc) {
 	text = desc_sdl(text, f->desc, 2);
     }
-    text = text_append(text, "  ", 2);
-    text = text_append(text, f->name, -1);
+    text = agoo_text_append(text, "  ", 2);
+    text = agoo_text_append(text, f->name, -1);
     if (NULL != f->args) {
 	gqlArg	a;
 
-	text = text_append(text, "(", 1);
+	text = agoo_text_append(text, "(", 1);
 	for (a = f->args; NULL != a; a = a->next) {
 	    text = arg_sdl(text, a, with_desc, NULL == a->next);
 	}
-	text = text_append(text, ")", 1);
+	text = agoo_text_append(text, ")", 1);
     }
-    text = text_append(text, ": ", 2);
+    text = agoo_text_append(text, ": ", 2);
     if (f->list) {
-	text = text_append(text, "[", 1);
-	text = text_append(text, f->type->name, -1);
+	text = agoo_text_append(text, "[", 1);
+	text = agoo_text_append(text, f->type->name, -1);
 	if (f->not_empty) {
-	    text = text_append(text, "!", 1);
+	    text = agoo_text_append(text, "!", 1);
 	}
-	text = text_append(text, "]", 1);
+	text = agoo_text_append(text, "]", 1);
     } else {
-	text = text_append(text, f->type->name, -1);
+	text = agoo_text_append(text, f->type->name, -1);
     }
     if (f->required) {
-	text = text_append(text, "!", 1);
+	text = agoo_text_append(text, "!", 1);
     }
-    text = text_append(text, "\n", 1);
+    text = agoo_text_append(text, "\n", 1);
 
     return text;
 }
@@ -868,36 +868,36 @@ gql_type_sdl(agooText text, gqlType type, bool with_desc) {
     case GQL_FRAG: {
 	gqlField	f;
 
-	text = text_append(text, "type ", 5);
-	text = text_append(text, type->name, -1);
+	text = agoo_text_append(text, "type ", 5);
+	text = agoo_text_append(text, type->name, -1);
 	if (NULL != type->interfaces) {
 	    gqlType	*tp = type->interfaces;
 
-	    text = text_append(text, " implements ", 12);
+	    text = agoo_text_append(text, " implements ", 12);
 	    for (; NULL != *tp; tp++) {
-		text = text_append(text, (*tp)->name, -1);
+		text = agoo_text_append(text, (*tp)->name, -1);
 		if (NULL != *(tp + 1)) {
-		    text = text_append(text, ", ", 2);
+		    text = agoo_text_append(text, ", ", 2);
 		}
 	    }
 	}
-	text = text_append(text, " {\n", 3);
+	text = agoo_text_append(text, " {\n", 3);
 	for (f = type->fields; NULL != f; f = f->next) {
 	    text = field_sdl(text, f, with_desc);
 	}
-	text = text_append(text, "}\n", 2);
+	text = agoo_text_append(text, "}\n", 2);
 	break;
     }
     case GQL_UNION: {
 	gqlTypeLink	link;
 
-	text = text_append(text, "union ", 6);
-	text = text_append(text, type->name, -1);
-	text = text_append(text, " = ", 3);
+	text = agoo_text_append(text, "union ", 6);
+	text = agoo_text_append(text, type->name, -1);
+	text = agoo_text_append(text, " = ", 3);
 	for (link = type->types; NULL != link; link = link->next) {
-	    text = text_append(text, link->name, -1);
+	    text = agoo_text_append(text, link->name, -1);
 	    if (NULL != link->next) {
-		text = text_append(text, " | ", 3);
+		text = agoo_text_append(text, " | ", 3);
 	    }
 	}
 	break;
@@ -905,45 +905,45 @@ gql_type_sdl(agooText text, gqlType type, bool with_desc) {
     case GQL_ENUM: {
 	gqlStrLink	link;;
 	
-	text = text_append(text, "enum ", 5);
-	text = text_append(text, type->name, -1);
-	text = text_append(text, " {\n", 3);
+	text = agoo_text_append(text, "enum ", 5);
+	text = agoo_text_append(text, type->name, -1);
+	text = agoo_text_append(text, " {\n", 3);
 	for (link = type->choices; NULL != link; link = link->next) {
-	    text = text_append(text, "  ", 2);
-	    text = text_append(text, link->str, -1);
-	    text = text_append(text, "\n", 1);
+	    text = agoo_text_append(text, "  ", 2);
+	    text = agoo_text_append(text, link->str, -1);
+	    text = agoo_text_append(text, "\n", 1);
 	}
-	text = text_append(text, "}\n", 2);
+	text = agoo_text_append(text, "}\n", 2);
 	break;
     }
     case GQL_SCALAR:
-	text = text_append(text, "scalar ", 7);
-	text = text_append(text, type->name, -1);
-	text = text_append(text, "\n", 1);
+	text = agoo_text_append(text, "scalar ", 7);
+	text = agoo_text_append(text, type->name, -1);
+	text = agoo_text_append(text, "\n", 1);
 	break;
     case GQL_INTERFACE: {
 	gqlField	f;
 
-	text = text_append(text, "interface ", 10);
-	text = text_append(text, type->name, -1);
-	text = text_append(text, " {\n", 3);
+	text = agoo_text_append(text, "interface ", 10);
+	text = agoo_text_append(text, type->name, -1);
+	text = agoo_text_append(text, " {\n", 3);
 
 	for (f = type->fields; NULL != f; f = f->next) {
 	    text = field_sdl(text, f, with_desc);
 	}
-	text = text_append(text, "}\n", 2);
+	text = agoo_text_append(text, "}\n", 2);
 	break;
     }
     case GQL_INPUT: {
 	gqlField	f;
 
-	text = text_append(text, "input ", 6);
-	text = text_append(text, type->name, -1);
-	text = text_append(text, " {\n", 3);
+	text = agoo_text_append(text, "input ", 6);
+	text = agoo_text_append(text, type->name, -1);
+	text = agoo_text_append(text, " {\n", 3);
 	for (f = type->fields; NULL != f; f = f->next) {
 	    text = field_sdl(text, f, with_desc);
 	}
-	text = text_append(text, "}\n", 2);
+	text = agoo_text_append(text, "}\n", 2);
 	break;
     }
     default:
@@ -959,22 +959,22 @@ gql_directive_sdl(agooText text, gqlDir d, bool with_desc) {
     if (with_desc) {
 	text = desc_sdl(text, d->desc, 0);
     }
-    text = text_append(text, "directive @", 11);
-    text = text_append(text, d->name, -1);
+    text = agoo_text_append(text, "directive @", 11);
+    text = agoo_text_append(text, d->name, -1);
     if (NULL != d->args) {
 	gqlArg	a;
 
-	text = text_append(text, "(", 1);
+	text = agoo_text_append(text, "(", 1);
 	for (a = d->args; NULL != a; a = a->next) {
 	    text = arg_sdl(text, a, with_desc, NULL == a->next);
 	}
-	text = text_append(text, ")", 1);
+	text = agoo_text_append(text, ")", 1);
     }
-    text = text_append(text, " on ", 4);
+    text = agoo_text_append(text, " on ", 4);
     for (link = d->locs; NULL != link; link = link->next) {
-	text = text_append(text, link->str, -1);
+	text = agoo_text_append(text, link->str, -1);
 	if (NULL != link->next) {
-	    text = text_append(text, " | ", 3);
+	    text = agoo_text_append(text, " | ", 3);
 	}
     }
     return text;
@@ -1032,14 +1032,14 @@ gql_schema_sdl(agooText text, bool with_desc, bool all) {
 	for (i = 0, tp = types; i < cnt; i++, tp++) {
 	    text = gql_type_sdl(text, *tp, with_desc);
 	    if (i < cnt - 1) {
-		text = text_append(text, "\n", 1);
+		text = agoo_text_append(text, "\n", 1);
 	    }
 	}
     }
     for (d = directives; NULL != d; d = d->next) {
-	text = text_append(text, "\n", 1);
+	text = agoo_text_append(text, "\n", 1);
 	text = gql_directive_sdl(text, d, with_desc);
-	text = text_append(text, "\n", 1);
+	text = agoo_text_append(text, "\n", 1);
     }
     return text;
 }
@@ -1048,24 +1048,24 @@ void
 gql_dump_hook(agooReq req) {
     char	buf[256];
     int		cnt;
-    agooText	text = text_allocate(4094);
+    agooText	text = agoo_text_allocate(4094);
     bool	all = false;
     bool	with_desc = true;
     int		vlen;
-    const char	*s = req_query_value(req, "all", 3, &vlen);
+    const char	*s = agoo_req_query_value(req, "all", 3, &vlen);
 
     if (NULL != s && 4 == vlen && 0 == strncasecmp("true", s, 4)) {
 	all = true;
     }
-    s = req_query_value(req, "with_desc", 9, &vlen);
+    s = agoo_req_query_value(req, "with_desc", 9, &vlen);
 
     if (NULL != s && 5 == vlen && 0 == strncasecmp("false", s, 5)) {
 	with_desc = false;
     }
     text = gql_schema_sdl(text, with_desc, all);
     cnt = snprintf(buf, sizeof(buf), "HTTP/1.1 200 Okay\r\nContent-Type: application/graphql\r\nContent-Length: %ld\r\n\r\n", text->len);
-    text = text_prepend(text, buf, cnt);
-    res_set_message(req->res, text);
+    text = agoo_text_prepend(text, buf, cnt);
+    agoo_res_set_message(req->res, text);
 }
 
 void

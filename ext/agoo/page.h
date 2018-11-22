@@ -30,17 +30,17 @@ typedef struct _agooGroup {
     agooDir		dirs;
 } *agooGroup;
 
-extern void		pages_init();
-extern void		pages_set_root(const char *root);
-extern void		pages_cleanup();
+extern void		agoo_pages_init();
+extern void		agoo_pages_set_root(const char *root);
+extern void		agoo_pages_cleanup();
 
 extern agooGroup	group_create(const char *path);
 extern void		group_add(agooGroup g, const char *dir);
 extern agooPage		group_get(agooErr err, const char *path, int plen);
 
-extern agooPage		page_create(const char *path);
-extern agooPage		page_immutable(agooErr err, const char *path, const char *content, int clen);
-extern agooPage		page_get(agooErr err, const char *path, int plen);
+extern agooPage		agoo_page_create(const char *path);
+extern agooPage		agoo_page_immutable(agooErr err, const char *path, const char *content, int clen);
+extern agooPage		agoo_page_get(agooErr err, const char *path, int plen);
 extern int		mime_set(agooErr err, const char *key, const char *value);
 
 #endif // AGOO_PAGE_H

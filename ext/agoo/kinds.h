@@ -4,10 +4,10 @@
 #define AGOO_KINDS_H
 
 typedef enum {
-    CON_ANY	= '\0',
-    CON_HTTP	= 'H',
-    CON_WS	= 'W',
-    CON_SSE	= 'S',
+    AGOO_CON_ANY	= '\0',
+    AGOO_CON_HTTP	= 'H',
+    AGOO_CON_WS		= 'W',
+    AGOO_CON_SSE	= 'S',
 } agooConKind;
 
 #endif // AGOO_KINDS_H

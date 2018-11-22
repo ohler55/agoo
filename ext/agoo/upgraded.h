@@ -32,21 +32,21 @@ typedef struct _agooUpgraded {
     void			(*on_destroy)(struct _agooUpgraded *up);
 } *agooUpgraded;
 
-extern agooUpgraded	upgraded_create(struct _agooCon *c, void * ctx, void *env);
+extern agooUpgraded	agoo_upgraded_create(struct _agooCon *c, void * ctx, void *env);
 
-extern void	upgraded_release(agooUpgraded up);
-extern void	upgraded_release_con(agooUpgraded up);
+extern void		agoo_upgraded_release(agooUpgraded up);
+extern void		agoo_upgraded_release_con(agooUpgraded up);
 
-extern void	upgraded_ref(agooUpgraded up);
+extern void		agoo_upgraded_ref(agooUpgraded up);
 
-extern void	upgraded_add_subject(agooUpgraded up, struct _agooSubject *subject);
-extern void	upgraded_del_subject(agooUpgraded up, struct _agooSubject *subject);
-extern bool	upgraded_match(agooUpgraded up, const char *subject);
+extern void		agoo_upgraded_add_subject(agooUpgraded up, struct _agooSubject *subject);
+extern void		agoo_upgraded_del_subject(agooUpgraded up, struct _agooSubject *subject);
+extern bool		agoo_upgraded_match(agooUpgraded up, const char *subject);
 
-extern bool	upgraded_write(agooUpgraded up, const char *message, size_t mlen, bool bin, bool inc_ref);
-extern void	upgraded_subscribe(agooUpgraded up, const char *subject, int slen, bool inc_ref);
-extern void	upgraded_unsubscribe(agooUpgraded up, const char *subject, int slen, bool inc_ref);
-extern void	upgraded_close(agooUpgraded up, bool inc_ref);
-extern int	upgraded_pending(agooUpgraded up);
+extern bool		agoo_upgraded_write(agooUpgraded up, const char *message, size_t mlen, bool bin, bool inc_ref);
+extern void		agoo_upgraded_subscribe(agooUpgraded up, const char *subject, int slen, bool inc_ref);
+extern void		agoo_upgraded_unsubscribe(agooUpgraded up, const char *subject, int slen, bool inc_ref);
+extern void		agoo_upgraded_close(agooUpgraded up, bool inc_ref);
+extern int		agoo_upgraded_pending(agooUpgraded up);
 
 #endif // AGOO_UPGRADED_H

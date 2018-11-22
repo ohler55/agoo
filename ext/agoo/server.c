@@ -22,38 +22,38 @@
 
 #define LOOP_UP		100
 
-struct _agooServer	the_server = {false};
+struct _agooServer	agoo_server = {false};
 
 void
-server_setup() {
+agoo_server_setup() {
     long	i;
     
-    memset(&the_server, 0, sizeof(struct _agooServer));
-    pthread_mutex_init(&the_server.up_lock, 0);
-    the_server.up_list = NULL;
-    the_server.max_push_pending = 32;
-    pages_init();
-    queue_multi_init(&the_server.con_queue, 1024, false, true);
-    queue_multi_init(&the_server.eval_queue, 1024, true, true);
-    the_server.loop_max = 4;
+    memset(&agoo_server, 0, sizeof(struct _agooServer));
+    pthread_mutex_init(&agoo_server.up_lock, 0);
+    agoo_server.up_list = NULL;
+    agoo_server.max_push_pending = 32;
+    agoo_pages_init();
+    agoo_queue_multi_init(&agoo_server.con_queue, 1024, false, true);
+    agoo_queue_multi_init(&agoo_server.eval_queue, 1024, true, true);
+    agoo_server.loop_max = 4;
     if (0 < (i = sysconf(_SC_NPROCESSORS_ONLN))) {
 	i /= 2;
 	if (0 >= i) {
 	    i = 1;
 	}
-	the_server.loop_max = (int)i;
+	agoo_server.loop_max = (int)i;
     }
 }
 
 static void
 add_con_loop() {
-    struct _agooErr	err = ERR_INIT;
-    agooConLoop		loop = conloop_create(&err, 0);
+    struct _agooErr	err = AGOO_ERR_INIT;
+    agooConLoop		loop = agoo_conloop_create(&err, 0);
 
     if (NULL != loop) {
-	loop->next = the_server.con_loops;
-	the_server.con_loops = loop;
-	the_server.loop_cnt++;
+	loop->next = agoo_server.con_loops;
+	agoo_server.con_loops = loop;
+	agoo_server.loop_cnt++;
     }
 }
 
@@ -62,7 +62,7 @@ listen_loop(void *x) {
     int			optval = 1;
     struct pollfd	pa[100];
     struct pollfd	*p;
-    struct _agooErr	err = ERR_INIT;
+    struct _agooErr	err = AGOO_ERR_INIT;
     struct sockaddr_in	client_addr;
     int			client_sock;
     int			pcnt = 0;
@@ -74,34 +74,34 @@ listen_loop(void *x) {
 
     // TBD support multiple sockets, count binds, allocate pollfd, setup
     //
-    for (b = the_server.binds, p = pa; NULL != b; b = b->next, p++, pcnt++) {
+    for (b = agoo_server.binds, p = pa; NULL != b; b = b->next, p++, pcnt++) {
 	p->fd = b->fd;
 	p->events = POLLIN;
 	p->revents = 0;
     }
     memset(&client_addr, 0, sizeof(client_addr));
-    atomic_fetch_add(&the_server.running, 1);
-    while (the_server.active) {
+    atomic_fetch_add(&agoo_server.running, 1);
+    while (agoo_server.active) {
 	if (0 > (i = poll(pa, pcnt, 200))) {
 	    if (EAGAIN == errno) {
 		continue;
 	    }
-	    log_cat(&error_cat, "Server polling error. %s.", strerror(errno));
+	    agoo_log_cat(&agoo_error_cat, "Server polling error. %s.", strerror(errno));
 	    // Either a signal or something bad like out of memory. Might as well exit.
 	    break;
 	}
 	if (0 == i) { // nothing to read
 	    continue;
 	}
-	for (b = the_server.binds, p = pa; NULL != b; b = b->next, p++) {
+	for (b = agoo_server.binds, p = pa; NULL != b; b = b->next, p++) {
 	    if (0 != (p->revents & POLLIN)) {
 		if (0 > (client_sock = accept(p->fd, (struct sockaddr*)&client_addr, &alen))) {
-		    log_cat(&error_cat, "Server with pid %d accept connection failed. %s.", getpid(), strerror(errno));
-		} else if (NULL == (con = con_create(&err, client_sock, ++cnt, b))) {
-		    log_cat(&error_cat, "Server with pid %d accept connection failed. %s.", getpid(), err.msg);
+		    agoo_log_cat(&agoo_error_cat, "Server with pid %d accept connection failed. %s.", getpid(), strerror(errno));
+		} else if (NULL == (con = agoo_con_create(&err, client_sock, ++cnt, b))) {
+		    agoo_log_cat(&agoo_error_cat, "Server with pid %d accept connection failed. %s.", getpid(), err.msg);
 		    close(client_sock);
 		    cnt--;
-		    err_clear(&err);
+		    agoo_err_clear(&err);
 		} else {
 		    int	con_cnt;
 #ifdef OSX_OS
@@ -114,102 +114,102 @@ listen_loop(void *x) {
 		    //fcntl(client_sock, F_SETFL, FNDELAY);
 		    setsockopt(client_sock, SOL_SOCKET, SO_KEEPALIVE, &optval, sizeof(optval));
 		    setsockopt(client_sock, IPPROTO_TCP, TCP_NODELAY, &optval, sizeof(optval));
-		    log_cat(&con_cat, "Server with pid %d accepted connection %llu on %s [%d]",
-			    getpid(), (unsigned long long)cnt, b->id, con->sock);
+		    agoo_log_cat(&agoo_con_cat, "Server with pid %d accepted connection %llu on %s [%d]",
+				 getpid(), (unsigned long long)cnt, b->id, con->sock);
 
-		    con_cnt = atomic_fetch_add(&the_server.con_cnt, 1);
-		    if (the_server.loop_max > the_server.loop_cnt && the_server.loop_cnt * LOOP_UP < con_cnt) {
+		    con_cnt = atomic_fetch_add(&agoo_server.con_cnt, 1);
+		    if (agoo_server.loop_max > agoo_server.loop_cnt && agoo_server.loop_cnt * LOOP_UP < con_cnt) {
 			add_con_loop();
 		    }
-		    queue_push(&the_server.con_queue, (void*)con);
+		    agoo_queue_push(&agoo_server.con_queue, (void*)con);
 		}
 	    }
 	    if (0 != (p->revents & (POLLERR | POLLHUP | POLLNVAL))) {
 		if (0 != (p->revents & (POLLHUP | POLLNVAL))) {
-		    log_cat(&error_cat, "Agoo server with pid %d socket on %s closed.", getpid(), b->id);
+		    agoo_log_cat(&agoo_error_cat, "Agoo server with pid %d socket on %s closed.", getpid(), b->id);
 		} else {
-		    log_cat(&error_cat, "Agoo server with pid %d socket on %s error.", getpid(), b->id);
+		    agoo_log_cat(&agoo_error_cat, "Agoo server with pid %d socket on %s error.", getpid(), b->id);
 		}
-		the_server.active = false;
+		agoo_server.active = false;
 	    }
 	    p->revents = 0;
 	}
     }
-    for (b = the_server.binds; NULL != b; b = b->next) {
-	bind_close(b);
+    for (b = agoo_server.binds; NULL != b; b = b->next) {
+	agoo_bind_close(b);
     }
-    atomic_fetch_sub(&the_server.running, 1);
+    atomic_fetch_sub(&agoo_server.running, 1);
 
     return NULL;
 }
 
 int
-server_start(agooErr err, const char *app_name, const char *version) {
+agoo_server_start(agooErr err, const char *app_name, const char *version) {
     double	giveup;
     int		xcnt = 0;
     
-    pthread_create(&the_server.listen_thread, NULL, listen_loop, NULL);
+    pthread_create(&agoo_server.listen_thread, NULL, listen_loop, NULL);
     xcnt++;
-    the_server.con_loops = conloop_create(err, 0);
-    the_server.loop_cnt = 1;
+    agoo_server.con_loops = agoo_conloop_create(err, 0);
+    agoo_server.loop_cnt = 1;
     xcnt++;
     
     // If the eval thread count is 1 that implies the eval load is low so
     // might as well create the maximum number of con threads as is
     // reasonable.
-    if (1 >= the_server.thread_cnt) {
-	while (the_server.loop_cnt < the_server.loop_max) {
+    if (1 >= agoo_server.thread_cnt) {
+	while (agoo_server.loop_cnt < agoo_server.loop_max) {
 	    add_con_loop();
 	    xcnt++;
 	}
     }
     giveup = dtime() + 1.0;
     while (dtime() < giveup) {
-	if (xcnt <= (long)atomic_load(&the_server.running)) {
+	if (xcnt <= (long)atomic_load(&agoo_server.running)) {
 	    break;
 	}
 	dsleep(0.01);
     }
-    if (info_cat.on) {
+    if (agoo_info_cat.on) {
 	agooBind	b;
 	
-	for (b = the_server.binds; NULL != b; b = b->next) {
-	    log_cat(&info_cat, "%s %s with pid %d is listening on %s.", app_name, version, getpid(), b->id);
+	for (b = agoo_server.binds; NULL != b; b = b->next) {
+	    agoo_log_cat(&agoo_info_cat, "%s %s with pid %d is listening on %s.", app_name, version, getpid(), b->id);
 	}
     }
-    return ERR_OK;
+    return AGOO_ERR_OK;
 }
 
 int
 setup_listen(agooErr err) {
     agooBind	b;
 
-    for (b = the_server.binds; NULL != b; b = b->next) {
-	if (ERR_OK != bind_listen(err, b)) {
+    for (b = agoo_server.binds; NULL != b; b = b->next) {
+	if (AGOO_ERR_OK != agoo_bind_listen(err, b)) {
 	    return err->code;
 	}
     }
-    the_server.active = true;
+    agoo_server.active = true;
 
-    return ERR_OK;
+    return AGOO_ERR_OK;
 }
 
 void
-server_shutdown(const char *app_name, void (*stop)()) {
-    if (the_server.inited) {
+agoo_server_shutdown(const char *app_name, void (*stop)()) {
+    if (agoo_server.inited) {
 	agooConLoop	loop;
 
-	log_cat(&info_cat, "%s with pid %d shutting down.", app_name, getpid());
-	the_server.inited = false;
-	if (the_server.active) {
+	agoo_log_cat(&agoo_info_cat, "%s with pid %d shutting down.", app_name, getpid());
+	agoo_server.inited = false;
+	if (agoo_server.active) {
 	    double	giveup = dtime() + 1.0;
 	    
-	    the_server.active = false;
-	    pthread_detach(the_server.listen_thread);
-	    for (loop = the_server.con_loops; NULL != loop; loop = loop->next) {
+	    agoo_server.active = false;
+	    pthread_detach(agoo_server.listen_thread);
+	    for (loop = agoo_server.con_loops; NULL != loop; loop = loop->next) {
 		pthread_detach(loop->thread);
 	    }
-	    while (0 < (long)atomic_load(&the_server.running)) {
+	    while (0 < (long)atomic_load(&agoo_server.running)) {
 		dsleep(0.1);
 		if (giveup < dtime()) {
 		    break;
@@ -218,110 +218,110 @@ server_shutdown(const char *app_name, void (*stop)()) {
 	    if (NULL != stop) {
 		stop();
 	    }
-	    while (NULL != the_server.hooks) {
-		agooHook	h = the_server.hooks;
+	    while (NULL != agoo_server.hooks) {
+		agooHook	h = agoo_server.hooks;
 
-		the_server.hooks = h->next;
-		hook_destroy(h);
+		agoo_server.hooks = h->next;
+		agoo_hook_destroy(h);
 	    }
 	}
-	while (NULL != the_server.binds) {
-	    agooBind	b = the_server.binds;
+	while (NULL != agoo_server.binds) {
+	    agooBind	b = agoo_server.binds;
 
-	    the_server.binds = b->next;
-	    bind_destroy(b);
+	    agoo_server.binds = b->next;
+	    agoo_bind_destroy(b);
 	}
-	queue_cleanup(&the_server.con_queue);
-	for (loop = the_server.con_loops; NULL != loop; loop = loop->next) {
-	    queue_cleanup(&loop->pub_queue);
+	agoo_queue_cleanup(&agoo_server.con_queue);
+	for (loop = agoo_server.con_loops; NULL != loop; loop = loop->next) {
+	    agoo_queue_cleanup(&loop->pub_queue);
 	}
-	queue_cleanup(&the_server.eval_queue);
+	agoo_queue_cleanup(&agoo_server.eval_queue);
 
-	pages_cleanup();
-	http_cleanup();
+	agoo_pages_cleanup();
+	agoo_http_cleanup();
     }
 }
 
 void
-server_bind(agooBind b) {
+agoo_server_bind(agooBind b) {
     // If a bind with the same port already exists, replace it.
     agooBind	prev = NULL;
 
     if (NULL == b->read) {
-	b->read = con_http_read;
+	b->read = agoo_con_http_read;
     }
     if (NULL == b->write) {
-	b->write = con_http_write;
+	b->write = agoo_con_http_write;
     }
     if (NULL == b->events) {
-	b->events = con_http_events;
+	b->events = agoo_con_http_events;
     }
-    for (agooBind bx = the_server.binds; NULL != bx; bx = bx->next) {
+    for (agooBind bx = agoo_server.binds; NULL != bx; bx = bx->next) {
 	if (bx->port == b->port) {
 	    b->next = bx->next;
 	    if (NULL == prev) {
-		the_server.binds = b;
+		agoo_server.binds = b;
 	    } else {
 		prev->next = b;
 	    }
-	    bind_destroy(bx);
+	    agoo_bind_destroy(bx);
 	    return;
 	}
 	prev = bx;
     }
-    b->next = the_server.binds;
-    the_server.binds = b;
+    b->next = agoo_server.binds;
+    agoo_server.binds = b;
 }
 
 void
-server_add_upgraded(agooUpgraded up) {
-    pthread_mutex_lock(&the_server.up_lock);
-    if (NULL == the_server.up_list) {
+agoo_server_add_upgraded(agooUpgraded up) {
+    pthread_mutex_lock(&agoo_server.up_lock);
+    if (NULL == agoo_server.up_list) {
 	up->next = NULL;
     } else {
-	the_server.up_list->prev = up;
+	agoo_server.up_list->prev = up;
     }
-    up->next = the_server.up_list;
-    the_server.up_list = up;
+    up->next = agoo_server.up_list;
+    agoo_server.up_list = up;
     up->con->up = up;
-    pthread_mutex_unlock(&the_server.up_lock);
+    pthread_mutex_unlock(&agoo_server.up_lock);
 }
 
 int
-server_add_func_hook(agooErr	err,
-		     agooMethod	method,
-		     const char	*pattern,
-		     void	(*func)(agooReq req),
-		     agooQueue	queue,
-		     bool	quick) {
+agoo_server_add_func_hook(agooErr	err,
+			  agooMethod	method,
+			  const char	*pattern,
+			  void		(*func)(agooReq req),
+			  agooQueue	queue,
+			  bool		quick) {
     agooHook	h;
     agooHook	prev = NULL;
-    agooHook	hook = hook_func_create(method, pattern, func, queue);
+    agooHook	hook = agoo_hook_func_create(method, pattern, func, queue);
 
     if (NULL == hook) {
-	return err_set(err, ERR_MEMORY, "failed to allocate memory for HTTP server Hook.");
+	return agoo_err_set(err, AGOO_ERR_MEMORY, "failed to allocate memory for HTTP server Hook.");
     }
     hook->no_queue = quick;
-    for (h = the_server.hooks; NULL != h; h = h->next) {
+    for (h = agoo_server.hooks; NULL != h; h = h->next) {
 	prev = h;
     }
     if (NULL != prev) {
 	prev->next = hook;
     } else {
-	the_server.hooks = hook;
+	agoo_server.hooks = hook;
     }
-    return ERR_OK;
+    return AGOO_ERR_OK;
 }
 
 void
-server_publish(struct _agooPub *pub) {
+agoo_server_publish(struct _agooPub *pub) {
     agooConLoop	loop;
 
-    for (loop = the_server.con_loops; NULL != loop; loop = loop->next) {
+    for (loop = agoo_server.con_loops; NULL != loop; loop = loop->next) {
 	if (NULL == loop->next) {
-	    queue_push(&loop->pub_queue, pub);
+	    agoo_queue_push(&loop->pub_queue, pub);
 	} else {
-	    queue_push(&loop->pub_queue, pub_dup(pub));
+	    agoo_queue_push(&loop->pub_queue, agoo_pub_dup(pub));
 	}
     }
 }

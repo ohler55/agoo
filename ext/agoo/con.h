@@ -52,14 +52,14 @@ typedef struct _agooConLoop {
     int			id;
 } *agooConLoop;
     
-extern agooCon		con_create(agooErr err, int sock, uint64_t id, struct _agooBind *b);
-extern void		con_destroy(agooCon c);
-extern const char*	con_header_value(const char *header, int hlen, const char *key, int *vlen);
+extern agooCon		agoo_con_create(agooErr err, int sock, uint64_t id, struct _agooBind *b);
+extern void		agoo_con_destroy(agooCon c);
+extern const char*	agoo_con_header_value(const char *header, int hlen, const char *key, int *vlen);
 
-extern agooConLoop	conloop_create(agooErr err, int id);
+extern agooConLoop	agoo_conloop_create(agooErr err, int id);
 
-extern bool		con_http_read(agooCon c);
-extern bool		con_http_write(agooCon c);
-extern short		con_http_events(agooCon c);
+extern bool		agoo_con_http_read(agooCon c);
+extern bool		agoo_con_http_write(agooCon c);
+extern short		agoo_con_http_events(agooCon c);
 
 #endif // AGOO_CON_H

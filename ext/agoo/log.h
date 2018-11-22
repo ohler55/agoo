@@ -13,12 +13,12 @@
 #include "err.h"
 
 typedef enum {
-    FATAL	= 0,
-    ERROR	= 1,
-    WARN	= 2,
-    INFO	= 3,
-    DEBUG	= 4,
-    UNKNOWN	= 5,
+    AGOO_FATAL		= 0,
+    AGOO_ERROR		= 1,
+    AGOO_WARN		= 2,
+    AGOO_INFO		= 3,
+    AGOO_DEBUG		= 4,
+    AGOO_UNKNOWN	= 5,
 } agooLogLevel;
 
 typedef struct _agooColor {
@@ -26,21 +26,21 @@ typedef struct _agooColor {
     const char	*ansi;
 } *agooColor;
 
-#define BLACK		"black"
-#define RED		"red"
-#define GREEN		"green"
-#define YELLOW		"yellow"
-#define BLUE		"blue"
-#define MAGENTA		"magenta"
-#define CYAN		"cyan"
-#define WHITE		"white"
-#define GRAY		"gray"
-#define DARK_RED	"dark_red"
-#define DARK_GREEN	"dark_green"
-#define BROWN		"brown"
-#define DARK_BLUE	"dark_blue"
-#define PURPLE		"purple"
-#define DARK_CYAN	"dark_cyan"
+#define AGOO_BLACK	"black"
+#define AGOO_RED	"red"
+#define AGOO_GREEN	"green"
+#define AGOO_YELLOW	"yellow"
+#define AGOO_BLUE	"blue"
+#define AGOO_MAGENTA	"magenta"
+#define AGOO_CYAN	"cyan"
+#define AGOO_WHITE	"white"
+#define AGOO_GRAY	"gray"
+#define AGOO_DARK_RED	"dark_red"
+#define AGOO_DARK_GREEN	"dark_green"
+#define AGOO_BROWN	"brown"
+#define AGOO_DARK_BLUE	"dark_blue"
+#define AGOO_PURPLE	"purple"
+#define AGOO_DARK_CYAN	"dark_cyan"
 
 typedef struct _agooLog	*agooLog;
 
@@ -63,65 +63,65 @@ typedef struct _agooLogEntry {
 } *agooLogEntry;
 	
 struct _agooLog {
-    agooLogCat		cats;
-    char		dir[1024];
-    char		app[16];
-    FILE		*file;    // current output file
-    int			max_files;
-    int			max_size;
-    long		size;     // current file size
-    pthread_t		thread;
-    volatile bool	done;
-    bool		console;  // if true print log message to stdout
-    bool		classic;  // classic in stdout
-    bool		colorize; // color in stdout
-    bool		with_pid;
-    int			zone;     // timezone offset from GMT in seconds
-    int64_t		day_start;
-    int64_t		day_end;
-    char		day_buf[16];
+    agooLogCat			cats;
+    char			dir[1024];
+    char			app[16];
+    FILE			*file;    // current output file
+    int				max_files;
+    int				max_size;
+    long			size;     // current file size
+    pthread_t			thread;
+    volatile bool		done;
+    bool			console;  // if true print log message to stdout
+    bool			classic;  // classic in stdout
+    bool			colorize; // color in stdout
+    bool			with_pid;
+    int				zone;     // timezone offset from GMT in seconds
+    int64_t			day_start;
+    int64_t			day_end;
+    char			day_buf[16];
 
     agooLogEntry		q;
     agooLogEntry		end;
     _Atomic(agooLogEntry)	head;
     _Atomic(agooLogEntry)	tail;
-    atomic_flag		push_lock;
-    atomic_int		wait_state;
-    int			rsock;
-    int			wsock;
+    atomic_flag			push_lock;
+    atomic_int			wait_state;
+    int				rsock;
+    int				wsock;
 
-    void		(*on_error)(agooErr err);
+    void			(*on_error)(agooErr err);
 };
 
-extern struct _agooLog		the_log;
-extern struct _agooLogCat	fatal_cat;
-extern struct _agooLogCat	error_cat;
-extern struct _agooLogCat	warn_cat;
-extern struct _agooLogCat	info_cat;
-extern struct _agooLogCat	debug_cat;
-extern struct _agooLogCat	con_cat;
-extern struct _agooLogCat	req_cat;
-extern struct _agooLogCat	resp_cat;
-extern struct _agooLogCat	eval_cat;
-extern struct _agooLogCat	push_cat;
+extern struct _agooLog		agoo_log;
+extern struct _agooLogCat	agoo_fatal_cat;
+extern struct _agooLogCat	agoo_error_cat;
+extern struct _agooLogCat	agoo_warn_cat;
+extern struct _agooLogCat	agoo_info_cat;
+extern struct _agooLogCat	agoo_debug_cat;
+extern struct _agooLogCat	agoo_con_cat;
+extern struct _agooLogCat	agoo_req_cat;
+extern struct _agooLogCat	agoo_resp_cat;
+extern struct _agooLogCat	agoo_eval_cat;
+extern struct _agooLogCat	agoo_push_cat;
 
-extern void	log_init(const char *app);
-extern void	open_log_file();
+extern void		agoo_log_init(const char *app);
+extern void		agoo_log_open_file();
 
-extern void	log_close();
-extern bool	log_flush(double timeout);
-extern void	log_rotate();
+extern void		agoo_log_close();
+extern bool		agoo_log_flush(double timeout);
+extern void		agoo_log_rotate();
 
-extern void		log_cat_reg(agooLogCat cat, const char *label, agooLogLevel level, const char *color, bool on);
-extern void		log_cat_on(const char *label, bool on);
-extern agooLogCat	log_cat_find(const char *label);
+extern void		agoo_log_cat_reg(agooLogCat cat, const char *label, agooLogLevel level, const char *color, bool on);
+extern void		agoo_log_cat_on(const char *label, bool on);
+extern agooLogCat	agoo_log_cat_find(const char *label);
 
 // Function to call to make a log entry.
-extern void	log_cat(agooLogCat cat, const char *fmt, ...);
-extern void	log_tid_cat(agooLogCat cat, const char *tid, const char *fmt, ...);
-extern void	log_catv(agooLogCat cat, const char *tid, const char *fmt, va_list ap);
+extern void		agoo_log_cat(agooLogCat cat, const char *fmt, ...);
+extern void		agoo_log_tid_cat(agooLogCat cat, const char *tid, const char *fmt, ...);
+extern void		agoo_log_catv(agooLogCat cat, const char *tid, const char *fmt, va_list ap);
 
-extern void	log_start(bool with_pid);
+extern void		agoo_log_start(bool with_pid);
 
 extern agooColor	find_color(const char *name);
 

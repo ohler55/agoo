@@ -47,23 +47,22 @@ typedef struct _agooServer {
     atomic_int			running;
 } *agooServer;
 
-extern struct _agooServer	the_server;
-
-extern void	server_setup();
-extern void	server_shutdown(const char *app_name, void (*stop)());
-extern void	server_bind(agooBind b);
+extern struct _agooServer	agoo_server;
+extern void	agoo_server_setup();
+extern void	agoo_server_shutdown(const char *app_name, void (*stop)());
+extern void	agoo_server_bind(agooBind b);
 
 extern int	setup_listen(agooErr err);
-extern int	server_start(agooErr err, const char *app_name, const char *version);
+extern int	agoo_server_start(agooErr err, const char *app_name, const char *version);
 
-extern void	server_add_upgraded(struct _agooUpgraded *up);
-extern int	server_add_func_hook(agooErr	err,
-				     agooMethod	method,
-				     const char	*pattern,
-				     void	(*func)(struct _agooReq *req),
-				     agooQueue	queue,
-				     bool	quick);
+extern void	agoo_server_add_upgraded(struct _agooUpgraded *up);
+extern int	agoo_server_add_func_hook(agooErr	err,
+					  agooMethod	method,
+					  const char	*pattern,
+					  void		(*func)(struct _agooReq *req),
+					  agooQueue	queue,
+					  bool		quick);
 
-extern void	server_publish(struct _agooPub *pub);
+extern void	agoo_server_publish(struct _agooPub *pub);
 
 #endif // AGOO_SERVER_H
