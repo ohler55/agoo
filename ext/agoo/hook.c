@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "con.h"
 #include "debug.h"
 #include "hook.h"
 #include "req.h"
@@ -31,12 +32,13 @@ agoo_hook_create(agooMethod method, const char *pattern, void *handler, agooHook
 	hook->type = type;
 	hook->queue = q;
 	hook->no_queue = false;
+	hook->no_req = false;
     }
     return hook;
 }
 
 agooHook
-agoo_hook_func_create(agooMethod method, const char *pattern, void (*func)(agooReq req), agooQueue q) {
+agoo_hook_func_create(agooMethod method, const char *pattern, void (*func)(agooCon con, agooReq req), agooQueue q) {
     agooHook	hook = (agooHook)malloc(sizeof(struct _agooHook));
 
     if (NULL != hook) {
@@ -59,6 +61,7 @@ agoo_hook_func_create(agooMethod method, const char *pattern, void (*func)(agooR
 	hook->type = FUNC_HOOK;
 	hook->queue = q;
 	hook->no_queue = false;
+	hook->no_req = false;
     }
     return hook;
 }

@@ -38,7 +38,7 @@ agoo_server_setup() {
     agoo_server.loop_max = 4;
     if (0 < (i = sysconf(_SC_NPROCESSORS_ONLN))) {
 	i /= 2;
-	if (0 >= i) {
+	if (1 >= i) {
 	    i = 1;
 	}
 	agoo_server.loop_max = (int)i;
@@ -291,9 +291,10 @@ int
 agoo_server_add_func_hook(agooErr	err,
 			  agooMethod	method,
 			  const char	*pattern,
-			  void		(*func)(agooReq req),
+			  void		(*func)(agooCon con, agooReq req),
 			  agooQueue	queue,
-			  bool		quick) {
+			  bool		quick,
+			  bool		no_req) {
     agooHook	h;
     agooHook	prev = NULL;
     agooHook	hook = agoo_hook_func_create(method, pattern, func, queue);
@@ -302,6 +303,7 @@ agoo_server_add_func_hook(agooErr	err,
 	return agoo_err_set(err, AGOO_ERR_MEMORY, "failed to allocate memory for HTTP server Hook.");
     }
     hook->no_queue = quick;
+    hook->no_req = no_req;
     for (h = agoo_server.hooks; NULL != h; h = h->next) {
 	prev = h;
     }

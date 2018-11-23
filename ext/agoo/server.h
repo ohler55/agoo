@@ -12,6 +12,7 @@
 #include "hook.h"
 #include "queue.h"
 
+struct _agooCon;
 struct _agooConLoop;
 struct _agooPub;
 struct _agooReq;
@@ -59,9 +60,10 @@ extern void	agoo_server_add_upgraded(struct _agooUpgraded *up);
 extern int	agoo_server_add_func_hook(agooErr	err,
 					  agooMethod	method,
 					  const char	*pattern,
-					  void		(*func)(struct _agooReq *req),
+					  void		(*func)(struct _agooCon *con, struct _agooReq *req),
 					  agooQueue	queue,
-					  bool		quick);
+					  bool		quick,
+					  bool		no_req);
 
 extern void	agoo_server_publish(struct _agooPub *pub);
 

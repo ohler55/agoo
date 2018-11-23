@@ -357,6 +357,11 @@ agoo_con_header_read(agooCon c) {
  	return bad_request(c, 404, __LINE__);
    }
 HOOKED:
+    if (hook->no_req && FUNC_HOOK == hook->type) {
+	hook->func(c, NULL);
+	
+	return -mlen;
+    }
     // Create request and populate.
     if (NULL == (c->req = agoo_req_create(mlen))) {
 	return bad_request(c, 413, __LINE__);
@@ -497,7 +502,7 @@ agoo_con_http_read(agooCon c) {
 		req = c->req;
 		c->req = NULL;
 		if (req->hook->no_queue && FUNC_HOOK == req->hook->type) {
-		    req->hook->func(req);
+		    req->hook->func(c, req);
 		    agoo_req_destroy(req);
 		} else {
 		    agoo_queue_push(req->hook->queue, (void*)req);

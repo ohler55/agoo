@@ -21,13 +21,14 @@ typedef enum {
     // NON_NULL
 } gqlKind;
 
-struct _gqlType;
-struct _gqlValue;
-struct _gqlLink;
-struct _gqlField;
+struct _agooCon;
 struct _agooReq;
 struct _gqlDirUse;
+struct _gqlField;
 struct _gqlLink;
+struct _gqlLink;
+struct _gqlType;
+struct _gqlValue;
 
 // Used for references to implemenation entities.
 typedef void*	gqlRef;
@@ -192,7 +193,7 @@ extern agooText	gql_object_to_graphql(agooText text, struct _gqlValue *value, in
 extern agooText	gql_union_to_text(agooText text, struct _gqlValue *value, int indent, int depth);
 extern agooText	gql_enum_to_text(agooText text, struct _gqlValue *value, int indent, int depth);
 
-extern void	gql_dump_hook(struct _agooReq *req);
-extern void	gql_eval_hook(struct _agooReq *req);
+extern void	gql_dump_hook(struct _agooCon *con, struct _agooReq *req);
+extern void	gql_eval_hook(struct _agooCon *con, struct _agooReq *req);
 
 #endif // AGOO_GRAPHQL_H

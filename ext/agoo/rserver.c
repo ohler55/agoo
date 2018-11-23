@@ -665,7 +665,7 @@ handle_protected(agooReq req, bool gvi) {
 	}
 	break;
     case FUNC_HOOK:
-	req->hook->func(req);
+	req->hook->func(req->res->con, req);
 	agoo_queue_wakeup(&agoo_server.con_queue);
 	break;
     default: {
@@ -720,7 +720,15 @@ rserver_start(VALUE self) {
     VALUE		v = rb_const_get_at(agoo, rb_intern("VERSION"));
     
     *the_rserver.worker_pids = getpid();
-
+    
+    // If workers then set the loop_max based on the expected number of
+    // threads per worker.
+    if (1 < the_rserver.worker_cnt) {
+	agoo_server.loop_max /= the_rserver.worker_cnt;
+	if (agoo_server.loop_max < 1) {
+	    agoo_server.loop_max = 1;
+	}
+    }
     if (AGOO_ERR_OK != setup_listen(&err)) {
 	rb_raise(rb_eIOError, "%s", err.msg);
     }
