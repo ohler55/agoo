@@ -1045,7 +1045,7 @@ gql_schema_sdl(agooText text, bool with_desc, bool all) {
 }
 
 void
-gql_dump_hook(agooCon con, agooReq req) {
+gql_dump_hook(agooReq req) {
     char	buf[256];
     int		cnt;
     agooText	text = agoo_text_allocate(4094);
@@ -1069,7 +1069,7 @@ gql_dump_hook(agooCon con, agooReq req) {
 }
 
 void
-gql_eval_hook(agooCon con, agooReq req) {
+gql_eval_hook(agooReq req) {
     // TBD detect introspection
     //  start resolving by callout to some global handler as needed
     //   pass target, field, args

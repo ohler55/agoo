@@ -60,10 +60,9 @@ extern void	agoo_server_add_upgraded(struct _agooUpgraded *up);
 extern int	agoo_server_add_func_hook(agooErr	err,
 					  agooMethod	method,
 					  const char	*pattern,
-					  void		(*func)(struct _agooCon *con, struct _agooReq *req),
+					  void		(*func)(struct _agooReq *req),
 					  agooQueue	queue,
-					  bool		quick,
-					  bool		no_req);
+					  bool		quick);
 
 extern void	agoo_server_publish(struct _agooPub *pub);
 

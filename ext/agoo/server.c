@@ -232,8 +232,9 @@ agoo_server_shutdown(const char *app_name, void (*stop)()) {
 	    agoo_bind_destroy(b);
 	}
 	agoo_queue_cleanup(&agoo_server.con_queue);
-	for (loop = agoo_server.con_loops; NULL != loop; loop = loop->next) {
-	    agoo_queue_cleanup(&loop->pub_queue);
+	while (NULL != (loop = agoo_server.con_loops)) {
+	    agoo_server.con_loops = loop->next;
+	    agoo_conloop_destroy(loop);
 	}
 	agoo_queue_cleanup(&agoo_server.eval_queue);
 
@@ -291,10 +292,9 @@ int
 agoo_server_add_func_hook(agooErr	err,
 			  agooMethod	method,
 			  const char	*pattern,
-			  void		(*func)(agooCon con, agooReq req),
+			  void		(*func)(agooReq req),
 			  agooQueue	queue,
-			  bool		quick,
-			  bool		no_req) {
+			  bool		quick) {
     agooHook	h;
     agooHook	prev = NULL;
     agooHook	hook = agoo_hook_func_create(method, pattern, func, queue);
@@ -303,7 +303,6 @@ agoo_server_add_func_hook(agooErr	err,
 	return agoo_err_set(err, AGOO_ERR_MEMORY, "failed to allocate memory for HTTP server Hook.");
     }
     hook->no_queue = quick;
-    hook->no_req = no_req;
     for (h = agoo_server.hooks; NULL != h; h = h->next) {
 	prev = h;
     }

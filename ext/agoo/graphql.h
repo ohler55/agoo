@@ -193,7 +193,7 @@ extern agooText	gql_object_to_graphql(agooText text, struct _gqlValue *value, in
 extern agooText	gql_union_to_text(agooText text, struct _gqlValue *value, int indent, int depth);
 extern agooText	gql_enum_to_text(agooText text, struct _gqlValue *value, int indent, int depth);
 
-extern void	gql_dump_hook(struct _agooCon *con, struct _agooReq *req);
-extern void	gql_eval_hook(struct _agooCon *con, struct _agooReq *req);
+extern void	gql_dump_hook(struct _agooReq *req);
+extern void	gql_eval_hook(struct _agooReq *req);
 
 #endif // AGOO_GRAPHQL_H

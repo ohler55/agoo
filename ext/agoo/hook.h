@@ -29,17 +29,16 @@ typedef struct _agooHook {
     agooHookType	type;
     union {
 	void		*handler;
-	void		(*func)(struct _agooCon *con, struct _agooReq *req);
+	void		(*func)(struct _agooReq *req);
     };
     agooQueue		queue;
     bool		no_queue;
-    bool		no_req;
 } *agooHook;
 
 extern agooHook	agoo_hook_create(agooMethod method, const char *pattern, void *handler, agooHookType type, agooQueue q);
 extern agooHook	agoo_hook_func_create(agooMethod	method,
 				      const char	*pattern,
-				      void 		(*func)(struct _agooCon *con, struct _agooReq *req),
+				      void 		(*func)(struct _agooReq *req),
 				      agooQueue		q);
 extern void	agoo_hook_destroy(agooHook hook);
 

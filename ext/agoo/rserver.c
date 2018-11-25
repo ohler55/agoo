@@ -665,7 +665,7 @@ handle_protected(agooReq req, bool gvi) {
 	}
 	break;
     case FUNC_HOOK:
-	req->hook->func(req->res->con, req);
+	req->hook->func(req);
 	agoo_queue_wakeup(&agoo_server.con_queue);
 	break;
     default: {
