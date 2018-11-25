@@ -27,6 +27,13 @@
 #define CON_TIMEOUT		5.0
 #define INITIAL_POLL_SIZE	1024
 
+typedef enum {
+    HEAD_AGAIN		= 'A',
+    HEAD_ERR		= 'E',
+    HEAD_OK		= 'O',
+    HEAD_HANDLED	= 'H',
+} HeadReturn;
+
 static bool	con_ws_read(agooCon c);
 static bool	con_ws_write(agooCon c);
 static short	con_ws_events(agooCon c);
@@ -119,7 +126,7 @@ agoo_con_header_value(const char *header, int hlen, const char *key, int *vlen) 
     return NULL;
 }
 
-static long
+static HeadReturn
 bad_request(agooCon c, int status, int line) {
     agooRes	res;
     const char *msg = agoo_http_code_message(status);
@@ -142,7 +149,7 @@ bad_request(agooCon c, int status, int line) {
 	res->close = true;
 	agoo_res_set_message(res, message);
     }
-    return -1;
+    return HEAD_ERR;
 }
 
 static bool
@@ -200,13 +207,8 @@ push_error(agooUpgraded up, const char *msg, int mlen) {
     }
 }
 
-// Returns:
-//  0 - when header has not been read
-//  message length - when length can be determined
-//  -1 on a bad request
-//  negative of message length - when message is handled here.
-static long
-agoo_con_header_read(agooCon c) {
+static HeadReturn
+agoo_con_header_read(agooCon c, size_t *mlenp) {
     char		*hend = strstr(c->buf, "\r\n\r\n");
     agooMethod		method;
     struct _agooSeg	path;
@@ -223,7 +225,7 @@ agoo_con_header_read(agooCon c) {
 	if (sizeof(c->buf) - 1 <= c->bcnt) {
 	    return bad_request(c, 431, __LINE__);
 	}
-	return 0;
+	return HEAD_AGAIN;
     }
     if (agoo_req_cat.on) {
 	*hend = '\0';
@@ -316,48 +318,37 @@ agoo_con_header_read(agooCon c) {
 	qend = b;
     }
     mlen = hend - c->buf + 4 + clen;
-    if (AGOO_GET == method &&
-	NULL != (p = group_get(&err, path.start, (int)(path.end - path.start)))) {
-	if (page_response(c, p, hend)) {
-	    return bad_request(c, 500, __LINE__);
-	}
-	return -mlen;
-    }
-    if (AGOO_GET == method && agoo_server.root_first &&
-	NULL != (p = agoo_page_get(&err, path.start, (int)(path.end - path.start)))) {
-	if (page_response(c, p, hend)) {
-	    return bad_request(c, 500, __LINE__);
-	}
-	return -mlen;
-    }
-    if (NULL == (hook = agoo_hook_find(agoo_server.hooks, method, &path))) {
-	if (AGOO_GET == method) {
-	    if (agoo_server.root_first) { // already checked
-		if (NULL != agoo_server.hook404) {
-		    // There would be too many parameters to pass to a
-		    // separate function so just goto the hook processing.
-		    hook = agoo_server.hook404;
-		    goto HOOKED;
-		}
-		return bad_request(c, 404, __LINE__);
-	    }
-	    if (NULL == (p = agoo_page_get(&err, path.start, (int)(path.end - path.start)))) {
-		if (NULL != agoo_server.hook404) {
-		    // There would be too many parameters to pass to a
-		    // separate function so just goto the hook processing.
-		    hook = agoo_server.hook404;
-		    goto HOOKED;
-		}
-		return bad_request(c, 404, __LINE__);
-	    }
+    *mlenp = mlen;
+
+    if (AGOO_GET == method) {
+	if (NULL != (p = group_get(&err, path.start, (int)(path.end - path.start)))) {
 	    if (page_response(c, p, hend)) {
 		return bad_request(c, 500, __LINE__);
 	    }
-	    return -mlen;
+	    return HEAD_HANDLED;
 	}
+	if (agoo_server.root_first &&
+	    NULL != (p = agoo_page_get(&err, path.start, (int)(path.end - path.start)))) {
+	    if (page_response(c, p, hend)) {
+		return bad_request(c, 500, __LINE__);
+	    }
+	    return HEAD_HANDLED;
+	}
+	if (NULL == (hook = agoo_hook_find(agoo_server.hooks, method, &path))) {
+	    if (NULL != (p = agoo_page_get(&err, path.start, (int)(path.end - path.start)))) {
+		if (page_response(c, p, hend)) {
+		    return bad_request(c, 500, __LINE__);
+		}
+		return HEAD_HANDLED;
+	    }	    
+	    if (NULL == agoo_server.hook404) {
+		return bad_request(c, 404, __LINE__);
+	    }
+	    hook = agoo_server.hook404;
+	}
+    } else if (NULL == (hook = agoo_hook_find(agoo_server.hooks, method, &path))) {
  	return bad_request(c, 404, __LINE__);
-   }
-HOOKED:
+    }
     // Create request and populate.
     if (NULL == (c->req = agoo_req_create(mlen))) {
 	return bad_request(c, 413, __LINE__);
@@ -387,7 +378,7 @@ HOOKED:
     c->req->res = NULL;
     c->req->hook = hook;
 
-    return mlen;
+    return HEAD_OK;
 }
 
 static void
@@ -445,26 +436,34 @@ agoo_con_http_read(agooCon c) {
     c->bcnt += cnt;
     while (true) {
 	if (NULL == c->req) {
-	    long	mlen;
-	    
-	    // Terminate with \0 for debug and strstr() check
-	    c->buf[c->bcnt] = '\0';
-	    if (0 > (mlen = agoo_con_header_read(c))) {
-		if (-1 == mlen) {
-		    c->bcnt = 0;
-		    *c->buf = '\0';
-		    return false;
-		} else if (-mlen < (long)c->bcnt) {
-		    mlen = -mlen;
+	    size_t	mlen;
+
+	    switch (agoo_con_header_read(c, &mlen)) {
+	    case HEAD_AGAIN:
+		// Try again the next time. Didn't read enough.. 
+		return false;
+	    case HEAD_OK:
+		// req was created
+		break;
+	    case HEAD_HANDLED:
+		if (mlen < c->bcnt) {
 		    memmove(c->buf, c->buf + mlen, c->bcnt - mlen);
 		    c->bcnt -= mlen;
+		    // req is NULL so try to ready the header on the next request.
+		    continue;
 		} else {
 		    c->bcnt = 0;
 		    *c->buf = '\0';
 
 		    return false;
 		}
-		continue;
+		break;
+	    case HEAD_ERR:
+	    default:
+		c->bcnt = 0;
+		*c->buf = '\0';
+
+		return false;
 	    }
 	}
 	if (NULL != c->req) {
@@ -1166,7 +1165,7 @@ agoo_con_loop(void *x) {
     agooCon		c;
     int			con_queue_fd = agoo_queue_listen(&agoo_server.con_queue);
     int			pub_queue_fd = agoo_queue_listen(&loop->pub_queue);
-
+    
     if (NULL == ready) {
 	agoo_log_cat(&agoo_error_cat, "Failed to create connection manager. %s", err.msg);
 	exit(EXIT_FAILURE);
