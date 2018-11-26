@@ -121,7 +121,7 @@ extern void		agoo_log_cat(agooLogCat cat, const char *fmt, ...);
 extern void		agoo_log_tid_cat(agooLogCat cat, const char *tid, const char *fmt, ...);
 extern void		agoo_log_catv(agooLogCat cat, const char *tid, const char *fmt, va_list ap);
 
-extern void		agoo_log_start(bool with_pid);
+extern int		agoo_log_start(agooErr err, bool with_pid);
 
 extern agooColor	find_color(const char *name);
 

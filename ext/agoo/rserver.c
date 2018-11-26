@@ -744,7 +744,9 @@ rserver_start(VALUE self) {
 	    agoo_log_cat(&agoo_error_cat, "Failed to fork. %s.", strerror(errno));
 	    break;
 	} else if (0 == pid) {
-	    agoo_log_start(true);
+	    if (AGOO_ERR_OK != agoo_log_start(&err, true)) {
+		rb_raise(rb_eStandardError, "%s", err.msg);
+	    }
 	    break;
 	} else {
 	    the_rserver.worker_pids[i] = pid;

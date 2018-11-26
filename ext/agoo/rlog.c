@@ -430,6 +430,8 @@ on_error(agooErr err) {
  */
 void
 rlog_init(VALUE mod) {
+    struct _agooErr	err = AGOO_ERR_INIT;
+    
     log_mod = rb_define_module_under(mod, "Log");
 
     rb_define_module_function(log_mod, "configure", rlog_configure, 1);
@@ -467,5 +469,7 @@ rlog_init(VALUE mod) {
     agoo_log.on_error = on_error;
     
     agoo_log_init("agoo");
-    agoo_log_start(false);
+    if (AGOO_ERR_OK != agoo_log_start(&err, false)) {
+	rb_raise(rb_eStandardError, "%s", err.msg);
+    }
 }

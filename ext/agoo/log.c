@@ -562,11 +562,13 @@ agoo_log_tid_cat(agooLogCat cat, const char *tid, const char *fmt, ...) {
     va_end(ap);
 }
 
-void
-agoo_log_start(bool with_pid) {
+int
+agoo_log_start(agooErr err, bool with_pid) {
+    int	stat;
+    
     if (0 != agoo_log.thread) {
 	// Already started.
-	return;
+	return AGOO_ERR_OK;
     }
     if (NULL != agoo_log.file) {
 	fclose(agoo_log.file);
@@ -583,7 +585,10 @@ agoo_log_start(bool with_pid) {
 	}
 	agoo_log_open_file();
     }
-    pthread_create(&agoo_log.thread, NULL, loop, NULL);
+    if (0 != (stat = pthread_create(&agoo_log.thread, NULL, loop, NULL))) {
+	return agoo_err_set(err, stat, "Failed to create log thread. %s", strerror(stat));
+    }
+    return AGOO_ERR_OK;
 }
 
 void

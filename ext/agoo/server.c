@@ -147,8 +147,11 @@ int
 agoo_server_start(agooErr err, const char *app_name, const char *version) {
     double	giveup;
     int		xcnt = 0;
+    int		stat;
     
-    pthread_create(&agoo_server.listen_thread, NULL, listen_loop, NULL);
+    if (0 != (stat = pthread_create(&agoo_server.listen_thread, NULL, listen_loop, NULL))) {
+	return agoo_err_set(err, stat, "Failed to create server listener thread. %s", strerror(stat));
+    }
     xcnt++;
     agoo_server.con_loops = agoo_conloop_create(err, 0);
     agoo_server.loop_cnt = 1;

@@ -1209,13 +1209,18 @@ agoo_conloop_create(agooErr err, int id) {
     if (NULL == (loop = (agooConLoop)malloc(sizeof(struct _agooConLoop)))) {
 	agoo_err_set(err, AGOO_ERR_MEMORY, "Failed to allocate memory for a connection thread.");
     } else {
+	int	stat;
+	
 	//DEBUG_ALLOC(mem_con, c);
 	loop->next = NULL;
 	agoo_queue_multi_init(&loop->pub_queue, 256, true, false);
 	loop->id = id;
 	loop->res_head = NULL;
 	loop->res_tail = NULL;
-	pthread_create(&loop->thread, NULL, agoo_con_loop, loop);
+	if (0 != (stat = pthread_create(&loop->thread, NULL, agoo_con_loop, loop))) {
+	    agoo_err_set(err, stat, "Failed to create connection loop. %s", strerror(stat));
+	    return NULL;
+	}
 	pthread_mutex_init(&loop->lock, 0);
     }
     return loop;
