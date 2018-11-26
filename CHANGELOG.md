@@ -1,5 +1,15 @@
 # CHANGELOG
 
+### 2.5.6 - 2018-11-26
+
+Even more cleanup and minor performance tweak.
+
+- Changed the use of __ and _X in C code.
+
+- Resuse of some memory for responses.
+
+- Compile option to use epoll instead of poll. (its slower)
+
 ### 2.5.5 - 2018-11-12
 
 More optimizations and some cleanup.
