@@ -307,6 +307,10 @@ type_create(agooErr err, const char *name, const char *desc, int dlen, bool lock
 	    } else {
 		type->desc = strndup(desc, dlen);
 	    }
+	    if (NULL == type->desc) {
+		agoo_err_set(err, AGOO_ERR_MEMORY, "strdup or strndup of length %d failed.", dlen);
+		return NULL;
+	    }
 	}
 	type->locked = locked;
 	type->core = false;
@@ -476,7 +480,9 @@ gql_union_add(agooErr err, gqlType type, const char *name, int len) {
     if (0 >= len) {
 	len = (int)strlen(name);
     }
-    link->name = strndup(name, len);
+    if (NULL == (link->name = strndup(name, len))) {
+	return agoo_err_set(err, AGOO_ERR_MEMORY, "strndup of length %d failed.", len);
+    }
     if (NULL == type->types) {
 	link->next = type->types;
 	type->types = link;
@@ -521,8 +527,9 @@ gql_enum_add(agooErr err, gqlType type, const char *value, int len) {
     }
     link->next = type->choices;
     type->choices = link;
-    link->str = strndup(value, len);
-    
+    if (NULL == (link->str = strndup(value, len))) {
+	return agoo_err_set(err, AGOO_ERR_MEMORY, "strdup or strndup of length %d failed.", len);
+    }
     return AGOO_ERR_OK;
 }
 
@@ -536,7 +543,9 @@ gql_enum_append(agooErr err, gqlType type, const char *value, int len) {
     if (0 >= len) {
 	len = (int)strlen(value);
     }
-    link->str = strndup(value, len);
+    if (NULL == (link->str = strndup(value, len))) {
+	return agoo_err_set(err, AGOO_ERR_MEMORY, "strdup or strndup of length %d failed.", len);
+    }
     if (NULL == type->choices) {
 	link->next = type->choices;
 	type->choices = link;
@@ -655,6 +664,10 @@ gql_directive_create(agooErr err, const char *name, const char *desc, int dlen, 
 	} else {
 	    dir->desc = strndup(desc, dlen);
 	}
+	if (NULL == dir->desc) {
+	    agoo_err_set(err, AGOO_ERR_MEMORY, "strdup or strndup of length %d failed.", dlen);
+	    return NULL;
+	}
     }
     return dir;
 }
@@ -685,6 +698,10 @@ gql_dir_arg(agooErr 		err,
 	    a->desc = strdup(desc);
 	} else {
 	    a->desc = strndup(desc, dlen);
+	}
+	if (NULL == a->desc) {
+	    agoo_err_set(err, AGOO_ERR_MEMORY, "strdup or strndup of length %d failed.", dlen);
+	    return NULL;
 	}
 	a->default_value = def_value;
 	a->dir = NULL;
@@ -722,8 +739,9 @@ gql_directive_on(agooErr err, gqlDir d, const char *on, int len) {
 	}
 	loc->next = link;
     }
-    link->str = strndup(on, len);
-    
+    if (NULL == (link->str = strndup(on, len))) {
+	return agoo_err_set(err, AGOO_ERR_MEMORY, "strdup or strndup of length %d failed.", len);
+    }
     return AGOO_ERR_OK;
 }
 

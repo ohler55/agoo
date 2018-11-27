@@ -96,7 +96,9 @@ body_set(VALUE self, VALUE val) {
     agooResponse	res = (agooResponse)DATA_PTR(self);
 
     if (T_STRING == rb_type(val)) {
-	res->body = strdup(StringValuePtr(val));
+	if (NULL == (res->body = strdup(StringValuePtr(val)))) {
+	    rb_raise(rb_eArgError, "failed to copy body");
+	}
 	DEBUG_ALLOC(mem_res_body, res->body)
 	res->blen = (int)RSTRING_LEN(val);
     } else {

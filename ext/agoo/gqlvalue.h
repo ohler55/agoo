@@ -63,7 +63,7 @@ extern int	gql_object_set(agooErr err, gqlValue obj, const char *key, gqlValue i
 
 extern void	gql_int_set(gqlValue value, int32_t i);
 extern void	gql_i64_set(gqlValue value, int64_t i);
-extern void	gql_string_set(gqlValue value, const char *str, int len);
+extern int	gql_string_set(agooErr err, gqlValue value, const char *str, int len);
 extern int	gql_url_set(agooErr err, gqlValue value, const char *url, int len);
 extern void	gql_bool_set(gqlValue value, bool b);
 extern void	gql_float_set(gqlValue value, double f);

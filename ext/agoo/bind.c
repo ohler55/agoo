@@ -26,7 +26,10 @@ agoo_bind_port(agooErr err, int port) {
 	b->family = AF_INET;
 	snprintf(id, sizeof(id) - 1, "http://:%d", port);
 	strcpy(b->scheme, "http");
-	b->id = strdup(id);
+	if (NULL == (b->id = strdup(id))) {
+	    agoo_err_set(err, AGOO_ERR_MEMORY, "strdup of bind id failed.");
+	    return NULL;
+	}
 	b->kind = AGOO_CON_HTTP;
 	b->read = NULL;
 	b->write = NULL;
@@ -70,7 +73,10 @@ url_tcp(agooErr err, const char *url, const char *scheme) {
 	b->addr4 = addr;
 	b->family = AF_INET;
 	snprintf(id, sizeof(id), "%s://%s:%d", scheme, inet_ntoa(addr), port);
-	b->id = strdup(id);
+	if (NULL == (b->id = strdup(id))) {
+	    agoo_err_set(err, AGOO_ERR_MEMORY, "strdup of bind id failed.");
+	    return NULL;
+	}
 	strncpy(b->scheme, scheme, sizeof(b->scheme));
 	b->scheme[sizeof(b->scheme) - 1] = '\0';
 	b->kind = AGOO_CON_HTTP;
@@ -113,7 +119,10 @@ url_tcp6(agooErr err, const char *url, const char *scheme) {
 	b->addr6 = addr;
 	b->family = AF_INET6;
 	snprintf(buf, sizeof(buf), "%s://[%s]:%d", scheme, inet_ntop(AF_INET6, &addr, str, INET6_ADDRSTRLEN), port);
-	b->id = strdup(buf);
+	if (NULL == (b->id = strdup(buf))) {
+	    agoo_err_set(err, AGOO_ERR_MEMORY, "strdup of bind id failed.");
+	    return NULL;
+	}	    
 	strncpy(b->scheme, scheme, sizeof(b->scheme));
 	b->scheme[sizeof(b->scheme) - 1] = '\0';
 	b->kind = AGOO_CON_HTTP;
@@ -142,9 +151,15 @@ url_named(agooErr err, const char *url) {
 	
 	    DEBUG_ALLOC(mem_bind, b);
 	    memset(b, 0, sizeof(struct _agooBind));
-	    b->name = strdup(url);
+	    if (NULL == (b->name = strdup(url))) {
+		agoo_err_set(err, AGOO_ERR_MEMORY, "strdup of bind url failed.");
+		return NULL;
+	    }
 	    snprintf(id, sizeof(id) - 1, fmt, url);
-	    b->id = strdup(id);
+	    if (NULL == (b->id = strdup(id))) {
+		agoo_err_set(err, AGOO_ERR_MEMORY, "strdup of bind id failed.");
+		return NULL;
+	    }
 	    strcpy(b->scheme, "unix");
 	    b->kind = AGOO_CON_HTTP;
 	    b->read = NULL;

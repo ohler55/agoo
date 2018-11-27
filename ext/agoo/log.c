@@ -488,12 +488,13 @@ set_entry(agooLogEntry e, agooLogCat cat, const char *tid, const char *fmt, va_l
 	    }
     }
     if (NULL != tid) {
+	e->tidp = NULL;
 	if (strlen(tid) < sizeof(e->tid)) {
 	    strcpy(e->tid, tid);
-	    e->tidp = NULL;
 	} else {
-	    e->tidp = strdup(tid);
-	    *e->tid = '\0';
+	    if (NULL != (e->tidp = strdup(tid))) {
+		*e->tid = '\0';
+	    }
 	}
     } else {
 	e->tidp = NULL;

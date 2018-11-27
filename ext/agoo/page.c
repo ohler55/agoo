@@ -440,10 +440,13 @@ update_contents(agooPage p) {
     // fstat is called to get the file mode and verify it is a regular file or
     // a symlink.
     if (NULL != f) {
-	fstat(fileno(f), &fs);
-	if (!S_ISREG(fs.st_mode) && !S_ISLNK(fs.st_mode)) {
-	    fclose(f);
-	    f = NULL;
+	if (0 == fstat(fileno(f), &fs)) {
+	    if (!S_ISREG(fs.st_mode) && !S_ISLNK(fs.st_mode)) {
+		fclose(f);
+		f = NULL;
+	    }
+	} else {
+	    return close_return_false(f);
 	}
     }
     if (NULL == f) {

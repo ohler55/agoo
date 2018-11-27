@@ -1,5 +1,11 @@
 # CHANGELOG
 
+### 2.5.? - 2018-??
+
+
+- Additional return value checking on `strdup`, `strndup`, and `fstat`.
+
+
 ### 2.5.6 - 2018-11-26
 
 Even more cleanup and minor performance tweak.
