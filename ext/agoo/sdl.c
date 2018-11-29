@@ -119,7 +119,7 @@ make_union(agooErr err, agooDoc doc, const char *desc, int len) {
 }
 
 static int
-make_arg(agooErr err, agooDoc doc, gqlDir dir) {
+make_dir_arg(agooErr err, agooDoc doc, gqlDir dir) {
     char	name[256];
     char	type_name[256];
     const char	*start;
@@ -128,7 +128,8 @@ make_arg(agooErr err, agooDoc doc, gqlDir dir) {
     size_t	nlen;
     bool	required = false;
     gqlValue	dv = NULL;
-    
+
+    printf("************************ read arg '%s\n", doc->cur);
     agoo_doc_skip_white(doc);
     if ('"' == *doc->cur) {
 	desc = doc->cur + 1;
@@ -144,14 +145,18 @@ make_arg(agooErr err, agooDoc doc, gqlDir dir) {
     }
     agoo_doc_skip_white(doc);
     start = doc->cur;
+    printf("*** doc '%s'\n", doc->cur);
     agoo_doc_read_token(doc);
+    printf("*** after token '%s'\n", doc->cur);
     if (doc->cur == start) {
 	return agoo_doc_err(doc, err, "Argument name not provided");
     }
+    printf("*** after name check '%s'\n", doc->cur);
     if (':' != *doc->cur) {
 	return agoo_doc_err(doc, err, "Expected ':'");
     }
     nlen = doc->cur - start;
+    printf("*** after name length %ld\n", nlen);
     if (sizeof(name) <= nlen) {
 	return agoo_doc_err(doc, err, "Name too long");
     }
@@ -161,6 +166,9 @@ make_arg(agooErr err, agooDoc doc, gqlDir dir) {
 
     // read type
     agoo_doc_skip_white(doc);
+
+    printf("*** ready for type %s\n", doc->cur);
+
     start = doc->cur;
     agoo_doc_read_token(doc);
     if (doc->cur == start) {
@@ -176,6 +184,7 @@ make_arg(agooErr err, agooDoc doc, gqlDir dir) {
     agoo_doc_skip_white(doc);
     if ('!' == *doc->cur) {
 	required = true;
+	doc->cur++;
     } else if ('=' == *doc->cur) {
 	if (NULL == (dv = agoo_doc_read_value(err, doc))) {
 	    return err->code;
@@ -224,8 +233,9 @@ make_directive(agooErr err, agooDoc doc, const char *desc, int len) {
 	return err->code;
     }
     if ('(' == *doc->cur) {
+	doc->cur++;
 	while (doc->cur < doc->end) {
-	    if (AGOO_ERR_OK != make_arg(err, doc, dir)) {
+	    if (AGOO_ERR_OK != make_dir_arg(err, doc, dir)) {
 		return err->code;
 	    }
 	    agoo_doc_skip_white(doc);
@@ -310,7 +320,6 @@ sdl_parse(agooErr err, const char *str, int len) {
 	    }
 	    break;
 	case 't': // type
-	    // TBD
 	    break;
 	case 'i': // interface, input
 	    if (5 < (doc.end - doc.cur) && 'n' == doc.cur[1]) {
@@ -324,7 +333,6 @@ sdl_parse(agooErr err, const char *str, int len) {
 	    }
 	    return agoo_doc_err(&doc, err, "Unknown directive");
 	case 'f': // fragment
-	    // TBD
 	    break;
 	case '\0':
 	    return AGOO_ERR_OK;

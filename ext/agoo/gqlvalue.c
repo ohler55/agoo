@@ -1043,5 +1043,12 @@ gql_object_create(agooErr err) {
 
 agooText
 gql_value_json(agooText text, gqlValue value, int indent, int depth) {
-    return value->type->to_json(text, value, indent, depth);
+    if (NULL == value->type) {
+	text = agoo_text_append(text, "null", 4);
+    } else if (NULL == value->type->to_json) {
+	text = agoo_text_append(text, "null", 4);
+    } else {
+	text = value->type->to_json(text, value, indent, depth);
+    }
+    return text;
 }
