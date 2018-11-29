@@ -310,6 +310,7 @@ sdl_parse(agooErr err, const char *str, int len) {
 	    }
 	    break;
 	case 't': // type
+	    // TBD
 	    break;
 	case 'i': // interface, input
 	    if (5 < (doc.end - doc.cur) && 'n' == doc.cur[1]) {
@@ -323,6 +324,7 @@ sdl_parse(agooErr err, const char *str, int len) {
 	    }
 	    return agoo_doc_err(&doc, err, "Unknown directive");
 	case 'f': // fragment
+	    // TBD
 	    break;
 	case '\0':
 	    return AGOO_ERR_OK;
