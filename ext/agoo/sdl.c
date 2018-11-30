@@ -129,7 +129,6 @@ make_dir_arg(agooErr err, agooDoc doc, gqlDir dir) {
     bool	required = false;
     gqlValue	dv = NULL;
 
-    printf("************************ read arg '%s\n", doc->cur);
     agoo_doc_skip_white(doc);
     if ('"' == *doc->cur) {
 	desc = doc->cur + 1;
@@ -145,18 +144,14 @@ make_dir_arg(agooErr err, agooDoc doc, gqlDir dir) {
     }
     agoo_doc_skip_white(doc);
     start = doc->cur;
-    printf("*** doc '%s'\n", doc->cur);
     agoo_doc_read_token(doc);
-    printf("*** after token '%s'\n", doc->cur);
     if (doc->cur == start) {
 	return agoo_doc_err(doc, err, "Argument name not provided");
     }
-    printf("*** after name check '%s'\n", doc->cur);
     if (':' != *doc->cur) {
 	return agoo_doc_err(doc, err, "Expected ':'");
     }
     nlen = doc->cur - start;
-    printf("*** after name length %ld\n", nlen);
     if (sizeof(name) <= nlen) {
 	return agoo_doc_err(doc, err, "Name too long");
     }
@@ -166,8 +161,6 @@ make_dir_arg(agooErr err, agooDoc doc, gqlDir dir) {
 
     // read type
     agoo_doc_skip_white(doc);
-
-    printf("*** ready for type %s\n", doc->cur);
 
     start = doc->cur;
     agoo_doc_read_token(doc);
@@ -320,20 +313,20 @@ sdl_parse(agooErr err, const char *str, int len) {
 	    }
 	    break;
 	case 't': // type
+	    // TBD
 	    break;
 	case 'i': // interface, input
 	    if (5 < (doc.end - doc.cur) && 'n' == doc.cur[1]) {
 		if ('p' == doc.cur[2]) {
-		    // input
+		    // TBD input
 		    break;
 		} else {
-		    // TBD interface
+		    // TBD interface zzzzzzzzzzzz
+		    return agoo_doc_err(&doc, err, "Unknown directive");
 		    break;
 		}
 	    }
 	    return agoo_doc_err(&doc, err, "Unknown directive");
-	case 'f': // fragment
-	    break;
 	case '\0':
 	    return AGOO_ERR_OK;
 	default:
