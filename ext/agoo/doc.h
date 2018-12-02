@@ -4,6 +4,7 @@
 #define AGOO_DOC_H
 
 #include <stdarg.h>
+#include <stdbool.h>
 
 #include "err.h"
 
@@ -19,7 +20,9 @@ extern void	agoo_doc_init(agooDoc doc, const char *str, int len);
 
 extern int	agoo_doc_skip_white(agooDoc doc);
 extern void	agoo_doc_skip_comment(agooDoc doc);
+extern bool	agoo_doc_skip_to(agooDoc doc, char c);
 extern int	agoo_doc_read_desc(agooErr err, agooDoc doc);
+
 
 extern void	agoo_doc_next_token(agooDoc doc);
 extern void	agoo_doc_read_token(agooDoc doc);

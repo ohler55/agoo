@@ -9,10 +9,52 @@
 #include "sdl.h"
 
 static int
-extract_name(agooErr err, agooDoc doc, const char *key, int klen, char *name, size_t max) {
-    const char	*start;
-    size_t	nlen;
+extract_desc(agooErr err, agooDoc doc, const char **descp, size_t *lenp) {
+    agoo_doc_skip_white(doc);
+    *descp = NULL;
+    *lenp = 0;
+    if ('"' == *doc->cur) {
+	const char	*desc_end = NULL;
+	const char	*desc = doc->cur + 1;
+	
+    	if (AGOO_ERR_OK != agoo_doc_read_string(err, doc)) {
+	    return err->code;
+	}
+	if ('"' == *desc) { // must be a """
+	    desc += 2;
+	    desc_end = doc->cur - 3;
+	} else {
+	    desc_end = doc->cur - 1;
+	}
+	*descp = desc;
+	*lenp = desc_end - *descp;
+    }
+    return AGOO_ERR_OK;
+}
 
+static size_t
+read_name(agooErr err, agooDoc doc, char *name, size_t max) {
+    size_t	nlen;
+    const char	*start = doc->cur;
+
+    agoo_doc_read_token(doc);
+    if (doc->cur == start) {
+	agoo_doc_err(doc, err, "Name not provided");
+	return 0;
+    }
+    nlen = doc->cur - start;
+    if (max <= nlen) {
+	agoo_doc_err(doc, err, "Name too long");
+	return 0;
+    }
+    strncpy(name, start, nlen);
+    name[nlen] = '\0';
+
+    return nlen;
+}
+
+static int
+extract_name(agooErr err, agooDoc doc, const char *key, int klen, char *name, size_t max) {
     if (0 != strncmp(doc->cur, key, klen)) {
 	return agoo_doc_err(doc, err, "Expected %s key word", key);
     }
@@ -20,18 +62,9 @@ extract_name(agooErr err, agooDoc doc, const char *key, int klen, char *name, si
     if (0 == agoo_doc_skip_white(doc)) {
 	return agoo_doc_err(doc, err, "Expected %s key word", key);
     }
-    start = doc->cur;
-    agoo_doc_read_token(doc);
-    if (doc->cur == start) {
-	return agoo_doc_err(doc, err, "Name not provided");
+    if (0 == read_name(err, doc, name, max)) {
+	return err->code;
     }
-    nlen = doc->cur - start;
-    if (max <= nlen) {
-	return agoo_doc_err(doc, err, "Name too long");
-    }
-    strncpy(name, start, nlen);
-    name[nlen] = '\0';
-    
     return AGOO_ERR_OK;
 }
 
@@ -47,13 +80,123 @@ make_scalar(agooErr err, agooDoc doc, const char *desc, int len) {
     return AGOO_ERR_OK;
 }
 
+// TBD type or type name should be okay, maybe just type name
+static int
+read_type(agooErr err, agooDoc doc, char *return_type, size_t rlen, bool *required, bool *list, bool *not_empty) {
+    *required = false;
+    *list = false;
+    *not_empty = false;
+
+    // TBD handle nested list types, maybe need temporary list types
+
+    agoo_doc_skip_white(doc);
+    if ('[' == *doc->cur) {
+	*list = true;
+	doc->cur++;
+    }
+    if (0 == read_name(err, doc, return_type, rlen)) {
+	return err->code;
+    }
+    agoo_doc_skip_white(doc);
+    if (*list) {
+	switch (*doc->cur) {
+	case '!':
+	    *not_empty = true;
+	    doc->cur++;
+	    agoo_doc_skip_white(doc);
+	    if (']' != *doc->cur) {
+		return agoo_doc_err(doc, err, "List type not terminated with a ]");
+	    }
+	    doc->cur++;
+	    break;
+	case ']':
+	    doc->cur++;
+	    break;
+	default:
+	    return agoo_doc_err(doc, err, "List type not terminated with a ]");
+	}
+    }
+    agoo_doc_skip_white(doc);
+    if ('!' == *doc->cur) {
+	*required = true;
+	doc->cur++;
+    }
+    return AGOO_ERR_OK;
+}
+
+static int
+make_use_arg(agooErr err, agooDoc doc, gqlDirUse use) {
+    char	name[256];
+    gqlValue	value = NULL;
+
+    if (0 == read_name(err, doc, name, sizeof(name))) {
+	return err->code;
+    }
+    agoo_doc_skip_white(doc);
+    if (':' != *doc->cur) {
+	return agoo_doc_err(doc, err, "Expected ':'");
+    }
+    doc->cur++;
+    if (NULL == (value = agoo_doc_read_value(err, doc))) {
+	return err->code;
+    }
+    if (AGOO_ERR_OK == gql_dir_use_arg(err, use, name, value)) {
+	return err->code;
+    }
+    return AGOO_ERR_OK;
+}
+
+static int
+extract_dir_use(agooErr err, agooDoc doc, gqlDirUse *uses) {
+    char	name[256];
+    gqlDirUse	use;
+
+    agoo_doc_skip_white(doc);
+    if ('@' != *doc->cur) {
+	return AGOO_ERR_OK;
+    }
+    doc->cur++;
+    if (0 == read_name(err, doc, name, sizeof(name))) {
+	return err->code;
+    }
+    if (NULL == (use = gql_dir_use_create(err, name))) {
+	return err->code;
+    }
+    agoo_doc_skip_white(doc);
+    if ('(' == *doc->cur) {
+	doc->cur++;
+	while (doc->cur < doc->end) {
+	    if (AGOO_ERR_OK != make_use_arg(err, doc, use)) {
+		return err->code;
+	    }
+	    agoo_doc_skip_white(doc);
+	    if (')' == *doc->cur) {
+		doc->cur++;
+		break;
+	    }
+	}
+    }
+    // TBD keep in order?
+    if (NULL == *uses) {
+	*uses = use;
+    } else {
+	use->next = *uses;
+	(*uses) = use;
+    }
+    return AGOO_ERR_OK;
+}
+
 static int
 make_enum(agooErr err, agooDoc doc, const char *desc, int len) {
     char	name[256];
     const char	*start;
     gqlType	type;
+    gqlDirUse	uses = NULL;
     
     if (AGOO_ERR_OK != extract_name(err, doc, "enum", 4, name, sizeof(name))) {
+	return err->code;
+    }
+    if (AGOO_ERR_OK != extract_dir_use(err, doc, &uses)) {
 	return err->code;
     }
     agoo_doc_skip_white(doc);
@@ -65,10 +208,15 @@ make_enum(agooErr err, agooDoc doc, const char *desc, int len) {
     if (NULL == (type = gql_enum_create(err, name, desc, len, false))) {
 	return err->code;
     }
+    type->dir = uses;
     while (doc->cur < doc->end) {
 	agoo_doc_skip_white(doc);
+	// TBD read desc, enum values will have to be more thn a string
 	start = doc->cur;
 	agoo_doc_read_token(doc);
+
+	// TBD extract_dir_use(agooErr err, agooDoc doc, gqlDirUse *uses) {
+
 	if (doc->cur == start) {
 	    if ('}' == *doc->cur) {
 		doc->cur++;
@@ -88,8 +236,12 @@ make_union(agooErr err, agooDoc doc, const char *desc, int len) {
     char	name[256];
     const char	*start;
     gqlType	type;
+    gqlDirUse	uses = NULL;
     
     if (AGOO_ERR_OK != extract_name(err, doc, "union", 5, name, sizeof(name))) {
+	return err->code;
+    }
+    if (AGOO_ERR_OK != extract_dir_use(err, doc, &uses)) {
 	return err->code;
     }
     agoo_doc_skip_white(doc);
@@ -102,6 +254,7 @@ make_union(agooErr err, agooDoc doc, const char *desc, int len) {
     if (NULL == (type = gql_union_create(err, name, desc, len, false))) {
 	return err->code;
     }
+    type->dir = uses;
     while (doc->cur < doc->end) {
 	agoo_doc_skip_white(doc);
 	start = doc->cur;
@@ -124,23 +277,13 @@ make_dir_arg(agooErr err, agooDoc doc, gqlDir dir) {
     char	type_name[256];
     const char	*start;
     const char	*desc = NULL;
-    const char	*desc_end = NULL;
+    size_t	dlen;
     size_t	nlen;
     bool	required = false;
     gqlValue	dv = NULL;
 
-    agoo_doc_skip_white(doc);
-    if ('"' == *doc->cur) {
-	desc = doc->cur + 1;
-	if (AGOO_ERR_OK != agoo_doc_read_string(err, doc)) {
-	    return err->code;
-	}
-	if ('"' == *desc) { // must be a """
-	    desc += 2;
-	    desc_end = doc->cur - 3;
-	} else {
-	    desc_end = doc->cur - 1;
-	}
+    if (AGOO_ERR_OK != extract_desc(err, doc, &desc, &dlen)) {
+	return err->code;
     }
     agoo_doc_skip_white(doc);
     start = doc->cur;
@@ -187,7 +330,7 @@ make_dir_arg(agooErr err, agooDoc doc, gqlDir dir) {
     if ('@' == *doc->cur) {
 	// TBD directive
     }
-    if (NULL == gql_dir_arg(err, dir, name, type_name, desc, (int)(desc_end - desc), dv, required)) {
+    if (NULL == gql_dir_arg(err, dir, name, type_name, desc, dlen, dv, required)) {
 	return err->code;
     }
     return AGOO_ERR_OK;
@@ -211,17 +354,9 @@ make_directive(agooErr err, agooDoc doc, const char *desc, int len) {
 	return agoo_doc_err(doc, err, "Expected '@'");
     }
     doc->cur++;
-    start = doc->cur;
-    agoo_doc_read_token(doc);
-    if (doc->cur == start) {
-	return agoo_doc_err(doc, err, "Name not provided");
+    if (0 == (nlen = read_name(err, doc, name, sizeof(name)))) {
+	return err->code;
     }
-    nlen = doc->cur - start;
-    if (sizeof(name) <= nlen) {
-	return agoo_doc_err(doc, err, "Name too long");
-    }
-    strncpy(name, start, nlen);
-    name[nlen] = '\0';
     if (NULL == (dir = gql_directive_create(err, name, desc, len, false))) {
 	return err->code;
     }
@@ -261,11 +396,160 @@ make_directive(agooErr err, agooDoc doc, const char *desc, int len) {
     return AGOO_ERR_OK;
 }
 
+static int
+make_field_arg(agooErr err, agooDoc doc, gqlField field) {
+    char	name[256];
+    char	type_name[256];
+    const char	*desc = NULL;
+    size_t	dlen;
+    bool 	required = false;
+    bool 	list = false;
+    bool 	not_empty = false;
+
+    if (AGOO_ERR_OK != extract_desc(err, doc, &desc, &dlen)) {
+	return err->code;
+    }
+    agoo_doc_skip_white(doc);
+    if (0 == read_name(err, doc, name, sizeof(name))) {
+	return err->code;
+    }
+    agoo_doc_skip_white(doc);
+    if (':' != *doc->cur) {
+	return agoo_doc_err(doc, err, "Expected :");
+    }
+    doc->cur++;
+    if (AGOO_ERR_OK != read_type(err, doc, type_name, sizeof(type_name), &required, &list, &not_empty)) {
+	return err->code;
+    }
+    agoo_doc_skip_white(doc);
+
+    switch (*doc->cur) {
+    case '=':
+	// TBD read default value
+	break;
+    case '@':
+	// TBD read directives
+	break;
+    default: // ) or next arg
+	break;
+    }
+    // TBD handle list type
+    if (NULL == gql_field_arg(err, field, name, type_name, desc, dlen, NULL, required)) { // TBD add default value
+	return err->code;
+    }
+    return AGOO_ERR_OK;
+}
+
+static int
+make_field(agooErr err, agooDoc doc, gqlType type) {
+    char	name[256];
+    char	return_type[256];
+    const char	*arg_start = NULL;
+    gqlField	field;
+    gqlDirUse	uses = NULL;
+    const char	*desc = NULL;
+    size_t	dlen;
+    bool 	required = false;
+    bool 	list = false;
+    bool 	not_empty = false;
+
+    if (AGOO_ERR_OK != extract_desc(err, doc, &desc, &dlen)) {
+	return err->code;
+    }
+    if (0 == read_name(err, doc, name, sizeof(name))) {
+	return err->code;
+    }
+    agoo_doc_skip_white(doc);
+    switch (*doc->cur) {
+    case '(':
+	doc->cur++;
+	arg_start = doc->cur;
+	if (!agoo_doc_skip_to(doc, ')')) {
+	    return agoo_doc_err(doc, err, "Argument list not terminated with a )");
+	}
+	doc->cur++;
+	agoo_doc_skip_white(doc);
+	if (':' != *doc->cur) {
+	    return agoo_doc_err(doc, err, "Expected :");
+	}
+	doc->cur++;
+	break;
+    case ':':
+	doc->cur++;
+	// okay
+	break;
+    default:
+	return agoo_doc_err(doc, err, "Expected : or (");
+    }
+    if (AGOO_ERR_OK != read_type(err, doc, return_type, sizeof(return_type), &required, &list, &not_empty)) {
+	return err->code;
+    }
+    if (AGOO_ERR_OK != extract_dir_use(err, doc, &uses)) {
+	return err->code;
+    }
+    if (NULL == (field = gql_type_field(err, type, name, return_type, desc, dlen, required, list, not_empty, NULL))) {
+	return err->code;
+    }
+    field->dir = uses;
+    if (NULL != arg_start) {
+	const char	*cur = doc->cur;
+
+	doc->cur = arg_start;
+	while (true) {
+	    if (AGOO_ERR_OK != make_field_arg(err, doc, field)) {
+		return err->code;
+	    }
+	    agoo_doc_skip_white(doc);
+	    if (')' == *doc->cur) {
+		break;
+	    }
+	}
+	doc->cur = cur;
+    }
+    return AGOO_ERR_OK;
+}
+
+static int
+make_interface(agooErr err, agooDoc doc, const char *desc, int len) {
+    char	name[256];
+    gqlType	type;
+    gqlDirUse	uses = NULL;
+    
+    if (AGOO_ERR_OK != extract_name(err, doc, "interface", 9, name, sizeof(name))) {
+	return err->code;
+    }
+    if (AGOO_ERR_OK != extract_dir_use(err, doc, &uses)) {
+	return err->code;
+    }
+    agoo_doc_skip_white(doc);
+    if ('{' != *doc->cur) {
+	return agoo_doc_err(doc, err, "Expected '{'");
+    }
+    doc->cur++;
+    agoo_doc_skip_white(doc);
+
+    if (NULL == (type = gql_interface_create(err, name, desc, len, false))) {
+	return err->code;
+    }
+    type->dir = uses;
+    while (doc->cur < doc->end) {
+	if ('}' == *doc->cur) {
+	    doc->cur++; // skip }
+	    break;
+	}
+	if (AGOO_ERR_OK != make_field(err, doc, type)) {
+	    return err->code;
+	}
+	agoo_doc_skip_white(doc);
+    }
+    return AGOO_ERR_OK;
+}
+
 int
 sdl_parse(agooErr err, const char *str, int len) {
     struct _agooDoc	doc;
     const char		*desc = NULL;
-    const char		*desc_end = NULL;
+    size_t		dlen = 0;
     
     agoo_doc_init(&doc, str, len);
 
@@ -273,44 +557,47 @@ sdl_parse(agooErr err, const char *str, int len) {
 	agoo_doc_next_token(&doc);
 	switch (*doc.cur) {
 	case '"':
-	    desc = doc.cur + 1;
-	    if (AGOO_ERR_OK != agoo_doc_read_string(err, &doc)) {
+	    if (AGOO_ERR_OK != extract_desc(err, &doc, &desc, &dlen)) {
 		return err->code;
-	    }
-	    if ('"' == *desc) { // must be a """
-		desc += 2;
-		desc_end = doc.cur - 3;
-	    } else {
-		desc_end = doc.cur - 1;
 	    }
 	    break;
 	case 's': // scalar
-	    if (AGOO_ERR_OK != make_scalar(err, &doc, desc, (int)(desc_end - desc))) {
+	    if (AGOO_ERR_OK != make_scalar(err, &doc, desc, dlen)) {
 		return err->code;
 	    }
+	    desc = NULL;
+	    dlen = 0;
 	    break;
 	case 'e': // enum, and extend interface or type
 	    if (4 < (doc.end - doc.cur)) {
 		if ('n' == doc.cur[1]) {
-		    if (AGOO_ERR_OK != make_enum(err, &doc, desc, (int)(desc_end - desc))) {
+		    if (AGOO_ERR_OK != make_enum(err, &doc, desc, dlen)) {
 			return err->code;
 		    }
+		    desc = NULL;
+		    dlen = 0;
 		    break;
 		} else {
 		    // TBD extend
+		    desc = NULL;
+		    dlen = 0;
 		    break;
 		}
 	    }
 	    return agoo_doc_err(&doc, err, "Unknown directive");
 	case 'u': // union
-	    if (AGOO_ERR_OK != make_union(err, &doc, desc, (int)(desc_end - desc))) {
+	    if (AGOO_ERR_OK != make_union(err, &doc, desc, dlen)) {
 		return err->code;
 	    }
+	    desc = NULL;
+	    dlen = 0;
 	    break;
 	case 'd': // directive
-	    if (AGOO_ERR_OK != make_directive(err, &doc, desc, (int)(desc_end - desc))) {
+	    if (AGOO_ERR_OK != make_directive(err, &doc, desc, dlen)) {
 		return err->code;
 	    }
+	    desc = NULL;
+	    dlen = 0;
 	    break;
 	case 't': // type
 	    // TBD
@@ -319,10 +606,15 @@ sdl_parse(agooErr err, const char *str, int len) {
 	    if (5 < (doc.end - doc.cur) && 'n' == doc.cur[1]) {
 		if ('p' == doc.cur[2]) {
 		    // TBD input
-		    break;
+		    desc = NULL;
+		    dlen = 0;
+		    //break;
 		} else {
-		    // TBD interface zzzzzzzzzzzz
-		    return agoo_doc_err(&doc, err, "Unknown directive");
+		    if (AGOO_ERR_OK != make_interface(err, &doc, desc, dlen)) {
+			return err->code;
+		    }
+		    desc = NULL;
+		    dlen = 0;
 		    break;
 		}
 	    }

@@ -804,7 +804,7 @@ gql_uuid_str_set(agooErr err, gqlValue value, const char *str, int len) {
 extern void	gql_null_set(gqlValue value);
 
 gqlLink
-link_create(agooErr err, gqlValue item) {
+gql_link_create(agooErr err, const char *key, gqlValue item) {
     gqlLink	link = (gqlLink)malloc(sizeof(struct _gqlLink));
 
     if (NULL == link) {
@@ -813,6 +813,12 @@ link_create(agooErr err, gqlValue item) {
 	DEBUG_ALLOC(mem_graphql_link, link);
 	link->next = NULL;
 	link->key = NULL;
+	if (NULL != key) {
+	    if (NULL == (link->key = strdup(key))) {
+		agoo_err_set(err, AGOO_ERR_MEMORY, "strdup() failed.");
+		return NULL;
+	    }
+	}
 	link->value = item;
     }
     return link;
@@ -820,7 +826,7 @@ link_create(agooErr err, gqlValue item) {
 
 int
 gql_list_append(agooErr err, gqlValue list, gqlValue item) {
-    gqlLink	link = link_create(err, item);
+    gqlLink	link = gql_link_create(err, NULL, item);
 
     if (NULL != link) {
 	if (NULL == list->members) {
@@ -838,7 +844,7 @@ gql_list_append(agooErr err, gqlValue list, gqlValue item) {
 
 int
 gql_list_prepend(agooErr err, gqlValue list, gqlValue item) {
-    gqlLink	link = link_create(err, item);
+    gqlLink	link = gql_link_create(err, NULL, item);
 
     if (NULL != link) {
 	link->next = list->members;
@@ -849,10 +855,9 @@ gql_list_prepend(agooErr err, gqlValue list, gqlValue item) {
 
 int
 gql_object_set(agooErr err, gqlValue obj, const char *key, gqlValue item) {
-    gqlLink	link = link_create(err, item);
+    gqlLink	link = gql_link_create(err, key, item);
 
     if (NULL != link) {
-	link->key = strdup(key);
 	//link->next = obj->members;
 	if (NULL == obj->members) {
 	    obj->members = link;
@@ -1020,12 +1025,12 @@ gql_null_create(agooErr err) {
 }
 
 gqlValue
-gql_list_create(agooErr err, gqlType itemType) {
+gql_list_value_create(agooErr err, gqlType item_type) {
     gqlValue	v = value_create(&list_type);
 
     if (NULL != v) {
 	v->members = NULL;
-	v->member_type = itemType;
+	v->member_type = item_type;
     }
     return v;
 }

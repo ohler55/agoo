@@ -10,6 +10,7 @@
 #include "text.h"
 
 typedef enum {
+    GQL_UNDEF		= (int8_t)0, // not defined yet
     GQL_OBJECT		= (int8_t)1,
     GQL_FRAG		= (int8_t)2,
     GQL_INPUT		= (int8_t)3,
@@ -17,8 +18,7 @@ typedef enum {
     GQL_INTERFACE	= (int8_t)5,
     GQL_ENUM		= (int8_t)6,
     GQL_SCALAR		= (int8_t)7,
-    // LIST
-    // NON_NULL
+    GQL_LIST		= (int8_t)8,
 } gqlKind;
 
 struct _agooCon;
@@ -68,7 +68,6 @@ typedef struct _gqlArg {
     struct _gqlArg	*next;
     const char		*name;
     const char		*desc;
-    const char		*type_name;
     struct _gqlType	*type;
     struct _gqlValue	*default_value;
     struct _gqlDirUse	*dir;
@@ -85,8 +84,8 @@ typedef struct _gqlField {
     struct _gqlDirUse	*dir;
     gqlResolveFunc	resolve;
     bool		required;
-    bool		list;
-    bool		not_empty; // list can not be empty, member is required
+    bool		list; // TBD remove
+    bool		not_empty; // list can not be empty, member is required // TBD remove
     bool		deprecated;
 } *gqlField;
 
@@ -97,9 +96,11 @@ typedef struct _gqlDir {
     gqlArg		args;
     gqlStrLink		locs; // location names
     bool		locked;
+    bool		defined;
 } *gqlDir;
 
 typedef struct _gqlDirUse {
+    struct _gqlDirUse	*next;
     gqlDir		dir;
     struct _gqlLink	*args;
 } *gqlDirUse;
@@ -127,22 +128,27 @@ typedef struct _gqlType {
 	    int			(*coerce)(agooErr err, struct _gqlValue *src, struct _gqlType *type);
 	    void		(*destroy)(struct _gqlValue *value);
 	};
+	struct { // List types
+	    struct _gqlType	*base;
+	    bool		not_empty;
+	};
     };
 } *gqlType;
 
 extern int	gql_init(agooErr err);
 extern void	gql_destroy(); // clear out all
 
-extern gqlType	gql_type_create(agooErr err, const char *name, const char *desc, int dlen, bool locked, gqlType *interfaces);
-extern gqlType	gql_fragment_create(agooErr err, const char *name, const char *desc, int dlen, bool locked, gqlType on);
-extern gqlType	gql_input_create(agooErr err, const char *name, const char *desc, int dlen, bool locked);
-extern gqlType	gql_interface_create(agooErr err, const char *name, const char *desc, int dlen, bool locked);
+extern gqlType	gql_type_create(agooErr err, const char *name, const char *desc, size_t dlen, bool locked, const char **interfaces);
+extern gqlType	gql_fragment_create(agooErr err, const char *name, const char *desc, size_t dlen, bool locked, const char *on);
+extern gqlType	gql_input_create(agooErr err, const char *name, const char *desc, size_t dlen, bool locked);
+extern gqlType	gql_interface_create(agooErr err, const char *name, const char *desc, size_t dlen, bool locked);
 
 extern gqlField	gql_type_field(agooErr		err,
 			       gqlType		type,
 			       const char	*name,
-			       gqlType		return_type,
+			       const char	*return_type,
 			       const char	*desc,
+			       size_t		dlen,
 			       bool 		required,
 			       bool 		list,
 			       bool 		not_empty,
@@ -151,34 +157,40 @@ extern gqlField	gql_type_field(agooErr		err,
 extern gqlArg	gql_field_arg(agooErr 		err,
 			      gqlField 		field,
 			      const char 	*name,
-			      gqlType 		type,
+			      const char 	*type,
 			      const char 	*desc,
+			      size_t		dlen,
 			      struct _gqlValue	*def_value,
 			      bool 		required);
 
 // TBD maybe create then add fields
 // TBD same with op? create then add args
 
-extern gqlType	gql_scalar_create(agooErr err, const char *name, const char *desc, int dlen, bool locked);
+extern gqlType	gql_scalar_create(agooErr err, const char *name, const char *desc, size_t dlen, bool locked);
 
-extern gqlDir	gql_directive_create(agooErr err, const char *name, const char *desc, int dlen, bool locked);
+extern gqlDir	gql_directive_create(agooErr err, const char *name, const char *desc, size_t dlen, bool locked);
 extern int	gql_directive_on(agooErr err, gqlDir d, const char *on, int len);
 extern gqlArg	gql_dir_arg(agooErr 		err,
 			    gqlDir 		dir,
 			    const char 		*name,
 			    const char 		*type_name,
 			    const char	 	*desc,
-			    int			dlen,
+			    size_t		dlen,
 			    struct _gqlValue	*def_value,
 			    bool 		required);
 extern gqlDir	gql_directive_get(const char *name);
 
-extern gqlType	gql_union_create(agooErr err, const char *name, const char *desc, int dlen, bool locked);
+extern gqlDirUse	gql_dir_use_create(agooErr err, const char *name);
+extern int		gql_dir_use_arg(agooErr err, gqlDirUse use, const char *key, struct _gqlValue *value);
+
+extern gqlType	gql_union_create(agooErr err, const char *name, const char *desc, size_t dlen, bool locked);
 extern int	gql_union_add(agooErr err, gqlType type, const char *name, int len);
 
-extern gqlType	gql_enum_create(agooErr err, const char *name, const char *desc, int dlen, bool locked);
+extern gqlType	gql_enum_create(agooErr err, const char *name, const char *desc, size_t dlen, bool locked);
 extern int	gql_enum_add(agooErr err, gqlType type, const char *value, int len);
 extern int	gql_enum_append(agooErr err, gqlType type, const char *value, int len);
+
+extern gqlType	gql_list_create(agooErr err, const char *base_name, bool not_empty, bool locked);
 
 extern int	gql_type_set(agooErr err, gqlType type);
 extern gqlType	gql_type_get(const char *name);

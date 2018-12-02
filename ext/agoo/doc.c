@@ -54,6 +54,21 @@ agoo_doc_skip_comment(agooDoc doc) {
     }
 }
 
+// Return true if found, false if not.
+bool
+agoo_doc_skip_to(agooDoc doc, char c) {
+    const char	*orig = doc->cur;
+    
+    for (; doc->cur < doc->end; doc->cur++) {
+	if (c == *doc->cur) {
+	    return true;
+	}
+    }
+    doc->cur = orig;
+
+    return false;
+}
+
 void
 agoo_doc_read_token(agooDoc doc) {
     if ('t' == char_map[*(uint8_t*)doc->cur] && '9' < *doc->cur) {

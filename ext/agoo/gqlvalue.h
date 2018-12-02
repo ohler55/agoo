@@ -43,6 +43,8 @@ extern int	gql_value_init(agooErr err);
 
 extern void	gql_value_destroy(gqlValue value);
 
+extern gqlLink	gql_link_create(agooErr err, const char *key, gqlValue value);
+
 extern gqlValue	gql_int_create(agooErr err, int32_t i);
 extern gqlValue	gql_i64_create(agooErr err, int64_t i);
 extern gqlValue	gql_string_create(agooErr err, const char *str, int len);
@@ -54,7 +56,7 @@ extern gqlValue	gql_time_str_create(agooErr err, const char *str, int len);
 extern gqlValue	gql_uuid_create(agooErr err, uint64_t hi, uint64_t lo);
 extern gqlValue	gql_uuid_str_create(agooErr err, const char *str, int len);
 extern gqlValue	gql_null_create(agooErr err);
-extern gqlValue	gql_list_create(agooErr err, struct _gqlType *itemType);
+extern gqlValue	gql_list_value_create(agooErr err, struct _gqlType *item_type);
 extern gqlValue	gql_object_create(agooErr err);
 
 extern int	gql_list_append(agooErr err, gqlValue list, gqlValue item);
