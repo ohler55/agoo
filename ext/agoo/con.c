@@ -24,7 +24,7 @@
 #include "upgraded.h"
 #include "websocket.h"
 
-#define CON_TIMEOUT		5.0
+#define CON_TIMEOUT		10.0
 #define INITIAL_POLL_SIZE	1024
 
 typedef enum {
@@ -91,7 +91,7 @@ agoo_con_destroy(agooCon c) {
 	c->up = NULL;
     }
     agoo_log_cat(&agoo_con_cat, "Connection %llu closed.", (unsigned long long)c->id);
-    DEBUG_FREE(mem_con, c)
+    DEBUG_FREE(mem_con, c);
     free(c);
 }
 
@@ -1023,16 +1023,12 @@ con_ready_check(void *ctx, double now) {
 
     if (c->dead || 0 == c->sock) {
 	if (remove_dead_res(c)) {	
-	    agoo_con_destroy(c);
-    
 	    return false;
 	}
     } else if (0.0 == c->timeout || now < c->timeout) {
 	return true;
     } else if (c->closing) {
 	if (remove_dead_res(c)) {
-	    agoo_con_destroy(c);
-
 	    return false;
 	}
     } else if (AGOO_CON_WS == c->bind->kind || AGOO_CON_SSE == c->bind->kind) {
