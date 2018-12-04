@@ -1,10 +1,12 @@
 # CHANGELOG
 
-### 2.5.? - 2018-??
+### 2.5.7 - 2018-12-03
 
+Bad release fix along with upload example.
 
 - Additional return value checking on `strdup`, `strndup`, and `fstat`.
 
+- Fix double free when a connection times out.
 
 ### 2.5.6 - 2018-11-26
 
