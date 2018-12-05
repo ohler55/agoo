@@ -75,47 +75,42 @@ make_scalar(agooErr err, agooDoc doc, const char *desc, int len) {
     if (AGOO_ERR_OK != extract_name(err, doc, "scalar", 6, name, sizeof(name))) {
 	return err->code;
     }
-    gql_scalar_create(err, name, desc, len, false);
+    gql_scalar_create(err, name, desc, len);
     
     return AGOO_ERR_OK;
 }
 
-// TBD type or type name should be okay, maybe just type name
+// TBD make recursive
 static int
-read_type(agooErr err, agooDoc doc, char *return_type, size_t rlen, bool *required, bool *list, bool *not_empty) {
-    *required = false;
-    *list = false;
-    *not_empty = false;
-
-    // TBD handle nested list types, maybe need temporary list types
-
+read_type(agooErr err, agooDoc doc, gqlType *typep, bool *required) {
     agoo_doc_skip_white(doc);
     if ('[' == *doc->cur) {
-	*list = true;
+	gqlType	base;
+	bool	not_empty = false;
+
 	doc->cur++;
-    }
-    if (0 == read_name(err, doc, return_type, rlen)) {
-	return err->code;
-    }
-    agoo_doc_skip_white(doc);
-    if (*list) {
-	switch (*doc->cur) {
-	case '!':
-	    *not_empty = true;
-	    doc->cur++;
-	    agoo_doc_skip_white(doc);
-	    if (']' != *doc->cur) {
-		return agoo_doc_err(doc, err, "List type not terminated with a ]");
-	    }
-	    doc->cur++;
-	    break;
-	case ']':
-	    doc->cur++;
-	    break;
-	default:
+	if (AGOO_ERR_OK != read_type(err, doc, &base, &not_empty)) {
+	    return err->code;
+	}
+	agoo_doc_skip_white(doc);
+	if (']' != *doc->cur) {
 	    return agoo_doc_err(doc, err, "List type not terminated with a ]");
 	}
+	doc->cur++;
+	if (NULL == (*typep = gql_assure_list(err, base, not_empty))) {
+	    return err->code;
+	}
+    } else {
+	char	name[256];
+
+	if (0 == read_name(err, doc, name, sizeof(name))) {
+	    return err->code;
+	}
+	if (NULL == (*typep = gql_assure_type(err, name))) {
+	    return err->code;
+	}
     }
+    *required = false;
     agoo_doc_skip_white(doc);
     if ('!' == *doc->cur) {
 	*required = true;
@@ -205,7 +200,7 @@ make_enum(agooErr err, agooDoc doc, const char *desc, int len) {
     }
     doc->cur++;
 
-    if (NULL == (type = gql_enum_create(err, name, desc, len, false))) {
+    if (NULL == (type = gql_enum_create(err, name, desc, len))) {
 	return err->code;
     }
     type->dir = uses;
@@ -251,7 +246,7 @@ make_union(agooErr err, agooDoc doc, const char *desc, int len) {
     doc->cur++;
     agoo_doc_skip_white(doc);
 
-    if (NULL == (type = gql_union_create(err, name, desc, len, false))) {
+    if (NULL == (type = gql_union_create(err, name, desc, len))) {
 	return err->code;
     }
     type->dir = uses;
@@ -275,6 +270,7 @@ static int
 make_dir_arg(agooErr err, agooDoc doc, gqlDir dir) {
     char	name[256];
     char	type_name[256];
+    gqlType	type;
     const char	*start;
     const char	*desc = NULL;
     size_t	dlen;
@@ -330,7 +326,10 @@ make_dir_arg(agooErr err, agooDoc doc, gqlDir dir) {
     if ('@' == *doc->cur) {
 	// TBD directive
     }
-    if (NULL == gql_dir_arg(err, dir, name, type_name, desc, dlen, dv, required)) {
+    if (NULL == (type = gql_assure_type(err, type_name))) {
+	return err->code;
+    }
+    if (NULL == gql_dir_arg(err, dir, name, type, desc, dlen, dv, required)) {
 	return err->code;
     }
     return AGOO_ERR_OK;
@@ -357,7 +356,7 @@ make_directive(agooErr err, agooDoc doc, const char *desc, int len) {
     if (0 == (nlen = read_name(err, doc, name, sizeof(name)))) {
 	return err->code;
     }
-    if (NULL == (dir = gql_directive_create(err, name, desc, len, false))) {
+    if (NULL == (dir = gql_directive_create(err, name, desc, len))) {
 	return err->code;
     }
     if ('(' == *doc->cur) {
@@ -399,12 +398,10 @@ make_directive(agooErr err, agooDoc doc, const char *desc, int len) {
 static int
 make_field_arg(agooErr err, agooDoc doc, gqlField field) {
     char	name[256];
-    char	type_name[256];
+    gqlType	type;
     const char	*desc = NULL;
     size_t	dlen;
     bool 	required = false;
-    bool 	list = false;
-    bool 	not_empty = false;
 
     if (AGOO_ERR_OK != extract_desc(err, doc, &desc, &dlen)) {
 	return err->code;
@@ -418,7 +415,8 @@ make_field_arg(agooErr err, agooDoc doc, gqlField field) {
 	return agoo_doc_err(doc, err, "Expected :");
     }
     doc->cur++;
-    if (AGOO_ERR_OK != read_type(err, doc, type_name, sizeof(type_name), &required, &list, &not_empty)) {
+    
+    if (AGOO_ERR_OK != read_type(err, doc, &type, &required)) {
 	return err->code;
     }
     agoo_doc_skip_white(doc);
@@ -434,7 +432,7 @@ make_field_arg(agooErr err, agooDoc doc, gqlField field) {
 	break;
     }
     // TBD handle list type
-    if (NULL == gql_field_arg(err, field, name, type_name, desc, dlen, NULL, required)) { // TBD add default value
+    if (NULL == gql_field_arg(err, field, name, type, desc, dlen, NULL, required)) { // TBD add default value
 	return err->code;
     }
     return AGOO_ERR_OK;
@@ -443,15 +441,13 @@ make_field_arg(agooErr err, agooDoc doc, gqlField field) {
 static int
 make_field(agooErr err, agooDoc doc, gqlType type) {
     char	name[256];
-    char	return_type[256];
+    gqlType	return_type;
     const char	*arg_start = NULL;
     gqlField	field;
     gqlDirUse	uses = NULL;
     const char	*desc = NULL;
     size_t	dlen;
     bool 	required = false;
-    bool 	list = false;
-    bool 	not_empty = false;
 
     if (AGOO_ERR_OK != extract_desc(err, doc, &desc, &dlen)) {
 	return err->code;
@@ -481,13 +477,13 @@ make_field(agooErr err, agooDoc doc, gqlType type) {
     default:
 	return agoo_doc_err(doc, err, "Expected : or (");
     }
-    if (AGOO_ERR_OK != read_type(err, doc, return_type, sizeof(return_type), &required, &list, &not_empty)) {
+    if (AGOO_ERR_OK != read_type(err, doc, &return_type, &required)) {
 	return err->code;
     }
     if (AGOO_ERR_OK != extract_dir_use(err, doc, &uses)) {
 	return err->code;
     }
-    if (NULL == (field = gql_type_field(err, type, name, return_type, desc, dlen, required, list, not_empty, NULL))) {
+    if (NULL == (field = gql_type_field(err, type, name, return_type, desc, dlen, required, NULL))) {
 	return err->code;
     }
     field->dir = uses;
@@ -528,7 +524,7 @@ make_interface(agooErr err, agooDoc doc, const char *desc, int len) {
     doc->cur++;
     agoo_doc_skip_white(doc);
 
-    if (NULL == (type = gql_interface_create(err, name, desc, len, false))) {
+    if (NULL == (type = gql_interface_create(err, name, desc, len))) {
 	return err->code;
     }
     type->dir = uses;

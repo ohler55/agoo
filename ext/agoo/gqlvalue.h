@@ -56,7 +56,7 @@ extern gqlValue	gql_time_str_create(agooErr err, const char *str, int len);
 extern gqlValue	gql_uuid_create(agooErr err, uint64_t hi, uint64_t lo);
 extern gqlValue	gql_uuid_str_create(agooErr err, const char *str, int len);
 extern gqlValue	gql_null_create(agooErr err);
-extern gqlValue	gql_list_value_create(agooErr err, struct _gqlType *item_type);
+extern gqlValue	gql_list_create(agooErr err, struct _gqlType *item_type);
 extern gqlValue	gql_object_create(agooErr err);
 
 extern int	gql_list_append(agooErr err, gqlValue list, gqlValue item);

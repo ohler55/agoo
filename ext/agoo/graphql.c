@@ -295,13 +295,14 @@ gql_init(agooErr err) {
 
 	return err->code;
     }
-    if (NULL == (query_type = gql_type_create(err, "Query", "The GraphQL root Query.", 0, false, NULL)) ||
-	NULL == (mutation_type = gql_type_create(err, "Mutation", "The GraphQL root Mutation.", 0, false, NULL)) ||
-	NULL == (subscription_type = gql_type_create(err, "Subscription", "The GraphQL root Subscription.", 0, false, NULL)) ||
-	NULL == (schema_type = gql_type_create(err, "schema", "The GraphQL root Object.", 0, false, NULL)) ||
-	NULL == gql_type_field(err, schema_type, "query", "Query", "Root level query.", 0, false, false, false, NULL) ||
-	NULL == gql_type_field(err, schema_type, "mutation", "Mutation", "Root level mutation.", 0, false, false, false, NULL) ||
-	NULL == gql_type_field(err, schema_type, "subscription", "Subscription", "Root level subscription.", 0, false, false, false, NULL)) {
+    if (NULL == (query_type = gql_type_create(err, "Query", "The GraphQL root Query.", 0, NULL)) ||
+	NULL == (mutation_type = gql_type_create(err, "Mutation", "The GraphQL root Mutation.", 0, NULL)) ||
+	NULL == (subscription_type = gql_type_create(err, "Subscription", "The GraphQL root Subscription.", 0, NULL)) ||
+	NULL == (schema_type = gql_type_create(err, "schema", "The GraphQL root Object.", 0, NULL)) ||
+
+	NULL == gql_type_field(err, schema_type, "query", query_type, "Root level query.", 0, false, NULL) ||
+	NULL == gql_type_field(err, schema_type, "mutation", mutation_type, "Root level mutation.", 0, false, NULL) ||
+	NULL == gql_type_field(err, schema_type, "subscription", subscription_type, "Root level subscription.", 0, false, NULL)) {
 
 	return err->code;
     }
@@ -335,7 +336,7 @@ gql_destroy() {
 }
 
 static gqlType
-type_create(agooErr err, gqlKind kind, const char *name, const char *desc, size_t dlen, bool locked) {
+type_create(agooErr err, gqlKind kind, const char *name, const char *desc, size_t dlen) {
     gqlType	type = gql_type_get(name);
 
     if (NULL == type) {
@@ -355,7 +356,6 @@ type_create(agooErr err, gqlKind kind, const char *name, const char *desc, size_
 	type->to_json = NULL;
 	type->dir = NULL;
 	type->kind = kind;
-	type->locked = locked;
 	type->core = false;
 	
 	if (AGOO_ERR_OK != gql_type_set(err, type)) {
@@ -367,8 +367,7 @@ type_create(agooErr err, gqlKind kind, const char *name, const char *desc, size_
 	    return NULL;
 	}
 	type->kind = kind;
-	type->locked = locked;
-    } else if (type->locked || type->core) {
+    } else if (type->core) {
 	agoo_err_set(err, AGOO_ERR_LOCK, "%d can not be modified.", name);
 	return NULL;
     } else if (kind == type->kind) { // looks like it is being modified so remove all the old stuff
@@ -382,7 +381,7 @@ type_create(agooErr err, gqlKind kind, const char *name, const char *desc, size_
 
 static gqlType
 type_undef_create(agooErr err, const char *name) {
-    return type_create(err, GQL_UNDEF, name, NULL, 0, false);
+    return type_create(err, GQL_UNDEF, name, NULL, 0);
 }
 
 agooText
@@ -397,8 +396,8 @@ gql_object_to_graphql(agooText text, gqlValue value, int indent, int depth) {
     return text;
 }
 
-static gqlType
-assure_type(agooErr err, const char *name) {
+gqlType
+gql_assure_type(agooErr err, const char *name) {
     gqlType	type = NULL;
     
     if (NULL != name) {
@@ -428,7 +427,6 @@ assure_directive(agooErr err, const char *name) {
 	dir->name = strdup(name);
 	dir->args = NULL;
 	dir->locs = NULL;
-	dir->locked = false;
 	dir->defined = false;
 	dir->desc = NULL;
     }
@@ -436,8 +434,8 @@ assure_directive(agooErr err, const char *name) {
 }
 
 gqlType
-gql_type_create(agooErr err, const char *name, const char *desc, size_t dlen, bool locked, const char **interfaces) {
-    gqlType	type = type_create(err, GQL_OBJECT, name, desc, dlen, locked);
+gql_type_create(agooErr err, const char *name, const char *desc, size_t dlen, const char **interfaces) {
+    gqlType	type = type_create(err, GQL_OBJECT, name, desc, dlen);
 
     if (NULL != type) {
 	type->to_json = gql_object_to_json;
@@ -458,7 +456,7 @@ gql_type_create(agooErr err, const char *name, const char *desc, size_t dlen, bo
 		    return NULL;
 		}
 		for (np = type->interfaces, tp = interfaces; NULL != *tp; np++, tp++) {
-		    if (NULL == (*np = assure_type(err, *tp))) {
+		    if (NULL == (*np = gql_assure_type(err, *tp))) {
 			return NULL;
 		    }
 		}
@@ -473,12 +471,10 @@ gqlField
 gql_type_field(agooErr		err,
 	       gqlType		type,
 	       const char	*name,
-	       const char	*return_type,
+	       gqlType		return_type,
 	       const char	*desc,
 	       size_t		dlen,
 	       bool		required,
-	       bool		list,
-	       bool		not_empty,
 	       gqlResolveFunc	resolve) {
     gqlField	f = (gqlField)malloc(sizeof(struct _gqlField));
     
@@ -488,9 +484,7 @@ gql_type_field(agooErr		err,
 	DEBUG_ALLOC(mem_graphql_field, f);
 	f->next = NULL;
 	f->name = strdup(name);
-	if (NULL == (f->type = assure_type(err, return_type))) {
-	    return NULL;
-	}
+	f->type = return_type;
 	if (NULL == (f->desc = alloc_string(err, desc, dlen)) && AGOO_ERR_OK != err->code) {
 	    return NULL;
 	}
@@ -499,8 +493,6 @@ gql_type_field(agooErr		err,
 	f->dir = NULL;
 	f->resolve = resolve;
 	f->required = required;
-	f->list = list;
-	f->not_empty = not_empty;
 	f->deprecated = false;
 	if (NULL == type->fields) {
 	    type->fields = f;
@@ -519,7 +511,7 @@ gqlArg
 gql_field_arg(agooErr		err,
 	      gqlField		field,
 	      const char	*name,
-	      const char	*type,
+	      gqlType		type,
 	      const char	*desc,
 	      size_t		dlen,
 	      struct _gqlValue	*def_value,
@@ -532,9 +524,7 @@ gql_field_arg(agooErr		err,
 	DEBUG_ALLOC(mem_graphql_arg, a);
 	a->next = NULL;
 	a->name = strdup(name);
-	if (NULL == (a->type = assure_type(err, type))) {
-	    return NULL;
-	}
+	a->type = type;
 	if (NULL == (a->desc = alloc_string(err, desc, dlen)) && AGOO_ERR_OK != err->code) {
 	    return NULL;
 	}
@@ -561,8 +551,8 @@ gql_union_to_json(agooText text, gqlValue value, int indent, int depth) {
 }
 
 gqlType
-gql_union_create(agooErr err, const char *name, const char *desc, size_t dlen, bool locked) {
-    gqlType	type = type_create(err, GQL_UNION, name, desc, dlen, locked);
+gql_union_create(agooErr err, const char *name, const char *desc, size_t dlen) {
+    gqlType	type = type_create(err, GQL_UNION, name, desc, dlen);
 
     if (NULL != type) {
 	type->to_json = gql_union_to_json;
@@ -605,8 +595,8 @@ gql_enum_to_json(agooText text, gqlValue value, int indent, int depth) {
 }
 
 gqlType
-gql_enum_create(agooErr err, const char *name, const char *desc, size_t dlen, bool locked) {
-    gqlType	type = type_create(err, GQL_ENUM, name, desc, dlen, locked);
+gql_enum_create(agooErr err, const char *name, const char *desc, size_t dlen) {
+    gqlType	type = type_create(err, GQL_ENUM, name, desc, dlen);
 
     if (NULL != type) {
 	type->to_json = gql_enum_to_json;
@@ -667,11 +657,11 @@ fragment_to_json(agooText text, gqlValue value, int indent, int depth) {
 }
 
 gqlType
-gql_fragment_create(agooErr err, const char *name, const char *desc, size_t dlen, bool locked, const char *on) {
-    gqlType	type = type_create(err, GQL_FRAG, name, desc, dlen, locked);
+gql_fragment_create(agooErr err, const char *name, const char *desc, size_t dlen, const char *on) {
+    gqlType	type = type_create(err, GQL_FRAG, name, desc, dlen);
     
     if (NULL != type) {
-	if (NULL != on && NULL == (type->on = assure_type(err, on))) {
+	if (NULL != on && NULL == (type->on = gql_assure_type(err, on))) {
 	    return NULL;
 	}
 	type->to_json = fragment_to_json;
@@ -687,8 +677,8 @@ input_to_json(agooText text, gqlValue value, int indent, int depth) {
 }
 
 gqlType
-gql_input_create(agooErr err, const char *name, const char *desc, size_t dlen, bool locked) {
-    gqlType	type = type_create(err, GQL_INPUT, name, desc, dlen, locked);
+gql_input_create(agooErr err, const char *name, const char *desc, size_t dlen) {
+    gqlType	type = type_create(err, GQL_INPUT, name, desc, dlen);
 
     if (NULL != type) {
 	type->to_json = input_to_json;
@@ -704,8 +694,8 @@ interface_to_json(agooText text, gqlValue value, int indent, int depth) {
 }
 
 gqlType
-gql_interface_create(agooErr err, const char *name, const char *desc, size_t dlen, bool locked) {
-    gqlType	type = type_create(err, GQL_INTERFACE, name, desc, dlen, locked);
+gql_interface_create(agooErr err, const char *name, const char *desc, size_t dlen) {
+    gqlType	type = type_create(err, GQL_INTERFACE, name, desc, dlen);
 
     if (NULL != type) {
 	type->to_json = interface_to_json;
@@ -728,8 +718,8 @@ scalar_to_json(agooText text, gqlValue value, int indent, int depth) {
 
 // Create a scalar type that will be represented as a string.
 gqlType
-gql_scalar_create(agooErr err, const char *name, const char *desc, size_t dlen, bool locked) {
-    gqlType	type = type_create(err, GQL_SCALAR, name, desc, dlen, locked);
+gql_scalar_create(agooErr err, const char *name, const char *desc, size_t dlen) {
+    gqlType	type = type_create(err, GQL_SCALAR, name, desc, dlen);
 
     if (NULL != type) {
 	type->to_json = scalar_to_json;
@@ -740,24 +730,19 @@ gql_scalar_create(agooErr err, const char *name, const char *desc, size_t dlen, 
 }
 
 gqlDir
-gql_directive_create(agooErr err, const char *name, const char *desc, size_t dlen, bool locked) {
+gql_directive_create(agooErr err, const char *name, const char *desc, size_t dlen) {
     gqlDir	dir = gql_directive_get(name);
 
     if (NULL != dir) {
 	if (!dir->defined) {
-	    dir->locked = locked;
 	    dir->defined = true;
 	    if (NULL == (dir->desc = alloc_string(err, desc, dlen)) && AGOO_ERR_OK != err->code) {
 		return NULL;
 	    }
-	} else if (dir->locked) {
-	    agoo_err_set(err, AGOO_ERR_LOCK, "%d can not be modified.", name);
-	    return NULL;
 	} else {
 	    dir_clean(dir);
 	    dir->args = NULL;
 	    dir->locs = NULL;
-	    dir->locked = locked;
 	    dir->defined = true;
 	    if (NULL == (dir->desc = alloc_string(err, desc, dlen)) && AGOO_ERR_OK != err->code) {
 		return NULL;
@@ -774,7 +759,6 @@ gql_directive_create(agooErr err, const char *name, const char *desc, size_t dle
 	dir->name = strdup(name);
 	dir->args = NULL;
 	dir->locs = NULL;
-	dir->locked = locked;
 	dir->defined = true;
 	if (NULL == (dir->desc = alloc_string(err, desc, dlen)) && AGOO_ERR_OK != err->code) {
 	    return NULL;
@@ -787,7 +771,7 @@ gqlArg
 gql_dir_arg(agooErr 		err,
 	    gqlDir 		dir,
 	    const char 		*name,
-	    const char 		*type_name,
+	    gqlType		type,
 	    const char	 	*desc,
 	    size_t		dlen,
 	    struct _gqlValue	*def_value,
@@ -801,9 +785,7 @@ gql_dir_arg(agooErr 		err,
 	DEBUG_ALLOC(mem_graphql_arg, a);
 	a->next = NULL;
 	a->name = strdup(name);
-	if (NULL == (a->type = assure_type(err, type_name))) {
-	    return NULL;
-	}
+	a->type = type;
 	if (NULL == (a->desc = alloc_string(err, desc, dlen)) && AGOO_ERR_OK != err->code) {
 	    return NULL;
 	}
@@ -850,25 +832,22 @@ gql_directive_on(agooErr err, gqlDir d, const char *on, int len) {
 }
 
 gqlType
-gql_list_create(agooErr err, const char *base_name, bool not_empty, bool locked) {
+gql_assure_list(agooErr err, gqlType base, bool not_empty) {
     char	name[256];
     gqlType	type;
-    gqlType	base;
 
-    if ((int)sizeof(name) <= snprintf(name, sizeof(name), "[%s%s]", base_name, not_empty ? "!" : "")) {
+    if ((int)sizeof(name) <= snprintf(name, sizeof(name), "[%s%s]", base->name, not_empty ? "!" : "")) {
 	agoo_err_set(err, AGOO_ERR_ARG, "Name too long");
 	return NULL;
     }
-    if (NULL == (base = assure_type(err, base_name))) {
-	return NULL;
+    if (NULL == (type = gql_type_get(name))) {
+	if (NULL == (type = type_create(err, GQL_LIST, name, NULL, 0))) {
+	    return NULL;
+	}
+	type->base = base;
+	type->not_empty = not_empty;
     }
-    if (NULL == (type = type_create(err, GQL_LIST, name, NULL, 0, true))) {
-	return NULL;
-    }
-    type->base = base;
-    type->not_empty = not_empty;
-
-    return AGOO_ERR_OK;
+    return type;
 }
 
 void
@@ -1178,6 +1157,9 @@ gql_schema_sdl(agooText text, bool with_desc, bool all) {
     for (bucket = buckets, i = 0; i < BUCKET_SIZE; bucket++, i++) {
 	for (s = *bucket; NULL != s; s = s->next) {
 	    type = s->type;
+	    if (GQL_LIST == type->kind) {
+		continue;
+	    }
 	    if (!all && type->core) {
 		continue;
 	    }
@@ -1191,6 +1173,9 @@ gql_schema_sdl(agooText text, bool with_desc, bool all) {
 	for (bucket = buckets, i = 0; i < BUCKET_SIZE; bucket++, i++) {
 	    for (s = *bucket; NULL != s; s = s->next) {
 		type = s->type;
+		if (GQL_LIST == type->kind) {
+		    continue;
+		}
 		if (!all && type->core) {
 		    continue;
 		}
