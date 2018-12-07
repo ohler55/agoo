@@ -962,19 +962,12 @@ field_sdl(agooText text, gqlField f, bool with_desc) {
 	text = agoo_text_append(text, ")", 1);
     }
     text = agoo_text_append(text, ": ", 2);
-    if (f->list) {
-	text = agoo_text_append(text, "[", 1);
-	text = agoo_text_append(text, f->type->name, -1);
-	if (f->not_empty) {
-	    text = agoo_text_append(text, "!", 1);
-	}
-	text = agoo_text_append(text, "]", 1);
-    } else {
-	text = agoo_text_append(text, f->type->name, -1);
-    }
+    text = agoo_text_append(text, f->type->name, -1);
     if (f->required) {
 	text = agoo_text_append(text, "!", 1);
     }
+
+    // TBD uses
     text = agoo_text_append(text, "\n", 1);
 
     return text;

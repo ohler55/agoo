@@ -84,8 +84,6 @@ typedef struct _gqlField {
     struct _gqlDirUse	*dir;
     gqlResolveFunc	resolve;
     bool		required;
-    bool		list; // TBD remove
-    bool		not_empty; // list can not be empty, member is required // TBD remove
     bool		deprecated;
 } *gqlField;
 

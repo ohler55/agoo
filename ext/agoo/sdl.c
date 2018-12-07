@@ -80,7 +80,6 @@ make_scalar(agooErr err, agooDoc doc, const char *desc, int len) {
     return AGOO_ERR_OK;
 }
 
-// TBD make recursive
 static int
 read_type(agooErr err, agooDoc doc, gqlType *typep, bool *required) {
     agoo_doc_skip_white(doc);
@@ -171,12 +170,14 @@ extract_dir_use(agooErr err, agooDoc doc, gqlDirUse *uses) {
 	    }
 	}
     }
-    // TBD keep in order?
     if (NULL == *uses) {
 	*uses = use;
     } else {
-	use->next = *uses;
-	(*uses) = use;
+	gqlDirUse	u = *uses;
+
+	for (; NULL != u->next; u = u->next) {
+	}
+	u->next = use;
     }
     return AGOO_ERR_OK;
 }
@@ -206,7 +207,7 @@ make_enum(agooErr err, agooDoc doc, const char *desc, int len) {
     type->dir = uses;
     while (doc->cur < doc->end) {
 	agoo_doc_skip_white(doc);
-	// TBD read desc, enum values will have to be more thn a string
+	// TBD read desc, enum values will have to be more than a string
 	start = doc->cur;
 	agoo_doc_read_token(doc);
 
@@ -402,7 +403,8 @@ make_field_arg(agooErr err, agooDoc doc, gqlField field) {
     const char	*desc = NULL;
     size_t	dlen;
     bool 	required = false;
-
+    gqlValue	dval = NULL;
+    
     if (AGOO_ERR_OK != extract_desc(err, doc, &desc, &dlen)) {
 	return err->code;
     }
@@ -423,7 +425,9 @@ make_field_arg(agooErr err, agooDoc doc, gqlField field) {
 
     switch (*doc->cur) {
     case '=':
-	// TBD read default value
+	if (NULL == (dval = agoo_doc_read_value(err, doc))) {
+	    return err->code;
+	}
 	break;
     case '@':
 	// TBD read directives
@@ -431,8 +435,7 @@ make_field_arg(agooErr err, agooDoc doc, gqlField field) {
     default: // ) or next arg
 	break;
     }
-    // TBD handle list type
-    if (NULL == gql_field_arg(err, field, name, type, desc, dlen, NULL, required)) { // TBD add default value
+    if (NULL == gql_field_arg(err, field, name, type, desc, dlen, dval, required)) {
 	return err->code;
     }
     return AGOO_ERR_OK;
