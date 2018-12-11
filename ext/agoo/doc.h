@@ -8,6 +8,7 @@
 
 #include "err.h"
 
+struct _gqlType;
 struct _gqlValue;
 
 typedef struct _agooDoc {
@@ -32,6 +33,6 @@ extern int	agoo_doc_read_string(agooErr err, agooDoc doc);
 extern int	agoo_doc_err(agooDoc doc, agooErr err, const char *fmt, ...);
 extern void	agoo_doc_location(agooDoc doc, int *linep, int *colp);
 
-extern struct _gqlValue*	agoo_doc_read_value(agooErr err, agooDoc doc);
+extern struct _gqlValue*	agoo_doc_read_value(agooErr err, agooDoc doc, struct _gqlType *type);
 
 #endif // AGOO_DOC_H

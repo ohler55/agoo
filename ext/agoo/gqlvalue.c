@@ -11,7 +11,7 @@
 
 static const char	spaces[256] = "\n                                                                                                                                                                                                                                                               ";
 
-// Int type
+// Null type
 static agooText
 null_to_text(agooText text, gqlValue value, int indent, int depth) {
     return agoo_text_append(text, "null", 4);
@@ -25,6 +25,7 @@ struct _gqlType	gql_null_type = {
     .coerce = NULL,
     .destroy = NULL,
     .to_json = null_to_text,
+    .to_sdl = null_to_text,
 };
 
 // Int type
@@ -46,6 +47,7 @@ struct _gqlType	gql_int_type = {
     .coerce = NULL,
     .destroy = NULL,
     .to_json = int_to_text,
+    .to_sdl = int_to_text,
 };
 
 // I64 type, add on type.
@@ -67,6 +69,7 @@ struct _gqlType	gql_i64_type = {
     .coerce = NULL,
     .destroy = NULL,
     .to_json = i64_to_text,
+    .to_sdl = i64_to_text,
 };
 
 // String type
@@ -85,6 +88,7 @@ struct _gqlType	gql_string_type = {
     .coerce = NULL,
     .destroy = string_destroy,
     .to_json = string_to_text,
+    .to_sdl = string_to_text,
 };
 
 // Alternative to String but with no destroy needed.
@@ -96,6 +100,7 @@ struct _gqlType	gql_str16_type = { // unregistered
     .coerce = NULL,
     .destroy = NULL,
     .to_json = string_to_text,
+    .to_sdl = string_to_text,
 };
 
 static agooText
@@ -110,6 +115,48 @@ string_to_text(agooText text, gqlValue value, int indent, int depth) {
 	text = agoo_text_append(text, "\"", 1);
 	text = agoo_text_append(text, value->str, -1);
 	text = agoo_text_append(text, "\"", 1);
+    }
+    return text;
+}
+
+// Token type
+static void
+token_destroy(gqlValue value) {
+    free((char*)value->str);
+}
+
+static agooText	token_to_text(agooText text, gqlValue value, int indent, int depth);
+struct _gqlType	gql_token_type = {
+    .name = "Token",
+    .desc = "Token scalar.",
+    .kind = GQL_SCALAR,
+    .core = true,
+    .coerce = NULL,
+    .destroy = token_destroy,
+    .to_json = token_to_text,
+    .to_sdl = token_to_text,
+};
+
+// Alternative to Token but with no destroy needed.
+struct _gqlType	gql_token16_type = { // unregistered
+    .name = "token16",
+    .desc = NULL,
+    .kind = GQL_SCALAR,
+    .core = true,
+    .coerce = NULL,
+    .destroy = NULL,
+    .to_json = token_to_text,
+    .to_sdl = token_to_text,
+};
+
+static agooText
+token_to_text(agooText text, gqlValue value, int indent, int depth) {
+    if (&gql_token16_type == value->type) {
+	text = agoo_text_append(text, value->str16, -1);
+    } else if (NULL == value->str) {
+	text = agoo_text_append(text, "null", 4);
+    } else {
+	text = agoo_text_append(text, value->str, -1);
     }
     return text;
 }
@@ -133,6 +180,7 @@ struct _gqlType	gql_bool_type = {
     .coerce = NULL,
     .destroy = NULL,
     .to_json = bool_to_text,
+    .to_sdl = bool_to_text,
 };
 
 // Float type
@@ -154,6 +202,7 @@ struct _gqlType	gql_float_type = {
     .coerce = NULL,
     .destroy = NULL,
     .to_json = float_to_text,
+    .to_sdl = float_to_text,
 };
 
 // Time type
@@ -431,6 +480,7 @@ struct _gqlType	gql_time_type = {
     .coerce = NULL,
     .destroy = NULL,
     .to_json = time_to_text,
+    .to_sdl = time_to_text,
 };
 
 // Uuid type
@@ -523,6 +573,7 @@ struct _gqlType	gql_uuid_type = {
     .coerce = NULL,
     .destroy = NULL,
     .to_json = uuid_to_text,
+    .to_sdl = uuid_to_text,
 };
 
 // Url type
@@ -551,6 +602,7 @@ struct _gqlType	gql_url_type = {
     .coerce = NULL,
     .destroy = url_destroy,
     .to_json = url_to_text,
+    .to_sdl = url_to_text,
 };
 
 // List, not visible but used for list values.
@@ -572,7 +624,7 @@ list_to_json(agooText text, gqlValue value, int indent, int depth) {
     int		i2 = i + indent;
     int		d2 = depth + 1;
     gqlLink	link;
-    
+
     if (0 < indent) {
 	i++; // for \n
 	i2++;
@@ -583,8 +635,43 @@ list_to_json(agooText text, gqlValue value, int indent, int depth) {
     }
     text = agoo_text_append(text, "[", 1);
     for (link = value->members; NULL != link; link = link->next) {
-	text = agoo_text_append(text, spaces, i2);
+	if (0 < i2) {
+	    text = agoo_text_append(text, spaces, i2);
+	}
 	text = link->value->type->to_json(text, link->value, indent, d2);
+	if (NULL != link->next) {
+	    text = agoo_text_append(text, ",", 1);
+	}
+    }
+    if (0 < indent) {
+	text = agoo_text_append(text, spaces, i);
+    }
+    text = agoo_text_append(text, "]", 1);
+
+    return text;
+}
+
+static agooText
+list_to_sdl(agooText text, gqlValue value, int indent, int depth) {
+    int		i = indent * depth;
+    int		i2 = i + indent;
+    int		d2 = depth + 1;
+    gqlLink	link;
+
+    if (0 < indent) {
+	i++; // for \n
+	i2++;
+    }
+    if ((int)sizeof(spaces) <= i) {
+	i2 = sizeof(spaces) - 1;
+	i = i2 - indent;
+    }
+    text = agoo_text_append(text, "[", 1);
+    for (link = value->members; NULL != link; link = link->next) {
+	if (0 < i2) {
+	    text = agoo_text_append(text, spaces, i2);
+	}
+	text = link->value->type->to_sdl(text, link->value, indent, d2);
 	if (NULL != link->next) {
 	    text = agoo_text_append(text, ",", 1);
 	}
@@ -605,6 +692,7 @@ struct _gqlType	list_type = { // unregistered
     .coerce = NULL,
     .destroy = list_destroy,
     .to_json = list_to_json,
+    .to_sdl = list_to_sdl,
 };
 
 // Object, not visible but used for object values.
@@ -621,8 +709,8 @@ object_destroy(gqlValue value) {
     }
 }
 
-static agooText
-object_to_json(agooText text, gqlValue value, int indent, int depth) {
+agooText
+gql_object_to_json(agooText text, gqlValue value, int indent, int depth) {
     int		i = indent * depth;
     int		i2 = i + indent;
     int		d2 = depth + 1;
@@ -638,7 +726,9 @@ object_to_json(agooText text, gqlValue value, int indent, int depth) {
     }
     text = agoo_text_append(text, "{", 1);
     for (link = value->members; NULL != link; link = link->next) {
-	text = agoo_text_append(text, spaces, i2);
+	if (0 < i2) {
+	    text = agoo_text_append(text, spaces, i2);
+	}
 	text = agoo_text_append(text, "\"", 1);
 	text = agoo_text_append(text, link->key, -1);
 	if (0 < indent) {
@@ -659,6 +749,45 @@ object_to_json(agooText text, gqlValue value, int indent, int depth) {
     return text;
 }
 
+agooText
+gql_object_to_sdl(agooText text, gqlValue value, int indent, int depth) {
+    int		i = indent * depth;
+    int		i2 = i + indent;
+    int		d2 = depth + 1;
+    gqlLink	link;
+    
+    if (0 < indent) {
+	i++; // for \n
+	i2++;
+    }
+    if ((int)sizeof(spaces) <= i) {
+	i2 = sizeof(spaces) - 1;
+	i = i2 - indent;
+    }
+    text = agoo_text_append(text, "{", 1);
+    for (link = value->members; NULL != link; link = link->next) {
+	if (0 < i2) {
+	    text = agoo_text_append(text, spaces, i2);
+	}
+	text = agoo_text_append(text, link->key, -1);
+	if (0 < indent) {
+	    text = agoo_text_append(text, ": ", 2);
+	} else {
+	    text = agoo_text_append(text, ":", 1);
+	}
+	text = link->value->type->to_sdl(text, link->value, indent, d2);
+	if (NULL != link->next) {
+	    text = agoo_text_append(text, ",", 1);
+	}
+    }
+    if (0 < indent) {
+	text = agoo_text_append(text, spaces, i);
+    }
+    text = agoo_text_append(text, "}", 1);
+
+    return text;
+}
+
 struct _gqlType	object_type = { // unregistered
     .name = "__Object",
     .desc = NULL,
@@ -666,7 +795,8 @@ struct _gqlType	object_type = { // unregistered
     .core = true,
     .coerce = NULL,
     .destroy = object_destroy,
-    .to_json = object_to_json,
+    .to_json = gql_object_to_json,
+    .to_sdl = gql_object_to_sdl,
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -718,6 +848,27 @@ gql_string_set(agooErr err, gqlValue value, const char *str, int len) {
 	}
 	if (len < (int)sizeof(value->str16)) {
 	    value->type = &gql_str16_type;
+	    strncpy(value->str16, str, len);
+	} else {
+	    if (NULL == (value->str = strndup(str, len))) {
+		return agoo_err_set(err, AGOO_ERR_MEMORY, "strndup of length %d failed.", len);
+	    }
+	}
+    }
+    return AGOO_ERR_OK;
+}
+
+int
+gql_token_set(agooErr err, gqlValue value, const char *str, int len) {
+    value->type = &gql_token_type;
+    if (NULL == str) {
+	value->str = NULL;
+    } else {
+	if (0 >= len) {
+	    len = (int)strlen(str);
+	}
+	if (len < (int)sizeof(value->str16)) {
+	    value->type = &gql_token16_type;
 	    strncpy(value->str16, str, len);
 	} else {
 	    if (NULL == (value->str = strndup(str, len))) {
@@ -810,6 +961,15 @@ gql_link_create(agooErr err, const char *key, gqlValue item) {
 	link->value = item;
     }
     return link;
+}
+
+void
+gql_link_destroy(gqlLink link) {
+    free(link->key);
+    if (NULL != link->value) {
+	gql_value_destroy(link->value);
+    }
+    free(link);
 }
 
 int
@@ -910,6 +1070,29 @@ gql_string_create(agooErr err, const char *str, int len) {
 	}
     } else {
 	if (NULL != (v = value_create(&gql_str16_type))) {
+	    strncpy(v->str16, str, len);
+	    v->str16[len] = '\0';
+	}
+    }
+    return v;
+}
+
+gqlValue
+gql_token_create(agooErr err, const char *str, int len) {
+    gqlValue	v;
+    
+    if (0 >= len) {
+	len = (int)strlen(str);
+    }
+    if ((int)sizeof(v->str16) <= len) {
+	if (NULL != (v = value_create(&gql_token_type))) {
+	    if (NULL == (v->str = strndup(str, len))) {
+		agoo_err_set(err, AGOO_ERR_MEMORY, "strndup of length %d failed.", len);
+		return NULL;
+	    }
+	}
+    } else {
+	if (NULL != (v = value_create(&gql_token16_type))) {
 	    strncpy(v->str16, str, len);
 	    v->str16[len] = '\0';
 	}
@@ -1042,6 +1225,18 @@ gql_value_json(agooText text, gqlValue value, int indent, int depth) {
 	text = agoo_text_append(text, "null", 4);
     } else {
 	text = value->type->to_json(text, value, indent, depth);
+    }
+    return text;
+}
+
+agooText
+gql_value_sdl(agooText text, gqlValue value, int indent, int depth) {
+    if (NULL == value->type) {
+	text = agoo_text_append(text, "null", 4);
+    } else if (NULL == value->type->to_sdl) {
+	text = agoo_text_append(text, "null", 4);
+    } else {
+	text = value->type->to_sdl(text, value, indent, depth);
     }
     return text;
 }

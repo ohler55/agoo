@@ -72,8 +72,6 @@ listen_loop(void *x) {
     uint64_t		cnt = 0;
     agooBind		b;
 
-    // TBD support multiple sockets, count binds, allocate pollfd, setup
-    //
     for (b = agoo_server.binds, p = pa; NULL != b; b = b->next, p++, pcnt++) {
 	p->fd = b->fd;
 	p->events = POLLIN;

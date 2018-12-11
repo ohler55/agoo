@@ -32,6 +32,7 @@ struct _gqlValue;
 
 // Used for references to implemenation entities.
 typedef void*	gqlRef;
+
 typedef struct _gqlQuery {
     struct _gqlQuery	*next;
     struct _gqlValue	*result;
@@ -51,7 +52,6 @@ typedef struct _gqlStrLink {
 
 typedef struct _gqlTypeLink {
     struct _gqlTypeLink	*next;
-    char		*name;
     struct _gqlType	*type;
 } *gqlTypeLink;
 
@@ -63,6 +63,13 @@ typedef struct _gqlValue*	(*gqlCoerceFunc)(gqlRef ref, struct _gqlType *type);
 
 typedef void			(*gqlIterCb)(gqlRef ref, gqlQuery query);
 typedef void			(*gqlIterateFunc)(gqlRef ref, gqlIterCb cb, gqlQuery query);
+
+typedef struct _gqlEnumVal {
+    struct _gqlEnumVal	*next;
+    const char		*value;
+    const char		*desc;
+    struct _gqlDirUse	*dir;
+} *gqlEnumVal;
 
 typedef struct _gqlArg {
     struct _gqlArg	*next;
@@ -79,12 +86,11 @@ typedef struct _gqlField {
     const char		*name;
     struct _gqlType	*type; // return type
     const char		*desc;
-    const char		*reason; // deprecationReason
     gqlArg		args;
     struct _gqlDirUse	*dir;
+    struct _gqlValue	*default_value;
     gqlResolveFunc	resolve;
     bool		required;
-    bool		deprecated;
 } *gqlField;
 
 typedef struct _gqlDir {
@@ -106,6 +112,7 @@ typedef struct _gqlType {
     const char	*name;
     const char	*desc;
     agooText	(*to_json)(agooText text, struct _gqlValue *value, int indent, int depth);
+    agooText	(*to_sdl)(agooText text, struct _gqlValue *value, int indent, int depth);
     gqlDirUse	dir;
     gqlKind	kind;
     bool	core;
@@ -113,12 +120,12 @@ typedef struct _gqlType {
 	struct { // Objects, Fragments, interfaces, and input_objects
 	    gqlField		fields;
 	    union {
-		struct _gqlType	**interfaces; // Objects, null terminated array if not NULL.
+		gqlTypeLink	interfaces;   // Types
 		struct _gqlType	*on;          // Fragment
 	    };
 	};
 	gqlTypeLink		types;	      // Union
-	gqlStrLink		choices;      // Enums
+	gqlEnumVal		choices;      // Enums
 	// Returns error code. Only for scalars.
 	struct {
 	    int			(*coerce)(agooErr err, struct _gqlValue *src, struct _gqlType *type);
@@ -134,7 +141,7 @@ typedef struct _gqlType {
 extern int	gql_init(agooErr err);
 extern void	gql_destroy(); // clear out all
 
-extern gqlType	gql_type_create(agooErr err, const char *name, const char *desc, size_t dlen, const char **interfaces);
+extern gqlType	gql_type_create(agooErr err, const char *name, const char *desc, size_t dlen, gqlTypeLink interfaces);
 extern gqlType	gql_assure_type(agooErr err, const char *name);
 
 extern gqlType	gql_fragment_create(agooErr err, const char *name, const char *desc, size_t dlen, const char *on);
@@ -145,6 +152,7 @@ extern gqlField	gql_type_field(agooErr		err,
 			       gqlType		type,
 			       const char	*name,
 			       gqlType		return_type,
+			       struct _gqlValue	*default_value,
 			       const char	*desc,
 			       size_t		dlen,
 			       bool 		required,
@@ -179,12 +187,11 @@ extern gqlDir	gql_directive_get(const char *name);
 extern gqlDirUse	gql_dir_use_create(agooErr err, const char *name);
 extern int		gql_dir_use_arg(agooErr err, gqlDirUse use, const char *key, struct _gqlValue *value);
 
-extern gqlType	gql_union_create(agooErr err, const char *name, const char *desc, size_t dlen);
-extern int	gql_union_add(agooErr err, gqlType type, const char *name, int len);
+extern gqlType		gql_union_create(agooErr err, const char *name, const char *desc, size_t dlen);
+extern int		gql_union_add(agooErr err, gqlType type, gqlType member);
 
-extern gqlType	gql_enum_create(agooErr err, const char *name, const char *desc, size_t dlen);
-extern int	gql_enum_add(agooErr err, gqlType type, const char *value, int len);
-extern int	gql_enum_append(agooErr err, gqlType type, const char *value, int len);
+extern gqlType		gql_enum_create(agooErr err, const char *name, const char *desc, size_t dlen);
+extern gqlEnumVal	gql_enum_append(agooErr err, gqlType type, const char *value, size_t len, const char *desc, size_t dlen);
 
 extern gqlType	gql_assure_list(agooErr err, gqlType base, bool not_empty);
 
@@ -196,12 +203,13 @@ extern agooText	gql_type_sdl(agooText text, gqlType type, bool comments);
 extern agooText	gql_directive_sdl(agooText text, gqlDir dir, bool comments);
 extern agooText	gql_schema_sdl(agooText text, bool with_desc, bool all);
 
-extern agooText	gql_object_to_json(agooText text, struct _gqlValue *value, int indent, int depth);
 extern agooText	gql_object_to_graphql(agooText text, struct _gqlValue *value, int indent, int depth);
 extern agooText	gql_union_to_text(agooText text, struct _gqlValue *value, int indent, int depth);
 extern agooText	gql_enum_to_text(agooText text, struct _gqlValue *value, int indent, int depth);
 
 extern void	gql_dump_hook(struct _agooReq *req);
 extern void	gql_eval_hook(struct _agooReq *req);
+
+extern int	gql_validate(agooErr err);
 
 #endif // AGOO_GRAPHQL_H
