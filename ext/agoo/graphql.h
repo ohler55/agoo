@@ -170,19 +170,20 @@ extern gqlArg	gql_field_arg(agooErr 		err,
 // TBD maybe create then add fields
 // TBD same with op? create then add args
 
-extern gqlType	gql_scalar_create(agooErr err, const char *name, const char *desc, size_t dlen);
+extern gqlType		gql_scalar_create(agooErr err, const char *name, const char *desc, size_t dlen);
 
-extern gqlDir	gql_directive_create(agooErr err, const char *name, const char *desc, size_t dlen);
-extern int	gql_directive_on(agooErr err, gqlDir d, const char *on, int len);
-extern gqlArg	gql_dir_arg(agooErr 		err,
-			    gqlDir 		dir,
-			    const char 		*name,
-			    gqlType 		type,
-			    const char	 	*desc,
-			    size_t		dlen,
-			    struct _gqlValue	*def_value,
-			    bool 		required);
-extern gqlDir	gql_directive_get(const char *name);
+extern gqlDir		gql_directive_create(agooErr err, const char *name, const char *desc, size_t dlen);
+extern gqlArg		gql_dir_arg(agooErr 		err,
+				    gqlDir 		dir,
+				    const char 		*name,
+				    gqlType 		type,
+				    const char	 	*desc,
+				    size_t		dlen,
+				    struct _gqlValue	*def_value,
+				    bool 		required);
+extern int		gql_directive_on(agooErr err, gqlDir d, const char *on, int len);
+// TBD args for directive on
+extern gqlDir		gql_directive_get(const char *name);
 
 extern gqlDirUse	gql_dir_use_create(agooErr err, const char *name);
 extern int		gql_dir_use_arg(agooErr err, gqlDirUse use, const char *key, struct _gqlValue *value);
@@ -193,23 +194,23 @@ extern int		gql_union_add(agooErr err, gqlType type, gqlType member);
 extern gqlType		gql_enum_create(agooErr err, const char *name, const char *desc, size_t dlen);
 extern gqlEnumVal	gql_enum_append(agooErr err, gqlType type, const char *value, size_t len, const char *desc, size_t dlen);
 
-extern gqlType	gql_assure_list(agooErr err, gqlType base, bool not_empty);
+extern gqlType		gql_assure_list(agooErr err, gqlType base, bool not_empty);
 
-extern int	gql_type_set(agooErr err, gqlType type);
-extern gqlType	gql_type_get(const char *name);
-extern void	gql_type_destroy(gqlType type);
+extern int		gql_type_set(agooErr err, gqlType type);
+extern gqlType		gql_type_get(const char *name);
+extern void		gql_type_destroy(gqlType type);
 
-extern agooText	gql_type_sdl(agooText text, gqlType type, bool comments);
-extern agooText	gql_directive_sdl(agooText text, gqlDir dir, bool comments);
-extern agooText	gql_schema_sdl(agooText text, bool with_desc, bool all);
+extern agooText		gql_type_sdl(agooText text, gqlType type, bool comments);
+extern agooText		gql_directive_sdl(agooText text, gqlDir dir, bool comments);
+extern agooText		gql_schema_sdl(agooText text, bool with_desc, bool all);
 
-extern agooText	gql_object_to_graphql(agooText text, struct _gqlValue *value, int indent, int depth);
-extern agooText	gql_union_to_text(agooText text, struct _gqlValue *value, int indent, int depth);
-extern agooText	gql_enum_to_text(agooText text, struct _gqlValue *value, int indent, int depth);
+extern agooText		gql_object_to_graphql(agooText text, struct _gqlValue *value, int indent, int depth);
+extern agooText		gql_union_to_text(agooText text, struct _gqlValue *value, int indent, int depth);
+extern agooText		gql_enum_to_text(agooText text, struct _gqlValue *value, int indent, int depth);
 
-extern void	gql_dump_hook(struct _agooReq *req);
-extern void	gql_eval_hook(struct _agooReq *req);
+extern void		gql_dump_hook(struct _agooReq *req);
+extern void		gql_eval_hook(struct _agooReq *req);
 
-extern int	gql_validate(agooErr err);
+extern int		gql_validate(agooErr err);
 
 #endif // AGOO_GRAPHQL_H

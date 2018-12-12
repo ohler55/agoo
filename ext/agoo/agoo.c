@@ -18,6 +18,8 @@
 #include "server.h"
 #include "upgraded.h"
 
+extern void	graphql_init(VALUE mod);
+
 void
 agoo_shutdown() {
     rserver_shutdown(Qnil);
@@ -99,6 +101,7 @@ Init_agoo() {
     response_init(mod);
     server_init(mod);
     upgraded_init(mod);
+    graphql_init(mod);
 
     rb_define_module_function(mod, "shutdown", ragoo_shutdown, 0);
     rb_define_module_function(mod, "publish", ragoo_publish, 2);

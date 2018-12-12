@@ -46,6 +46,7 @@ static const char	spaces[16] = "                ";
 
 static gqlType	schema_type = NULL;
 static gqlDir	directives = NULL;
+static bool	inited = false;
 
 static uint64_t
 calc_hash(const char *name) {
@@ -305,6 +306,9 @@ gql_init(agooErr err) {
     gqlType	mutation_type;
     gqlType	subscription_type;
 
+    if (inited) {
+	return AGOO_ERR_OK;
+    }
     memset(buckets, 0, sizeof(buckets));
     if (AGOO_ERR_OK != gql_value_init(err) ||
 	AGOO_ERR_OK != gql_intro_init(err)) {
@@ -322,6 +326,8 @@ gql_init(agooErr err) {
 
 	return err->code;
     }
+    inited = true;
+    
     return AGOO_ERR_OK;
 }
 
@@ -349,6 +355,7 @@ gql_destroy() {
 	directives = dir->next;
 	dir_destroy(dir);
     }
+    inited = false;
 }
 
 static gqlType

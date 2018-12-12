@@ -34,17 +34,14 @@ class StaticTest < Minitest::Test
       Agoo::Server.add_mime('odd', 'text/odd')
       Agoo::Server.start()
       fetch_index_test
-=begin
       mime_test
       fetch_auto_index_test
       fetch_nested_test
       fetch_not_found_test
-=end
     ensure
       Agoo::shutdown
     end
   end
-
 
   def fetch_index_test
     uri = URI('http://localhost:6469/index.html')
