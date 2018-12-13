@@ -100,6 +100,7 @@ typedef struct _gqlDir {
     gqlArg		args;
     gqlStrLink		locs; // location names
     bool		defined;
+    bool		core;
 } *gqlDir;
 
 typedef struct _gqlDirUse {
@@ -143,6 +144,7 @@ extern void	gql_destroy(); // clear out all
 
 extern gqlType	gql_type_create(agooErr err, const char *name, const char *desc, size_t dlen, gqlTypeLink interfaces);
 extern gqlType	gql_assure_type(agooErr err, const char *name);
+extern void	gql_type_directive_use(gqlType type, gqlDirUse use);
 
 extern gqlType	gql_fragment_create(agooErr err, const char *name, const char *desc, size_t dlen, const char *on);
 extern gqlType	gql_input_create(agooErr err, const char *name, const char *desc, size_t dlen);

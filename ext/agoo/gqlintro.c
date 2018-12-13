@@ -322,6 +322,7 @@ create_dir_skip(agooErr err) {
     if (NULL == dir) {
 	return err->code;
     }
+    dir->core = true;
     if (AGOO_ERR_OK != gql_directive_on(err, dir, "FIELD", -1) ||
 	AGOO_ERR_OK != gql_directive_on(err, dir, "FRAGMENT_SPREAD", -1) ||
 	AGOO_ERR_OK != gql_directive_on(err, dir, "INLINE_FRAGMENT", -1) ||
@@ -339,6 +340,7 @@ create_dir_include(agooErr err) {
     if (NULL == dir) {
 	return err->code;
     }
+    dir->core = true;
     if (AGOO_ERR_OK != gql_directive_on(err, dir, "FIELD", -1) ||
 	AGOO_ERR_OK != gql_directive_on(err, dir, "FRAGMENT_SPREAD", -1) ||
 	AGOO_ERR_OK != gql_directive_on(err, dir, "INLINE_FRAGMENT", -1) ||
@@ -357,6 +359,7 @@ create_dir_deprecated(agooErr err) {
     if (NULL == dir) {
 	return err->code;
     }
+    dir->core = true;
     if (AGOO_ERR_OK != gql_directive_on(err, dir, "FIELD_DEFINITION", -1) ||
 	AGOO_ERR_OK != gql_directive_on(err, dir, "ENUM_VALUE", -1) ||
 	NULL == (dv = gql_string_create(err, "No longer supported", -1)) ||

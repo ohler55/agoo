@@ -375,7 +375,6 @@ type_create(agooErr err, gqlKind kind, const char *name, const char *desc, size_
 	if (NULL == (type->desc = alloc_string(err, desc, dlen)) && AGOO_ERR_OK != err->code) {
 	    return NULL;
 	}
-	type->dir = NULL;
 	type->to_json = NULL;
 	type->to_sdl = NULL;
 	type->dir = NULL;
@@ -772,6 +771,7 @@ gql_directive_create(agooErr err, const char *name, const char *desc, size_t dle
 	dir->args = NULL;
 	dir->locs = NULL;
 	dir->defined = true;
+	dir->core = false;
 	if (NULL == (dir->desc = alloc_string(err, desc, dlen)) && AGOO_ERR_OK != err->code) {
 	    return NULL;
 	}
@@ -1203,6 +1203,9 @@ gql_schema_sdl(agooText text, bool with_desc, bool all) {
 	}
     }
     for (d = directives; NULL != d; d = d->next) {
+	if (!all && d->core) {
+	    continue;
+	}
 	text = agoo_text_append(text, "\n", 1);
 	text = gql_directive_sdl(text, d, with_desc);
 	text = agoo_text_append(text, "\n", 1);
@@ -1270,6 +1273,19 @@ gql_dir_use_arg(agooErr err, gqlDirUse use, const char *key, gqlValue value) {
     use->args = link;
     
     return AGOO_ERR_OK;
+}
+
+void
+gql_type_directive_use(gqlType type, gqlDirUse use) {
+    if (NULL == type->dir) {
+	type->dir = use;
+    } else {
+	gqlDirUse	u = type->dir;
+
+	for (; NULL != u->next; u = u->next) {
+	}
+	u->next = use;
+    }
 }
 
 int

@@ -247,6 +247,8 @@ configure(agooErr err, int port, const char *root, VALUE options) {
  *   - *:worker_count* [_Integer_] number of workers to fork. Defaults to one which is not to fork.
  *
  *   - *:bind* [_String_|_Array_] a binding or array of binds. Examples are: "http ://127.0.0.1:6464", "unix:///tmp/agoo.socket", "http ://[::1]:6464, or to not restrict the address "http ://:6464".
+ *
+ *   - *:graphql* [_String_] path to GraphQL endpoint if support for GraphQL is desired.
  */
 static VALUE
 rserver_init(int argc, VALUE *argv, VALUE self) {

@@ -12,6 +12,21 @@ require 'net/http'
 
 require 'agoo'
 
+class Query
+  def initialize()
+  end
+end
+
+class Schema
+  attr_reader :query
+  attr_reader :mutation
+  attr_reader :subscription
+ 
+  def initialize()
+    @query = Query.new
+  end
+end
+
 class GraphQLTest < Minitest::Test
 
   def test_graphql
@@ -39,7 +54,7 @@ class GraphQLTest < Minitest::Test
   end
 
   def load_test
-    Agoo::GraphQL.schema(nil) {
+    Agoo::GraphQL.schema(Schema.new) {
       Agoo::GraphQL.load(%|
 type User {
   name: String!

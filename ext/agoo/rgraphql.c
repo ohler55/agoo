@@ -12,16 +12,48 @@
 static VALUE	graphql_class = Qundef;
 static VALUE	graphql_root = Qundef;
 
+static void
+make_ruby_use(VALUE root, const char *method, const char *type_name) {
+    struct _agooErr	err = AGOO_ERR_INIT;
+    gqlType		type;
+    gqlDirUse		use;
+    volatile VALUE	v = rb_funcall(root, rb_intern(method), 0);
+
+    if (Qnil == v) {
+	return;
+    }
+    if (NULL == (type = gql_type_get(type_name))) {
+	rb_raise(rb_eStandardError, "Failed to find the '%s' type.", type_name);
+    }
+    if (NULL == (use = gql_dir_use_create(&err, "ruby"))) {
+	rb_raise(rb_eStandardError, "%s", err.msg);
+    }
+    if (AGOO_ERR_OK != gql_dir_use_arg(&err, use, "class", gql_string_create(&err, rb_obj_classname(v), 0))) {
+	rb_raise(rb_eStandardError, "%s", err.msg);
+    }
+    gql_type_directive_use(type, use);
+}
+
 /* Document-method: schema
  *
  * call-seq: schema(root) { }
  *
- * TBD
+ * Start the GraphQL/Ruby integration but assigning a root Ruby object to the
+ * GraphQL environment. Withing the block passed to the function SDL strings
+ * or files can be loaded. On exiting the block validation of the loaded
+ * schema is performed.
+ *
+ * Note that the _@ruby_ directive is added to the _schema_ type as well as
+ * the _Query_, _Mutation_, and _Subscriptio_ type based on the _root_
+ * class. Any _@ruby_ directives on the object types in the SDL will also
+ * associate a GraphQL and Ruby class.
  */
 static VALUE
 graphql_schema(VALUE self, VALUE root) {
     struct _agooErr	err = AGOO_ERR_INIT;
+    gqlType		type;
     gqlDir		dir;
+    gqlDirUse		use;
     
     if (!rb_block_given_p()) {
 	rb_raise(rb_eStandardError, "A block is required.");
@@ -33,14 +65,30 @@ graphql_schema(VALUE self, VALUE root) {
     if (NULL == (dir = gql_directive_create(&err, "ruby", "Associates a Ruby class with a GraphQL type.", 0))) {
 	rb_raise(rb_eStandardError, "%s", err.msg);
     }
-    if (NULL == gql_dir_arg(&err, dir, "class", &gql_string_type, "The Ruby class to link to the GraphQL type.", 0, NULL, true)) {
+    if (NULL == gql_dir_arg(&err, dir, "class", &gql_string_type, NULL, 0, NULL, true)) {
 	rb_raise(rb_eStandardError, "%s", err.msg);
     }
-    if (AGOO_ERR_OK != gql_directive_on(&err, dir, "schema", 6)) {
+    if (AGOO_ERR_OK != gql_directive_on(&err, dir, "SCHEMA", 6) ||
+	AGOO_ERR_OK != gql_directive_on(&err, dir, "OBJECT", 6)) {
 	rb_raise(rb_eStandardError, "%s", err.msg);
     }
     graphql_root = root;
     rb_gc_register_address(&graphql_root);
+
+    if (NULL == (use = gql_dir_use_create(&err, "ruby"))) {
+	rb_raise(rb_eStandardError, "%s", err.msg);
+    }
+    if (AGOO_ERR_OK != gql_dir_use_arg(&err, use, "class", gql_string_create(&err, rb_obj_classname(root), 0))) {
+	rb_raise(rb_eStandardError, "%s", err.msg);
+    }
+    if (NULL == (type = gql_type_get("schema"))) {
+	rb_raise(rb_eStandardError, "Failed to find the 'schema' type.");
+    }
+    gql_type_directive_use(type, use);
+
+    make_ruby_use(root, "query", "Query");
+    make_ruby_use(root, "mutation", "Mutation");
+    make_ruby_use(root, "subscription", "Subscription");
     
     // TBD set somewhere in graphql side as void* root/schema object
 
@@ -57,7 +105,8 @@ graphql_schema(VALUE self, VALUE root) {
  *
  * call-seq: load(sdl)
  *
- * TBD
+ * Load an SDL string. This should only be called in a block provided to a
+ * call to _#schema_.
  */
 static VALUE
 graphql_load(VALUE self, VALUE sdl) {
@@ -77,7 +126,8 @@ graphql_load(VALUE self, VALUE sdl) {
  *
  * call-seq: load_file(sdl_file)
  *
- * TBD
+ * Load an SDL file. This should only be called in a block provided to a call
+ * to _#schema_.
  */
 static VALUE
 graphql_load_file(VALUE self, VALUE path) {
@@ -118,7 +168,17 @@ graphql_load_file(VALUE self, VALUE path) {
  *
  * call-seq: dump_sdl()
  *
- * TBD
+ * The preferred method of inspecting a GraphQL schema is to use introspection
+ * queries but for debugging and for reviewing the schema a dump of the schema
+ * as SDL can be helpful. The _#dump_sdl_ method returns the schema as an SDL
+ * string.
+ *
+ * - *options* [_Hash_] server options
+ *
+ *   - *:with_description* [_true_|_false_] if true the description strings are included. If false they are not included.
+ *
+ *   - *:all* [_true_|_false_] if true all types and directives are included in the dump. If false only the user created types are include.
+ *
  */
 static VALUE
 graphql_sdl_dump(VALUE self, VALUE options) {
@@ -148,8 +208,15 @@ graphql_sdl_dump(VALUE self, VALUE options) {
 
 /* Document-class: Agoo::Graphql
  *
- * 
- * TBD
+ * The Agoo::GraphQL class provides support for the GraphQL API as defined in
+ * https://facebook.github.io/graphql/June2018. The approach taken supporting
+ * GraphQL with Ruby is to keep the integration as simple as possible. With
+ * that in mind there are not new languages or syntax to learn. GraphQL types
+ * are defined with SDL which is the language used in the specification. Ruby,
+ * is well, just Ruby. A GraphQL type is assigned a Ruby class that implements
+ * that type. Thats it. A GraphQL directive or a Ruby method is used to create
+ * this association. After that the Agoo server does the work and calls the
+ * Ruby object methods as needed to satisfy the GraphQL queries.
  */
 void
 graphql_init(VALUE mod) {
