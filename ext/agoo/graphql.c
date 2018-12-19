@@ -398,7 +398,7 @@ type_create(agooErr err, gqlKind kind, const char *name, const char *desc, size_
 	type->dir = NULL;
 	type->kind = kind;
 	type->core = false;
-	type->to_json = gql_object_to_json;
+	type->to_json = NULL;
 	type->to_sdl = gql_object_to_sdl;
 	
 	if (AGOO_ERR_OK != gql_type_set(err, type)) {
@@ -475,7 +475,6 @@ gql_type_create(agooErr err, const char *name, const char *desc, size_t dlen, gq
     gqlType	type = type_create(err, GQL_OBJECT, name, desc, dlen);
 
     if (NULL != type) {
-	type->to_json = gql_object_to_json;
 	type->to_sdl = gql_object_to_sdl;
 	type->fields = NULL;
 	type->interfaces = interfaces;
@@ -561,12 +560,6 @@ gql_field_arg(agooErr		err,
 }
 
 agooText
-gql_union_to_json(agooText text, gqlValue value, int indent, int depth) {
-    // TBD
-    return text;
-}
-
-agooText
 gql_union_to_sdl(agooText text, gqlValue value, int indent, int depth) {
     // TBD
     return text;
@@ -577,7 +570,6 @@ gql_union_create(agooErr err, const char *name, const char *desc, size_t dlen) {
     gqlType	type = type_create(err, GQL_UNION, name, desc, dlen);
 
     if (NULL != type) {
-	type->to_json = gql_union_to_json;
 	type->to_sdl = gql_union_to_sdl;
 	type->types = NULL;
     }
@@ -607,12 +599,6 @@ gql_union_add(agooErr err, gqlType type, gqlType member) {
 }
 
 agooText
-gql_enum_to_json(agooText text, gqlValue value, int indent, int depth) {
-    // TBD
-    return text;
-}
-
-agooText
 gql_enum_to_sdl(agooText text, gqlValue value, int indent, int depth) {
     // TBD
     return text;
@@ -623,7 +609,6 @@ gql_enum_create(agooErr err, const char *name, const char *desc, size_t dlen) {
     gqlType	type = type_create(err, GQL_ENUM, name, desc, dlen);
 
     if (NULL != type) {
-	type->to_json = gql_enum_to_json;
 	type->to_sdl = gql_enum_to_sdl;
 	type->choices = NULL;
     }
@@ -665,12 +650,6 @@ gql_enum_append(agooErr err, gqlType type, const char *value, size_t len, const 
 }
 
 static agooText
-input_to_json(agooText text, gqlValue value, int indent, int depth) {
-    // TBD
-    return text;
-}
-
-static agooText
 input_to_sdl(agooText text, gqlValue value, int indent, int depth) {
     // TBD
     return text;
@@ -681,17 +660,10 @@ gql_input_create(agooErr err, const char *name, const char *desc, size_t dlen) {
     gqlType	type = type_create(err, GQL_INPUT, name, desc, dlen);
 
     if (NULL != type) {
-	type->to_json = input_to_json;
 	type->to_sdl = input_to_sdl;
 	type->fields = NULL;
     }
     return type;
-}
-
-static agooText
-interface_to_json(agooText text, gqlValue value, int indent, int depth) {
-    // TBD
-    return text;
 }
 
 static agooText
@@ -705,7 +677,6 @@ gql_interface_create(agooErr err, const char *name, const char *desc, size_t dle
     gqlType	type = type_create(err, GQL_INTERFACE, name, desc, dlen);
 
     if (NULL != type) {
-	type->to_json = interface_to_json;
 	type->to_sdl = interface_to_sdl;
 	type->fields = NULL;
     }

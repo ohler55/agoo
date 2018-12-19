@@ -780,3 +780,12 @@ sdl_parse(agooErr err, const char *str, int len) {
     }
     return AGOO_ERR_OK;
 }
+
+int
+sdl_parse_doc(agooErr err, const char *str, int len) {
+
+    // TBD
+    
+    return AGOO_ERR_OK;
+}
+
