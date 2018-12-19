@@ -75,7 +75,7 @@ struct _gqlType	gql_i64_type = {
 // String type
 static void
 string_destroy(gqlValue value) {
-    free((char*)value->str);
+    AGOO_FREE((char*)value->str);
 }
 
 static agooText	string_to_text(agooText text, gqlValue value, int indent, int depth);
@@ -122,7 +122,7 @@ string_to_text(agooText text, gqlValue value, int indent, int depth) {
 // Token type
 static void
 token_destroy(gqlValue value) {
-    free((char*)value->str);
+    AGOO_FREE((char*)value->str);
 }
 
 static agooText	token_to_text(agooText text, gqlValue value, int indent, int depth);
@@ -579,7 +579,7 @@ struct _gqlType	gql_uuid_type = {
 // Url type
 static void
 url_destroy(gqlValue value) {
-    free((char*)value->url);
+    AGOO_FREE((char*)value->url);
 }
 
 static agooText
@@ -613,8 +613,7 @@ list_destroy(gqlValue value) {
     while (NULL != (link = value->members)) {
 	value->members = link->next;
 	gql_value_destroy(link->value);
-	DEBUG_ALLOC(mem_graphql_link, link);
-	free(link);
+	AGOO_FREE(link);
     }
 }
 
@@ -703,9 +702,8 @@ object_destroy(gqlValue value) {
     while (NULL != (link = value->members)) {
 	value->members = link->next;
 	gql_value_destroy(link->value);
-	free(link->key);
-	DEBUG_ALLOC(mem_graphql_link, link);
-	free(link);
+	AGOO_FREE(link->key);
+	AGOO_FREE(link);
     }
 }
 
@@ -805,8 +803,7 @@ gql_value_destroy(gqlValue value) {
     if (NULL != value->type->destroy) {
 	value->type->destroy(value);
     }
-    DEBUG_ALLOC(mem_graphql_value, value);
-    free(value);
+    AGOO_FREE(value);
 }
 
 int
@@ -944,12 +941,11 @@ extern void	gql_null_set(gqlValue value);
 
 gqlLink
 gql_link_create(agooErr err, const char *key, gqlValue item) {
-    gqlLink	link = (gqlLink)malloc(sizeof(struct _gqlLink));
+    gqlLink	link = (gqlLink)AGOO_MALLOC(sizeof(struct _gqlLink));
 
     if (NULL == link) {
 	agoo_err_set(err, AGOO_ERR_MEMORY, "Failed to allocation memory for a list link.");
     } else {
-	DEBUG_ALLOC(mem_graphql_link, link);
 	link->next = NULL;
 	link->key = NULL;
 	if (NULL != key) {
@@ -957,6 +953,7 @@ gql_link_create(agooErr err, const char *key, gqlValue item) {
 		agoo_err_set(err, AGOO_ERR_MEMORY, "strdup() failed.");
 		return NULL;
 	    }
+	    AGOO_ALLOC(link->key, strlen(link->key));
 	}
 	link->value = item;
     }
@@ -965,11 +962,11 @@ gql_link_create(agooErr err, const char *key, gqlValue item) {
 
 void
 gql_link_destroy(gqlLink link) {
-    free(link->key);
+    AGOO_FREE(link->key);
     if (NULL != link->value) {
 	gql_value_destroy(link->value);
     }
-    free(link);
+    AGOO_FREE(link);
 }
 
 int
@@ -1024,10 +1021,9 @@ gql_object_set(agooErr err, gqlValue obj, const char *key, gqlValue item) {
 
 static gqlValue
 value_create(gqlType type) {
-    gqlValue	v = (gqlValue)malloc(sizeof(struct _gqlValue));
+    gqlValue	v = (gqlValue)AGOO_MALLOC(sizeof(struct _gqlValue));
     
     if (NULL != v) {
-	DEBUG_ALLOC(mem_graphql_value, v);
 	memset(v, 0, sizeof(struct _gqlValue));
 	v->type = type;
     }
@@ -1067,6 +1063,7 @@ gql_string_create(agooErr err, const char *str, int len) {
 		agoo_err_set(err, AGOO_ERR_MEMORY, "strndup of length %d failed.", len);
 		return NULL;
 	    }
+	    AGOO_ALLOC(v->str, len);
 	}
     } else {
 	if (NULL != (v = value_create(&gql_str16_type))) {

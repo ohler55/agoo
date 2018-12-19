@@ -770,8 +770,7 @@ rserver_start(VALUE self) {
 
 	}
     } else {
-	the_rserver.eval_threads = (VALUE*)malloc(sizeof(VALUE) * (agoo_server.thread_cnt + 1));
-	DEBUG_ALLOC(mem_eval_threads, agoo_server.eval_threads);
+	the_rserver.eval_threads = (VALUE*)AGOO_MALLOC(sizeof(VALUE) * (agoo_server.thread_cnt + 1));
 
 	for (i = agoo_server.thread_cnt, vp = the_rserver.eval_threads; 0 < i; i--, vp++) {
 	    *vp = rb_thread_create(wrap_process_loop, NULL);
@@ -807,8 +806,7 @@ stop_runners() {
 	    }
 	    dsleep(0.02);
 	}
-	DEBUG_FREE(mem_eval_threads, the_rserver.eval_threads);
-	free(the_rserver.eval_threads);
+	AGOO_FREE(the_rserver.eval_threads);
 	the_rserver.eval_threads = NULL;
     }
 }

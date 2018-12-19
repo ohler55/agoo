@@ -15,12 +15,11 @@
 
 agooBind
 agoo_bind_port(agooErr err, int port) {
-    agooBind	b = (agooBind)malloc(sizeof(struct _agooBind));
+    agooBind	b = (agooBind)AGOO_MALLOC(sizeof(struct _agooBind));
 
     if (NULL != b) {
 	char	id[1024];
 	
-	DEBUG_ALLOC(mem_bind, b);
 	memset(b, 0, sizeof(struct _agooBind));
 	b->port = port;
 	b->family = AF_INET;
@@ -30,6 +29,7 @@ agoo_bind_port(agooErr err, int port) {
 	    agoo_err_set(err, AGOO_ERR_MEMORY, "strdup of bind id failed.");
 	    return NULL;
 	}
+	AGOO_ALLOC(b->id, strlen(b->id));
 	b->kind = AGOO_CON_HTTP;
 	b->read = NULL;
 	b->write = NULL;
@@ -63,10 +63,9 @@ url_tcp(agooErr err, const char *url, const char *scheme) {
 	}
 	port = atoi(colon + 1);
     }
-    if (NULL != (b = (agooBind)malloc(sizeof(struct _agooBind)))) {
+    if (NULL != (b = (agooBind)AGOO_MALLOC(sizeof(struct _agooBind)))) {
 	char	id[64];
 	
-	DEBUG_ALLOC(mem_bind, b);
 	memset(b, 0, sizeof(struct _agooBind));
 
 	b->port = port;
@@ -109,10 +108,9 @@ url_tcp6(agooErr err, const char *url, const char *scheme) {
 	agoo_err_set(err, AGOO_ERR_ARG, "%s bind address is not valid. (%s)", scheme, url);
 	return NULL;
     }
-    if (NULL != (b = (agooBind)malloc(sizeof(struct _agooBind)))) {
+    if (NULL != (b = (agooBind)AGOO_MALLOC(sizeof(struct _agooBind)))) {
 	char	str[INET6_ADDRSTRLEN + 1];
 	
-	DEBUG_ALLOC(mem_bind, b);
 	memset(b, 0, sizeof(struct _agooBind));
 
 	b->port = port;
@@ -143,13 +141,12 @@ url_named(agooErr err, const char *url) {
 	agoo_err_set(err, AGOO_ERR_ARG, "Named Unix sockets names must not be empty.");
 	return NULL;
     } else {
-	agooBind	b = (agooBind)malloc(sizeof(struct _agooBind));
+	agooBind	b = (agooBind)AGOO_MALLOC(sizeof(struct _agooBind));
 
 	if (NULL != b) {
 	    const char	*fmt = "unix://%s";
 	    char	id[1024];
 	
-	    DEBUG_ALLOC(mem_bind, b);
 	    memset(b, 0, sizeof(struct _agooBind));
 	    if (NULL == (b->name = strdup(url))) {
 		agoo_err_set(err, AGOO_ERR_MEMORY, "strdup of bind url failed.");
@@ -223,13 +220,12 @@ agoo_bind_url(agooErr err, const char *url) {
 
 void
 agoo_bind_destroy(agooBind b) {
-    DEBUG_FREE(mem_bind, b);
-    free(b->id);
-    free(b->name);
-    free(b->key);
-    free(b->cert);
-    free(b->ca);
-    free(b);
+    AGOO_FREE(b->id);
+    AGOO_FREE(b->name);
+    AGOO_FREE(b->key);
+    AGOO_FREE(b->cert);
+    AGOO_FREE(b->ca);
+    AGOO_FREE(b);
 }
 
 static int

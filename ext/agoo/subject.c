@@ -9,10 +9,9 @@
 
 agooSubject
 agoo_subject_create(const char *pattern, int plen) {
-    agooSubject	subject = (agooSubject)malloc(sizeof(struct _agooSubject) - 7 + plen);
+    agooSubject	subject = (agooSubject)AGOO_MALLOC(sizeof(struct _agooSubject) - 7 + plen);
 
     if (NULL != subject) {
-	DEBUG_ALLOC(mem_subject, subject);
 	subject->next = NULL;
 	memcpy(subject->pattern, pattern, plen);
 	subject->pattern[plen] = '\0';
@@ -22,8 +21,7 @@ agoo_subject_create(const char *pattern, int plen) {
 
 void
 agoo_subject_destroy(agooSubject subject) {
-    DEBUG_FREE(mem_subject, subject);
-    free(subject);
+    AGOO_FREE(subject);
 }
 
 bool

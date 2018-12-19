@@ -16,9 +16,8 @@ static void
 es_free(void *ptr) {
     ErrorStream	es = (ErrorStream)ptr;
 
-    DEBUG_FREE(mem_err_stream, ptr);
-    DEBUG_FREE(mem_text, es->text)
-    free(es->text); // allocated with malloc
+    AGOO_FREE(es->text); // allocated with malloc
+    AGOO_FREED(ptr);
     xfree(ptr);
 }
 
@@ -26,7 +25,7 @@ VALUE
 error_stream_new() {
     ErrorStream	es = ALLOC(struct _errorStream);
 
-    DEBUG_ALLOC(mem_err_stream, es)
+    AGOO_ALLOC(es, sizeof(struct _errorStream));
     es->text = agoo_text_allocate(1024);
     
     return Data_Wrap_Struct(es_class, NULL, es_free, es);

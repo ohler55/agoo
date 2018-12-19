@@ -13,10 +13,9 @@
 agooReq
 agoo_req_create(size_t mlen) {
     size_t	size = mlen + sizeof(struct _agooReq) - 7;
-    agooReq	req = (agooReq)malloc(size);
+    agooReq	req = (agooReq)AGOO_MALLOC(size);
     
     if (NULL != req) {
-	DEBUG_ALLOC(mem_req, req);
 	memset(req, 0, size);
 	req->env = agoo_server.env_nil_value;
 	req->mlen = mlen;
@@ -27,11 +26,10 @@ agoo_req_create(size_t mlen) {
 
 void
 agoo_req_destroy(agooReq req) {
-    DEBUG_FREE(mem_req, req);
     if (NULL != req->hook && PUSH_HOOK == req->hook->type) {
-	free(req->hook);
+	AGOO_FREE(req->hook);
     }
-    free(req);
+    AGOO_FREE(req);
 }
 
 const char*

@@ -73,7 +73,6 @@ kind_string(gqlKind kind) {
     switch (kind) {
     case GQL_UNDEF:	return "undefined";
     case GQL_OBJECT:	return "object";
-    case GQL_FRAG:	return "fragment";
     case GQL_INPUT:	return "input";
     case GQL_UNION:	return "union";
     case GQL_INTERFACE:	return "interface";
@@ -94,11 +93,15 @@ alloc_string(agooErr err, const char *s, size_t len) {
 	    if (NULL == (a = strdup(s))) {
 		agoo_err_set(err, AGOO_ERR_MEMORY, "strdup() failed.");
 	    }
+	    len = strlen(a);
 	} else {
 	    if (NULL == (a = strndup(s, len))) {
 		agoo_err_set(err, AGOO_ERR_MEMORY, "strndup() of length %d failed.", len);
 	    }
 	}
+    }
+    if (NULL != a) {
+	AGOO_ALLOC(a, len);
     }
     return a;
 }
@@ -114,37 +117,56 @@ free_dir_uses(gqlDirUse uses) {
 	    u->args = link->next;
 	    gql_link_destroy(link);
 	}
-	free(u);
+	AGOO_FREE(u);
     }
 }
 
 static void
+arg_destroy(gqlArg a) {
+    AGOO_FREE((char*)a->name);
+    AGOO_FREE((char*)a->desc);
+    if (NULL != a->default_value) {
+	gql_value_destroy(a->default_value);
+    }
+    free_dir_uses(a->dir);
+
+    AGOO_FREE(a);
+}
+
+static void
+field_destroy(gqlField f) {
+    gqlArg	a;
+    
+    AGOO_FREE((char*)f->name);
+    AGOO_FREE((char*)f->desc);
+
+    while (NULL != (a = f->args)) {
+	f->args = a->next;
+	arg_destroy(a);
+    }
+    free_dir_uses(f->dir);
+    if (NULL != f->default_value) {
+	gql_value_destroy(f->default_value);
+    }
+    AGOO_FREE(f);
+}
+
+static void
 type_clean(gqlType type) {
-    free((char*)type->desc);
+    AGOO_FREE((char*)type->desc);
+    free_dir_uses(type->dir);
+
     switch (type->kind) {
     case GQL_OBJECT:
-    case GQL_FRAG:
     case GQL_INTERFACE:
     case GQL_INPUT: {
 	gqlField	f;
-	gqlArg	a;
 	
 	while (NULL != (f = type->fields)) {
 	    type->fields = f->next;
-	    while (NULL != (a = f->args)) {
-		f->args = a->next;
-		free((char*)a->name);
-		free((char*)a->desc);
-		gql_value_destroy(a->default_value);
-		DEBUG_FREE(mem_graphql_arg, a);
-		free(a);
-	    }
-	    free((char*)f->name);
-	    free((char*)f->desc);
-	    DEBUG_FREE(mem_graphql_field, f);
-	    free(f);
+	    field_destroy(f);
 	}
-	free(type->interfaces);
+	AGOO_FREE(type->interfaces);
 	break;
     }
     case GQL_UNION: {
@@ -152,7 +174,7 @@ type_clean(gqlType type) {
 
 	while (NULL != (link = type->types)) {
 	    type->types = link->next;
-	    free(link);
+	    AGOO_FREE(link);
 	}
 	break;
     }
@@ -161,10 +183,10 @@ type_clean(gqlType type) {
 
 	while (NULL != (ev = type->choices)) {
 	    type->choices = ev->next;
-	    free((char*)ev->value);
-	    free((char*)ev->desc);
+	    AGOO_FREE((char*)ev->value);
+	    AGOO_FREE((char*)ev->desc);
 	    free_dir_uses(ev->dir);
-	    free(ev);
+	    AGOO_FREE(ev);
 	}
 	break;
     }
@@ -175,12 +197,20 @@ type_clean(gqlType type) {
 
 static void
 type_destroy(gqlType type) {
-    if (!type->core) {
-	free((char*)type->name);
-	type_clean(type);
-	DEBUG_FREE(mem_graphql_type, type);
-	free(type);
+    if (&gql_int_type == type ||
+	&gql_i64_type == type ||
+	&gql_bool_type == type ||
+	&gql_float_type == type ||
+	&gql_time_type == type ||
+	&gql_uuid_type == type ||
+	&gql_url_type == type ||
+	&gql_string_type == type) {
+
+	return;
     }
+    type_clean(type);
+    AGOO_FREE((char*)type->name);
+    AGOO_FREE(type);
 }
 
 static void
@@ -188,30 +218,23 @@ dir_clean(gqlDir dir) {
     gqlArg	a;
     gqlStrLink	link;
     
-    free((char*)dir->desc);
+    AGOO_FREE((char*)dir->desc);
     while (NULL != (a = dir->args)) {
 	dir->args = a->next;
-	free((char*)a->name);
-	free((char*)a->desc);
-	if (NULL != a->default_value) {
-	    gql_value_destroy(a->default_value);
-	}
-	DEBUG_FREE(mem_graphql_arg, a);
-	free(a);
+	arg_destroy(a);
     }
     while (NULL != (link = dir->locs)) {
 	dir->locs = link->next;
-	free(link->str);
-	free(link);
+	AGOO_FREE(link->str);
+	AGOO_FREE(link);
     }
 }
 
 static void
 dir_destroy(gqlDir dir) {
-    free((char*)dir->name);
+    AGOO_FREE((char*)dir->name);
     dir_clean(dir);
-    DEBUG_FREE(mem_graphql_directive, dir);
-    free(dir);
+    AGOO_FREE(dir);
 }
 
 gqlType
@@ -262,10 +285,9 @@ gql_type_set(agooErr err, gqlType type) {
 		return AGOO_ERR_OK;
 	    }
 	}
-	if (NULL == (s = (Slot)malloc(sizeof(struct _slot)))) {
+	if (NULL == (s = (Slot)AGOO_MALLOC(sizeof(struct _slot)))) {
 	    return agoo_err_set(err, AGOO_ERR_MEMORY, "Failed to allocation memory for a GraphQL type.");
 	}
-	DEBUG_ALLOC(mem_graphql_slot, s);
 	s->hash = h;
 	s->type = type;
 	s->next = *bucket;
@@ -290,8 +312,7 @@ type_remove(gqlType type) {
 		} else {
 		    prev->next = s->next;
 		}
-		DEBUG_FREE(mem_graphql_slot, s);
-		free(s);
+		AGOO_FREE(s);
 
 		break;
 	    }
@@ -340,16 +361,14 @@ gql_destroy() {
     gqlDir	dir;
 
     for (i = BUCKET_SIZE; 0 < i; i--, sp++) {
-	Slot	*b = sp;
-
+	s = *sp;
+	
 	*sp = NULL;
-	for (s = *b; NULL != s; s = n) {
+	for (; NULL != s; s = n) {
 	    n = s->next;
-	    DEBUG_FREE(mem_graphql_slot, s);
-	    gql_type_destroy(s->type);
-	    free(s);
+	    type_destroy(s->type);
+	    AGOO_FREE(s);
 	}
-	*sp = NULL;
     }
     while (NULL != (dir = directives)) {
 	directives = dir->next;
@@ -363,19 +382,18 @@ type_create(agooErr err, gqlKind kind, const char *name, const char *desc, size_
     gqlType	type = gql_type_get(name);
 
     if (NULL == type) {
-	if (NULL == (type = (gqlType)malloc(sizeof(struct _gqlType)))) {
+	if (NULL == (type = (gqlType)AGOO_MALLOC(sizeof(struct _gqlType)))) {
 	    agoo_err_set(err, AGOO_ERR_MEMORY, "Failed to allocation memory for a GraphQL Type.");
 	    return NULL;
 	}
-	DEBUG_ALLOC(mem_graphql_type, type);
 	if (NULL == (type->name = strdup(name))) {
 	    agoo_err_set(err, AGOO_ERR_MEMORY, "strdup of type name failed. %s:%d", __FILE__, __LINE__);
 	    return NULL;
 	}
+	AGOO_ALLOC(type->name, strlen(type->name));
 	if (NULL == (type->desc = alloc_string(err, desc, dlen)) && AGOO_ERR_OK != err->code) {
 	    return NULL;
 	}
-	type->to_json = NULL;
 	type->to_sdl = NULL;
 	type->dir = NULL;
 	type->kind = kind;
@@ -436,14 +454,14 @@ assure_directive(agooErr err, const char *name) {
     gqlDir	dir = gql_directive_get(name);
 
     if (NULL == dir) {
-	if (NULL == (dir = (gqlDir)malloc(sizeof(struct _gqlDir)))) {
+	if (NULL == (dir = (gqlDir)AGOO_MALLOC(sizeof(struct _gqlDir)))) {
 	    agoo_err_set(err, AGOO_ERR_MEMORY, "Failed to allocation memory for a GraphQL directive.");
 	    return NULL;
 	}
-	DEBUG_ALLOC(mem_graphql_directive, dir);
 	dir->next = directives;
 	directives = dir;
 	dir->name = strdup(name);
+	AGOO_ALLOC(dir->name, strlen(dir->name));
 	dir->args = NULL;
 	dir->locs = NULL;
 	dir->defined = false;
@@ -475,14 +493,14 @@ gql_type_field(agooErr		err,
 	       size_t		dlen,
 	       bool		required,
 	       gqlResolveFunc	resolve) {
-    gqlField	f = (gqlField)malloc(sizeof(struct _gqlField));
+    gqlField	f = (gqlField)AGOO_MALLOC(sizeof(struct _gqlField));
     
     if (NULL == f) {
 	agoo_err_set(err, AGOO_ERR_MEMORY, "Failed to allocation memory for a GraphQL field.");
     } else {
-	DEBUG_ALLOC(mem_graphql_field, f);
 	f->next = NULL;
 	f->name = strdup(name);
+	AGOO_ALLOC(f->name, strlen(f->name));
 	f->type = return_type;
 	if (NULL == (f->desc = alloc_string(err, desc, dlen)) && AGOO_ERR_OK != err->code) {
 	    return NULL;
@@ -514,14 +532,14 @@ gql_field_arg(agooErr		err,
 	      size_t		dlen,
 	      struct _gqlValue	*def_value,
 	      bool		required) {
-    gqlArg	a = (gqlArg)malloc(sizeof(struct _gqlArg));
+    gqlArg	a = (gqlArg)AGOO_MALLOC(sizeof(struct _gqlArg));
     
     if (NULL == a) {
 	agoo_err_set(err, AGOO_ERR_MEMORY, "Failed to allocation memory for a GraphQL field argument.");
     } else {
-	DEBUG_ALLOC(mem_graphql_arg, a);
 	a->next = NULL;
 	a->name = strdup(name);
+	AGOO_ALLOC(a->name, strlen(a->name));
 	a->type = type;
 	if (NULL == (a->desc = alloc_string(err, desc, dlen)) && AGOO_ERR_OK != err->code) {
 	    return NULL;
@@ -568,7 +586,7 @@ gql_union_create(agooErr err, const char *name, const char *desc, size_t dlen) {
 
 int
 gql_union_add(agooErr err, gqlType type, gqlType member) {
-    gqlTypeLink	link = (gqlTypeLink)malloc(sizeof(struct _gqlTypeLink));
+    gqlTypeLink	link = (gqlTypeLink)AGOO_MALLOC(sizeof(struct _gqlTypeLink));
 
     if (NULL == link) {
 	return agoo_err_set(err, AGOO_ERR_MEMORY, "Failed to allocation memory for a GraphQL Union value.");
@@ -614,7 +632,7 @@ gql_enum_create(agooErr err, const char *name, const char *desc, size_t dlen) {
 
 gqlEnumVal
 gql_enum_append(agooErr err, gqlType type, const char *value, size_t len, const char *desc, size_t dlen) {
-    gqlEnumVal	ev = (gqlEnumVal)malloc(sizeof(struct _gqlEnumVal));
+    gqlEnumVal	ev = (gqlEnumVal)AGOO_MALLOC(sizeof(struct _gqlEnumVal));
 
     if (NULL == ev) {
 	agoo_err_set(err, AGOO_ERR_MEMORY, "Failed to allocation memory for a GraphQL Enum value.");
@@ -627,6 +645,7 @@ gql_enum_append(agooErr err, gqlType type, const char *value, size_t len, const 
 	agoo_err_set(err, AGOO_ERR_MEMORY, "strdup or strndup of length %d failed. %s:%d", len, __FILE__, __LINE__);
 	return NULL;
     }
+    AGOO_ALLOC(ev->value, len);
     ev->dir = NULL;
     if (NULL == (ev->desc = alloc_string(err, desc, dlen)) && AGOO_ERR_OK != err->code) {
 	return NULL;
@@ -643,27 +662,6 @@ gql_enum_append(agooErr err, gqlType type, const char *value, size_t len, const 
 	last->next = ev;
     }
     return ev;
-}
-
-static agooText
-fragment_to_json(agooText text, gqlValue value, int indent, int depth) {
-    // TBD
-    return text;
-}
-
-gqlType
-gql_fragment_create(agooErr err, const char *name, const char *desc, size_t dlen, const char *on) {
-    gqlType	type = type_create(err, GQL_FRAG, name, desc, dlen);
-    
-    if (NULL != type) {
-	if (NULL != on && NULL == (type->on = gql_assure_type(err, on))) {
-	    return NULL;
-	}
-	type->to_json = fragment_to_json;
-	type->to_sdl = NULL;
-	type->fields = NULL;
-    }
-    return type;
 }
 
 static agooText
@@ -760,14 +758,14 @@ gql_directive_create(agooErr err, const char *name, const char *desc, size_t dle
 	    }
 	}
     } else {
-	if (NULL == (dir = (gqlDir)malloc(sizeof(struct _gqlDir)))) {
+	if (NULL == (dir = (gqlDir)AGOO_MALLOC(sizeof(struct _gqlDir)))) {
 	    agoo_err_set(err, AGOO_ERR_MEMORY, "Failed to allocation memory for a GraphQL directive.");
 	    return NULL;
 	}
-	DEBUG_ALLOC(mem_graphql_directive, dir);
 	dir->next = directives;
 	directives = dir;
 	dir->name = strdup(name);
+	AGOO_ALLOC(dir->name, strlen(dir->name));
 	dir->args = NULL;
 	dir->locs = NULL;
 	dir->defined = true;
@@ -789,14 +787,14 @@ gql_dir_arg(agooErr 		err,
 	    struct _gqlValue	*def_value,
 	    bool 		required) {
 
-    gqlArg	a = (gqlArg)malloc(sizeof(struct _gqlArg));
+    gqlArg	a = (gqlArg)AGOO_MALLOC(sizeof(struct _gqlArg));
     
     if (NULL == a) {
 	agoo_err_set(err, AGOO_ERR_MEMORY, "Failed to allocation memory for a GraphQL directive argument.");
     } else {
-	DEBUG_ALLOC(mem_graphql_arg, a);
 	a->next = NULL;
 	a->name = strdup(name);
+	AGOO_ALLOC(a->name, strlen(a->name));
 	a->type = type;
 	if (NULL == (a->desc = alloc_string(err, desc, dlen)) && AGOO_ERR_OK != err->code) {
 	    return NULL;
@@ -819,7 +817,7 @@ gql_dir_arg(agooErr 		err,
 
 int
 gql_directive_on(agooErr err, gqlDir d, const char *on, int len) {
-    gqlStrLink	link = (gqlStrLink)malloc(sizeof(struct _gqlStrLink));
+    gqlStrLink	link = (gqlStrLink)AGOO_MALLOC(sizeof(struct _gqlStrLink));
     gqlStrLink	loc;
 
     if (NULL == link) {
@@ -840,6 +838,8 @@ gql_directive_on(agooErr err, gqlDir d, const char *on, int len) {
     if (NULL == (link->str = strndup(on, len))) {
 	return agoo_err_set(err, AGOO_ERR_MEMORY, "strdup or strndup of length %d failed. %s:%d", len, __FILE__, __LINE__);
     }
+    AGOO_ALLOC(link->str, len);
+
     return AGOO_ERR_OK;
 }
 
@@ -1232,7 +1232,7 @@ gql_dump_hook(agooReq req) {
 	with_desc = false;
     }
     text = gql_schema_sdl(text, with_desc, all);
-    cnt = snprintf(buf, sizeof(buf), "HTTP/1.1 200 Okay\r\nContent-Type: application/graphql\r\nContent-Length: %ld\r\n\r\n", text->len);
+    cnt = snprintf(buf, sizeof(buf), "HTTP/1.1 200 Okay\r\nContent-Type: text/plain\r\nContent-Length: %ld\r\n\r\n", text->len);
     text = agoo_text_prepend(text, buf, cnt);
     agoo_res_set_message(req->res, text);
 }
@@ -1250,7 +1250,7 @@ gqlDirUse
 gql_dir_use_create(agooErr err, const char *name) {
     gqlDirUse	use;
 
-    if (NULL == (use = (gqlDirUse)malloc(sizeof(struct _gqlDirUse)))) {
+    if (NULL == (use = (gqlDirUse)AGOO_MALLOC(sizeof(struct _gqlDirUse)))) {
 	agoo_err_set(err, AGOO_ERR_MEMORY, "Failed to allocation memory for a directive useage.");
     } else {
 	if (NULL == (use->dir = assure_directive(err, name))) {
@@ -1286,6 +1286,24 @@ gql_type_directive_use(gqlType type, gqlDirUse use) {
 	}
 	u->next = use;
     }
+}
+
+gqlFrag
+gql_fragment_create(agooErr err, const char *name, gqlType on) {
+    gqlFrag	frag = (gqlFrag)AGOO_MALLOC(sizeof(struct _gqlFrag));
+    
+    if (NULL != frag) {
+	frag->next = NULL;
+	if (NULL == (frag->name = strdup(name))) {
+	    agoo_err_set(err, AGOO_ERR_MEMORY, "strdup of fragment name failed. %s:%d", __FILE__, __LINE__);
+	    return NULL;
+	}
+	AGOO_ALLOC(frag->name, strlen(frag->name));
+	frag->dir = NULL;
+	frag->on = on;
+	frag->sels = NULL;
+    }
+    return frag;
 }
 
 int

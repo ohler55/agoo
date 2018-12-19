@@ -7,6 +7,7 @@
 
 #include "debug.h"
 #include "error_stream.h"
+#include "graphql.h"
 #include "log.h"
 #include "pub.h"
 #include "rack_logger.h"
@@ -35,7 +36,8 @@ agoo_shutdown() {
 static VALUE
 ragoo_shutdown(VALUE self) {
     agoo_shutdown();
-    debug_rreport();
+    gql_destroy();
+    debug_report();
     return Qnil;
 }
 
@@ -77,7 +79,7 @@ ragoo_unsubscribe(VALUE self, VALUE subject) {
 static void
 sig_handler(int sig) {
     agoo_shutdown();
-
+    gql_destroy();
     debug_report();
     // Use exit instead of rb_exit as rb_exit segfaults most of the time.
     //rb_exit(0);

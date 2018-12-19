@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "debug.h"
 #include "doc.h"
 #include "gqlvalue.h"
 #include "graphql.h"
@@ -632,7 +633,7 @@ extract_interfaces(agooErr err, agooDoc doc, gqlTypeLink *interfacesp) {
     	if (AGOO_ERR_OK != read_type(err, doc, &type, &required)) {
 	    return err->code;
 	}
-	if (NULL == (link = (gqlTypeLink)malloc(sizeof(struct _gqlTypeLink)))) {
+	if (NULL == (link = (gqlTypeLink)AGOO_MALLOC(sizeof(struct _gqlTypeLink)))) {
 	    return agoo_err_set(err, AGOO_ERR_MEMORY, "Failed to allocation memory for a GraphQL interface.");
 	}
 	link->next = NULL;

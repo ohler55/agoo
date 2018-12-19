@@ -32,8 +32,7 @@ destroy(agooUpgraded up) {
 	up->subjects = up->subjects->next;
 	agoo_subject_destroy(subject);
     }
-    DEBUG_FREE(mem_upgraded, up);
-    free(up);
+    AGOO_FREE(up);
 }
 
 void
@@ -167,10 +166,9 @@ agoo_upgraded_pending(agooUpgraded up) {
 
 agooUpgraded
 agoo_upgraded_create(agooCon c, void * ctx, void *env) {
-    agooUpgraded	up = (agooUpgraded)malloc(sizeof(struct _agooUpgraded));
+    agooUpgraded	up = (agooUpgraded)AGOO_MALLOC(sizeof(struct _agooUpgraded));
 
     if (NULL != up) {
-	DEBUG_ALLOC(mem_upgraded, up);
 	memset(up, 0, sizeof(struct _agooUpgraded));
 	up->con = c;
 	up->ctx = ctx;

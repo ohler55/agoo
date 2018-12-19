@@ -21,10 +21,9 @@ agoo_res_create(agooCon con) {
     pthread_mutex_unlock(&con->loop->lock);
 
     if (NULL == res) {
-	if (NULL == (res = (agooRes)malloc(sizeof(struct _agooRes)))) {
+	if (NULL == (res = (agooRes)AGOO_MALLOC(sizeof(struct _agooRes)))) {
 	    return NULL;
 	}
-	DEBUG_ALLOC(mem_res, res)
     }
     res->next = NULL;
     atomic_init(&res->message, NULL);

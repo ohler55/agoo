@@ -36,8 +36,7 @@ agoo_queue_multi_init(agooQueue q, size_t qsize, bool multi_push, bool multi_pop
     if (qsize < 4) {
 	qsize = 4;
     }
-    q->q = (agooQItem*)malloc(sizeof(agooQItem) * qsize);
-    DEBUG_ALLOC(mem_qitem, q->q)
+    q->q = (agooQItem*)AGOO_MALLOC(sizeof(agooQItem) * qsize);
     q->end = q->q + qsize;
 
     memset(q->q, 0, sizeof(agooQItem) * qsize);
@@ -55,8 +54,7 @@ agoo_queue_multi_init(agooQueue q, size_t qsize, bool multi_push, bool multi_pop
 
 void
 agoo_queue_cleanup(agooQueue q) {
-    DEBUG_FREE(mem_qitem, q->q)
-    free(q->q);
+    AGOO_FREE(q->q);
     q->q = NULL;
     q->end = NULL;
     if (0 < q->wsock) {

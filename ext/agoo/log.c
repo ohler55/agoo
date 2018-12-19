@@ -325,12 +325,10 @@ loop(void *ctx) {
 		}
 	    }
 	    if (NULL != e->whatp) {
-		free(e->whatp);
-		DEBUG_FREE(mem_agoo_log_what, e->whatp)
+		AGOO_FREE(e->whatp);
 	    }
 	    if (NULL != e->tidp) {
-		free(e->tidp);
-		DEBUG_FREE(mem_agoo_log_tid, e->tidp)
+		AGOO_FREE(e->tidp);
 	    }
 	    e->ready = false;
 	}
@@ -391,8 +389,7 @@ agoo_log_close() {
 	agoo_log.file = NULL;
     }
     if (NULL != agoo_log.q) {
-	DEBUG_FREE(mem_agoo_log_entry, agoo_log.q);
-	free(agoo_log.q);
+	AGOO_FREE(agoo_log.q);
 	agoo_log.q = NULL;
 	agoo_log.end = NULL;
     }
@@ -479,13 +476,11 @@ set_entry(agooLogEntry e, agooLogCat cat, const char *tid, const char *fmt, va_l
     e->when = now_nano();
     e->whatp = NULL;
     if ((int)sizeof(e->what) <= (cnt = vsnprintf(e->what, sizeof(e->what), fmt, ap))) {
-	e->whatp = (char*)malloc(cnt + 1);
+	e->whatp = (char*)AGOO_MALLOC(cnt + 1);
 
-	DEBUG_ALLOC(mem_log_what, e->whatp)
-    
-	    if (NULL != e->whatp) {
-		vsnprintf(e->whatp, cnt + 1, fmt, ap2);
-	    }
+	if (NULL != e->whatp) {
+	    vsnprintf(e->whatp, cnt + 1, fmt, ap2);
+	}
     }
     if (NULL != tid) {
 	e->tidp = NULL;
@@ -617,8 +612,7 @@ agoo_log_init(const char *app) {
     *agoo_log.day_buf = '\0';
     agoo_log.thread = 0;
 
-    agoo_log.q = (agooLogEntry)malloc(sizeof(struct _agooLogEntry) * qsize);
-    DEBUG_ALLOC(mem_log_entry, agoo_log.q)
+    agoo_log.q = (agooLogEntry)AGOO_MALLOC(sizeof(struct _agooLogEntry) * qsize);
     agoo_log.end = agoo_log.q + qsize;
     memset(agoo_log.q, 0, sizeof(struct _agooLogEntry) * qsize);
     atomic_init(&agoo_log.head, agoo_log.q);

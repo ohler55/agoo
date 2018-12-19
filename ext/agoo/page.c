@@ -195,16 +195,14 @@ mime_set(agooErr err, const char *key, const char *value) {
 	if (h == (int64_t)s->hash && len == s->klen &&
 	    ((0 <= len && len <= MAX_KEY_UNIQ) || 0 == strncmp(s->key, key, len))) {
 
-	    DEBUG_FREE(mem_mime_slot, s->value);
-	    free(s->value);
+	    AGOO_FREE(s->value);
 	    s->value = strdup(value);
 	    return AGOO_ERR_OK;
 	}
     }
-    if (NULL == (s = (MimeSlot)malloc(sizeof(struct _mimeSlot)))) {
+    if (NULL == (s = (MimeSlot)AGOO_MALLOC(sizeof(struct _mimeSlot)))) {
 	return agoo_err_set(err, AGOO_ERR_ARG, "out of memory adding %s", key);
     }
-    DEBUG_ALLOC(mem_mime_slot, s);
     s->hash = h;
     s->klen = len;
     if (NULL == key) {
@@ -241,10 +239,9 @@ cache_set(const char *key, int klen, agooPage value) {
 	    return old;
 	}
     }
-    if (NULL == (s = (Slot)malloc(sizeof(struct _slot)))) {
+    if (NULL == (s = (Slot)AGOO_MALLOC(sizeof(struct _slot)))) {
 	return value;
     }
-    DEBUG_ALLOC(mem_page_slot, s)
     s->hash = h;
     s->klen = len;
     if (NULL == key) {
@@ -267,6 +264,7 @@ agoo_pages_init() {
     
     memset(&cache, 0, sizeof(struct _cache));
     cache.root = strdup(".");
+    AGOO_ALLOC(cache.root, 2);
     for (m = mime_map; NULL != m->suffix; m++) {
 	mime_set(&err, m->suffix, m->type);
     }
@@ -274,11 +272,12 @@ agoo_pages_init() {
 
 void
 agoo_pages_set_root(const char *root) {
-    free(cache.root);
+    AGOO_FREE(cache.root);
     if (NULL == root) {
 	cache.root = NULL;
     } else {
 	cache.root = strdup(root);
+	AGOO_ALLOC(cache.root, strlen(cache.root));
     }
 }
 
@@ -288,10 +287,8 @@ agoo_page_destroy(agooPage p) {
 	agoo_text_release(p->resp);
 	p->resp = NULL;
     }
-    DEBUG_FREE(mem_page_path, p->path);
-    DEBUG_FREE(mem_page, p);
-    free(p->path);
-    free(p);
+    AGOO_FREE(p->path);
+    AGOO_FREE(p);
 }
 
 void
@@ -307,21 +304,19 @@ agoo_pages_cleanup() {
     for (i = PAGE_BUCKET_SIZE; 0 < i; i--, sp++) {
 	for (s = *sp; NULL != s; s = n) {
 	    n = s->next;
-	    DEBUG_FREE(mem_page_slot, s);
 	    agoo_page_destroy(s->value);
-	    free(s);
+	    AGOO_FREE(s);
 	}
 	*sp = NULL;
     }
     for (i = MIME_BUCKET_SIZE; 0 < i; i--, mp++) {
 	for (sm = *mp; NULL != sm; sm = m) {
 	    m = sm->next;
-	    DEBUG_FREE(mem_mime_slot, sm);
-	    free(sm);
+	    AGOO_FREE(sm);
 	}
 	*mp = NULL;
     }
-    free(cache.root);
+    AGOO_FREE(cache.root);
 }
 
 static const char*
@@ -349,16 +344,15 @@ path_mime(const char *path) {
 // allocations.
 agooPage
 agoo_page_create(const char *path) {
-    agooPage	p = (agooPage)malloc(sizeof(struct _agooPage));
+    agooPage	p = (agooPage)AGOO_MALLOC(sizeof(struct _agooPage));
 
     if (NULL != p) {
-	DEBUG_ALLOC(mem_page, p);
 	p->resp = NULL;
 	if (NULL == path) {
 	    p->path = NULL;
 	} else {
 	    p->path = strdup(path);
-	    DEBUG_ALLOC(mem_page_path, p->path);
+	    AGOO_ALLOC(p->path, strlen(p->path));
 	}
 	p->mtime = 0;
 	p->last_check = 0.0;
@@ -369,7 +363,7 @@ agoo_page_create(const char *path) {
 
 agooPage
 agoo_page_immutable(agooErr err, const char *path, const char *content, int clen) {
-    agooPage	p = (agooPage)malloc(sizeof(struct _agooPage));
+    agooPage	p = (agooPage)AGOO_MALLOC(sizeof(struct _agooPage));
     const char	*mime = path_mime(path);
     long	msize;
     int		cnt;
@@ -379,13 +373,12 @@ agoo_page_immutable(agooErr err, const char *path, const char *content, int clen
 	agoo_err_set(err, AGOO_ERR_MEMORY, "Failed to allocate memory for page.");
 	return NULL;     
     }
-    DEBUG_ALLOC(mem_page, p);
     if (NULL == path) {
 	p->path = NULL;
     } else {
 	p->path = strdup(path);
 	plen = (int)strlen(path);
-	DEBUG_ALLOC(mem_page_path, p->path);
+	AGOO_ALLOC(p->path, plen);
     }
     p->mtime = 0;
     p->last_check = 0.0;
@@ -401,8 +394,7 @@ agoo_page_immutable(agooErr err, const char *path, const char *content, int clen
     // padding. Then add the content length.
     msize = sizeof(page_fmt) + 60 + clen;
     if (NULL == (p->resp = agoo_text_allocate((int)msize))) {
-	DEBUG_FREE(mem_page, p);
-	free(p);
+	AGOO_FREE(p);
 	agoo_err_set(err, AGOO_ERR_MEMORY, "Failed to allocate memory for page content.");
 	return NULL;
     }
@@ -532,9 +524,8 @@ agoo_page_remove(agooPage p) {
 	    } else {
 		prev->next = s->next;
 	    }
-	    DEBUG_FREE(mem_page_slot, s);
 	    agoo_page_destroy(s->value);
-	    free(s);
+	    AGOO_FREE(s);
 
 	    break;
 	}
@@ -677,15 +668,14 @@ group_get(agooErr err, const char *path, int plen) {
 
 agooGroup
 group_create(const char *path) {
-    agooGroup	g = (agooGroup)malloc(sizeof(struct _agooGroup));
+    agooGroup	g = (agooGroup)AGOO_MALLOC(sizeof(struct _agooGroup));
 
     if (NULL != g) {
-	DEBUG_ALLOC(mem_group, g);
 	g->next = cache.groups;
 	cache.groups = g;
 	g->path = strdup(path);
 	g->plen = (int)strlen(path);
-	DEBUG_ALLOC(mem_group_path, g->path);
+	AGOO_ALLOC(g->path, g->plen);
 	g->dirs = NULL;
     }
     return g;
@@ -693,14 +683,13 @@ group_create(const char *path) {
 
 void
 group_add(agooGroup g, const char *dir) {
-    agooDir	d = (agooDir)malloc(sizeof(struct _agooDir));
+    agooDir	d = (agooDir)AGOO_MALLOC(sizeof(struct _agooDir));
 
     if (NULL != d) {
-	DEBUG_ALLOC(mem_dir, d);
 	d->next = g->dirs;
 	g->dirs = d;
 	d->path = strdup(dir);
 	d->plen = (int)strlen(dir);
-	DEBUG_ALLOC(mem_dir_path, d->path);
+	AGOO_ALLOC(d->path, d->plen);
     }
 }

@@ -469,8 +469,7 @@ key_set(const char *key) {
     Slot	*bucket = get_bucketp(h);
     Slot	s;
     
-    if (NULL != (s = (Slot)malloc(sizeof(struct _slot)))) {
-	DEBUG_ALLOC(mem_http_slot, s)
+    if (NULL != (s = (Slot)AGOO_MALLOC(sizeof(struct _slot)))) {
 	s->hash = h;
 	s->klen = len;
 	s->key = key;
@@ -499,8 +498,7 @@ agoo_http_cleanup() {
     for (i = BUCKET_SIZE; 0 < i; i--, sp++) {
 	for (s = *sp; NULL != s; s = n) {
 	    n = s->next;
-	    DEBUG_FREE(mem_http_slot, s)
-	    free(s);
+	    AGOO_FREE(s);
 	}
 	*sp = NULL;
     }

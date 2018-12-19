@@ -58,10 +58,9 @@ agooCon
 agoo_con_create(agooErr err, int sock, uint64_t id, agooBind b) {
     agooCon	c;
 
-    if (NULL == (c = (agooCon)malloc(sizeof(struct _agooCon)))) {
+    if (NULL == (c = (agooCon)AGOO_MALLOC(sizeof(struct _agooCon)))) {
 	agoo_err_set(err, AGOO_ERR_MEMORY, "Failed to allocate memory for a connection.");
     } else {
-	DEBUG_ALLOC(mem_con, c)
 	memset(c, 0, sizeof(struct _agooCon));
 	c->sock = sock;
 	c->id = id;
@@ -91,8 +90,7 @@ agoo_con_destroy(agooCon c) {
 	c->up = NULL;
     }
     agoo_log_cat(&agoo_con_cat, "Connection %llu closed.", (unsigned long long)c->id);
-    DEBUG_FREE(mem_con, c);
-    free(c);
+    AGOO_FREE(c);
 }
 
 const char*
@@ -1202,12 +1200,11 @@ agooConLoop
 agoo_conloop_create(agooErr err, int id) {
      agooConLoop	loop;
 
-    if (NULL == (loop = (agooConLoop)malloc(sizeof(struct _agooConLoop)))) {
+    if (NULL == (loop = (agooConLoop)AGOO_MALLOC(sizeof(struct _agooConLoop)))) {
 	agoo_err_set(err, AGOO_ERR_MEMORY, "Failed to allocate memory for a connection thread.");
     } else {
 	int	stat;
 	
-	//DEBUG_ALLOC(mem_con, c);
 	loop->next = NULL;
 	agoo_queue_multi_init(&loop->pub_queue, 256, true, false);
 	loop->id = id;
@@ -1229,8 +1226,7 @@ agoo_conloop_destroy(agooConLoop loop) {
     agoo_queue_cleanup(&loop->pub_queue);
     while (NULL != (res = loop->res_head)) {
 	loop->res_head = res->next;
-	DEBUG_FREE(mem_res, res);
-	free(res);
+	AGOO_FREE(res);
     }
-    free(loop);
+    AGOO_FREE(loop);
 }

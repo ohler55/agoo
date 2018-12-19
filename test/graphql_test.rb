@@ -44,10 +44,11 @@ class GraphQLTest < Minitest::Test
 			    eval: true,
 			  })
 
-      Agoo::Server.init(6472, 'root', thread_count: 1)
+      Agoo::Server.init(6472, 'root', thread_count: 1, graphql: '/graphql')
       Agoo::Server.start()
 
       load_test
+      get_schema_test
     ensure
       Agoo::shutdown
     end
@@ -62,13 +63,56 @@ type User {
 }
 |)
     }
-    puts Agoo::GraphQL.sdl_dump(with_descriptions: false, all: false)
+    expect = %^type schema @ruby(class: "Schema") {
+  query: Query
+  mutation: Mutation
+  subscription: Subscription
+}
+
+type Mutation {
+}
+
+type Query @ruby(class: "Query") {
+}
+
+type Subscription {
+}
+
+type User {
+  name: String!
+  age: Int
+}
+
+directive @ruby(class: String!) on SCHEMA | OBJECT
+^
+    content = Agoo::GraphQL.sdl_dump(with_descriptions: false, all: false)
+    assert_equal(expect, content)
   end
 
   def get_schema_test
-    uri = URI('http://localhost:6472/graphql/schema')
-    expect = %|zzzzzzzzz
-|
+    uri = URI('http://localhost:6472/graphql/schema?with_desc=false&all=false')
+    expect = %^type schema @ruby(class: "Schema") {
+  query: Query
+  mutation: Mutation
+  subscription: Subscription
+}
+
+type Mutation {
+}
+
+type Query @ruby(class: "Query") {
+}
+
+type Subscription {
+}
+
+type User {
+  name: String!
+  age: Int
+}
+
+directive @ruby(class: String!) on SCHEMA | OBJECT
+^
     req = Net::HTTP::Get.new(uri)
     req['Accept-Encoding'] = '*'
     req['User-Agent'] = 'Ruby'
@@ -76,7 +120,7 @@ type User {
       h.request(req)
     }
     content = res.body
-    assert_equal('text/html', res['Content-Type'])
+    assert_equal('text/plain', res['Content-Type'])
     assert_equal(expect, content)
   end
 end

@@ -190,11 +190,11 @@ graphql_sdl_dump(VALUE self, VALUE options) {
     
     Check_Type(options, T_HASH);
 
-    v = rb_hash_aref(options, rb_intern("with_descriptions"));
+    v = rb_hash_aref(options, ID2SYM(rb_intern("with_descriptions")));
     if (Qnil != v) {
 	with_desc = (Qtrue == v);
     }
-    v = rb_hash_aref(options, rb_intern("all"));
+    v = rb_hash_aref(options, ID2SYM(rb_intern("all")));
     if (Qnil != v) {
 	all = (Qtrue == v);
     }

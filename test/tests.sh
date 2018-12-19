@@ -9,3 +9,4 @@
 ./rack_handler_test.rb
 ./hijack_test.rb
 ./bind_test.rb
+./graphql_test.rb

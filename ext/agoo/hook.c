@@ -10,12 +10,11 @@
 
 agooHook
 agoo_hook_create(agooMethod method, const char *pattern, void *handler, agooHookType type, agooQueue q) {
-    agooHook	hook = (agooHook)malloc(sizeof(struct _agooHook));
+    agooHook	hook = (agooHook)AGOO_MALLOC(sizeof(struct _agooHook));
 
     if (NULL != hook) {
 	char	*pat = NULL;
 	
-	DEBUG_ALLOC(mem_hook, hook);
 	if (NULL == pattern) {
 	    if (AGOO_NONE != method) {
 		pat = strdup("");
@@ -25,8 +24,10 @@ agoo_hook_create(agooMethod method, const char *pattern, void *handler, agooHook
 	}
 	hook->pattern = pat;
 
+	if (NULL != hook->pattern) {
+	    AGOO_ALLOC(hook->pattern, strlen(hook->pattern));
+	}
 	hook->next = NULL;
-	DEBUG_ALLOC(mem_hook_pattern, hook->pattern)
 	hook->method = method;
 	hook->handler = handler;
 	hook->type = type;
@@ -38,12 +39,11 @@ agoo_hook_create(agooMethod method, const char *pattern, void *handler, agooHook
 
 agooHook
 agoo_hook_func_create(agooMethod method, const char *pattern, void (*func)(agooReq req), agooQueue q) {
-    agooHook	hook = (agooHook)malloc(sizeof(struct _agooHook));
+    agooHook	hook = (agooHook)AGOO_MALLOC(sizeof(struct _agooHook));
 
     if (NULL != hook) {
 	char	*pat = NULL;
 	
-	DEBUG_ALLOC(mem_hook, hook);
 	if (NULL == pattern) {
 	    if (AGOO_NONE != method) {
 		pat = strdup("");
@@ -52,9 +52,10 @@ agoo_hook_func_create(agooMethod method, const char *pattern, void (*func)(agooR
 	    pat = strdup(pattern);
 	}
 	hook->pattern = pat;
-
+	if (NULL != hook->pattern) {
+	    AGOO_ALLOC(hook->pattern, strlen(hook->pattern));
+	}
 	hook->next = NULL;
-	DEBUG_ALLOC(mem_hook_pattern, hook->pattern)
 	hook->method = method;
 	hook->func = func;
 	hook->type = FUNC_HOOK;
@@ -67,11 +68,9 @@ agoo_hook_func_create(agooMethod method, const char *pattern, void (*func)(agooR
 void
 agoo_hook_destroy(agooHook hook) {
     if (NULL != hook->pattern) {
-	DEBUG_FREE(mem_hook_pattern, hook->pattern);
-	free(hook->pattern);
+	AGOO_FREE(hook->pattern);
     }
-    DEBUG_FREE(mem_hook, hook)
-    free(hook);
+    AGOO_FREE(hook);
 }
 
 bool

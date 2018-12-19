@@ -21,6 +21,12 @@ typedef enum {
     GQL_LIST		= (int8_t)8,
 } gqlKind;
 
+typedef enum {
+    GQL_QUERY		= (int8_t)'Q',
+    GQL_MUTATION	= (int8_t)'M',
+    GQL_SUBSCRIPTION	= (int8_t)'S',
+} gqlOpKind;
+
 struct _agooCon;
 struct _agooReq;
 struct _gqlDirUse;
@@ -118,12 +124,9 @@ typedef struct _gqlType {
     gqlKind	kind;
     bool	core;
     union {
-	struct { // Objects, Fragments, interfaces, and input_objects
+	struct { // Objects, interfaces, and input_objects
 	    gqlField		fields;
-	    union {
-		gqlTypeLink	interfaces;   // Types
-		struct _gqlType	*on;          // Fragment
-	    };
+	    gqlTypeLink		interfaces;   // Types
 	};
 	gqlTypeLink		types;	      // Union
 	gqlEnumVal		choices;      // Enums
@@ -139,6 +142,42 @@ typedef struct _gqlType {
     };
 } *gqlType;
 
+// Execution Definition types
+struct _gqlFrag;
+
+typedef struct _gqlSel {
+    struct _gqlSel	*next;
+    const char		*alias;
+    const char		*name;
+    gqlDirUse		dir;
+    gqlKeyVal		args;
+    const char		*frag;
+    struct _gqlSel	*sels;
+    struct _gqlFrag	*inlines;
+} *gqlSel;
+
+typedef struct _gqlOp {
+    struct _gqlOp	*next;
+    const char		*name;
+    gqlDirUse		dir;
+    gqlSel		sels;
+    gqlOpKind		kind;
+} *gqlOp;
+
+typedef struct _gqlFrag {
+    struct _gqlFrag	*next;
+    const char		*name;
+    gqlDirUse		dir;
+    gqlType		on;
+    gqlSel		sels;
+} *gqlFrag;
+
+typedef struct _gqlDoc {
+    gqlOp		ops;
+    gqlFrag		frags;
+} *gqlDoc;
+
+
 extern int	gql_init(agooErr err);
 extern void	gql_destroy(); // clear out all
 
@@ -146,7 +185,6 @@ extern gqlType	gql_type_create(agooErr err, const char *name, const char *desc, 
 extern gqlType	gql_assure_type(agooErr err, const char *name);
 extern void	gql_type_directive_use(gqlType type, gqlDirUse use);
 
-extern gqlType	gql_fragment_create(agooErr err, const char *name, const char *desc, size_t dlen, const char *on);
 extern gqlType	gql_input_create(agooErr err, const char *name, const char *desc, size_t dlen);
 extern gqlType	gql_interface_create(agooErr err, const char *name, const char *desc, size_t dlen);
 
@@ -209,6 +247,9 @@ extern agooText		gql_schema_sdl(agooText text, bool with_desc, bool all);
 extern agooText		gql_object_to_graphql(agooText text, struct _gqlValue *value, int indent, int depth);
 extern agooText		gql_union_to_text(agooText text, struct _gqlValue *value, int indent, int depth);
 extern agooText		gql_enum_to_text(agooText text, struct _gqlValue *value, int indent, int depth);
+
+extern gqlFrag		gql_fragment_create(agooErr err, const char *name, gqlType on);
+
 
 extern void		gql_dump_hook(struct _agooReq *req);
 extern void		gql_eval_hook(struct _agooReq *req);

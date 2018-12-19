@@ -9,10 +9,9 @@
 
 agooText
 agoo_text_create(const char *str, int len) {
-    agooText	t = (agooText)malloc(sizeof(struct _agooText) - AGOO_TEXT_MIN_SIZE + len + 1);
+    agooText	t = (agooText)AGOO_MALLOC(sizeof(struct _agooText) - AGOO_TEXT_MIN_SIZE + len + 1);
 
     if (NULL != t) {
-	DEBUG_ALLOC(mem_text, t)
 	t->len = len;
 	t->alen = len;
 	t->bin = false;
@@ -25,10 +24,9 @@ agoo_text_create(const char *str, int len) {
 
 agooText
 agoo_text_dup(agooText t0) {
-    agooText	t = (agooText)malloc(sizeof(struct _agooText) - AGOO_TEXT_MIN_SIZE + t0->alen + 1);
+    agooText	t = (agooText)AGOO_MALLOC(sizeof(struct _agooText) - AGOO_TEXT_MIN_SIZE + t0->alen + 1);
 
     if (NULL != t) {
-	DEBUG_ALLOC(mem_text, t)
 	t->len = t0->len;
 	t->alen = t0->alen;
 	t->bin = false;
@@ -40,10 +38,9 @@ agoo_text_dup(agooText t0) {
 
 agooText
 agoo_text_allocate(int len) {
-    agooText	t = (agooText)malloc(sizeof(struct _agooText) - AGOO_TEXT_MIN_SIZE + len + 1);
+    agooText	t = (agooText)AGOO_MALLOC(sizeof(struct _agooText) - AGOO_TEXT_MIN_SIZE + len + 1);
 
     if (NULL != t) {
-	DEBUG_ALLOC(mem_text, t)
 	t->len = 0;
 	t->alen = len;
 	t->bin = false;
@@ -61,8 +58,7 @@ agoo_text_ref(agooText t) {
 void
 agoo_text_release(agooText t) {
     if (1 >= atomic_fetch_sub(&t->ref_cnt, 1)) {
-	DEBUG_FREE(mem_text, t);
-	free(t);
+	AGOO_FREE(t);
     }
 }
 
@@ -74,13 +70,10 @@ agoo_text_append(agooText t, const char *s, int len) {
     if (t->alen <= t->len + len) {
 	long	new_len = t->alen + len + t->alen / 2;
 	size_t	size = sizeof(struct _agooText) - AGOO_TEXT_MIN_SIZE + new_len + 1;
-#ifdef MEM_DEBUG
-	agooText	t0 = t;
-#endif	
-	if (NULL == (t = (agooText)realloc(t, size))) {
+
+	if (NULL == (t = (agooText)AGOO_REALLOC(t, size))) {
 	    return NULL;
 	}
-	DEBUG_REALLOC(mem_text, t0, t);
 	t->alen = new_len;
     }
     memcpy(t->text + t->len, s, len);
@@ -98,14 +91,10 @@ agoo_text_prepend(agooText t, const char *s, int len) {
     if (t->alen <= t->len + len) {
 	long	new_len = t->alen + len + t->alen / 2;
 	size_t	size = sizeof(struct _agooText) - AGOO_TEXT_MIN_SIZE + new_len + 1;
-#ifdef MEM_DEBUG
-	agooText	t0 = t;
-#endif	
 
-	if (NULL == (t = (agooText)realloc(t, size))) {
+	if (NULL == (t = (agooText)AGOO_REALLOC(t, size))) {
 	    return NULL;
 	}
-	DEBUG_REALLOC(mem_text, t0, t);
 	t->alen = new_len;
     }
     memmove(t->text + len, t->text, t->len + 1);
