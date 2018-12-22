@@ -3,7 +3,7 @@
 #ifndef AGOO_DEBUG_H
 #define AGOO_DEBUG_H
 
-#include "atomic.h"
+#include <stdlib.h>
 
 #ifdef MEM_DEBUG
 
