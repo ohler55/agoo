@@ -359,7 +359,7 @@ agoo_doc_read_value(agooErr err, agooDoc doc, gqlType type) {
 	if (NULL == (value = gql_object_create(err))) {
 	    return NULL;
 	}
-	value->type = type;
+	//value->type = type; // values are always the base object type
 	doc->cur++;
 	while (doc->cur < doc->end) {
 	    char	key[256];

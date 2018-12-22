@@ -781,11 +781,404 @@ sdl_parse(agooErr err, const char *str, int len) {
     return AGOO_ERR_OK;
 }
 
-int
-sdl_parse_doc(agooErr err, const char *str, int len) {
+// Parse Execution Definition.
 
-    // TBD
+static gqlSelArg
+sel_arg_create(agooErr err, const char *name, gqlValue value, gqlVar var) {
+    gqlSelArg	arg;
+
+    if (NULL == (arg = (gqlSelArg)AGOO_MALLOC(sizeof(struct _gqlSelArg)))) {
+	agoo_err_set(err, AGOO_ERR_MEMORY, "Failed to allocation memory for a selection field argument.");
+    } else {
+	arg->next = NULL;
+	if (NULL == (arg->name = strdup(name))) {
+	    agoo_err_set(err, AGOO_ERR_MEMORY, "strdup of field name failed. %s:%d", __FILE__, __LINE__);
+	    return NULL;
+	}
+	AGOO_ALLOC(arg->name, strlen(arg->name));
+	arg->var = var;
+	arg->value = value;
+    }
+    return arg;
+}
+static int
+make_sel_arg(agooErr err, agooDoc doc, gqlOp op, gqlSel sel) {
+    char	name[256];
+    gqlValue	value = NULL;
+    gqlVar	var = NULL;
+    gqlSelArg	arg;
     
+    agoo_doc_skip_white(doc);
+    if (0 == read_name(err, doc, name, sizeof(name))) {
+	return err->code;
+    }
+    agoo_doc_skip_white(doc);
+    if (':' != *doc->cur) {
+	return agoo_doc_err(doc, err, "Expected :");
+    }
+    doc->cur++;
+    agoo_doc_skip_white(doc);
+    if ('$' == *doc->cur) {
+	char	var_name[256];
+	
+	doc->cur++;
+	if (0 == read_name(err, doc, var_name, sizeof(var_name))) {
+	    return err->code;
+	}
+	for (var = op->vars; NULL != var; var = var->next) {
+	    if (0 == strcmp(var_name, var->name)) {
+		break;
+	    }
+	}
+	if (NULL == var) {
+	    return agoo_doc_err(doc, err, "variable $%s not defined for operation", var_name);
+	}
+    } else if (NULL == (value = agoo_doc_read_value(err, doc, NULL))) {
+	return err->code;
+    }
+    if (NULL == (arg = sel_arg_create(err, name, value, var))) {
+	return err->code;
+    }
+    if (NULL == sel->args) {
+	sel->args = arg;
+    } else {
+	gqlSelArg	a;
+
+	for (a = sel->args; NULL != a->next; a = a->next) {
+	}
+	a->next = arg;
+    }
     return AGOO_ERR_OK;
 }
 
+static gqlVar
+op_var_create(agooErr err, const char *name, gqlType type, gqlValue value) {
+    gqlVar	var;
+
+    if (NULL == (var = (gqlVar)AGOO_MALLOC(sizeof(struct _gqlVar)))) {
+	agoo_err_set(err, AGOO_ERR_MEMORY, "Failed to allocation memory for a operation variable.");
+    } else {
+	var->next = NULL;
+	if (NULL == (var->name = strdup(name))) {
+	    agoo_err_set(err, AGOO_ERR_MEMORY, "strdup of variable name failed. %s:%d", __FILE__, __LINE__);
+	    return NULL;
+	}
+	AGOO_ALLOC(var->name, strlen(var->name));
+	var->type = type;
+	var->value = value;
+    }
+    return var;
+}
+
+static int
+make_op_var(agooErr err, agooDoc doc, gqlOp op) {
+    char	name[256];
+    gqlType	type;
+    bool	ignore;
+    gqlValue	value = NULL;
+    gqlVar	var;
+    
+    agoo_doc_skip_white(doc);
+    if ('$' != *doc->cur) {
+	return agoo_doc_err(doc, err, "Expected $");
+    }
+    doc->cur++;
+    if (0 == read_name(err, doc, name, sizeof(name))) {
+	return err->code;
+    }
+    agoo_doc_skip_white(doc);
+    if (':' != *doc->cur) {
+	return agoo_doc_err(doc, err, "Expected :");
+    }
+    doc->cur++;
+    
+    if (AGOO_ERR_OK != read_type(err, doc, &type, &ignore)) {
+	return err->code;
+    }
+    agoo_doc_skip_white(doc);
+
+    if ('=' == *doc->cur) {
+	doc->cur++;
+	if (NULL == (value = agoo_doc_read_value(err, doc, type))) {
+	    return err->code;
+	}
+    }
+    if (NULL == (var = op_var_create(err, name, type, value))) {
+	return err->code;
+    }
+    if (NULL == op->vars) {
+	op->vars = var;
+    } else {
+	gqlVar	v;
+
+	for (v = op->vars; NULL != v->next; v = v->next) {
+	}
+	v->next = var;
+    }
+    return AGOO_ERR_OK;
+}
+
+static gqlSel
+sel_create(agooErr err, const char *alias, const char *name, const char *frag) {
+    gqlSel	sel;
+
+    if (NULL == (sel = (gqlSel)AGOO_MALLOC(sizeof(struct _gqlSel)))) {
+	agoo_err_set(err, AGOO_ERR_MEMORY, "Failed to allocation memory for a selection set.");
+    } else {
+	sel->next = NULL;
+	if (NULL == name) {
+	    sel->name = NULL;
+	} else {
+	    if (NULL == (sel->name = strdup(name))) {
+		agoo_err_set(err, AGOO_ERR_MEMORY, "strdup of selection name failed. %s:%d", __FILE__, __LINE__);
+		return NULL;
+	    }
+	    AGOO_ALLOC(sel->name, strlen(sel->name));
+	}
+	if (NULL == alias) {
+	    sel->alias = NULL;
+	} else {
+	    if (NULL == (sel->alias = strdup(alias))) {
+		agoo_err_set(err, AGOO_ERR_MEMORY, "strdup of selection alias failed. %s:%d", __FILE__, __LINE__);
+		return NULL;
+	    }
+	    AGOO_ALLOC(sel->alias, strlen(sel->alias));
+	}
+	if (NULL == frag) {
+	    sel->frag = NULL;
+	} else {
+	    if (NULL == (sel->frag = strdup(frag))) {
+		agoo_err_set(err, AGOO_ERR_MEMORY, "strdup of selection fragment failed. %s:%d", __FILE__, __LINE__);
+		return NULL;
+	    }
+	    AGOO_ALLOC(sel->frag, strlen(sel->frag));
+	}
+	sel->dir = NULL;
+    	sel->args = NULL;
+	sel->sels = NULL;
+	sel->inline_frag = NULL;
+    }
+    return sel;
+}    
+
+static int
+make_sel(agooErr err, agooDoc doc, gqlOp op, gqlSel parent) {
+    char	alias[256];
+    char	name[256];
+    gqlSel	sel = NULL;
+    
+    *alias = '\0';
+    *name = '\0';
+    agoo_doc_skip_white(doc);
+    if ('.' == *doc->cur && '.' == doc->cur[1] && '.' == doc->cur[2]) {
+	doc->cur += 3;
+	agoo_doc_skip_white(doc);
+	if ('o' == *doc->cur && 'n' == doc->cur[1]) { // inline fragment
+	    // TBD if starts with ... then a fragment name ... fragmentName directives
+	} else if ('@' == *doc->cur) {
+	    // TBD inline with directive
+	} else { // reference to a fragment
+	    if (0 == read_name(err, doc, alias, sizeof(alias))) {
+		return err->code;
+	    }
+	    sel = sel_create(err, NULL, NULL, alias);
+	}
+	// TBD if starts with ... then a fragment name ... fragmentName directives
+	//     if starts with ... on typeName then inline fragment, expect directives and sels
+    } else {
+	if (0 == read_name(err, doc, alias, sizeof(alias))) {
+	    return err->code;
+	}
+	agoo_doc_skip_white(doc);
+	if (':' == *doc->cur) {
+	    doc->cur++;
+	    agoo_doc_skip_white(doc);
+	    if (0 == read_name(err, doc, name, sizeof(name))) {
+		return err->code;
+	    }
+	    agoo_doc_skip_white(doc);
+	}
+
+	if ('\0' == *name) { // no alias
+	    sel = sel_create(err, NULL, alias, NULL);
+	} else {
+	    sel = sel_create(err, alias, name, NULL);
+	}
+    }
+    if (NULL == sel) {
+	return err->code;
+    }
+    if (NULL == parent) {
+	if (NULL == op->sels) {
+	    op->sels = sel;
+	} else {
+	    gqlSel	s;
+
+	    for (s = op->sels; NULL != s->next; s = s->next) {
+	    }
+	    s->next = sel;
+	}
+    } else {
+	if (NULL == parent->sels) {
+	    parent->sels = sel;
+	} else {
+	    gqlSel	s;
+
+	    for (s = parent->sels; NULL != s->next; s = s->next) {
+	    }
+	    s->next = sel;
+	}
+    }
+    if (NULL == sel->frag && '(' == *doc->cur) {
+	doc->cur++;
+	while (doc->cur < doc->end) {
+	    agoo_doc_skip_white(doc);
+	    if (')' == *doc->cur) {
+		doc->cur++;
+		break;
+	    }
+	    if (AGOO_ERR_OK != make_sel_arg(err, doc, op, sel)) {
+		return err->code;
+	    }
+	}
+	agoo_doc_skip_white(doc);
+    }
+    if (AGOO_ERR_OK != extract_dir_use(err, doc, &sel->dir)) {
+	return err->code;
+    }
+    if (NULL == sel->frag && '{' == *doc->cur) {
+	doc->cur++;
+	while (doc->cur < doc->end) {
+	    agoo_doc_skip_white(doc);
+	    if ('}' == *doc->cur) {
+		doc->cur++;
+		break;
+	    }
+	    if (AGOO_ERR_OK != make_sel(err, doc, op, sel)) {
+		return err->code;
+	    }
+	}
+	if (doc->end <= doc->cur) {
+	    return agoo_doc_err(doc, err, "Expected a }");
+	}
+    }
+    return AGOO_ERR_OK;
+}
+
+
+static int
+make_op(agooErr err, agooDoc doc, gqlDoc gdoc) {
+    char	name[256];
+    const char	*start;
+    gqlOpKind	kind;
+    gqlOp	op;
+    size_t	nlen;
+
+    agoo_doc_skip_white(doc);
+    start = doc->cur;
+    agoo_doc_read_token(doc);
+    if (doc->cur == start ||
+	       (5 == (doc->cur - start) && 0 == strncmp("query", start, 5))) {
+	kind = GQL_QUERY;
+    } else if (8 == (doc->cur - start) && 0 == strncmp("mutation", start, 8)) {
+	kind = GQL_MUTATION;
+    } else if (12 == (doc->cur - start) && 0 == strncmp("subscription", start, 12)) {
+	kind = GQL_SUBSCRIPTION;
+    } else {
+	return agoo_doc_err(doc, err, "Invalid operation type");
+    }
+    agoo_doc_skip_white(doc);
+    start = doc->cur;
+    agoo_doc_read_token(doc);
+    nlen = doc->cur - start;
+    if (sizeof(name) <= nlen) {
+	agoo_doc_err(doc, err, "Name too long");
+	return err->code;
+    }
+    if (0 < nlen) {
+	strncpy(name, start, nlen);
+    }
+    name[nlen] = '\0';
+    if (NULL == (op = gql_op_create(err, name, kind))) {
+	return err->code;
+    }
+    agoo_doc_skip_white(doc);
+    if ('(' == *doc->cur) {
+	doc->cur++;
+	while (doc->cur < doc->end) {
+	    agoo_doc_skip_white(doc);
+	    if (')' == *doc->cur) {
+		doc->cur++;
+		break;
+	    }
+	    if (AGOO_ERR_OK != make_op_var(err, doc, op)) {
+		return err->code;
+	    }
+	}
+	agoo_doc_skip_white(doc);
+    }
+    if (AGOO_ERR_OK != extract_dir_use(err, doc, &op->dir)) {
+	return err->code;
+    }
+    if ('{' != *doc->cur) {
+	return agoo_doc_err(doc, err, "Expected a {");
+    }
+    doc->cur++;
+    while (doc->cur < doc->end) {
+	agoo_doc_skip_white(doc);
+	if ('}' == *doc->cur) {
+	    doc->cur++;
+	    break;
+	}
+	if (AGOO_ERR_OK != make_sel(err, doc, op, NULL)) {
+	    return err->code;
+	}
+    }
+    if (doc->end <= doc->cur) {
+	return agoo_doc_err(doc, err, "Expected a }");
+    }
+    if (NULL == gdoc->ops) {
+	gdoc->ops = op;
+    } else {
+	gqlOp	o;
+
+	for (o = gdoc->ops; NULL != o->next; o = o->next) {
+	}
+	o->next = op;
+    }
+    return AGOO_ERR_OK;
+}
+
+gqlDoc
+sdl_parse_doc(agooErr err, const char *str, int len) {
+    struct _agooDoc	doc;
+    gqlDoc		gdoc = NULL;
+    
+    agoo_doc_init(&doc, str, len);
+    if (NULL == (gdoc = gql_doc_create(err))) {
+	return NULL;
+    }
+    while (doc.cur < doc.end) {
+	agoo_doc_next_token(&doc);
+	switch (*doc.cur) {
+	case '{': // no name query
+	case 'q':
+	case 'm':
+	case 's':
+	    if (AGOO_ERR_OK != make_op(err, &doc, gdoc)) {
+		return NULL;
+	    }
+	    break;
+	case 'f':
+	    // TBD fragment
+	    break;
+	case '\0':
+	    goto DONE;
+	default:
+	    agoo_doc_err(&doc, err, "unexpected character");
+	    return NULL;
+	}
+    }
+DONE:
+    return gdoc;
+}

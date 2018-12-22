@@ -154,19 +154,25 @@ field_destroy(gqlField f) {
 static void
 type_clean(gqlType type) {
     AGOO_FREE((char*)type->desc);
+    type->desc = NULL;
     free_dir_uses(type->dir);
+    type->dir = NULL;
 
     switch (type->kind) {
     case GQL_OBJECT:
     case GQL_INTERFACE:
     case GQL_INPUT: {
 	gqlField	f;
+	gqlTypeLink	link;
 	
 	while (NULL != (f = type->fields)) {
 	    type->fields = f->next;
 	    field_destroy(f);
 	}
-	AGOO_FREE(type->interfaces);
+	while (NULL != (link = type->interfaces)) {
+	    type->interfaces = link->next;
+	    AGOO_FREE(link);
+	}
 	break;
     }
     case GQL_UNION: {
@@ -398,7 +404,6 @@ type_create(agooErr err, gqlKind kind, const char *name, const char *desc, size_
 	type->dir = NULL;
 	type->kind = kind;
 	type->core = false;
-	type->to_json = NULL;
 	type->to_sdl = gql_object_to_sdl;
 	
 	if (AGOO_ERR_OK != gql_type_set(err, type)) {
@@ -1203,7 +1208,7 @@ gql_dump_hook(agooReq req) {
 	with_desc = false;
     }
     text = gql_schema_sdl(text, with_desc, all);
-    cnt = snprintf(buf, sizeof(buf), "HTTP/1.1 200 Okay\r\nContent-Type: text/plain\r\nContent-Length: %ld\r\n\r\n", text->len);
+    cnt = snprintf(buf, sizeof(buf), "HTTP/1.1 200 Okay\r\nContent-Type: application/graphql\r\nContent-Length: %ld\r\n\r\n", text->len);
     text = agoo_text_prepend(text, buf, cnt);
     agoo_res_set_message(req->res, text);
 }
@@ -1263,7 +1268,9 @@ gqlFrag
 gql_fragment_create(agooErr err, const char *name, gqlType on) {
     gqlFrag	frag = (gqlFrag)AGOO_MALLOC(sizeof(struct _gqlFrag));
     
-    if (NULL != frag) {
+    if (NULL == frag) {
+	agoo_err_set(err, AGOO_ERR_MEMORY, "fragment creation failed. %s:%d", __FILE__, __LINE__);
+    } else {
 	frag->next = NULL;
 	if (NULL == (frag->name = strdup(name))) {
 	    agoo_err_set(err, AGOO_ERR_MEMORY, "strdup of fragment name failed. %s:%d", __FILE__, __LINE__);
@@ -1287,4 +1294,229 @@ gql_validate(agooErr err) {
     // set types if they are not already set or error out
 
     return AGOO_ERR_OK;
+}
+
+gqlDoc
+gql_doc_create(agooErr err) {
+    gqlDoc	doc = (gqlDoc)AGOO_MALLOC(sizeof(struct _gqlDoc));
+    
+    if (NULL == doc) {
+	agoo_err_set(err, AGOO_ERR_MEMORY, "GraphQL Document creation failed. %s:%d", __FILE__, __LINE__);
+    } else {
+	doc->ops = NULL;
+	doc->frags = NULL;
+    }
+    return doc;
+}
+
+gqlOp
+gql_op_create(agooErr err, const char *name, gqlOpKind kind) {
+    gqlOp	op = (gqlOp)AGOO_MALLOC(sizeof(struct _gqlOp));
+    
+    if (NULL == op) {
+	agoo_err_set(err, AGOO_ERR_MEMORY, "GraphQL Operation creation failed. %s:%d", __FILE__, __LINE__);
+    } else {
+	op->next = NULL;
+	if (NULL != name && '\0' != *name) {
+	    if (NULL == (op->name = strdup(name))) {
+		agoo_err_set(err, AGOO_ERR_MEMORY, "strdup of operation name failed. %s:%d", __FILE__, __LINE__);
+		return NULL;
+	    }
+	    AGOO_ALLOC(op->name, strlen(op->name));
+	} else {
+	    op->name = NULL;
+	}
+	op->vars = NULL;
+	op->dir = NULL;
+	op->sels = NULL;
+	op->kind = kind;
+    }
+    return op;
+}
+
+static void
+var_destroy(gqlVar var) {
+    AGOO_FREE((char*)var->name);
+    if (NULL != var->value) {
+	gql_value_destroy(var->value);
+    }
+    AGOO_FREE(var);
+}
+
+static void
+sel_arg_destroy(gqlSelArg arg) {
+    AGOO_FREE((char*)arg->name);
+    if (NULL != arg->value) {
+	gql_value_destroy(arg->value);
+    }
+    AGOO_FREE(arg);
+}
+
+static void
+sel_destroy(gqlSel sel) {
+    gqlSelArg	arg;
+    gqlSel	s;
+    
+    AGOO_FREE((char*)sel->alias);
+    AGOO_FREE((char*)sel->name);
+    while (NULL != (arg = sel->args)) {
+	sel->args = arg->next;
+	sel_arg_destroy(arg);
+    }
+    free_dir_uses(sel->dir);
+    while (NULL != (s = sel->sels)) {
+	sel->sels = s->next;
+	sel_destroy(s);
+    }
+    AGOO_FREE((char*)sel->frag);
+
+    //TBD struct _gqlFrag	*inline_frag;
+
+    AGOO_FREE(sel);
+}
+
+void
+gql_op_destroy(gqlOp op) {
+    gqlSel	sel;
+    gqlVar	var;
+
+    AGOO_FREE((char*)op->name);
+    while (NULL != (var = op->vars)) {
+	op->vars = var->next;
+	var_destroy(var);
+    }
+    free_dir_uses(op->dir);
+    while (NULL != (sel = op->sels)) {
+	op->sels = sel->next;
+	sel_destroy(sel);
+    }
+    AGOO_FREE(op);
+}
+
+void
+gql_doc_destroy(gqlDoc doc) {
+    gqlOp	op;
+    gqlFrag	frag;
+
+    while (NULL != (op = doc->ops)) {
+	doc->ops = op->next;
+	gql_op_destroy(op);
+    }
+    while (NULL != (frag = doc->frags)) {
+	doc->frags = frag->next;
+	// TBD destroy frag
+    }
+    AGOO_FREE(doc);
+}
+
+static agooText
+sel_sdl(agooText text, gqlSel sel, int depth) {
+    int	indent = depth * 2;
+
+    if ((int)sizeof(spaces) <= indent) {
+	indent = sizeof(spaces) - 1;
+    }
+    text = agoo_text_append(text, spaces, indent);
+    if (NULL != sel->frag) {	
+	text = agoo_text_append(text, "... ", 4);
+	text = agoo_text_append(text, sel->frag, -1);
+	text = append_dir_use(text, sel->dir);
+    } else if (NULL != sel->inline_frag) {
+    } else {
+	if (NULL != sel->alias) {
+	    text = agoo_text_append(text, sel->alias, -1);
+	    text = agoo_text_append(text, ": ", 2);
+	}
+	text = agoo_text_append(text, sel->name, -1);
+	if (NULL != sel->args) {
+	    gqlSelArg	arg;
+	
+	    text = agoo_text_append(text, "(", 1);
+	    for (arg = sel->args; NULL != arg; arg = arg->next) {
+		text = agoo_text_append(text, arg->name, -1);
+		text = agoo_text_append(text, ": ", 2);
+		if (NULL != arg->var) {
+		    text = agoo_text_append(text, "$", 1);
+		    text = agoo_text_append(text, arg->var->name, -1);
+		} else if (NULL != arg->value) {
+		    text = gql_value_sdl(text, arg->value, 0, 0);
+		} else {
+		    text = agoo_text_append(text, "null", 4);
+		}
+		if (NULL != arg->next) {
+		    text = agoo_text_append(text, ", ", 2);
+		}
+	    }
+	    text = agoo_text_append(text, ")", 1);
+	}
+	text = append_dir_use(text, sel->dir);
+	if (NULL != sel->sels) {
+	    gqlSel	s;
+	    int	d2 = depth + 1;
+	
+	    text = agoo_text_append(text, " {\n", 3);
+	    for (s = sel->sels; NULL != s; s = s->next) {
+		text = sel_sdl(text, s, d2);
+	    }
+	    text = agoo_text_append(text, spaces, indent);
+	    text = agoo_text_append(text, "}", 1);
+	}
+    }
+    text = agoo_text_append(text, "\n", 1);
+
+    return text;
+}
+
+static agooText
+op_sdl(agooText text, gqlOp op) {
+    gqlSel	sel;
+    
+    text = agoo_text_append(text, "query", 5);
+    if (NULL != op->name) {
+	text = agoo_text_append(text, " ", 1);
+	text = agoo_text_append(text, op->name, -1);
+    }
+    if (NULL != op->vars) {
+	gqlVar	var;
+	
+	text = agoo_text_append(text, "(", 1);
+	for (var = op->vars; NULL != var; var = var->next) {
+	    text = agoo_text_append(text, "$", 1);
+	    text = agoo_text_append(text, var->name, -1);
+	    text = agoo_text_append(text, ": ", 2);
+
+	    text = agoo_text_append(text, var->type->name, -1);
+	    if (NULL != var->value) {
+		text = agoo_text_append(text, " = ", 3);
+		text = gql_value_sdl(text, var->value, 0, 0);
+	    }
+	    if (NULL != var->next) {
+		text = agoo_text_append(text, ", ", 2);
+	    }
+	}
+	text = agoo_text_append(text, ")", 1);
+    }
+    text = append_dir_use(text, op->dir);
+
+    text = agoo_text_append(text, " {\n", 3);
+    for (sel = op->sels; NULL != sel; sel = sel->next) {
+	text = sel_sdl(text, sel, 1);
+    }
+    text = agoo_text_append(text, "}\n", 2);
+
+    return text;
+}
+
+agooText
+gql_doc_sdl(gqlDoc doc, agooText text) {
+    gqlOp	op;
+    gqlFrag	frag;
+    
+    for (op = doc->ops; NULL != op; op = op->next) {
+	op_sdl(text, op);
+    }
+    for (frag = doc->frags; NULL != frag; frag = frag->next) {
+	// TBD
+    }
+    return text;
 }

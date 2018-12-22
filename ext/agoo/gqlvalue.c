@@ -871,6 +871,7 @@ gql_token_set(agooErr err, gqlValue value, const char *str, int len) {
 	    if (NULL == (value->str = strndup(str, len))) {
 		return agoo_err_set(err, AGOO_ERR_MEMORY, "strndup of length %d failed.", len);
 	    }
+	    AGOO_ALLOC(value->str, len);
 	}
     }
     return AGOO_ERR_OK;
@@ -888,6 +889,7 @@ gql_url_set(agooErr err, gqlValue value, const char *url, int len) {
 	if (NULL == (value->url = strndup(url, len))) {
 	    return agoo_err_set(err, AGOO_ERR_MEMORY, "strndup of length %d failed.", len);
 	}
+	AGOO_ALLOC(value->url, len);
     }
     return AGOO_ERR_OK;
 }
@@ -1087,6 +1089,7 @@ gql_token_create(agooErr err, const char *str, int len) {
 		agoo_err_set(err, AGOO_ERR_MEMORY, "strndup of length %d failed.", len);
 		return NULL;
 	    }
+	    AGOO_ALLOC(v->str, len);
 	}
     } else {
 	if (NULL != (v = value_create(&gql_token16_type))) {
@@ -1105,11 +1108,11 @@ gql_url_create(agooErr err, const char *url, int len) {
 	len = (int)strlen(url);
     }
     if (NULL != v) {
-	if (NULL == (v->str = strndup(url, len))) {
+	if (NULL == (v->url = strndup(url, len))) {
 	    agoo_err_set(err, AGOO_ERR_MEMORY, "strndup of length %d failed.", len);
 	    return NULL;
 	}
-	    
+	AGOO_ALLOC(v->url, len);
     }
     return v;
 }
@@ -1216,7 +1219,7 @@ gql_object_create(agooErr err) {
 
 agooText
 gql_value_json(agooText text, gqlValue value, int indent, int depth) {
-    if (NULL == value->type) {
+    if (NULL == value->type || GQL_SCALAR != value->type->kind) {
 	text = agoo_text_append(text, "null", 4);
     } else if (NULL == value->type->to_json) {
 	text = agoo_text_append(text, "null", 4);

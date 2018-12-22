@@ -120,7 +120,7 @@ directive @ruby(class: String!) on SCHEMA | OBJECT
       h.request(req)
     }
     content = res.body
-    assert_equal('text/plain', res['Content-Type'])
+    assert_equal('application/graphql', res['Content-Type'])
     assert_equal(expect, content)
   end
 end

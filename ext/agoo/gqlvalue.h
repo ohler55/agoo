@@ -81,7 +81,7 @@ extern void	gql_null_set(gqlValue value);
 extern agooText	gql_value_json(agooText text, gqlValue value, int indent, int depth);
 extern agooText	gql_value_sdl(agooText text, gqlValue value, int indent, int depth);
 
-extern agooText	gql_object_to_json(agooText text, gqlValue value, int indent, int depth);
+//extern agooText	gql_object_to_json(agooText text, gqlValue value, int indent, int depth);
 extern agooText	gql_object_to_sdl(agooText text, gqlValue value, int indent, int depth);
 
 extern struct _gqlType	gql_null_type;

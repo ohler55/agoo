@@ -144,20 +144,35 @@ typedef struct _gqlType {
 // Execution Definition types
 struct _gqlFrag;
 
+typedef struct _gqlVar {
+    struct _gqlVar	*next;
+    const char		*name;
+    gqlType		type;
+    struct _gqlValue	*value;
+} *gqlVar;
+
+typedef struct _gqlSelArg {
+    struct _gqlSelArg	*next;
+    const char		*name;
+    gqlVar		var;
+    struct _gqlValue	*value;
+} *gqlSelArg;
+
 typedef struct _gqlSel {
     struct _gqlSel	*next;
     const char		*alias;
     const char		*name;
     gqlDirUse		dir;
-    gqlKeyVal		args;
-    const char		*frag;
+    gqlSelArg		args;
     struct _gqlSel	*sels;
-    struct _gqlFrag	*inlines;
+    const char		*frag;
+    struct _gqlFrag	*inline_frag;
 } *gqlSel;
 
 typedef struct _gqlOp {
     struct _gqlOp	*next;
     const char		*name;
+    gqlVar		vars;
     gqlDirUse		dir;
     gqlSel		sels;
     gqlOpKind		kind;
@@ -247,8 +262,12 @@ extern agooText		gql_object_to_graphql(agooText text, struct _gqlValue *value, i
 extern agooText		gql_union_to_text(agooText text, struct _gqlValue *value, int indent, int depth);
 extern agooText		gql_enum_to_text(agooText text, struct _gqlValue *value, int indent, int depth);
 
-extern gqlFrag		gql_fragment_create(agooErr err, const char *name, gqlType on);
+extern gqlDoc		gql_doc_create(agooErr err);
+extern void		gql_doc_destroy(gqlDoc doc);
 
+extern gqlOp		gql_op_create(agooErr err, const char *name, gqlOpKind kind);
+extern gqlFrag		gql_fragment_create(agooErr err, const char *name, gqlType on);
+extern agooText		gql_doc_sdl(gqlDoc doc, agooText text);
 
 extern void		gql_dump_hook(struct _agooReq *req);
 extern void		gql_eval_hook(struct _agooReq *req);

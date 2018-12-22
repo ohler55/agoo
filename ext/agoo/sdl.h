@@ -5,9 +5,9 @@
 
 #include "err.h"
 
-extern int	sdl_parse(agooErr err, const char *str, int len);
+extern int		sdl_parse(agooErr err, const char *str, int len);
 
 // Parse a execution definition.
-extern int	sdl_parse_doc(agooErr err, const char *str, int len);
+extern struct _gqlDoc*	sdl_parse_doc(agooErr err, const char *str, int len);
 
 #endif // AGOO_SDL_H
