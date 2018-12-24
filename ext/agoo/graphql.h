@@ -118,18 +118,18 @@ typedef struct _gqlDirUse {
 typedef struct _gqlType {
     const char	*name;
     const char	*desc;
-    agooText	(*to_sdl)(agooText text, struct _gqlValue *value, int indent, int depth);
+    agooText	(*to_sdl)(agooText text, struct _gqlValue *value, int indent, int depth); // TBD move to scalar part
     gqlDirUse	dir;
     gqlKind	kind;
     bool	core;
     union {
 	struct { // Objects, interfaces, and input_objects
 	    gqlField		fields;
-	    gqlTypeLink		interfaces;   // Types
+	    gqlTypeLink		interfaces;	// Types
 	};
-	gqlTypeLink		types;	      // Union
-	gqlEnumVal		choices;      // Enums
-	struct {
+	gqlTypeLink		types;		// Union
+	gqlEnumVal		choices;	// Enums
+	struct {				// scalar
 	    agooText		(*to_json)(agooText text, struct _gqlValue *value, int indent, int depth);
 	    int			(*coerce)(agooErr err, struct _gqlValue *src, struct _gqlType *type);
 	    void		(*destroy)(struct _gqlValue *value);

@@ -48,6 +48,8 @@ static gqlType	schema_type = NULL;
 static gqlDir	directives = NULL;
 static bool	inited = false;
 
+static void	gql_frag_destroy(gqlFrag frag);
+
 static uint64_t
 calc_hash(const char *name) {
     uint64_t		h = 0;
@@ -1272,11 +1274,15 @@ gql_fragment_create(agooErr err, const char *name, gqlType on) {
 	agoo_err_set(err, AGOO_ERR_MEMORY, "fragment creation failed. %s:%d", __FILE__, __LINE__);
     } else {
 	frag->next = NULL;
-	if (NULL == (frag->name = strdup(name))) {
-	    agoo_err_set(err, AGOO_ERR_MEMORY, "strdup of fragment name failed. %s:%d", __FILE__, __LINE__);
-	    return NULL;
+	if (NULL != name) {
+	    if (NULL == (frag->name = strdup(name))) {
+		agoo_err_set(err, AGOO_ERR_MEMORY, "strdup of fragment name failed. %s:%d", __FILE__, __LINE__);
+		return NULL;
+	    }
+	    AGOO_ALLOC(frag->name, strlen(frag->name));
+	} else {
+	    frag->name = NULL;
 	}
-	AGOO_ALLOC(frag->name, strlen(frag->name));
 	frag->dir = NULL;
 	frag->on = on;
 	frag->sels = NULL;
@@ -1369,9 +1375,9 @@ sel_destroy(gqlSel sel) {
 	sel_destroy(s);
     }
     AGOO_FREE((char*)sel->frag);
-
-    //TBD struct _gqlFrag	*inline_frag;
-
+    if (NULL != sel->inline_frag) {
+	gql_frag_destroy(sel->inline_frag);
+    }
     AGOO_FREE(sel);
 }
 
@@ -1394,6 +1400,19 @@ gql_op_destroy(gqlOp op) {
 }
 
 void
+gql_frag_destroy(gqlFrag frag) {
+    gqlSel	sel;
+
+    AGOO_FREE((char*)frag->name);
+    free_dir_uses(frag->dir);
+    while (NULL != (sel = frag->sels)) {
+	frag->sels = sel->next;
+	sel_destroy(sel);
+    }
+    AGOO_FREE(frag);
+}
+
+void
 gql_doc_destroy(gqlDoc doc) {
     gqlOp	op;
     gqlFrag	frag;
@@ -1404,7 +1423,7 @@ gql_doc_destroy(gqlDoc doc) {
     }
     while (NULL != (frag = doc->frags)) {
 	doc->frags = frag->next;
-	// TBD destroy frag
+	gql_frag_destroy(frag);
     }
     AGOO_FREE(doc);
 }
@@ -1418,10 +1437,28 @@ sel_sdl(agooText text, gqlSel sel, int depth) {
     }
     text = agoo_text_append(text, spaces, indent);
     if (NULL != sel->frag) {	
-	text = agoo_text_append(text, "... ", 4);
+	text = agoo_text_append(text, "...", 3);
 	text = agoo_text_append(text, sel->frag, -1);
 	text = append_dir_use(text, sel->dir);
     } else if (NULL != sel->inline_frag) {
+	if (NULL == sel->inline_frag->on) {
+	    text = agoo_text_append(text, "...", 3);
+	} else {
+	    text = agoo_text_append(text, "... on ", 7);
+	    text = agoo_text_append(text, sel->inline_frag->on->name, -1);
+	}
+	text = append_dir_use(text, sel->dir);
+	if (NULL != sel->inline_frag->sels) {
+	    gqlSel	s;
+	    int		d2 = depth + 1;
+
+	    text = agoo_text_append(text, " {\n", 3);
+	    for (s = sel->inline_frag->sels; NULL != s; s = s->next) {
+		text = sel_sdl(text, s, d2);
+	    }
+	    text = agoo_text_append(text, spaces, indent);
+	    text = agoo_text_append(text, "}", 1);
+	}
     } else {
 	if (NULL != sel->alias) {
 	    text = agoo_text_append(text, sel->alias, -1);
@@ -1452,7 +1489,7 @@ sel_sdl(agooText text, gqlSel sel, int depth) {
 	text = append_dir_use(text, sel->dir);
 	if (NULL != sel->sels) {
 	    gqlSel	s;
-	    int	d2 = depth + 1;
+	    int		d2 = depth + 1;
 	
 	    text = agoo_text_append(text, " {\n", 3);
 	    for (s = sel->sels; NULL != s; s = s->next) {
@@ -1507,6 +1544,24 @@ op_sdl(agooText text, gqlOp op) {
     return text;
 }
 
+static agooText
+frag_sdl(agooText text, gqlFrag frag) {
+    gqlSel	sel;
+    
+    text = agoo_text_append(text, "fragment ", 9);
+    text = agoo_text_append(text, frag->name, -1);
+    text = agoo_text_append(text, " on ", 4);
+    text = agoo_text_append(text, frag->on->name, -1);
+    text = append_dir_use(text, frag->dir);
+    text = agoo_text_append(text, " {\n", 3);
+    for (sel = frag->sels; NULL != sel; sel = sel->next) {
+	text = sel_sdl(text, sel, 1);
+    }
+    text = agoo_text_append(text, "}\n", 2);
+
+    return text;
+}
+
 agooText
 gql_doc_sdl(gqlDoc doc, agooText text) {
     gqlOp	op;
@@ -1516,7 +1571,7 @@ gql_doc_sdl(gqlDoc doc, agooText text) {
 	op_sdl(text, op);
     }
     for (frag = doc->frags; NULL != frag; frag = frag->next) {
-	// TBD
+	text = frag_sdl(text, frag);
     }
     return text;
 }

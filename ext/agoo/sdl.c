@@ -9,6 +9,8 @@
 #include "graphql.h"
 #include "sdl.h"
 
+static int	make_sel(agooErr err, agooDoc doc, gqlOp op, gqlSel *parentp);
+
 static int
 extract_desc(agooErr err, agooDoc doc, const char **descp, size_t *lenp) {
     agoo_doc_skip_white(doc);
@@ -818,7 +820,7 @@ make_sel_arg(agooErr err, agooDoc doc, gqlOp op, gqlSel sel) {
     }
     doc->cur++;
     agoo_doc_skip_white(doc);
-    if ('$' == *doc->cur) {
+    if ('$' == *doc->cur && NULL != op) {
 	char	var_name[256];
 	
 	doc->cur++;
@@ -961,30 +963,102 @@ sel_create(agooErr err, const char *alias, const char *name, const char *frag) {
     return sel;
 }    
 
+static gqlSel
+make_sel_inline(agooErr err, agooDoc doc, gqlOp op) {
+    gqlSel	sel = NULL;
+
+    doc->cur += 3;
+    agoo_doc_skip_white(doc);
+    if ('o' == *doc->cur && 'n' == doc->cur[1]) { // inline fragment
+	char	type_name[256];
+	    
+	doc->cur += 2;
+	agoo_doc_skip_white(doc);
+	if (0 == read_name(err, doc, type_name, sizeof(type_name))) {
+	    return NULL;
+	}
+	if (NULL == (sel = sel_create(err, NULL, NULL, NULL))) {
+	    return NULL;
+	}
+	if (NULL == (sel->inline_frag = gql_fragment_create(err, NULL, gql_assure_type(err, type_name)))) {
+	    return NULL;
+	}
+	if (AGOO_ERR_OK != extract_dir_use(err, doc, &sel->dir)) {
+	    return NULL;
+	}
+	agoo_doc_skip_white(doc);
+	if ('{' == *doc->cur) {
+	    doc->cur++;
+	    while (doc->cur < doc->end) {
+		agoo_doc_skip_white(doc);
+		if ('}' == *doc->cur) {
+		    doc->cur++;
+		    break;
+		}
+		if (AGOO_ERR_OK != make_sel(err, doc, op, &sel->inline_frag->sels)) {
+		    return NULL;
+		}
+	    }
+	    if (doc->end <= doc->cur) {
+		agoo_doc_err(doc, err, "Expected a }");
+		return NULL;
+	    }
+	}
+    } else if ('@' == *doc->cur) {
+	if (NULL == (sel = sel_create(err, NULL, NULL, NULL))) {
+	    return NULL;
+	}
+	if (NULL == (sel->inline_frag = gql_fragment_create(err, NULL, NULL))) {
+	    return NULL;
+	}
+	if (AGOO_ERR_OK != extract_dir_use(err, doc, &sel->dir)) {
+	    return NULL;
+	}
+	agoo_doc_skip_white(doc);
+	if ('{' == *doc->cur) {
+	    doc->cur++;
+	    while (doc->cur < doc->end) {
+		agoo_doc_skip_white(doc);
+		if ('}' == *doc->cur) {
+		    doc->cur++;
+		    break;
+		}
+		if (AGOO_ERR_OK != make_sel(err, doc, op, &sel->inline_frag->sels)) {
+		    return NULL;
+		}
+	    }
+	    if (doc->end <= doc->cur) {
+		agoo_doc_err(doc, err, "Expected a }");
+		return NULL;
+	    }
+	}
+    } else { // reference to a fragment
+	char	frag_name[256];
+
+	if (0 == read_name(err, doc, frag_name, sizeof(frag_name))) {
+	    return NULL;
+	}
+	sel = sel_create(err, NULL, NULL, frag_name);
+    }
+    return sel;
+}
+
 static int
-make_sel(agooErr err, agooDoc doc, gqlOp op, gqlSel parent) {
+make_sel(agooErr err, agooDoc doc, gqlOp op, gqlSel *parentp) {
     char	alias[256];
     char	name[256];
     gqlSel	sel = NULL;
-    
+
+    if (NULL == op && NULL == parentp) {
+	return agoo_doc_err(doc, err, "Fields can only be in a fragment, operation, or another field.");
+    }
     *alias = '\0';
     *name = '\0';
     agoo_doc_skip_white(doc);
     if ('.' == *doc->cur && '.' == doc->cur[1] && '.' == doc->cur[2]) {
-	doc->cur += 3;
-	agoo_doc_skip_white(doc);
-	if ('o' == *doc->cur && 'n' == doc->cur[1]) { // inline fragment
-	    // TBD if starts with ... then a fragment name ... fragmentName directives
-	} else if ('@' == *doc->cur) {
-	    // TBD inline with directive
-	} else { // reference to a fragment
-	    if (0 == read_name(err, doc, alias, sizeof(alias))) {
-		return err->code;
-	    }
-	    sel = sel_create(err, NULL, NULL, alias);
+	if (NULL == (sel = make_sel_inline(err, doc, op))) {
+	    return err->code;
 	}
-	// TBD if starts with ... then a fragment name ... fragmentName directives
-	//     if starts with ... on typeName then inline fragment, expect directives and sels
     } else {
 	if (0 == read_name(err, doc, alias, sizeof(alias))) {
 	    return err->code;
@@ -1008,7 +1082,7 @@ make_sel(agooErr err, agooDoc doc, gqlOp op, gqlSel parent) {
     if (NULL == sel) {
 	return err->code;
     }
-    if (NULL == parent) {
+    if (NULL == parentp) {
 	if (NULL == op->sels) {
 	    op->sels = sel;
 	} else {
@@ -1019,12 +1093,12 @@ make_sel(agooErr err, agooDoc doc, gqlOp op, gqlSel parent) {
 	    s->next = sel;
 	}
     } else {
-	if (NULL == parent->sels) {
-	    parent->sels = sel;
+	if (NULL == *parentp) {
+	    *parentp = sel;
 	} else {
 	    gqlSel	s;
 
-	    for (s = parent->sels; NULL != s->next; s = s->next) {
+	    for (s = *parentp; NULL != s->next; s = s->next) {
 	    }
 	    s->next = sel;
 	}
@@ -1054,7 +1128,7 @@ make_sel(agooErr err, agooDoc doc, gqlOp op, gqlSel parent) {
 		doc->cur++;
 		break;
 	    }
-	    if (AGOO_ERR_OK != make_sel(err, doc, op, sel)) {
+	    if (AGOO_ERR_OK != make_sel(err, doc, op, &sel->sels)) {
 		return err->code;
 	    }
 	}
@@ -1149,6 +1223,71 @@ make_op(agooErr err, agooDoc doc, gqlDoc gdoc) {
     return AGOO_ERR_OK;
 }
 
+static int
+make_fragment(agooErr err, agooDoc doc, gqlDoc gdoc) {
+    char	name[256];
+    char	type_name[256];
+    const char	*start;
+    gqlFrag	frag;
+
+    agoo_doc_skip_white(doc);
+    start = doc->cur;
+    agoo_doc_read_token(doc);
+    if (8 != (doc->cur - start) || 0 != strncmp("fragment", start, 8)) {
+	agoo_doc_err(doc, err, "Expected the key word 'fragment'.");
+    }
+    agoo_doc_skip_white(doc);
+    if (0 == read_name(err, doc, name, sizeof(name))) {
+	return err->code;
+    }
+    agoo_doc_skip_white(doc);
+    start = doc->cur;
+    agoo_doc_read_token(doc);
+    if (2 != (doc->cur - start) || 0 != strncmp("on", start, 2)) {
+	agoo_doc_err(doc, err, "Expected the key word 'on'.");
+    }
+    agoo_doc_skip_white(doc);
+    if (0 == read_name(err, doc, type_name, sizeof(type_name))) {
+	return err->code;
+    }
+    agoo_doc_skip_white(doc);
+
+    if (NULL == (frag = gql_fragment_create(err, name, gql_assure_type(err, type_name)))) {
+	return err->code;
+    }
+    if (AGOO_ERR_OK != extract_dir_use(err, doc, &frag->dir)) {
+	return err->code;
+    }
+    if ('{' != *doc->cur) {
+	return agoo_doc_err(doc, err, "Expected a {");
+    }
+    doc->cur++;
+
+    while (doc->cur < doc->end) {
+	agoo_doc_skip_white(doc);
+	if ('}' == *doc->cur) {
+	    doc->cur++;
+	    break;
+	}
+	if (AGOO_ERR_OK != make_sel(err, doc, NULL, &frag->sels)) {
+	    return err->code;
+	}
+    }
+    if (doc->end <= doc->cur) {
+	return agoo_doc_err(doc, err, "Expected a }");
+    }
+    if (NULL == gdoc->frags) {
+	gdoc->frags = frag;
+    } else {
+	gqlFrag	f;
+
+	for (f = gdoc->frags; NULL != f->next; f = f->next) {
+	}
+	f->next = frag;
+    }
+    return AGOO_ERR_OK;
+}
+
 gqlDoc
 sdl_parse_doc(agooErr err, const char *str, int len) {
     struct _agooDoc	doc;
@@ -1170,7 +1309,9 @@ sdl_parse_doc(agooErr err, const char *str, int len) {
 	    }
 	    break;
 	case 'f':
-	    // TBD fragment
+	    if (AGOO_ERR_OK != make_fragment(err, &doc, gdoc)) {
+		return NULL;
+	    }
 	    break;
 	case '\0':
 	    goto DONE;
