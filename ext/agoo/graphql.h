@@ -5,6 +5,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdlib.h>
 
 #include "err.h"
 #include "text.h"
@@ -22,6 +23,20 @@ typedef enum {
 } gqlKind;
 
 typedef enum {
+    GQL_SCALAR_UNDEF	= (int8_t)0, // not defined yet
+    GQL_SCALAR_NULL	= (int8_t)1,
+    GQL_SCALAR_BOOL	= (int8_t)2,
+    GQL_SCALAR_INT	= (int8_t)3,
+    GQL_SCALAR_I64	= (int8_t)4,
+    GQL_SCALAR_FLOAT	= (int8_t)5,
+    GQL_SCALAR_STRING	= (int8_t)6,
+    GQL_SCALAR_TOKEN	= (int8_t)7,
+    GQL_SCALAR_TIME	= (int8_t)8,
+    GQL_SCALAR_UUID	= (int8_t)9,
+    GQL_SCALAR_URL	= (int8_t)10,
+} gqlScalarKind;
+
+typedef enum {
     GQL_QUERY		= (int8_t)'Q',
     GQL_MUTATION	= (int8_t)'M',
     GQL_SUBSCRIPTION	= (int8_t)'S',
@@ -36,20 +51,12 @@ struct _gqlLink;
 struct _gqlType;
 struct _gqlValue;
 
-// Used for references to implemenation entities.
-typedef void*	gqlRef;
-
 typedef struct _gqlQuery {
     struct _gqlQuery	*next;
     struct _gqlValue	*result;
     struct _gqlDirUse	*dir;
     // TBD data about a query, mutation, or subscription
 } *gqlQuery;
-
-typedef struct _gqlKeyVal {
-    const char		*key;
-    struct _gqlValue	*value;
-} *gqlKeyVal;
 
 typedef struct _gqlStrLink {
     struct _gqlStrLink	*next;
@@ -60,15 +67,6 @@ typedef struct _gqlTypeLink {
     struct _gqlTypeLink	*next;
     struct _gqlType	*type;
 } *gqlTypeLink;
-
-// Resolve field on a target to a child reference.
-typedef gqlRef			(*gqlResolveFunc)(gqlRef target, const char *fieldName, gqlKeyVal *args);
-
-// Coerce an implemenation reference into a gqlValue.
-typedef struct _gqlValue*	(*gqlCoerceFunc)(gqlRef ref, struct _gqlType *type);
-
-typedef void			(*gqlIterCb)(gqlRef ref, gqlQuery query);
-typedef void			(*gqlIterateFunc)(gqlRef ref, gqlIterCb cb, gqlQuery query);
 
 typedef struct _gqlEnumVal {
     struct _gqlEnumVal	*next;
@@ -95,7 +93,6 @@ typedef struct _gqlField {
     gqlArg		args;
     struct _gqlDirUse	*dir;
     struct _gqlValue	*default_value;
-    gqlResolveFunc	resolve;
     bool		required;
 } *gqlField;
 
@@ -116,12 +113,13 @@ typedef struct _gqlDirUse {
 } *gqlDirUse;
 
 typedef struct _gqlType {
-    const char	*name;
-    const char	*desc;
-    agooText	(*to_sdl)(agooText text, struct _gqlValue *value, int indent, int depth); // TBD move to scalar part
-    gqlDirUse	dir;
-    gqlKind	kind;
-    bool	core;
+    const char		*name;
+    const char		*desc;
+    agooText		(*to_sdl)(agooText text, struct _gqlValue *value, int indent, int depth); // TBD move to scalar part
+    gqlDirUse		dir;
+    gqlKind		kind;
+    gqlScalarKind	scalar_kind;
+    bool		core;
     union {
 	struct { // Objects, interfaces, and input_objects
 	    gqlField		fields;
@@ -131,7 +129,6 @@ typedef struct _gqlType {
 	gqlEnumVal		choices;	// Enums
 	struct {				// scalar
 	    agooText		(*to_json)(agooText text, struct _gqlValue *value, int indent, int depth);
-	    int			(*coerce)(agooErr err, struct _gqlValue *src, struct _gqlType *type);
 	    void		(*destroy)(struct _gqlValue *value);
 	};
 	struct { // List types
@@ -162,6 +159,7 @@ typedef struct _gqlSel {
     struct _gqlSel	*next;
     const char		*alias;
     const char		*name;
+    gqlType		type; // set with validation
     gqlDirUse		dir;
     gqlSelArg		args;
     struct _gqlSel	*sels;
@@ -189,8 +187,8 @@ typedef struct _gqlFrag {
 typedef struct _gqlDoc {
     gqlOp		ops;
     gqlFrag		frags;
+    gqlOp		op; // the op to execute
 } *gqlDoc;
-
 
 extern int	gql_init(agooErr err);
 extern void	gql_destroy(); // clear out all
@@ -209,8 +207,7 @@ extern gqlField	gql_type_field(agooErr		err,
 			       struct _gqlValue	*default_value,
 			       const char	*desc,
 			       size_t		dlen,
-			       bool 		required,
-			       gqlResolveFunc	resolve);
+			       bool 		required);
 
 extern gqlArg	gql_field_arg(agooErr 		err,
 			      gqlField 		field,
@@ -220,9 +217,6 @@ extern gqlArg	gql_field_arg(agooErr 		err,
 			      size_t		dlen,
 			      struct _gqlValue	*def_value,
 			      bool 		required);
-
-// TBD maybe create then add fields
-// TBD same with op? create then add args
 
 extern gqlType		gql_scalar_create(agooErr err, const char *name, const char *desc, size_t dlen);
 
@@ -236,7 +230,6 @@ extern gqlArg		gql_dir_arg(agooErr 		err,
 				    struct _gqlValue	*def_value,
 				    bool 		required);
 extern int		gql_directive_on(agooErr err, gqlDir d, const char *on, int len);
-// TBD args for directive on
 extern gqlDir		gql_directive_get(const char *name);
 
 extern gqlDirUse	gql_dir_use_create(agooErr err, const char *name);
@@ -270,7 +263,8 @@ extern gqlFrag		gql_fragment_create(agooErr err, const char *name, gqlType on);
 extern agooText		gql_doc_sdl(gqlDoc doc, agooText text);
 
 extern void		gql_dump_hook(struct _agooReq *req);
-extern void		gql_eval_hook(struct _agooReq *req);
+extern void		gql_eval_get_hook(struct _agooReq *req);
+extern void		gql_eval_post_hook(struct _agooReq *req);
 
 extern int		gql_validate(agooErr err);
 

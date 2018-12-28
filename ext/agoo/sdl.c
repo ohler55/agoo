@@ -508,7 +508,7 @@ make_field(agooErr err, agooDoc doc, gqlType type, bool allow_args) {
     if (AGOO_ERR_OK != extract_dir_use(err, doc, &uses)) {
 	return err->code;
     }
-    if (NULL == (field = gql_type_field(err, type, name, return_type, dval, desc, dlen, required, NULL))) {
+    if (NULL == (field = gql_type_field(err, type, name, return_type, dval, desc, dlen, required))) {
 	return err->code;
     }
     field->dir = uses;
@@ -955,6 +955,7 @@ sel_create(agooErr err, const char *alias, const char *name, const char *frag) {
 	    }
 	    AGOO_ALLOC(sel->frag, strlen(sel->frag));
 	}
+	sel->type = NULL;
 	sel->dir = NULL;
     	sel->args = NULL;
 	sel->sels = NULL;
@@ -999,7 +1000,7 @@ make_sel_inline(agooErr err, agooDoc doc, gqlOp op) {
 		    return NULL;
 		}
 	    }
-	    if (doc->end <= doc->cur) {
+	    if (doc->end <= doc->cur && '}' != doc->cur[-1]) {
 		agoo_doc_err(doc, err, "Expected a }");
 		return NULL;
 	    }
@@ -1027,7 +1028,7 @@ make_sel_inline(agooErr err, agooDoc doc, gqlOp op) {
 		    return NULL;
 		}
 	    }
-	    if (doc->end <= doc->cur) {
+	    if (doc->end <= doc->cur && '}' != doc->cur[-1]) {
 		agoo_doc_err(doc, err, "Expected a }");
 		return NULL;
 	    }
@@ -1132,7 +1133,7 @@ make_sel(agooErr err, agooDoc doc, gqlOp op, gqlSel *parentp) {
 		return err->code;
 	    }
 	}
-	if (doc->end <= doc->cur) {
+	if (doc->end <= doc->cur && '}' != doc->cur[-1]) {
 	    return agoo_doc_err(doc, err, "Expected a }");
 	}
     }
@@ -1208,7 +1209,7 @@ make_op(agooErr err, agooDoc doc, gqlDoc gdoc) {
 	    return err->code;
 	}
     }
-    if (doc->end <= doc->cur) {
+    if (doc->end <= doc->cur && '}' != doc->cur[-1]) {
 	return agoo_doc_err(doc, err, "Expected a }");
     }
     if (NULL == gdoc->ops) {
@@ -1273,7 +1274,7 @@ make_fragment(agooErr err, agooDoc doc, gqlDoc gdoc) {
 	    return err->code;
 	}
     }
-    if (doc->end <= doc->cur) {
+    if (doc->end <= doc->cur  && '}' != doc->cur[-1]) {
 	return agoo_doc_err(doc, err, "Expected a }");
     }
     if (NULL == gdoc->frags) {
@@ -1284,6 +1285,84 @@ make_fragment(agooErr err, agooDoc doc, gqlDoc gdoc) {
 	for (f = gdoc->frags; NULL != f->next; f = f->next) {
 	}
 	f->next = frag;
+    }
+    return AGOO_ERR_OK;
+}
+
+static gqlType
+lookup_field_type(gqlType type, const char *field) {
+    gqlType	ftype = NULL;
+    
+    switch (type->kind) {
+    case GQL_OBJECT:
+    case GQL_INPUT:
+    case GQL_INTERFACE: {
+	gqlField	f;
+
+	for (f = type->fields; NULL != f; f = f->next) {
+	    if (0 == strcmp(field, f->name)) {
+		ftype = f->type;
+		break;
+	    }
+	}
+	break;
+    }
+    case GQL_LIST:
+	ftype = lookup_field_type(type->base, field);
+	break;
+    case GQL_UNION: // Can not be used directly for query type determinations.
+    default:
+	break;
+    }
+    return ftype;
+}
+
+static int
+sel_set_type(agooErr err, gqlType type, gqlSel sels) {
+    gqlSel	sel;
+    
+    for (sel = sels; NULL != sel; sel = sel->next) {
+	if (NULL == (sel->type = lookup_field_type(type, sel->name))) {
+	    return agoo_err_set(err, AGOO_ERR_EVAL, "Failed to determine the type for %s.", sel->name);
+	}
+	if (NULL != sel->sels) {
+	    if (AGOO_ERR_OK != sel_set_type(err, sel->type, sel->sels)) {
+		return err->code;
+	    }
+	}
+    }
+    return AGOO_ERR_OK;
+}
+
+static int
+validate_doc(agooErr err, gqlDoc doc) {
+    gqlOp	op;
+    gqlType	schema;
+    gqlType	type = NULL;
+    
+    if (NULL == (schema = gql_type_get("schema"))) {
+	return agoo_err_set(err, AGOO_ERR_EVAL, "No root (schema) type defined.");
+    }
+    for (op = doc->ops; NULL != op; op = op->next) {
+	switch (op->kind) {
+	case GQL_QUERY:
+	    type = lookup_field_type(schema, "query");
+	    break;
+	case GQL_MUTATION:
+	    type = lookup_field_type(schema, "mutation");
+	    break;
+	case GQL_SUBSCRIPTION:
+	    type = lookup_field_type(schema, "subscription");
+	    break;
+	default:
+	    break;
+	}
+	if (NULL == type) {
+	    return agoo_err_set(err, AGOO_ERR_EVAL, "Not a supported operation type.");
+	}
+	if (AGOO_ERR_OK != sel_set_type(err, type, op->sels)) {
+	    return err->code;
+	}
     }
     return AGOO_ERR_OK;
 }
@@ -1321,5 +1400,9 @@ sdl_parse_doc(agooErr err, const char *str, int len) {
 	}
     }
 DONE:
+    if (AGOO_ERR_OK != validate_doc(err, gdoc)) {
+	gql_doc_destroy(gdoc);
+	return NULL;
+    }
     return gdoc;
 }

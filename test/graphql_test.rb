@@ -12,8 +12,25 @@ require 'net/http'
 
 require 'agoo'
 
+class User
+  def initialize
+  end
+  
+  def name
+    "me"
+  end
+
+  def age
+    65
+  end
+end
+
 class Query
-  def initialize()
+  def initialize
+  end
+
+  def who
+    User.new
   end
 end
 
@@ -48,7 +65,8 @@ class GraphQLTest < Minitest::Test
       Agoo::Server.start()
 
       load_test
-      get_schema_test
+      #get_schema_test
+      get_query_test
     ensure
       Agoo::shutdown
     end
@@ -57,6 +75,10 @@ class GraphQLTest < Minitest::Test
   def load_test
     Agoo::GraphQL.schema(Schema.new) {
       Agoo::GraphQL.load(%|
+type Query @ruby(class: "Query") {
+  who: User
+}
+
 type User {
   name: String!
   age: Int
@@ -73,6 +95,7 @@ type Mutation {
 }
 
 type Query @ruby(class: "Query") {
+  who: User
 }
 
 type Subscription {
@@ -101,6 +124,7 @@ type Mutation {
 }
 
 type Query @ruby(class: "Query") {
+  who: User
 }
 
 type Subscription {
@@ -123,5 +147,61 @@ directive @ruby(class: String!) on SCHEMA | OBJECT
     assert_equal('application/graphql', res['Content-Type'])
     assert_equal(expect, content)
   end
-end
 
+  def get_schema_test
+    uri = URI('http://localhost:6472/graphql/schema?with_desc=false&all=false')
+    expect = %^type schema @ruby(class: "Schema") {
+  query: Query
+  mutation: Mutation
+  subscription: Subscription
+}
+
+type Mutation {
+}
+
+type Query @ruby(class: "Query") {
+  who: User
+}
+
+type Subscription {
+}
+
+type User {
+  name: String!
+  age: Int
+}
+
+directive @ruby(class: String!) on SCHEMA | OBJECT
+^
+    req = Net::HTTP::Get.new(uri)
+    req['Accept-Encoding'] = '*'
+    req['User-Agent'] = 'Ruby'
+    res = Net::HTTP.start(uri.hostname, uri.port) { |h|
+      h.request(req)
+    }
+    content = res.body
+    assert_equal('application/graphql', res['Content-Type'])
+    assert_equal(expect, content)
+  end
+
+  def get_query_test
+    uri = URI('http://localhost:6472/graphql?query={who{name}}&indent=2')
+    expect = %^{
+  "data":{
+    "who":{
+      "name":"me"
+    }
+  }
+}^
+    req = Net::HTTP::Get.new(uri)
+    req['Accept-Encoding'] = '*'
+    req['User-Agent'] = 'Ruby'
+    res = Net::HTTP.start(uri.hostname, uri.port) { |h|
+      h.request(req)
+    }
+    content = res.body
+    assert_equal('application/json', res['Content-Type'])
+    assert_equal(expect, content)
+  end
+  
+end

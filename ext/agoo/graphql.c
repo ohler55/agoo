@@ -349,9 +349,9 @@ gql_init(agooErr err) {
 	NULL == (subscription_type = gql_type_create(err, "Subscription", "The GraphQL root Subscription.", 0, NULL)) ||
 	NULL == (schema_type = gql_type_create(err, "schema", "The GraphQL root Object.", 0, NULL)) ||
 
-	NULL == gql_type_field(err, schema_type, "query", query_type, NULL, "Root level query.", 0, false, NULL) ||
-	NULL == gql_type_field(err, schema_type, "mutation", mutation_type, NULL, "Root level mutation.", 0, false, NULL) ||
-	NULL == gql_type_field(err, schema_type, "subscription", subscription_type, NULL, "Root level subscription.", 0, false, NULL)) {
+	NULL == gql_type_field(err, schema_type, "query", query_type, NULL, "Root level query.", 0, false) ||
+	NULL == gql_type_field(err, schema_type, "mutation", mutation_type, NULL, "Root level mutation.", 0, false) ||
+	NULL == gql_type_field(err, schema_type, "subscription", subscription_type, NULL, "Root level subscription.", 0, false)) {
 
 	return err->code;
     }
@@ -405,6 +405,7 @@ type_create(agooErr err, gqlKind kind, const char *name, const char *desc, size_
 	type->to_sdl = NULL;
 	type->dir = NULL;
 	type->kind = kind;
+	type->scalar_kind = GQL_SCALAR_UNDEF;
 	type->core = false;
 	type->to_sdl = gql_object_to_sdl;
 	
@@ -497,8 +498,7 @@ gql_type_field(agooErr		err,
 	       gqlValue		default_value,
 	       const char	*desc,
 	       size_t		dlen,
-	       bool		required,
-	       gqlResolveFunc	resolve) {
+	       bool		required) {
     gqlField	f = (gqlField)AGOO_MALLOC(sizeof(struct _gqlField));
     
     if (NULL == f) {
@@ -514,7 +514,6 @@ gql_type_field(agooErr		err,
 	f->args = NULL;
 	f->dir = NULL;
 	f->default_value = default_value;
-	f->resolve = resolve;
 	f->required = required;
 	if (NULL == type->fields) {
 	    type->fields = f;
@@ -710,7 +709,6 @@ gql_scalar_create(agooErr err, const char *name, const char *desc, size_t dlen) 
     if (NULL != type) {
 	type->to_json = scalar_to_text;
 	type->to_sdl = scalar_to_text;
-	type->coerce = NULL;
 	type->destroy = NULL;
     }
     return type;
@@ -1191,39 +1189,6 @@ gql_schema_sdl(agooText text, bool with_desc, bool all) {
     return text;
 }
 
-void
-gql_dump_hook(agooReq req) {
-    char	buf[256];
-    int		cnt;
-    agooText	text = agoo_text_allocate(4094);
-    bool	all = false;
-    bool	with_desc = true;
-    int		vlen;
-    const char	*s = agoo_req_query_value(req, "all", 3, &vlen);
-
-    if (NULL != s && 4 == vlen && 0 == strncasecmp("true", s, 4)) {
-	all = true;
-    }
-    s = agoo_req_query_value(req, "with_desc", 9, &vlen);
-
-    if (NULL != s && 5 == vlen && 0 == strncasecmp("false", s, 5)) {
-	with_desc = false;
-    }
-    text = gql_schema_sdl(text, with_desc, all);
-    cnt = snprintf(buf, sizeof(buf), "HTTP/1.1 200 Okay\r\nContent-Type: application/graphql\r\nContent-Length: %ld\r\n\r\n", text->len);
-    text = agoo_text_prepend(text, buf, cnt);
-    agoo_res_set_message(req->res, text);
-}
-
-void
-gql_eval_hook(agooReq req) {
-    // TBD detect introspection
-    //  start resolving by callout to some global handler as needed
-    //   pass target, field, args
-    //   return json or gqlValue
-    // for handler, if introspection then handler here else global
-}
-
 gqlDirUse
 gql_dir_use_create(agooErr err, const char *name) {
     gqlDirUse	use;
@@ -1574,4 +1539,28 @@ gql_doc_sdl(gqlDoc doc, agooText text) {
 	text = frag_sdl(text, frag);
     }
     return text;
+}
+
+void
+gql_dump_hook(agooReq req) {
+    char	buf[256];
+    int		cnt;
+    agooText	text = agoo_text_allocate(4094);
+    bool	all = false;
+    bool	with_desc = true;
+    int		vlen;
+    const char	*s = agoo_req_query_value(req, "all", 3, &vlen);
+
+    if (NULL != s && 4 == vlen && 0 == strncasecmp("true", s, 4)) {
+	all = true;
+    }
+    s = agoo_req_query_value(req, "with_desc", 9, &vlen);
+
+    if (NULL != s && 5 == vlen && 0 == strncasecmp("false", s, 5)) {
+	with_desc = false;
+    }
+    text = gql_schema_sdl(text, with_desc, all);
+    cnt = snprintf(buf, sizeof(buf), "HTTP/1.1 200 Okay\r\nContent-Type: application/graphql\r\nContent-Length: %ld\r\n\r\n", text->len);
+    text = agoo_text_prepend(text, buf, cnt);
+    agoo_res_set_message(req->res, text);
 }

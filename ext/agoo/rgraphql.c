@@ -3,14 +3,21 @@
 #include <stdlib.h>
 
 #include <ruby.h>
+#include <ruby/thread.h>
 
 #include "err.h"
+#include "gqleval.h"
 #include "gqlvalue.h"
 #include "graphql.h"
 #include "sdl.h"
 
 static VALUE	graphql_class = Qundef;
-static VALUE	graphql_root = Qundef;
+
+typedef struct _eval {
+    gqlDoc	doc;
+    agooErr	err;
+    gqlValue	value;
+} *Eval;
 
 static void
 make_ruby_use(VALUE root, const char *method, const char *type_name) {
@@ -34,19 +41,161 @@ make_ruby_use(VALUE root, const char *method, const char *type_name) {
     gql_type_directive_use(type, use);
 }
 
+static VALUE
+rescue_error(VALUE x) {
+    Eval		eval = (Eval)x;
+    volatile VALUE	info = rb_errinfo();
+    volatile VALUE	msg = rb_funcall(info, rb_intern("message"), 0);
+    const char		*classname = rb_obj_classname(info);
+    const char		*ms = rb_string_value_ptr(&msg);
+
+    agoo_err_set(eval->err, AGOO_ERR_EVAL, "%s: %s", classname, ms);
+
+    return Qfalse;
+}
+
+static VALUE
+call_eval(void *x) {
+    Eval	eval = (Eval)x;
+
+    volatile VALUE	foo = rb_funcall((VALUE)gql_root, rb_intern("to_s"), 0);
+    const char		*str = rb_string_value_ptr(&foo);
+
+    printf("*** call eval -- %s\n", str);
+
+    eval->value = gql_doc_eval(eval->err, eval->doc);
+
+    return Qnil;
+}
+
+static void*
+protect_eval(void *x) {
+    rb_rescue2(call_eval, (VALUE)x, rescue_error, (VALUE)x, rb_eException, 0);
+
+    return NULL;
+}
+
+static gqlValue
+eval_wrap(agooErr err, gqlDoc doc) {
+    struct _eval	eval = {
+	.doc = doc,
+	.err = err,
+	.value = NULL,
+    };
+    
+    rb_thread_call_with_gvl(protect_eval, &eval);
+
+    return eval.value;
+}
+
+static VALUE
+gval_to_ruby(gqlValue value) {
+
+    // TBD
+
+    return Qnil;
+}
+
+static gqlRef
+resolve(agooErr err, gqlRef target, const char *field_name, gqlKeyVal args) {
+    VALUE	rargs[16];
+    VALUE	*a = rargs;
+    int		cnt = 0;
+    volatile VALUE	v;
+    volatile VALUE	result;
+
+    if (NULL != args) {
+	for (; NULL != args->key; args++, a++) {
+	    *a = gval_to_ruby(args->value);
+	}
+    }
+    // TBD args
+    v = rb_funcall((VALUE)target, rb_intern("to_s"), 0);
+    printf("*** resolve %s.%s\n", rb_string_value_ptr(&v), field_name);
+
+    result = rb_funcallv((VALUE)target, rb_intern(field_name), cnt, rargs);
+
+    v = rb_funcall((VALUE)result, rb_intern("to_s"), 0);
+
+    return (gqlRef)result;
+}
+
+static VALUE
+ref_to_string(gqlRef ref) {
+    volatile VALUE	value;
+    
+    if (T_STRING == rb_type((VALUE)ref)) {
+	value = (VALUE)ref;
+    } else {
+	value = rb_funcall((VALUE)ref, rb_intern("to_s"), 0);
+    }
+    return value;
+}
+
+static gqlValue
+coerce(agooErr err, gqlRef ref, gqlType type) {
+    gqlValue	value = NULL;
+    
+    if (NULL == type) {
+	// This is really an error but make a best effort anyway.
+
+	// TBD
+    } else if (GQL_SCALAR != type->kind) {
+	rb_raise(rb_eStandardError, "Can not coerce a non-scalar into a %s.", type->name);
+    } else { // TBD a scalar?
+	volatile VALUE	v;
+	
+	if (&gql_int_type == type) {
+	    value = gql_int_create(err, RB_NUM2INT(rb_to_int((VALUE)ref)));
+	} else if (&gql_bool_type == type) {
+	    if (Qtrue == (VALUE)ref) {
+		value = gql_bool_create(err, true);
+	    } else if (Qfalse == (VALUE)ref) {
+		value = gql_bool_create(err, false);
+	    } else {
+		// TBD int, float, string
+	    }
+	} else if (&gql_float_type == type) {
+	    value = gql_float_create(err, rb_num2dbl(rb_to_float((VALUE)ref)));
+	} else if (&gql_time_type == type) {
+	    // TBD
+	} else if (&gql_uuid_type == type) {
+	    // TBD
+	} else if (&gql_url_type == type) {
+	    // TBD
+	} else if (&gql_string_type == type) {
+	    v = ref_to_string(ref);
+	    value = gql_string_create(err, rb_string_value_ptr(&v), RSTRING_LEN(v));
+	} else if (&gql_i64_type == type) {
+	    value = gql_i64_create(err, RB_NUM2LONG(rb_to_int((VALUE)ref)));
+	} else if (&gql_token_type == type) {
+	    v = ref_to_string(ref);
+	    value = gql_token_create(err, rb_string_value_ptr(&v), RSTRING_LEN(v));
+	}
+	if (NULL == value) {
+	    if (AGOO_ERR_OK == err->code) {
+		agoo_err_set(err, AGOO_ERR_EVAL, "Failed to coerce a %s into a %s.", rb_obj_classname((VALUE)ref), type->name);
+	    }
+	}
+    }
+    return value;
+}
+
 /* Document-method: schema
  *
  * call-seq: schema(root) { }
  *
- * Start the GraphQL/Ruby integration but assigning a root Ruby object to the
- * GraphQL environment. Withing the block passed to the function SDL strings
- * or files can be loaded. On exiting the block validation of the loaded
- * schema is performed.
+ * Start the GraphQL/Ruby integration by assigning a root Ruby object to the
+ * GraphQL environment. Within the block passed to the function SDL strings or
+ * files can be loaded. On exiting the block validation of the loaded schema
+ * is performed.
  *
  * Note that the _@ruby_ directive is added to the _schema_ type as well as
  * the _Query_, _Mutation_, and _Subscriptio_ type based on the _root_
  * class. Any _@ruby_ directives on the object types in the SDL will also
- * associate a GraphQL and Ruby class.
+ * associate a GraphQL and Ruby class. The association will be used to
+ * validate the Ruby class to verify it implements yhe methods described by
+ * the GraphQL type.
  */
 static VALUE
 graphql_schema(VALUE self, VALUE root) {
@@ -61,7 +210,6 @@ graphql_schema(VALUE self, VALUE root) {
     if (AGOO_ERR_OK != gql_init(&err)) {
 	rb_raise(rb_eStandardError, "%s", err.msg);
     }
-    
     if (NULL == (dir = gql_directive_create(&err, "ruby", "Associates a Ruby class with a GraphQL type.", 0))) {
 	rb_raise(rb_eStandardError, "%s", err.msg);
     }
@@ -72,8 +220,12 @@ graphql_schema(VALUE self, VALUE root) {
 	AGOO_ERR_OK != gql_directive_on(&err, dir, "OBJECT", 6)) {
 	rb_raise(rb_eStandardError, "%s", err.msg);
     }
-    graphql_root = root;
-    rb_gc_register_address(&graphql_root);
+    gql_root = (gqlRef)root;
+    rb_gc_register_address(&root);
+
+    gql_doc_eval_func = eval_wrap;
+    gql_resolve_func = resolve;
+    gql_coerce_func = coerce;
 
     if (NULL == (use = gql_dir_use_create(&err, "ruby"))) {
 	rb_raise(rb_eStandardError, "%s", err.msg);
@@ -89,8 +241,6 @@ graphql_schema(VALUE self, VALUE root) {
     make_ruby_use(root, "query", "Query");
     make_ruby_use(root, "mutation", "Mutation");
     make_ruby_use(root, "subscription", "Subscription");
-    
-    // TBD set somewhere in graphql side as void* root/schema object
 
     if (rb_block_given_p()) {
 	rb_yield_values2(0, NULL);
@@ -112,7 +262,7 @@ static VALUE
 graphql_load(VALUE self, VALUE sdl) {
     struct _agooErr	err = AGOO_ERR_INIT;
 
-    if (Qundef == graphql_root) {
+    if (NULL == gql_root) {
 	rb_raise(rb_eStandardError, "GraphQL root not set. Use Agoo::GraphQL.schema.");
     }
     rb_check_type(sdl, T_STRING);
@@ -136,7 +286,7 @@ graphql_load_file(VALUE self, VALUE path) {
     size_t		len;
     char		*sdl;
     
-    if (Qundef == graphql_root) {
+    if (NULL == gql_root) {
 	rb_raise(rb_eStandardError, "GraphQL root not set. Use Agoo::GraphQL.schema.");
     }
     rb_check_type(path, T_STRING);

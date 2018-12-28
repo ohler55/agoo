@@ -71,6 +71,7 @@ agoo_err_str(agooErrCode code) {
 	case AGOO_ERR_IN_USE:	str = "in use";			break;
 	case AGOO_ERR_TOO_MANY:	str = "too many";		break;
 	case AGOO_ERR_TYPE:	str = "type error";		break;
+	case AGOO_ERR_EVAL:	str = "eval error";		break;
 	default:		str = "unknown error";		break;
 	}
     }

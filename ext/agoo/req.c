@@ -91,3 +91,48 @@ agoo_req_query_value(agooReq r, const char *key, int klen, int *vlenp) {
     return value;
 }
 
+static int
+hexVal(int c) {
+    int	h = -1;
+    
+    if ('0' <= c && c <= '9') {
+	h = c - '0';
+    } else if ('a' <= c && c <= 'f') {
+	h = c - 'a' + 10;
+    } else if ('A' <= c && c <= 'F') {
+	h = c - 'A' + 10;
+    }
+    return h;
+}
+
+int
+agoo_req_query_decode(char *s, int len) {
+    char	*sn = s;
+    char	*so = s;
+    char	*end = s + len;
+    
+    while (so < end) {
+	if ('%' == *so) {
+	    int	n;
+	    int	c = 0;
+	    
+	    so++;
+	    if (0 > (c = hexVal(*so))) {
+		*sn++ = '%';
+		continue;
+	    }
+	    so++;
+	    if (0 > (n = hexVal(*so))) {
+		continue;
+	    }
+	    c = (c << 4) + n;
+	    so++;
+	    *sn++ = (char)c;
+	} else {
+	    *sn++ = *so++;
+	}
+    }
+    *sn = '\0';
+    
+    return (int)(sn - s);
+}
