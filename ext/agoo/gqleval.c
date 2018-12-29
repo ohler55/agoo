@@ -142,7 +142,7 @@ gql_doc_eval(agooErr err, gqlDoc doc) {
 	    break;
 	}
 	if (NULL == (op_root = gql_resolve_func(err, gql_root, key, NULL))) {
-	    agoo_err_set(err, AGOO_ERR_EVAL, "root %s is not supported.");
+	    agoo_err_set(err, AGOO_ERR_EVAL, "root %s is not supported.", key);
 	    return NULL;
 	}
 	if (AGOO_ERR_OK != eval_sels(err, doc, op_root, doc->op->sels, result)) {

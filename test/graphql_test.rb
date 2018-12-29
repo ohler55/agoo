@@ -16,7 +16,7 @@ class User
   def initialize
   end
   
-  def name
+  def name(args=nil)
     "me"
   end
 

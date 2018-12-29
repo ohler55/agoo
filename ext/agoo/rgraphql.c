@@ -90,32 +90,70 @@ eval_wrap(agooErr err, gqlDoc doc) {
 
 static VALUE
 gval_to_ruby(gqlValue value) {
-
-    // TBD
-
-    return Qnil;
+    volatile VALUE	rval = Qnil;
+    
+    if (NULL == value || NULL == value->type || GQL_SCALAR != value->type->kind) {
+	return Qnil;
+    }
+    switch (value->type->scalar_kind) {
+    case GQL_SCALAR_BOOL:
+	rval = value->b ? Qtrue : Qfalse;
+	break;
+    case GQL_SCALAR_INT:
+	rval = RB_INT2NUM(value->i);
+	break;
+    case GQL_SCALAR_I64:
+	rval = RB_LONG2NUM(value->i64);
+	break;
+    case GQL_SCALAR_FLOAT:
+	rval = DBL2NUM(value->f);
+	break;
+    case GQL_SCALAR_STRING:
+    case GQL_SCALAR_TOKEN:
+	rval = rb_str_new_cstr(value->str);
+	break;
+    case GQL_SCALAR_STR16:
+    case GQL_SCALAR_TOKEN16:
+	rval = rb_str_new_cstr(value->str16);
+	break;
+    case GQL_SCALAR_TIME:
+	// TBD
+	break;
+    case GQL_SCALAR_UUID:
+	// TBD
+	break;
+    case GQL_SCALAR_URL:
+	// TBD
+	break;
+    case GQL_SCALAR_LIST:
+	// TBD
+	break;
+    case GQL_SCALAR_OBJECT:
+	// TBD
+	break;
+    default:
+	break;
+    }
+    return rval;
 }
 
 static gqlRef
 resolve(agooErr err, gqlRef target, const char *field_name, gqlKeyVal args) {
-    VALUE	rargs[16];
-    VALUE	*a = rargs;
-    int		cnt = 0;
     volatile VALUE	v;
     volatile VALUE	result;
 
-    if (NULL != args) {
-	for (; NULL != args->key; args++, a++) {
-	    *a = gval_to_ruby(args->value);
-	}
-    }
-    // TBD args
     v = rb_funcall((VALUE)target, rb_intern("to_s"), 0);
     printf("*** resolve %s.%s\n", rb_string_value_ptr(&v), field_name);
+    if (NULL != args && NULL != args->key) {
+	volatile VALUE	rargs = rb_hash_new();
 
-    result = rb_funcallv((VALUE)target, rb_intern(field_name), cnt, rargs);
-
-    v = rb_funcall((VALUE)result, rb_intern("to_s"), 0);
+	for (; NULL != args->key; args++) {
+	    rb_hash_aset(rargs, rb_str_new_cstr(args->key), gval_to_ruby(args->value));
+	}
+	result = rb_funcall((VALUE)target, rb_intern(field_name), 1, rargs);
+    } else {
+	result = rb_funcall((VALUE)target, rb_intern(field_name), 0);
+    }
 
     return (gqlRef)result;
 }
@@ -142,12 +180,11 @@ coerce(agooErr err, gqlRef ref, gqlType type) {
 	// TBD
     } else if (GQL_SCALAR != type->kind) {
 	rb_raise(rb_eStandardError, "Can not coerce a non-scalar into a %s.", type->name);
-    } else { // TBD a scalar?
+    } else {
 	volatile VALUE	v;
-	
-	if (&gql_int_type == type) {
-	    value = gql_int_create(err, RB_NUM2INT(rb_to_int((VALUE)ref)));
-	} else if (&gql_bool_type == type) {
+
+	switch (type->scalar_kind) {
+	case GQL_SCALAR_BOOL:
 	    if (Qtrue == (VALUE)ref) {
 		value = gql_bool_create(err, true);
 	    } else if (Qfalse == (VALUE)ref) {
@@ -155,22 +192,40 @@ coerce(agooErr err, gqlRef ref, gqlType type) {
 	    } else {
 		// TBD int, float, string
 	    }
-	} else if (&gql_float_type == type) {
+	    break;
+	case GQL_SCALAR_INT:
+	    value = gql_int_create(err, RB_NUM2INT(rb_to_int((VALUE)ref)));
+	    break;
+	case GQL_SCALAR_I64:
+	    value = gql_i64_create(err, RB_NUM2LONG(rb_to_int((VALUE)ref)));
+	    break;
+	case GQL_SCALAR_FLOAT:
 	    value = gql_float_create(err, rb_num2dbl(rb_to_float((VALUE)ref)));
-	} else if (&gql_time_type == type) {
-	    // TBD
-	} else if (&gql_uuid_type == type) {
-	    // TBD
-	} else if (&gql_url_type == type) {
-	    // TBD
-	} else if (&gql_string_type == type) {
+	    break;
+	case GQL_SCALAR_STRING:
+	case GQL_SCALAR_STR16:
 	    v = ref_to_string(ref);
 	    value = gql_string_create(err, rb_string_value_ptr(&v), RSTRING_LEN(v));
-	} else if (&gql_i64_type == type) {
-	    value = gql_i64_create(err, RB_NUM2LONG(rb_to_int((VALUE)ref)));
-	} else if (&gql_token_type == type) {
+	    break;
+	case GQL_SCALAR_TOKEN:
+	case GQL_SCALAR_TOKEN16:
 	    v = ref_to_string(ref);
 	    value = gql_token_create(err, rb_string_value_ptr(&v), RSTRING_LEN(v));
+	    break;
+	case GQL_SCALAR_TIME:
+	    // TBD
+	    break;
+	case GQL_SCALAR_UUID:
+	    // TBD
+	    break;
+	case GQL_SCALAR_URL:
+	    // TBD
+	    break;
+	case GQL_SCALAR_LIST:
+	    // TBD
+	    break;
+	default:
+	    break;
 	}
 	if (NULL == value) {
 	    if (AGOO_ERR_OK == err->code) {

@@ -30,12 +30,15 @@ typedef enum {
     GQL_SCALAR_I64	= (int8_t)4,
     GQL_SCALAR_FLOAT	= (int8_t)5,
     GQL_SCALAR_STRING	= (int8_t)6,
-    GQL_SCALAR_TOKEN	= (int8_t)7,
-    GQL_SCALAR_TIME	= (int8_t)8,
-    GQL_SCALAR_UUID	= (int8_t)9,
-    GQL_SCALAR_URL	= (int8_t)10,
+    GQL_SCALAR_STR16	= (int8_t)7,
+    GQL_SCALAR_TOKEN	= (int8_t)8,
+    GQL_SCALAR_TOKEN16	= (int8_t)9,
+    GQL_SCALAR_TIME	= (int8_t)10,
+    GQL_SCALAR_UUID	= (int8_t)11,
+    GQL_SCALAR_URL	= (int8_t)12,
+    GQL_SCALAR_LIST	= (int8_t)13,
+    GQL_SCALAR_OBJECT	= (int8_t)14,
 } gqlScalarKind;
-
 
 typedef enum {
     GQL_QUERY		= (int8_t)'Q',
