@@ -36,6 +36,7 @@ typedef enum {
     GQL_SCALAR_URL	= (int8_t)10,
 } gqlScalarKind;
 
+
 typedef enum {
     GQL_QUERY		= (int8_t)'Q',
     GQL_MUTATION	= (int8_t)'M',
