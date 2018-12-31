@@ -19,6 +19,13 @@ typedef struct _eval {
     gqlValue	value;
 } *Eval;
 
+typedef struct _typeClass {
+    gqlType	type;
+    const char	*classname;
+} *TypeClass;
+
+static TypeClass	type_class_map = NULL;
+
 static void
 make_ruby_use(VALUE root, const char *method, const char *type_name) {
     struct _agooErr	err = AGOO_ERR_INIT;
@@ -57,11 +64,6 @@ rescue_error(VALUE x) {
 static VALUE
 call_eval(void *x) {
     Eval	eval = (Eval)x;
-
-    volatile VALUE	foo = rb_funcall((VALUE)gql_root, rb_intern("to_s"), 0);
-    const char		*str = rb_string_value_ptr(&foo);
-
-    printf("*** call eval -- %s\n", str);
 
     eval->value = gql_doc_eval(eval->err, eval->doc);
 
@@ -139,11 +141,8 @@ gval_to_ruby(gqlValue value) {
 
 static gqlRef
 resolve(agooErr err, gqlRef target, const char *field_name, gqlKeyVal args) {
-    volatile VALUE	v;
     volatile VALUE	result;
 
-    v = rb_funcall((VALUE)target, rb_intern("to_s"), 0);
-    printf("*** resolve %s.%s\n", rb_string_value_ptr(&v), field_name);
     if (NULL != args && NULL != args->key) {
 	volatile VALUE	rargs = rb_hash_new();
 
@@ -236,6 +235,63 @@ coerce(agooErr err, gqlRef ref, gqlType type) {
     return value;
 }
 
+static gqlType
+ref_type(gqlRef ref) {
+    gqlType	type = NULL;
+
+    if (NULL != type_class_map) {
+	TypeClass	tc;
+	const char	*classname = rb_obj_classname((VALUE)ref);
+	
+	for (tc = type_class_map; NULL != tc->type; tc++) {
+	    if (0 == strcmp(classname, tc->classname)) {
+		type = tc->type;
+		break;
+	    }
+	}
+    }
+    return type;
+}
+
+static void
+ruby_types_cb(gqlType type, void *ctx) {
+    gqlDirUse	dir;
+
+    for (dir = type->dir; NULL != dir; dir = dir->next) {
+	if (NULL != dir->dir && 0 == strcmp("ruby", dir->dir->name)) {
+	    if (NULL != type_class_map) {
+		TypeClass	tc = &type_class_map[*(int*)ctx];
+		gqlLink		arg;
+		
+		tc->type = type;
+		for (arg = dir->args; NULL != arg; arg = arg->next) {
+		    if (0 == strcmp("class", arg->key)) {
+			tc->classname = gql_string_get(arg->value);
+		    }
+		}
+	    }
+	    *((int*)ctx) += 1;
+	}
+    }
+}
+
+static void
+build_type_class_map() {
+    int		cnt = 0;
+    
+    free(type_class_map);
+    type_class_map = NULL;
+
+    gql_type_iterate(ruby_types_cb, &cnt);
+
+    if (NULL == (type_class_map = (TypeClass)malloc(sizeof(struct _typeClass) * (cnt + 1)))) {
+	rb_raise(rb_eNoMemError, "out of memory");
+    }
+    memset(type_class_map, 0, sizeof(struct _typeClass) * (cnt + 1));
+    cnt = 0;
+    gql_type_iterate(ruby_types_cb, &cnt);
+}
+
 /* Document-method: schema
  *
  * call-seq: schema(root) { }
@@ -281,6 +337,7 @@ graphql_schema(VALUE self, VALUE root) {
     gql_doc_eval_func = eval_wrap;
     gql_resolve_func = resolve;
     gql_coerce_func = coerce;
+    gql_type_func = ref_type;
 
     if (NULL == (use = gql_dir_use_create(&err, "ruby"))) {
 	rb_raise(rb_eStandardError, "%s", err.msg);
@@ -303,6 +360,8 @@ graphql_schema(VALUE self, VALUE root) {
     if (AGOO_ERR_OK != gql_validate(&err)) {
 	rb_raise(rb_eStandardError, "%s", err.msg);
     }
+    build_type_class_map();
+
     return Qnil;
 }
 

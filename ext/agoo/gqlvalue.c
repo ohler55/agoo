@@ -1240,3 +1240,18 @@ gql_value_sdl(agooText text, gqlValue value, int indent, int depth) {
     }
     return text;
 }
+
+const char*
+gql_string_get(gqlValue value) {
+    const char	*s = NULL;
+
+    if (NULL != value) {
+	if (&gql_string_type == value->type) {
+	    s = value->str;
+	} else if (&gql_str16_type == value->type) {
+	    s = value->str16;
+	}
+    }
+    return s;
+}
+

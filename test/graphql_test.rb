@@ -12,25 +12,65 @@ require 'net/http'
 
 require 'agoo'
 
-class User
-  def initialize
-  end
+class Artist
+  attr_reader :name
+  attr_reader :songs
   
-  def name(args=nil)
-    "me"
+  def initialize(name)
+    @name = name
+    @songs = []
   end
 
-  def age
-    65
+  def song(args={})
+    @songs[args['name']]
+  end
+
+  # Only used by the Song to add itself to the artist.
+  def add_song(song)
+    @songs << song
   end
 end
 
+class Song
+  attr_reader :name     # string
+  attr_reader :artist   # reference
+  attr_reader :duration # integer
+  attr_reader :release  # time
+  
+  def initialize(name, artist, duration, release)
+    @name = name
+    @artist = artist
+    @duration = duration
+    @release = release
+    artist.add_song(self)
+  end
+end
+
+$songs_sdl = %^
+type Query @ruby(class: "Query") {
+  artist(name: String!): Artist
+}
+
+type Artist {
+  name: String!
+  songs: [Song]
+}
+
+type Song {
+  name: String!
+  artist: Artist
+}
+^
+
 class Query
-  def initialize
+  attr_reader :artists
+
+  def initialize(artists)
+    @artists = artists
   end
 
-  def who
-    User.new
+  def artist(args={})
+    @artists[args['name']]
   end
 end
 
@@ -40,11 +80,48 @@ class Schema
   attr_reader :subscription
  
   def initialize()
-    @query = Query.new
+    # Set up some data for testing.
+    artist = Artist.new('Fazerdaze')
+    Song.new('Jennifer', artist, 240, Time.new(2017, 5, 5))
+    Song.new('Lucky Girl', artist, 170, Time.new(2017, 5, 5))
+    Song.new('Friends', artist, 194, Time.new(2017, 5, 5))
+    Song.new('Reel', artist, 193, Time.new(2015, 11, 2))
+    @artists = {artist.name => artist}
+
+    @query = Query.new(@artists)
   end
 end
 
 class GraphQLTest < Minitest::Test
+
+  SCHEMA_EXPECT = %^type schema @ruby(class: "Schema") {
+  query: Query
+  mutation: Mutation
+  subscription: Subscription
+}
+
+type Artist {
+  name: String!
+  songs: [Song]
+}
+
+type Mutation {
+}
+
+type Query @ruby(class: "Query") {
+  artist(name: String!): Artist
+}
+
+type Song {
+  name: String!
+  artist: Artist
+}
+
+type Subscription {
+}
+
+directive @ruby(class: String!) on SCHEMA | OBJECT
+^
 
   def test_graphql
     begin
@@ -65,8 +142,21 @@ class GraphQLTest < Minitest::Test
       Agoo::Server.start()
 
       load_test
-      #get_schema_test
+      get_schema_test
       get_query_test
+      variable_query_test
+      alias_query_test
+      #list_query_test
+
+      # TBD list
+      # TBD introspection
+      # TBD POST
+      #     fragment
+      #     inline fragment
+      #       on Song
+      #       @skip
+      #       @include
+
     ensure
       Agoo::shutdown
     end
@@ -74,69 +164,14 @@ class GraphQLTest < Minitest::Test
 
   def load_test
     Agoo::GraphQL.schema(Schema.new) {
-      Agoo::GraphQL.load(%|
-type Query @ruby(class: "Query") {
-  who: User
-}
-
-type User {
-  name: String!
-  age: Int
-}
-|)
+      Agoo::GraphQL.load($songs_sdl)
     }
-    expect = %^type schema @ruby(class: "Schema") {
-  query: Query
-  mutation: Mutation
-  subscription: Subscription
-}
-
-type Mutation {
-}
-
-type Query @ruby(class: "Query") {
-  who: User
-}
-
-type Subscription {
-}
-
-type User {
-  name: String!
-  age: Int
-}
-
-directive @ruby(class: String!) on SCHEMA | OBJECT
-^
     content = Agoo::GraphQL.sdl_dump(with_descriptions: false, all: false)
-    assert_equal(expect, content)
+    assert_equal(SCHEMA_EXPECT, content)
   end
 
   def get_schema_test
     uri = URI('http://localhost:6472/graphql/schema?with_desc=false&all=false')
-    expect = %^type schema @ruby(class: "Schema") {
-  query: Query
-  mutation: Mutation
-  subscription: Subscription
-}
-
-type Mutation {
-}
-
-type Query @ruby(class: "Query") {
-  who: User
-}
-
-type Subscription {
-}
-
-type User {
-  name: String!
-  age: Int
-}
-
-directive @ruby(class: String!) on SCHEMA | OBJECT
-^
     req = Net::HTTP::Get.new(uri)
     req['Accept-Encoding'] = '*'
     req['User-Agent'] = 'Ruby'
@@ -145,51 +180,15 @@ directive @ruby(class: String!) on SCHEMA | OBJECT
     }
     content = res.body
     assert_equal('application/graphql', res['Content-Type'])
-    assert_equal(expect, content)
-  end
-
-  def get_schema_test
-    uri = URI('http://localhost:6472/graphql/schema?with_desc=false&all=false')
-    expect = %^type schema @ruby(class: "Schema") {
-  query: Query
-  mutation: Mutation
-  subscription: Subscription
-}
-
-type Mutation {
-}
-
-type Query @ruby(class: "Query") {
-  who: User
-}
-
-type Subscription {
-}
-
-type User {
-  name: String!
-  age: Int
-}
-
-directive @ruby(class: String!) on SCHEMA | OBJECT
-^
-    req = Net::HTTP::Get.new(uri)
-    req['Accept-Encoding'] = '*'
-    req['User-Agent'] = 'Ruby'
-    res = Net::HTTP.start(uri.hostname, uri.port) { |h|
-      h.request(req)
-    }
-    content = res.body
-    assert_equal('application/graphql', res['Content-Type'])
-    assert_equal(expect, content)
+    assert_equal(SCHEMA_EXPECT, content)
   end
 
   def get_query_test
-    uri = URI('http://localhost:6472/graphql?query={who{name}}&indent=2')
+    uri = URI('http://localhost:6472/graphql?query={artist(name:"Fazerdaze"){name}}&indent=2')
     expect = %^{
   "data":{
-    "who":{
-      "name":"me"
+    "artist":{
+      "name":"Fazerdaze"
     }
   }
 }^
@@ -204,4 +203,48 @@ directive @ruby(class: String!) on SCHEMA | OBJECT
     assert_equal(expect, content)
   end
   
+  def variable_query_test
+    uri = URI('http://localhost:6472/graphql?query={artist(name:"Fazerdaze"){name}}&indent=2')
+    expect = %^{
+  "data":{
+    "artist":{
+      "name":"Fazerdaze"
+    }
+  }
+}^
+    req_test(uri, expect)
+  end
+  
+  def alias_query_test
+    uri = URI('http://localhost:6472/graphql?query=query withVar($name:String="Fazerdaze"){artist(name:$name){name}}&indent=2')
+    expect = %^{
+  "data":{
+    "artist":{
+      "name":"Fazerdaze"
+    }
+  }
+}^
+    req_test(uri, expect)
+  end
+  
+  def list_query_test
+    uri = URI('http://localhost:6472/graphql?query=query withVar($name:String="Fazerdaze"){artist(name:$name){name,songs{name}}}&indent=2')
+    expect = %^{
+  "data":{
+    "artist":{
+      "name":"Fazerdaze"
+    }
+  }
+}^
+    req_test(uri, expect)
+  end
+
+  def req_test(uri, expect)
+    req = Net::HTTP::Get.new(uri)
+    res = Net::HTTP.start(uri.hostname, uri.port) { |h|
+      h.request(req)
+    }
+    content = res.body
+    assert_equal(expect, content)
+  end
 end

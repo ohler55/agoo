@@ -23,11 +23,15 @@ typedef gqlRef			(*gqlResolveFunc)(agooErr err, gqlRef target, const char *field
 // Coerce an implemenation reference into a gqlValue.
 typedef struct _gqlValue*	(*gqlCoerceFunc)(agooErr err, gqlRef ref, struct _gqlType *type);
 
+// Determine the type of a reference. Return NULL if can't be determined.
+typedef struct _gqlType*	(*gqlTypeFunc)(gqlRef ref);
+
 extern struct _gqlValue*	gql_doc_eval(agooErr err, struct _gqlDoc *doc);
 
 extern gqlRef			gql_root;
 extern gqlResolveFunc		gql_resolve_func;
 extern gqlCoerceFunc		gql_coerce_func;
+extern gqlTypeFunc		gql_type_func;
 extern struct _gqlValue*	(*gql_doc_eval_func)(agooErr err, struct _gqlDoc *doc);
 
 #endif // AGOO_GQLEVAL_H

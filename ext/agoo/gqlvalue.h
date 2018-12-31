@@ -78,6 +78,8 @@ extern void	gql_uuid_set(gqlValue value, uint64_t hi, uint64_t lo);
 extern int	gql_uuid_str_set(agooErr err, gqlValue value, const char *str, int len);
 extern void	gql_null_set(gqlValue value);
 
+extern const char*	gql_string_get(gqlValue value);
+
 extern agooText	gql_value_json(agooText text, gqlValue value, int indent, int depth);
 extern agooText	gql_value_sdl(agooText text, gqlValue value, int indent, int depth);
 

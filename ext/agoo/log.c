@@ -446,8 +446,8 @@ agoo_log_cat_find(const char *label) {
 }
 
 #ifdef CLOCK_REALTIME
-static int64_t
-now_nano() {
+int64_t
+agoo_now_nano() {
     struct timespec	ts;
 	    
     clock_gettime(CLOCK_REALTIME, &ts);
@@ -455,8 +455,8 @@ now_nano() {
     return (int64_t)ts.tv_sec * 1000000000LL + (int64_t)ts.tv_nsec;
 }
 #else
-static int64_t
-now_nano() {
+int64_t
+agoo_now_nano() {
     struct timeval	tv;
     struct timezone	tz;
 
@@ -473,7 +473,7 @@ set_entry(agooLogEntry e, agooLogCat cat, const char *tid, const char *fmt, va_l
     va_copy(ap2, ap);
 
     e->cat = cat;
-    e->when = now_nano();
+    e->when = agoo_now_nano();
     e->whatp = NULL;
     if ((int)sizeof(e->what) <= (cnt = vsnprintf(e->what, sizeof(e->what), fmt, ap))) {
 	e->whatp = (char*)AGOO_MALLOC(cnt + 1);

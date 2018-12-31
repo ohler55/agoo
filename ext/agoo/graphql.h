@@ -250,6 +250,7 @@ extern gqlType		gql_assure_list(agooErr err, gqlType base, bool not_empty);
 extern int		gql_type_set(agooErr err, gqlType type);
 extern gqlType		gql_type_get(const char *name);
 extern void		gql_type_destroy(gqlType type);
+extern void		gql_type_iterate(void (*fun)(gqlType type, void *ctx), void *ctx);
 
 extern agooText		gql_type_sdl(agooText text, gqlType type, bool comments);
 extern agooText		gql_directive_sdl(agooText text, gqlDir dir, bool comments);

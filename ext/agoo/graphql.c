@@ -264,6 +264,19 @@ gql_type_get(const char *name) {
     return type;
 }
 
+void
+gql_type_iterate(void (*fun)(gqlType type, void *ctx), void *ctx) {
+    Slot	*sp = buckets;
+    Slot	s;
+    int		i;
+
+    for (i = BUCKET_SIZE; 0 < i; i--, sp++) {
+	for (s = *sp; NULL != s; s = s->next) {
+	    fun(s->type, ctx);
+	}
+    }
+}
+
 gqlDir
 gql_directive_get(const char *name) {
     gqlDir	dir = directives;
