@@ -15,10 +15,12 @@ require 'agoo'
 class Artist
   attr_reader :name
   attr_reader :songs
+  attr_reader :origin
   
-  def initialize(name)
+  def initialize(name, origin)
     @name = name
     @songs = []
+    @origin = origin
   end
 
   def song(args={})
@@ -54,6 +56,7 @@ type Query @ruby(class: "Query") {
 type Artist {
   name: String!
   songs: [Song]
+  origin: [String]
 }
 
 type Song {
@@ -81,7 +84,7 @@ class Schema
  
   def initialize()
     # Set up some data for testing.
-    artist = Artist.new('Fazerdaze')
+    artist = Artist.new('Fazerdaze', ['Morningside', 'Auckland', 'New Zealand'])
     Song.new('Jennifer', artist, 240, Time.new(2017, 5, 5))
     Song.new('Lucky Girl', artist, 170, Time.new(2017, 5, 5))
     Song.new('Friends', artist, 194, Time.new(2017, 5, 5))
@@ -103,6 +106,7 @@ class GraphQLTest < Minitest::Test
 type Artist {
   name: String!
   songs: [Song]
+  origin: [String]
 }
 
 type Mutation {
@@ -146,7 +150,8 @@ directive @ruby(class: String!) on SCHEMA | OBJECT
       get_query_test
       variable_query_test
       alias_query_test
-      #list_query_test
+      list_query_test
+      array_query_test # returns an array
 
       # TBD list
       # TBD introspection
@@ -167,6 +172,7 @@ directive @ruby(class: String!) on SCHEMA | OBJECT
       Agoo::GraphQL.load($songs_sdl)
     }
     content = Agoo::GraphQL.sdl_dump(with_descriptions: false, all: false)
+    content.force_encoding('UTF-8')
     assert_equal(SCHEMA_EXPECT, content)
   end
 
@@ -232,13 +238,44 @@ directive @ruby(class: String!) on SCHEMA | OBJECT
     expect = %^{
   "data":{
     "artist":{
-      "name":"Fazerdaze"
+      "name":"Fazerdaze",
+      "songs":[
+        {
+          "name":"Jennifer"
+        },
+        {
+          "name":"Lucky Girl"
+        },
+        {
+          "name":"Friends"
+        },
+        {
+          "name":"Reel"
+        }
+      ]
     }
   }
 }^
     req_test(uri, expect)
   end
 
+  def array_query_test
+    uri = URI('http://localhost:6472/graphql?query={artist(name:"Fazerdaze"){name,origin}}&indent=2')
+    expect = %^{
+  "data":{
+    "artist":{
+      "name":"Fazerdaze",
+      "origin":[
+        "Morningside",
+        "Auckland",
+        "New Zealand"
+      ]
+    }
+  }
+}^
+    req_test(uri, expect)
+  end
+  
   def req_test(uri, expect)
     req = Net::HTTP::Get.new(uri)
     res = Net::HTTP.start(uri.hostname, uri.port) { |h|

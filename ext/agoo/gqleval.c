@@ -18,14 +18,19 @@ typedef struct _implFuncs {
     gqlResolveFunc	resolve;
     gqlCoerceFunc	coerce;
     gqlTypeFunc		type;
+    gqlIterateFunc	iterate;
 } *ImplFuncs;
 
 gqlRef		gql_root = NULL;
 gqlResolveFunc	gql_resolve_func = NULL;
 gqlCoerceFunc	gql_coerce_func = NULL;
 gqlTypeFunc	gql_type_func = NULL;
+gqlIterateFunc	gql_iterate_func = NULL;
 
 gqlValue	(*gql_doc_eval_func)(agooErr err, gqlDoc doc) = NULL;
+
+static int	eval_sels(agooErr err, gqlDoc doc, gqlRef ref, gqlSel sels, gqlValue result, ImplFuncs funcs);
+static int	eval_sel(agooErr err, gqlDoc doc, gqlRef ref, gqlSel sel, gqlValue result, ImplFuncs funcs);
 
 // TBD errors should have message, location, and path
 static void
@@ -93,10 +98,19 @@ type_intro(gqlRef ref) {
     return NULL;
 }
 
+static int
+iterate_intro(agooErr err, gqlRef ref, int (*cb)(agooErr err, gqlRef ref, void *ctx), void *ctx) {
+
+    // TBD
+    
+    return AGOO_ERR_OK;
+}
+
 static struct _implFuncs	intro_funcs = {
     .resolve = resolve_intro,
     .coerce = coerce_intro,
     .type = type_intro,
+    .iterate = iterate_intro,
 };
 
 static bool
@@ -131,73 +145,125 @@ frag_include(gqlDoc doc, gqlFrag frag, gqlRef ref, ImplFuncs funcs) {
     return true;
 }
 
+typedef struct _evalCtx {
+    gqlDoc	doc;
+    gqlRef	ref;
+    gqlType	base;
+    gqlSel	sels;
+    gqlValue	result;
+    ImplFuncs	funcs;
+} *EvalCtx;
+
+static int
+eval_list_sel(agooErr err, gqlRef ref, void *ctx) {
+    EvalCtx	ec = (EvalCtx)ctx;
+    gqlValue	obj;
+    
+    if (NULL == ec->sels) {
+	if (NULL == (obj = ec->funcs->coerce(err, ref, ec->base)) ||
+	    AGOO_ERR_OK != gql_list_append(err, ec->result, obj)) {
+	    return err->code;
+	}
+    } else {
+	if (NULL == (obj = gql_object_create(err)) ||
+	    AGOO_ERR_OK != eval_sels(err, ec->doc, ref, ec->sels, obj, ec->funcs) ||
+	    AGOO_ERR_OK != gql_list_append(err, ec->result, obj)) {
+	    return err->code;
+	}
+    }
+    return AGOO_ERR_OK;
+}
+
+static int
+eval_sel(agooErr err, gqlDoc doc, gqlRef ref, gqlSel sel, gqlValue result, ImplFuncs funcs) {
+    if (NULL != sel->inline_frag) {
+	if (frag_include(doc, sel->inline_frag, ref, funcs)) {
+	    if (AGOO_ERR_OK != eval_sels(err, doc, ref, sel->inline_frag->sels, result, funcs)) {
+		return err->code;
+	    }
+	}
+    } else if (NULL != sel->frag) {
+	gqlFrag	frag;
+
+	for (frag = doc->frags; NULL != frag; frag = frag->next) {
+	    if (NULL != frag->name && 0 == strcmp(frag->name, sel->frag)) {
+		if (frag_include(doc, frag, ref, funcs)) {
+		    if (AGOO_ERR_OK != eval_sels(err, doc, ref, frag->sels, result, funcs)) {
+			return err->code;
+		    }
+		}
+	    }
+	}
+    } else {
+	struct _gqlKeyVal	args[MAX_RESOLVE_ARGS];
+	gqlKeyVal		a;
+	gqlValue		child;
+	gqlRef			r2;
+	const char		*key = sel->name;
+	gqlSelArg		sa;
+	int			i;
+
+	for (sa = sel->args, a = args, i = 0; NULL != sa; sa = sa->next, a++, i++) {
+	    if (MAX_RESOLVE_ARGS <= i) {
+		return agoo_err_set(err, AGOO_ERR_EVAL, "Too many arguments to %s.", sel->name);
+	    }
+	    a->key = sa->name;
+	    if (NULL != sa->var) {
+		a->value = sa->var->value;
+	    } else {
+		a->value = sa->value;
+	    }
+	}
+	a->key = NULL;
+	if (NULL != sel->alias) {
+	    key = sel->alias;
+	}
+	if ('_' == *sel->name && '_' == sel->name[1]) {
+	    funcs = &intro_funcs;
+	}
+	if (NULL == (r2 = funcs->resolve(err, ref, sel->name, args))) {
+	    return err->code;
+	}
+	if (NULL != sel->type && GQL_LIST == sel->type->kind) { // TBD only for lists of objects, not scalars
+	    struct _evalCtx	ec = {
+		.doc = doc,
+		.ref = ref,
+		.base = sel->type->base,
+		.sels = sel->sels,
+		.result = gql_list_create(err, NULL),
+		.funcs = funcs,
+	    };
+
+	    if (NULL == ec.result ||
+		AGOO_ERR_OK != funcs->iterate(err, r2, eval_list_sel, &ec) ||
+		AGOO_ERR_OK != gql_object_set(err, result, key, ec.result)) {
+		return err->code;
+	    }
+	} else if (NULL == sel->sels) {
+	    if (NULL == (child = funcs->coerce(err, r2, sel->type)) ||
+		AGOO_ERR_OK != gql_object_set(err, result, key, child)) {
+		return err->code;
+	    }
+	} else {
+	    if (NULL == (child = gql_object_create(err)) ||
+		AGOO_ERR_OK != gql_object_set(err, result, key, child)) {
+		return err->code;
+	    }
+	    if (AGOO_ERR_OK != eval_sels(err, doc, r2, sel->sels, child, funcs)) {
+		return err->code;
+	    }
+	}
+    }
+    return AGOO_ERR_OK;
+}
+
 static int
 eval_sels(agooErr err, gqlDoc doc, gqlRef ref, gqlSel sels, gqlValue result, ImplFuncs funcs) {
     gqlSel	sel;
 
     for (sel = sels; NULL != sel; sel = sel->next) {
-	if (NULL != sel->inline_frag) {
-	    if (frag_include(doc, sel->inline_frag, ref, funcs)) {
-		if (AGOO_ERR_OK != eval_sels(err, doc, ref, sel->inline_frag->sels, result, funcs)) {
-		    return err->code;
-		}
-	    }
-	} else if (NULL != sel->frag) {
-	    gqlFrag	frag;
-
-	    for (frag = doc->frags; NULL != frag; frag = frag->next) {
-		if (NULL != frag->name && 0 == strcmp(frag->name, sel->frag)) {
-		    if (frag_include(doc, frag, ref, funcs)) {
-			if (AGOO_ERR_OK != eval_sels(err, doc, ref, frag->sels, result, funcs)) {
-			    return err->code;
-			}
-		    }
-		}
-	    }
-	} else {
-	    struct _gqlKeyVal	args[MAX_RESOLVE_ARGS];
-	    gqlKeyVal		a;
-	    gqlValue		child;
-	    gqlRef		r2;
-	    const char		*key = sel->name;
-	    gqlSelArg		sa;
-	    int			i;
-
-	    for (sa = sel->args, a = args, i = 0; NULL != sa; sa = sa->next, a++, i++) {
-		if (MAX_RESOLVE_ARGS <= i) {
-		    return agoo_err_set(err, AGOO_ERR_EVAL, "Too many arguments to %s.", sel->name);
-		}
-		a->key = sa->name;
-		if (NULL != sa->var) {
-		    a->value = sa->var->value;
-		} else {
-		    a->value = sa->value;
-		}
-	    }
-	    a->key = NULL;
-	    if (NULL != sel->alias) {
-		key = sel->alias;
-	    }
-	    if ('_' == *sel->name && '_' == sel->name[1]) {
-		funcs = &intro_funcs;
-	    }
-	    if (NULL == (r2 = funcs->resolve(err, ref, sel->name, args))) {
-		return err->code;
-	    }
-	    if (NULL == sel->sels) {
-		if (NULL == (child = funcs->coerce(err, r2, sel->type)) ||
-		    AGOO_ERR_OK != gql_object_set(err, result, key, child)) {
-		    return err->code;
-		}
-	    } else {
-		if (NULL == (child = gql_object_create(err)) ||
-		    AGOO_ERR_OK != gql_object_set(err, result, key, child)) {
-		    return err->code;
-		}
-		if (AGOO_ERR_OK != eval_sels(err, doc, r2, sel->sels, child, funcs)) {
-		    return err->code;
-		}
-	    }
+	if (AGOO_ERR_OK != eval_sel(err, doc, ref, sel, result, funcs)) {
+	    return err->code;
 	}
     }
     return AGOO_ERR_OK;
@@ -218,6 +284,7 @@ gql_doc_eval(agooErr err, gqlDoc doc) {
 	    .resolve = gql_resolve_func,
 	    .coerce = gql_coerce_func,
 	    .type = gql_type_func,
+	    .iterate = gql_iterate_func,
 	};
 	switch (doc->op->kind) {
 	case GQL_QUERY:

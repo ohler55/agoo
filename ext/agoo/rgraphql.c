@@ -292,6 +292,20 @@ build_type_class_map() {
     gql_type_iterate(ruby_types_cb, &cnt);
 }
 
+static int
+iterate(agooErr err, gqlRef ref, int (*cb)(agooErr err, gqlRef ref, void *ctx), void *ctx) {
+    VALUE	a = (VALUE)ref;
+    int		cnt = (int)RARRAY_LEN(a);
+    int		i;
+    
+    for (i = 0; i < cnt; i++) {
+	if (AGOO_ERR_OK != cb(err, (gqlRef)rb_ary_entry(a, i), ctx)) {
+	    return err->code;
+	}
+    }
+    return AGOO_ERR_OK;
+}
+
 /* Document-method: schema
  *
  * call-seq: schema(root) { }
@@ -338,6 +352,7 @@ graphql_schema(VALUE self, VALUE root) {
     gql_resolve_func = resolve;
     gql_coerce_func = coerce;
     gql_type_func = ref_type;
+    gql_iterate_func = iterate;
 
     if (NULL == (use = gql_dir_use_create(&err, "ruby"))) {
 	rb_raise(rb_eStandardError, "%s", err.msg);
