@@ -23,7 +23,7 @@ extract_desc(agooErr err, agooDoc doc, const char **descp, size_t *lenp) {
     	if (AGOO_ERR_OK != agoo_doc_read_string(err, doc)) {
 	    return err->code;
 	}
-	if ('"' == *desc) { // must be a """
+	if ('"' == *desc && '"' == desc[1]) { // must be a """
 	    desc += 2;
 	    desc_end = doc->cur - 3;
 	} else {
@@ -793,11 +793,10 @@ sel_arg_create(agooErr err, const char *name, gqlValue value, gqlVar var) {
 	agoo_err_set(err, AGOO_ERR_MEMORY, "Failed to allocation memory for a selection field argument.");
     } else {
 	arg->next = NULL;
-	if (NULL == (arg->name = strdup(name))) {
+	if (NULL == (arg->name = AGOO_STRDUP(name))) {
 	    agoo_err_set(err, AGOO_ERR_MEMORY, "strdup of field name failed. %s:%d", __FILE__, __LINE__);
 	    return NULL;
 	}
-	AGOO_ALLOC(arg->name, strlen(arg->name));
 	arg->var = var;
 	arg->value = value;
     }
@@ -861,11 +860,10 @@ op_var_create(agooErr err, const char *name, gqlType type, gqlValue value) {
 	agoo_err_set(err, AGOO_ERR_MEMORY, "Failed to allocation memory for a operation variable.");
     } else {
 	var->next = NULL;
-	if (NULL == (var->name = strdup(name))) {
+	if (NULL == (var->name = AGOO_STRDUP(name))) {
 	    agoo_err_set(err, AGOO_ERR_MEMORY, "strdup of variable name failed. %s:%d", __FILE__, __LINE__);
 	    return NULL;
 	}
-	AGOO_ALLOC(var->name, strlen(var->name));
 	var->type = type;
 	var->value = value;
     }
@@ -931,29 +929,26 @@ sel_create(agooErr err, const char *alias, const char *name, const char *frag) {
 	if (NULL == name) {
 	    sel->name = NULL;
 	} else {
-	    if (NULL == (sel->name = strdup(name))) {
+	    if (NULL == (sel->name = AGOO_STRDUP(name))) {
 		agoo_err_set(err, AGOO_ERR_MEMORY, "strdup of selection name failed. %s:%d", __FILE__, __LINE__);
 		return NULL;
 	    }
-	    AGOO_ALLOC(sel->name, strlen(sel->name));
 	}
 	if (NULL == alias) {
 	    sel->alias = NULL;
 	} else {
-	    if (NULL == (sel->alias = strdup(alias))) {
+	    if (NULL == (sel->alias = AGOO_STRDUP(alias))) {
 		agoo_err_set(err, AGOO_ERR_MEMORY, "strdup of selection alias failed. %s:%d", __FILE__, __LINE__);
 		return NULL;
 	    }
-	    AGOO_ALLOC(sel->alias, strlen(sel->alias));
 	}
 	if (NULL == frag) {
 	    sel->frag = NULL;
 	} else {
-	    if (NULL == (sel->frag = strdup(frag))) {
+	    if (NULL == (sel->frag = AGOO_STRDUP(frag))) {
 		agoo_err_set(err, AGOO_ERR_MEMORY, "strdup of selection fragment failed. %s:%d", __FILE__, __LINE__);
 		return NULL;
 	    }
-	    AGOO_ALLOC(sel->frag, strlen(sel->frag));
 	}
 	sel->type = NULL;
 	sel->dir = NULL;
@@ -1322,8 +1317,13 @@ sel_set_type(agooErr err, gqlType type, gqlSel sels) {
     gqlSel	sel;
     
     for (sel = sels; NULL != sel; sel = sel->next) {
-	if (NULL == (sel->type = lookup_field_type(type, sel->name))) {
-	    return agoo_err_set(err, AGOO_ERR_EVAL, "Failed to determine the type for %s.", sel->name);
+	if (NULL == sel->name) { // inline or fragment
+	    sel->type = type;
+	    // TBD if ... on Zzz then use Zzz as type
+	} else {
+	    if (NULL == (sel->type = lookup_field_type(type, sel->name))) {
+		return agoo_err_set(err, AGOO_ERR_EVAL, "Failed to determine the type for %s.", sel->name);
+	    }
 	}
 	if (NULL != sel->sels) {
 	    if (AGOO_ERR_OK != sel_set_type(err, sel->type, sel->sels)) {
@@ -1378,6 +1378,9 @@ sdl_parse_doc(agooErr err, const char *str, int len) {
     }
     while (doc.cur < doc.end) {
 	agoo_doc_next_token(&doc);
+	if (doc.end <= doc.cur) {
+	    break;
+	}
 	switch (*doc.cur) {
 	case '{': // no name query
 	case 'q':

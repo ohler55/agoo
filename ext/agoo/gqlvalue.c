@@ -107,13 +107,13 @@ static agooText
 string_to_text(agooText text, gqlValue value, int indent, int depth) {
     if (&gql_str16_type == value->type) {
 	text = agoo_text_append(text, "\"", 1);
-	text = agoo_text_append(text, value->str16, -1);
+	text = agoo_text_append_json(text, value->str16, -1);
 	text = agoo_text_append(text, "\"", 1);
     } else if (NULL == value->str) {
 	text = agoo_text_append(text, "null", 4);
     } else {
 	text = agoo_text_append(text, "\"", 1);
-	text = agoo_text_append(text, value->str, -1);
+	text = agoo_text_append_json(text, value->str, -1);
 	text = agoo_text_append(text, "\"", 1);
     }
     return text;
@@ -847,7 +847,7 @@ gql_string_set(agooErr err, gqlValue value, const char *str, int len) {
 	    value->type = &gql_str16_type;
 	    strncpy(value->str16, str, len);
 	} else {
-	    if (NULL == (value->str = strndup(str, len))) {
+	    if (NULL == (value->str = AGOO_STRNDUP(str, len))) {
 		return agoo_err_set(err, AGOO_ERR_MEMORY, "strndup of length %d failed.", len);
 	    }
 	}
@@ -868,10 +868,9 @@ gql_token_set(agooErr err, gqlValue value, const char *str, int len) {
 	    value->type = &gql_token16_type;
 	    strncpy(value->str16, str, len);
 	} else {
-	    if (NULL == (value->str = strndup(str, len))) {
+	    if (NULL == (value->str = AGOO_STRNDUP(str, len))) {
 		return agoo_err_set(err, AGOO_ERR_MEMORY, "strndup of length %d failed.", len);
 	    }
-	    AGOO_ALLOC(value->str, len);
 	}
     }
     return AGOO_ERR_OK;
@@ -886,10 +885,9 @@ gql_url_set(agooErr err, gqlValue value, const char *url, int len) {
 	if (0 >= len) {
 	    len = (int)strlen(url);
 	}
-	if (NULL == (value->url = strndup(url, len))) {
+	if (NULL == (value->url = AGOO_STRNDUP(url, len))) {
 	    return agoo_err_set(err, AGOO_ERR_MEMORY, "strndup of length %d failed.", len);
 	}
-	AGOO_ALLOC(value->url, len);
     }
     return AGOO_ERR_OK;
 }
@@ -951,11 +949,10 @@ gql_link_create(agooErr err, const char *key, gqlValue item) {
 	link->next = NULL;
 	link->key = NULL;
 	if (NULL != key) {
-	    if (NULL == (link->key = strdup(key))) {
+	    if (NULL == (link->key = AGOO_STRDUP(key))) {
 		agoo_err_set(err, AGOO_ERR_MEMORY, "strdup() failed.");
 		return NULL;
 	    }
-	    AGOO_ALLOC(link->key, strlen(link->key));
 	}
 	link->value = item;
     }
@@ -1061,11 +1058,10 @@ gql_string_create(agooErr err, const char *str, int len) {
     }
     if ((int)sizeof(v->str16) <= len) {
 	if (NULL != (v = value_create(&gql_string_type))) {
-	    if (NULL == (v->str = strndup(str, len))) {
+	    if (NULL == (v->str = AGOO_STRNDUP(str, len))) {
 		agoo_err_set(err, AGOO_ERR_MEMORY, "strndup of length %d failed.", len);
 		return NULL;
 	    }
-	    AGOO_ALLOC(v->str, len);
 	}
     } else {
 	if (NULL != (v = value_create(&gql_str16_type))) {
@@ -1085,11 +1081,10 @@ gql_token_create(agooErr err, const char *str, int len) {
     }
     if ((int)sizeof(v->str16) <= len) {
 	if (NULL != (v = value_create(&gql_token_type))) {
-	    if (NULL == (v->str = strndup(str, len))) {
+	    if (NULL == (v->str = AGOO_STRNDUP(str, len))) {
 		agoo_err_set(err, AGOO_ERR_MEMORY, "strndup of length %d failed.", len);
 		return NULL;
 	    }
-	    AGOO_ALLOC(v->str, len);
 	}
     } else {
 	if (NULL != (v = value_create(&gql_token16_type))) {
@@ -1108,11 +1103,10 @@ gql_url_create(agooErr err, const char *url, int len) {
 	len = (int)strlen(url);
     }
     if (NULL != v) {
-	if (NULL == (v->url = strndup(url, len))) {
+	if (NULL == (v->url = AGOO_STRNDUP(url, len))) {
 	    agoo_err_set(err, AGOO_ERR_MEMORY, "strndup of length %d failed.", len);
 	    return NULL;
 	}
-	AGOO_ALLOC(v->url, len);
     }
     return v;
 }
@@ -1253,5 +1247,5 @@ gql_string_get(gqlValue value) {
 	}
     }
     return s;
-}
 
+}

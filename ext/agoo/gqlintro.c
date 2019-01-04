@@ -125,6 +125,7 @@ create_type_kind_type(agooErr err) {
 	return err->code;
     }
     type->core = true;
+
     for (cp = choices; NULL != *cp; cp++) {
 	if (NULL == gql_enum_append(err, type, *cp, 0, NULL, 0)) {
 	    return err->code;
