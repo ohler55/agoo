@@ -1,6 +1,7 @@
 // Copyright 2016, 2018 by Peter Ohler, All Rights Reserved
 
 #include <stdio.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 
