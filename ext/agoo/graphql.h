@@ -190,6 +190,7 @@ typedef struct _gqlFrag {
 
 typedef struct _gqlDoc {
     gqlOp		ops;
+    gqlVar		vars;
     gqlFrag		frags;
     gqlOp		op; // the op to execute
 } *gqlDoc;

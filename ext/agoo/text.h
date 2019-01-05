@@ -25,5 +25,8 @@ extern void	agoo_text_release(agooText t);
 extern agooText	agoo_text_append(agooText t, const char *s, int len);
 extern agooText	agoo_text_prepend(agooText t, const char *s, int len);
 extern agooText	agoo_text_append_json(agooText t, const char *s, int len);
+extern agooText	agoo_text_append_char(agooText t, const char c);
+
+extern void	agoo_text_reset(agooText t);
 
 #endif // AGOO_TEXT_H

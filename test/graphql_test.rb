@@ -149,6 +149,7 @@ directive @ruby(class: String!) on SCHEMA | OBJECT
       get_schema_test
       get_query_test
       variable_query_test
+      json_vars_query_test
       alias_query_test
       list_query_test
       array_query_test # returns an array
@@ -223,6 +224,18 @@ directive @ruby(class: String!) on SCHEMA | OBJECT
   
   def alias_query_test
     uri = URI('http://localhost:6472/graphql?query=query withVar($name:String="Fazerdaze"){artist(name:$name){name}}&indent=2')
+    expect = %^{
+  "data":{
+    "artist":{
+      "name":"Fazerdaze"
+    }
+  }
+}^
+    req_test(uri, expect)
+  end
+  
+  def json_vars_query_test
+    uri = URI('http://localhost:6472/graphql?query={artist(name:$name){name}}&indent=2&variables={"name":"Fazerdaze"}')
     expect = %^{
   "data":{
     "artist":{

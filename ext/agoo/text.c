@@ -119,6 +119,24 @@ agoo_text_append(agooText t, const char *s, int len) {
 }
 
 agooText
+agoo_text_append_char(agooText t, const char c) {
+    if (t->alen <= t->len + 1) {
+	long	new_len = t->alen + 1 + t->alen / 2;
+	size_t	size = sizeof(struct _agooText) - AGOO_TEXT_MIN_SIZE + new_len + 1;
+
+	if (NULL == (t = (agooText)AGOO_REALLOC(t, size))) {
+	    return NULL;
+	}
+	t->alen = new_len;
+    }
+    *(t->text + t->len) = c;
+    t->len++;
+    t->text[t->len] = '\0';
+
+    return t;
+}
+
+agooText
 agoo_text_prepend(agooText t, const char *s, int len) {
     if (0 >= len) {
 	len = (int)strlen(s);
@@ -196,4 +214,9 @@ agoo_text_append_json(agooText t, const char *s, int len) {
     t->text[t->len] = '\0';
 
     return t;
+}
+
+void
+agoo_text_reset(agooText t) {
+    t->len = 0;
 }

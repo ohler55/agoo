@@ -9,7 +9,7 @@
 #include "graphql.h"
 #include "sdl.h"
 
-static int	make_sel(agooErr err, agooDoc doc, gqlOp op, gqlSel *parentp);
+static int	make_sel(agooErr err, agooDoc doc, gqlDoc gdoc, gqlOp op, gqlSel *parentp);
 
 static int
 extract_desc(agooErr err, agooDoc doc, const char **descp, size_t *lenp) {
@@ -803,7 +803,7 @@ sel_arg_create(agooErr err, const char *name, gqlValue value, gqlVar var) {
     return arg;
 }
 static int
-make_sel_arg(agooErr err, agooDoc doc, gqlOp op, gqlSel sel) {
+make_sel_arg(agooErr err, agooDoc doc, gqlDoc gdoc, gqlOp op, gqlSel sel) {
     char	name[256];
     gqlValue	value = NULL;
     gqlVar	var = NULL;
@@ -832,7 +832,14 @@ make_sel_arg(agooErr err, agooDoc doc, gqlOp op, gqlSel sel) {
 	    }
 	}
 	if (NULL == var) {
-	    return agoo_doc_err(doc, err, "variable $%s not defined for operation", var_name);
+	    for (var = gdoc->vars; NULL != var; var = var->next) {
+		if (0 == strcmp(var_name, var->name)) {
+		    break;
+		}
+	    }
+	}
+	if (NULL == var) {
+	    return agoo_doc_err(doc, err, "variable $%s not defined for operation or document", var_name);
 	}
     } else if (NULL == (value = agoo_doc_read_value(err, doc, NULL))) {
 	return err->code;
@@ -852,8 +859,8 @@ make_sel_arg(agooErr err, agooDoc doc, gqlOp op, gqlSel sel) {
     return AGOO_ERR_OK;
 }
 
-static gqlVar
-op_var_create(agooErr err, const char *name, gqlType type, gqlValue value) {
+gqlVar
+gql_op_var_create(agooErr err, const char *name, gqlType type, gqlValue value) {
     gqlVar	var;
 
     if (NULL == (var = (gqlVar)AGOO_MALLOC(sizeof(struct _gqlVar)))) {
@@ -903,7 +910,7 @@ make_op_var(agooErr err, agooDoc doc, gqlOp op) {
 	    return err->code;
 	}
     }
-    if (NULL == (var = op_var_create(err, name, type, value))) {
+    if (NULL == (var = gql_op_var_create(err, name, type, value))) {
 	return err->code;
     }
     if (NULL == op->vars) {
@@ -960,7 +967,7 @@ sel_create(agooErr err, const char *alias, const char *name, const char *frag) {
 }    
 
 static gqlSel
-make_sel_inline(agooErr err, agooDoc doc, gqlOp op) {
+make_sel_inline(agooErr err, agooDoc doc, gqlDoc gdoc, gqlOp op) {
     gqlSel	sel = NULL;
 
     doc->cur += 3;
@@ -991,7 +998,7 @@ make_sel_inline(agooErr err, agooDoc doc, gqlOp op) {
 		    doc->cur++;
 		    break;
 		}
-		if (AGOO_ERR_OK != make_sel(err, doc, op, &sel->inline_frag->sels)) {
+		if (AGOO_ERR_OK != make_sel(err, doc, gdoc, op, &sel->inline_frag->sels)) {
 		    return NULL;
 		}
 	    }
@@ -1019,7 +1026,7 @@ make_sel_inline(agooErr err, agooDoc doc, gqlOp op) {
 		    doc->cur++;
 		    break;
 		}
-		if (AGOO_ERR_OK != make_sel(err, doc, op, &sel->inline_frag->sels)) {
+		if (AGOO_ERR_OK != make_sel(err, doc, gdoc, op, &sel->inline_frag->sels)) {
 		    return NULL;
 		}
 	    }
@@ -1040,7 +1047,7 @@ make_sel_inline(agooErr err, agooDoc doc, gqlOp op) {
 }
 
 static int
-make_sel(agooErr err, agooDoc doc, gqlOp op, gqlSel *parentp) {
+make_sel(agooErr err, agooDoc doc, gqlDoc gdoc, gqlOp op, gqlSel *parentp) {
     char	alias[256];
     char	name[256];
     gqlSel	sel = NULL;
@@ -1052,7 +1059,7 @@ make_sel(agooErr err, agooDoc doc, gqlOp op, gqlSel *parentp) {
     *name = '\0';
     agoo_doc_skip_white(doc);
     if ('.' == *doc->cur && '.' == doc->cur[1] && '.' == doc->cur[2]) {
-	if (NULL == (sel = make_sel_inline(err, doc, op))) {
+	if (NULL == (sel = make_sel_inline(err, doc, gdoc, op))) {
 	    return err->code;
 	}
     } else {
@@ -1107,7 +1114,7 @@ make_sel(agooErr err, agooDoc doc, gqlOp op, gqlSel *parentp) {
 		doc->cur++;
 		break;
 	    }
-	    if (AGOO_ERR_OK != make_sel_arg(err, doc, op, sel)) {
+	    if (AGOO_ERR_OK != make_sel_arg(err, doc, gdoc, op, sel)) {
 		return err->code;
 	    }
 	}
@@ -1124,7 +1131,7 @@ make_sel(agooErr err, agooDoc doc, gqlOp op, gqlSel *parentp) {
 		doc->cur++;
 		break;
 	    }
-	    if (AGOO_ERR_OK != make_sel(err, doc, op, &sel->sels)) {
+	    if (AGOO_ERR_OK != make_sel(err, doc, gdoc, op, &sel->sels)) {
 		return err->code;
 	    }
 	}
@@ -1148,7 +1155,7 @@ make_op(agooErr err, agooDoc doc, gqlDoc gdoc) {
     start = doc->cur;
     agoo_doc_read_token(doc);
     if (doc->cur == start ||
-	       (5 == (doc->cur - start) && 0 == strncmp("query", start, 5))) {
+	(5 == (doc->cur - start) && 0 == strncmp("query", start, 5))) {
 	kind = GQL_QUERY;
     } else if (8 == (doc->cur - start) && 0 == strncmp("mutation", start, 8)) {
 	kind = GQL_MUTATION;
@@ -1200,7 +1207,7 @@ make_op(agooErr err, agooDoc doc, gqlDoc gdoc) {
 	    doc->cur++;
 	    break;
 	}
-	if (AGOO_ERR_OK != make_sel(err, doc, op, NULL)) {
+	if (AGOO_ERR_OK != make_sel(err, doc, gdoc, op, NULL)) {
 	    return err->code;
 	}
     }
@@ -1265,7 +1272,7 @@ make_fragment(agooErr err, agooDoc doc, gqlDoc gdoc) {
 	    doc->cur++;
 	    break;
 	}
-	if (AGOO_ERR_OK != make_sel(err, doc, NULL, &frag->sels)) {
+	if (AGOO_ERR_OK != make_sel(err, doc, gdoc, NULL, &frag->sels)) {
 	    return err->code;
 	}
     }
@@ -1368,7 +1375,7 @@ validate_doc(agooErr err, gqlDoc doc) {
 }
 
 gqlDoc
-sdl_parse_doc(agooErr err, const char *str, int len) {
+sdl_parse_doc(agooErr err, const char *str, int len, gqlVar vars) {
     struct _agooDoc	doc;
     gqlDoc		gdoc = NULL;
     
@@ -1376,6 +1383,7 @@ sdl_parse_doc(agooErr err, const char *str, int len) {
     if (NULL == (gdoc = gql_doc_create(err))) {
 	return NULL;
     }
+    gdoc->vars = vars;
     while (doc.cur < doc.end) {
 	agoo_doc_next_token(&doc);
 	if (doc.end <= doc.cur) {

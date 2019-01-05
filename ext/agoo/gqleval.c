@@ -4,8 +4,9 @@
 #include <string.h>
 
 #include "gqleval.h"
-#include "graphql.h"
+#include "gqljson.h"
 #include "gqlvalue.h"
+#include "graphql.h"
 #include "http.h"
 #include "log.h"
 #include "req.h"
@@ -320,9 +321,12 @@ gql_eval_get_hook(agooReq req) {
     const char		*op_name = NULL;
     const char		*var_json = NULL;
     int			qlen;
+    int			oplen;
+    int			vlen;
     int			indent = 0;
     gqlDoc		doc;
     gqlValue		result;
+    gqlVar		vars = NULL;
     
     if (NULL != (gq = agoo_req_query_value(req, "indent", 6, &qlen))) {
 	indent = (int)strtol(gq, NULL, 10);
@@ -331,16 +335,45 @@ gql_eval_get_hook(agooReq req) {
 	err_resp(req->res, &err, 500);
 	return;
     }
+    op_name = agoo_req_query_value(req, "operationName", 13, &oplen);
+    var_json = agoo_req_query_value(req, "variables", 9, &vlen);
+
+    if (NULL != var_json) {
+	gqlValue	vlist;
+	gqlLink		link;
+	
+	vlen = agoo_req_query_decode((char*)var_json, vlen);
+	if (NULL == (vlist = gql_json_parse(&err, var_json, vlen))) {
+	    err_resp(req->res, &err, 400);
+	    return;
+	}
+	if (GQL_SCALAR_OBJECT != vlist->type->scalar_kind) {
+	    agoo_err_set(&err, AGOO_ERR_EVAL, "expected variables to be an object.");
+	    err_resp(req->res, &err, 400);
+	    return;
+	}
+	for (link = vlist->members; NULL != link; link = link->next) {
+	    gqlVar	v = gql_op_var_create(&err, link->key, link->value->type, link->value);
+
+	    if (NULL == v) {
+		err_resp(req->res, &err, 400);
+		return;
+	    }
+	    v->next = vars;
+	    vars = v;
+	}
+    }
+    // Only call after extracting the variables as it terminates the string with a \0.
     qlen = agoo_req_query_decode((char*)gq, qlen);
-    if (NULL == (doc = sdl_parse_doc(&err, gq, qlen))) {
+    if (NULL == (doc = sdl_parse_doc(&err, gq, qlen, vars))) {
 	err_resp(req->res, &err, 500);
 	return;
     }
-    if (NULL != (op_name = agoo_req_query_value(req, "operationName", 13, &qlen))) {
+    if (NULL != op_name) {
 	gqlOp	op;
 
 	// This null terminates the string.
-	agoo_req_query_decode((char*)op_name, qlen);
+	agoo_req_query_decode((char*)op_name, oplen);
 	for (op = doc->ops; NULL != op; op = op->next) {
 	    if (NULL != op->name && 0 == strcmp(op_name, op->name)) {
 		doc->op = op;
@@ -349,15 +382,6 @@ gql_eval_get_hook(agooReq req) {
 	}
     } else {
 	doc->op = doc->ops;
-    }
-    if (NULL != (var_json = agoo_req_query_value(req, "variables", 9, &qlen))) {
-	agoo_req_query_decode((char*)var_json, qlen);
-	if (NULL != doc->op) {
-	    // TBD parse JSON or SDL into doc->op->vars
-	    //  if starts with a " then JSON else SDL
-	    //    maybe the same except for the "
-	    //      lists and objects ok?
-	}
     }
     if (NULL == gql_doc_eval_func) {
 	result = gql_doc_eval(&err, doc);

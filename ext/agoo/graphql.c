@@ -1248,6 +1248,7 @@ gql_doc_create(agooErr err) {
 	agoo_err_set(err, AGOO_ERR_MEMORY, "GraphQL Document creation failed. %s:%d", __FILE__, __LINE__);
     } else {
 	doc->ops = NULL;
+	doc->vars = NULL;
 	doc->frags = NULL;
     }
     return doc;
@@ -1353,10 +1354,15 @@ void
 gql_doc_destroy(gqlDoc doc) {
     gqlOp	op;
     gqlFrag	frag;
-
+    gqlVar	var;
+    
     while (NULL != (op = doc->ops)) {
 	doc->ops = op->next;
 	gql_op_destroy(op);
+    }
+    while (NULL != (var = doc->vars)) {
+	doc->vars = var->next;
+	var_destroy(var);
     }
     while (NULL != (frag = doc->frags)) {
 	doc->frags = frag->next;

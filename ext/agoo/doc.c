@@ -23,6 +23,16 @@ pttttttttttttttttttttttttttp.p.t\
 ................................\
 ................................";
 
+static char	json_map[256] = "\
+.........ww..w..................\
+wpq.....pp..c.p.ttttttttttp..p..\
+pttttttttttttttttttttttttttp.p.t\
+.ttttttttttttttttttttttttttppp..\
+................................\
+................................\
+................................\
+................................";
+
 void
 agoo_doc_init(agooDoc doc, const char *str, int len) {
     if (0 >= len) {
@@ -42,6 +52,15 @@ agoo_doc_skip_white(agooDoc doc) {
     const char	*start = doc->cur;
     
     for (; 'w' == char_map[*(uint8_t*)doc->cur]; doc->cur++) {
+    }
+    return (int)(doc->cur - start);
+}
+
+int
+agoo_doc_skip_jwhite(agooDoc doc) {
+    const char	*start = doc->cur;
+    
+    for (; 'w' == json_map[*(uint8_t*)doc->cur]; doc->cur++) {
     }
     return (int)(doc->cur - start);
 }
