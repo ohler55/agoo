@@ -147,6 +147,7 @@ directive @ruby(class: String!) on SCHEMA | OBJECT
 
       load_test
       get_schema_test
+
       get_query_test
       variable_query_test
       json_vars_query_test
@@ -154,14 +155,18 @@ directive @ruby(class: String!) on SCHEMA | OBJECT
       list_query_test
       array_query_test # returns an array
 
-      # TBD list
-      # TBD introspection
+      post_graphql_test
+      post_json_test
+      #post_unknown_graphql_test
+      #post_unknown_json_test
+
       # TBD POST
       #     fragment
       #     inline fragment
       #       on Song
       #       @skip
       #       @include
+      # TBD introspection
 
     ensure
       Agoo::shutdown
@@ -288,6 +293,44 @@ directive @ruby(class: String!) on SCHEMA | OBJECT
 }^
     req_test(uri, expect)
   end
+
+  def post_graphql_test
+    uri = URI('http://localhost:6472/graphql?indent=2')
+    body = %^{
+  artist(name:"Fazerdaze"){
+    name
+  }
+}
+^
+    expect = %^{
+  "data":{
+    "artist":{
+      "name":"Fazerdaze"
+    }
+  }
+}^
+
+    post_test(uri, body, 'application/graphql', expect)
+  end
+
+  def post_json_test
+    uri = URI('http://localhost:6472/graphql?indent=2')
+  #"query":"{\\n  artist(name:\\\"Fazerdaze\\\"){\\n    name\\n  }\\n}"
+    body = %^{
+  "query":"{artist(name:\\"Fazerdaze\\"){name}}"
+}^
+    expect = %^{
+  "data":{
+    "artist":{
+      "name":"Fazerdaze"
+    }
+  }
+}^
+
+    post_test(uri, body, 'application/json', expect)
+  end
+
+  ##################################
   
   def req_test(uri, expect)
     req = Net::HTTP::Get.new(uri)
@@ -295,6 +338,20 @@ directive @ruby(class: String!) on SCHEMA | OBJECT
       h.request(req)
     }
     content = res.body
+    assert_equal(expect, content)
+  end
+
+  def post_test(uri, body, content_type, expect)
+    uri = URI(uri)
+    req = Net::HTTP::Post.new(uri)
+    req['Accept-Encoding'] = '*'
+    req['Content-Type'] = content_type
+    req.body = body
+    res = Net::HTTP.start(uri.hostname, uri.port) { |h|
+      h.request(req)
+    }
+    content = res.body
+    assert_equal('application/json', res['Content-Type'])
     assert_equal(expect, content)
   end
 end

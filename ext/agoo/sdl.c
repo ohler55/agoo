@@ -9,6 +9,15 @@
 #include "graphql.h"
 #include "sdl.h"
 
+static const char	query_str[] = "query";
+static const char	union_str[] = "union";
+static const char	enum_str[] = "enum";
+static const char	mutation_str[] = "mutation";
+static const char	subscription_str[] = "subscription";
+static const char	interface_str[] = "interface";
+static const char	input_str[] = "input";
+static const char	type_str[] = "type";
+
 static int	make_sel(agooErr err, agooDoc doc, gqlDoc gdoc, gqlOp op, gqlSel *parentp);
 
 static int
@@ -194,7 +203,7 @@ make_enum(agooErr err, agooDoc doc, const char *desc, size_t dlen) {
     gqlEnumVal	ev;
     size_t	len;
     
-    if (AGOO_ERR_OK != extract_name(err, doc, "enum", 4, name, sizeof(name))) {
+    if (AGOO_ERR_OK != extract_name(err, doc, enum_str, sizeof(enum_str) - 1, name, sizeof(name))) {
 	return err->code;
     }
     if (AGOO_ERR_OK != extract_dir_use(err, doc, &uses)) {
@@ -246,7 +255,7 @@ make_union(agooErr err, agooDoc doc, const char *desc, int len) {
     gqlType	member;
     bool	required;
     
-    if (AGOO_ERR_OK != extract_name(err, doc, "union", 5, name, sizeof(name))) {
+    if (AGOO_ERR_OK != extract_name(err, doc, union_str, sizeof(union_str) - 1, name, sizeof(name))) {
 	return err->code;
     }
     if (AGOO_ERR_OK != extract_dir_use(err, doc, &uses)) {
@@ -536,7 +545,7 @@ make_interface(agooErr err, agooDoc doc, const char *desc, int len) {
     gqlType	type;
     gqlDirUse	uses = NULL;
     
-    if (AGOO_ERR_OK != extract_name(err, doc, "interface", 9, name, sizeof(name))) {
+    if (AGOO_ERR_OK != extract_name(err, doc, interface_str, sizeof(interface_str) - 1, name, sizeof(name))) {
 	return err->code;
     }
     if (AGOO_ERR_OK != extract_dir_use(err, doc, &uses)) {
@@ -572,7 +581,7 @@ make_input(agooErr err, agooDoc doc, const char *desc, int len) {
     gqlType	type;
     gqlDirUse	uses = NULL;
 
-    if (AGOO_ERR_OK != extract_name(err, doc, "input", 5, name, sizeof(name))) {
+    if (AGOO_ERR_OK != extract_name(err, doc, input_str, sizeof(input_str) - 1, name, sizeof(name))) {
 	return err->code;
     }
     if (AGOO_ERR_OK != extract_dir_use(err, doc, &uses)) {
@@ -660,7 +669,7 @@ make_type(agooErr err, agooDoc doc, const char *desc, int len) {
     gqlDirUse	uses = NULL;
     gqlTypeLink	interfaces = NULL;
 
-    if (AGOO_ERR_OK != extract_name(err, doc, "type", 4, name, sizeof(name))) {
+    if (AGOO_ERR_OK != extract_name(err, doc, type_str, sizeof(type_str) - 1, name, sizeof(name))) {
 	return err->code;
     }
     if (AGOO_ERR_OK != extract_interfaces(err, doc, &interfaces)) {
@@ -1155,11 +1164,11 @@ make_op(agooErr err, agooDoc doc, gqlDoc gdoc) {
     start = doc->cur;
     agoo_doc_read_token(doc);
     if (doc->cur == start ||
-	(5 == (doc->cur - start) && 0 == strncmp("query", start, 5))) {
+	(5 == (doc->cur - start) && 0 == strncmp(query_str, start, sizeof(query_str) - 1))) {
 	kind = GQL_QUERY;
-    } else if (8 == (doc->cur - start) && 0 == strncmp("mutation", start, 8)) {
+    } else if (8 == (doc->cur - start) && 0 == strncmp(mutation_str, start, sizeof(mutation_str) - 1)) {
 	kind = GQL_MUTATION;
-    } else if (12 == (doc->cur - start) && 0 == strncmp("subscription", start, 12)) {
+    } else if (12 == (doc->cur - start) && 0 == strncmp(subscription_str, start, sizeof(subscription_str) - 1)) {
 	kind = GQL_SUBSCRIPTION;
     } else {
 	return agoo_doc_err(doc, err, "Invalid operation type");
@@ -1353,13 +1362,13 @@ validate_doc(agooErr err, gqlDoc doc) {
     for (op = doc->ops; NULL != op; op = op->next) {
 	switch (op->kind) {
 	case GQL_QUERY:
-	    type = lookup_field_type(schema, "query");
+	    type = lookup_field_type(schema, query_str);
 	    break;
 	case GQL_MUTATION:
-	    type = lookup_field_type(schema, "mutation");
+	    type = lookup_field_type(schema, mutation_str);
 	    break;
 	case GQL_SUBSCRIPTION:
-	    type = lookup_field_type(schema, "subscription");
+	    type = lookup_field_type(schema, subscription_str);
 	    break;
 	default:
 	    break;

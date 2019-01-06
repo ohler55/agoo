@@ -200,7 +200,7 @@ static gqlValue
 parse_escaped(agooErr err, agooDoc doc) {
     agooText	t = agoo_text_allocate(4096);
     gqlValue	value = NULL;
-    
+
     if (NULL == t) {
 	return NULL;
     }
@@ -255,6 +255,7 @@ parse_escaped(agooErr err, agooDoc doc) {
 	}
     }
     value = gql_string_create(err, t->text, t->len);
+    doc->cur++; // past trailing "
 DONE:
     agoo_text_release(t);
     

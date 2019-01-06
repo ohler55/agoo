@@ -28,6 +28,13 @@ gqlCoerceFunc	gql_coerce_func = NULL;
 gqlTypeFunc	gql_type_func = NULL;
 gqlIterateFunc	gql_iterate_func = NULL;
 
+static const char	graphql_content_type[] = "application/graphql";
+static const char	indent_str[] = "indent";
+static const char	json_content_type[] = "application/json";
+static const char	operation_name_str[] = "operationName";
+static const char	query_str[] = "query";
+static const char	variables_str[] = "variables";
+
 gqlValue	(*gql_doc_eval_func)(agooErr err, gqlDoc doc) = NULL;
 
 static int	eval_sels(agooErr err, gqlDoc doc, gqlRef ref, gqlSel sels, gqlValue result, ImplFuncs funcs);
@@ -76,6 +83,7 @@ value_resp(agooRes res, gqlValue result, int status, int indent) {
 		   status, agoo_http_code_message(status), text->len);
     text = agoo_text_prepend(text, buf, cnt);
     agoo_res_set_message(res, text);
+    gql_value_destroy(result);
 }
 
 static gqlRef
@@ -314,61 +322,35 @@ gql_doc_eval(agooErr err, gqlDoc doc) {
     return result;
 }
 
-void
-gql_eval_get_hook(agooReq req) {
-    struct _agooErr	err = AGOO_ERR_INIT;
-    const char		*gq; // graphql query
-    const char		*op_name = NULL;
-    const char		*var_json = NULL;
-    int			qlen;
-    int			oplen;
-    int			vlen;
-    int			indent = 0;
-    gqlDoc		doc;
-    gqlValue		result;
-    gqlVar		vars = NULL;
+static gqlVar
+parse_query_vars(agooErr err, const char *var_json, int vlen) {
+    gqlValue	vlist;
+    gqlLink	link;
+    gqlVar	vars = NULL;
     
-    if (NULL != (gq = agoo_req_query_value(req, "indent", 6, &qlen))) {
-	indent = (int)strtol(gq, NULL, 10);
+    vlen = agoo_req_query_decode((char*)var_json, vlen);
+    if (NULL == (vlist = gql_json_parse(err, var_json, vlen))) {
+	goto DONE;
     }
-    if (NULL == (gq = agoo_req_query_value(req, "query", 5, &qlen))) {
-	err_resp(req->res, &err, 500);
-	return;
+    if (GQL_SCALAR_OBJECT != vlist->type->scalar_kind) {
+	agoo_err_set(err, AGOO_ERR_EVAL, "expected variables to be an object.");
+	goto DONE;
     }
-    op_name = agoo_req_query_value(req, "operationName", 13, &oplen);
-    var_json = agoo_req_query_value(req, "variables", 9, &vlen);
+    for (link = vlist->members; NULL != link; link = link->next) {
+	gqlVar	v = gql_op_var_create(err, link->key, link->value->type, link->value);
 
-    if (NULL != var_json) {
-	gqlValue	vlist;
-	gqlLink		link;
-	
-	vlen = agoo_req_query_decode((char*)var_json, vlen);
-	if (NULL == (vlist = gql_json_parse(&err, var_json, vlen))) {
-	    err_resp(req->res, &err, 400);
-	    return;
+	if (NULL == v) {
+	    goto DONE;
 	}
-	if (GQL_SCALAR_OBJECT != vlist->type->scalar_kind) {
-	    agoo_err_set(&err, AGOO_ERR_EVAL, "expected variables to be an object.");
-	    err_resp(req->res, &err, 400);
-	    return;
-	}
-	for (link = vlist->members; NULL != link; link = link->next) {
-	    gqlVar	v = gql_op_var_create(&err, link->key, link->value->type, link->value);
+	v->next = vars;
+	vars = v;
+    }
+DONE:
+    return vars;
+}
 
-	    if (NULL == v) {
-		err_resp(req->res, &err, 400);
-		return;
-	    }
-	    v->next = vars;
-	    vars = v;
-	}
-    }
-    // Only call after extracting the variables as it terminates the string with a \0.
-    qlen = agoo_req_query_decode((char*)gq, qlen);
-    if (NULL == (doc = sdl_parse_doc(&err, gq, qlen, vars))) {
-	err_resp(req->res, &err, 500);
-	return;
-    }
+static void
+set_doc_op(gqlDoc doc, const char *op_name, int oplen) {
     if (NULL != op_name) {
 	gqlOp	op;
 
@@ -383,6 +365,46 @@ gql_eval_get_hook(agooReq req) {
     } else {
 	doc->op = doc->ops;
     }
+}
+
+void
+gql_eval_get_hook(agooReq req) {
+    struct _agooErr	err = AGOO_ERR_INIT;
+    const char		*gq; // graphql query
+    const char		*op_name = NULL;
+    const char		*var_json = NULL;
+    int			qlen;
+    int			oplen;
+    int			vlen;
+    int			indent = 0;
+    gqlDoc		doc;
+    gqlValue		result;
+    gqlVar		vars = NULL;
+    
+    if (NULL != (gq = agoo_req_query_value(req, indent_str, sizeof(indent_str) - 1, &qlen))) {
+	indent = (int)strtol(gq, NULL, 10);
+    }
+    if (NULL == (gq = agoo_req_query_value(req, query_str, sizeof(query_str) - 1, &qlen))) {
+	err_resp(req->res, &err, 500);
+	return;
+    }
+    op_name = agoo_req_query_value(req, operation_name_str, sizeof(operation_name_str) - 1, &oplen);
+    var_json = agoo_req_query_value(req, variables_str, sizeof(variables_str) - 1, &vlen);
+
+    if (NULL != var_json) {
+	if (NULL == (vars = parse_query_vars(&err, var_json, vlen)) && AGOO_ERR_OK != err.code) {
+	    err_resp(req->res, &err, 400);
+	    return;
+	}
+    }
+    // Only call after extracting the variables as it terminates the string with a \0.
+    qlen = agoo_req_query_decode((char*)gq, qlen);
+    if (NULL == (doc = sdl_parse_doc(&err, gq, qlen, vars))) {
+	err_resp(req->res, &err, 500);
+	return;
+    }
+    set_doc_op(doc, op_name, oplen);
+
     if (NULL == gql_doc_eval_func) {
 	result = gql_doc_eval(&err, doc);
     } else {
@@ -395,14 +417,116 @@ gql_eval_get_hook(agooReq req) {
     value_resp(req->res, result, 200, indent);
 }
 
+static gqlValue
+eval_post(agooErr err, agooReq req) {
+    gqlDoc		doc;
+    int			indent = 0;
+    const char		*op_name = NULL;
+    const char		*var_json = NULL;
+    const char		*query = NULL;
+    int			oplen;
+    int			vlen;
+    int			qlen;
+    gqlVar		vars;
+    const char		*s;
+    int			len;
+    gqlValue		result;
+
+    // TBD handle query parameter and concatenate with body query if present
+
+    op_name = agoo_req_query_value(req, operation_name_str, sizeof(operation_name_str) - 1, &oplen);
+    var_json = agoo_req_query_value(req, variables_str, sizeof(variables_str) - 1, &vlen);
+
+    if (NULL != var_json) {
+	if (NULL == (vars = parse_query_vars(err, var_json, vlen)) && AGOO_ERR_OK != err->code) {
+	    return NULL;
+	}
+    }
+    if (NULL == (s = agoo_req_header_value(req, "Content-Type", &len))) {
+	agoo_err_set(err, AGOO_ERR_TYPE, "required Content-Type not in the HTTP header");
+	return NULL;
+    }
+    if (0 == strncmp(graphql_content_type, s, sizeof(graphql_content_type) - 1)) {
+	if (NULL == (doc = sdl_parse_doc(err, req->body.start, req->body.len, vars))) {
+	    return NULL;
+	}
+    } else if (0 == strncmp(json_content_type, s, sizeof(json_content_type) - 1)) {
+	gqlValue	j;
+	gqlLink		m;
+	
+	if (NULL != (j = gql_json_parse(err, req->body.start, req->body.len))) {
+	    if (GQL_SCALAR_OBJECT != j->type->scalar_kind) {
+		agoo_err_set(err, AGOO_ERR_TYPE, "JSON request must be an object");
+		return NULL;
+	    }
+	    for (m = j->members; NULL != m; m = m->next) {
+		if (0 == strcmp("query", m->key)) {
+		    if (NULL == (s = gql_string_get(m->value))) {
+			agoo_err_set(err, AGOO_ERR_TYPE, "query must be an string");
+			return NULL;
+		    }
+		    query = s;
+		    qlen = strlen(s);
+		} else if (0 == strcmp("operationName", m->key)) {
+		    if (NULL == (s = gql_string_get(m->value))) {
+			agoo_err_set(err, AGOO_ERR_TYPE, "operationName must be an string");
+			return NULL;
+		    }
+		    op_name = s;
+		    oplen = strlen(s);
+		} else if (0 == strcmp("variables", m->key)) {
+		    gqlLink	link;
+
+		    if (GQL_SCALAR_OBJECT != m->value->type->scalar_kind) {
+			agoo_err_set(err, AGOO_ERR_EVAL, "expected variables to be an object.");
+			return NULL;
+		    }
+		    for (link = m->value->members; NULL != link; link = link->next) {
+			gqlVar	v = gql_op_var_create(err, link->key, link->value->type, link->value);
+
+			if (NULL == v) {
+			    return NULL;
+			}
+			v->next = vars;
+			vars = v;
+		    }
+		}
+	    }
+	    if (NULL == (doc = sdl_parse_doc(err, query, qlen, vars))) {
+		return NULL;
+	    }
+	} else {
+	    return NULL;
+	}
+    } else {
+	agoo_err_set(err, AGOO_ERR_TYPE, "unsupported content type");
+	return NULL;
+    }
+    set_doc_op(doc, op_name, oplen);
+
+    if (NULL == gql_doc_eval_func) {
+	result = gql_doc_eval(err, doc);
+    } else {
+	result = gql_doc_eval_func(err, doc);
+    }
+    return result;
+}
+
 void
 gql_eval_post_hook(agooReq req) {
-    
-    printf("*** POST hook called\n");
+    struct _agooErr	err = AGOO_ERR_INIT;
+    gqlValue		result;
+    const char		*s;
+    int			len;
+    int			indent = 0;
 
-    // TBD detect introspection
-    //  start resolving by callout to some global handler as needed
-    //   pass target, field, args
-    //   return json or gqlValue
-    // for handler, if introspection then handler here else global
+    if (NULL != (s = agoo_req_query_value(req, indent_str, sizeof(indent_str) - 1, &len))) {
+	indent = (int)strtol(s, NULL, 10);
+    }
+
+    if (NULL == (result = eval_post(&err, req))) {
+	err_resp(req->res, &err, 400);
+    } else {
+	value_resp(req->res, result, 200, indent);
+    }
 }
