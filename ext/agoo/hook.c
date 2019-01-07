@@ -17,16 +17,12 @@ agoo_hook_create(agooMethod method, const char *pattern, void *handler, agooHook
 	
 	if (NULL == pattern) {
 	    if (AGOO_NONE != method) {
-		pat = strdup("");
+		pat = AGOO_STRDUP("");
 	    }
 	} else {
-	    pat = strdup(pattern);
+	    pat = AGOO_STRDUP(pattern);
 	}
 	hook->pattern = pat;
-
-	if (NULL != hook->pattern) {
-	    AGOO_ALLOC(hook->pattern, strlen(hook->pattern));
-	}
 	hook->next = NULL;
 	hook->method = method;
 	hook->handler = handler;
@@ -46,15 +42,12 @@ agoo_hook_func_create(agooMethod method, const char *pattern, void (*func)(agooR
 	
 	if (NULL == pattern) {
 	    if (AGOO_NONE != method) {
-		pat = strdup("");
+		pat = AGOO_STRDUP("");
 	    }
 	} else {
-	    pat = strdup(pattern);
+	    pat = AGOO_STRDUP(pattern);
 	}
 	hook->pattern = pat;
-	if (NULL != hook->pattern) {
-	    AGOO_ALLOC(hook->pattern, strlen(hook->pattern));
-	}
 	hook->next = NULL;
 	hook->method = method;
 	hook->func = func;

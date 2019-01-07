@@ -196,7 +196,7 @@ mime_set(agooErr err, const char *key, const char *value) {
 	    ((0 <= len && len <= MAX_KEY_UNIQ) || 0 == strncmp(s->key, key, len))) {
 
 	    AGOO_FREE(s->value);
-	    s->value = strdup(value);
+	    s->value = AGOO_STRDUP(value);
 	    return AGOO_ERR_OK;
 	}
     }
@@ -210,7 +210,7 @@ mime_set(agooErr err, const char *key, const char *value) {
     } else {
 	strcpy(s->key, key);
     }
-    s->value = strdup(value);
+    s->value = AGOO_STRDUP(value);
     s->next = *bucket;
     *bucket = s;
 
@@ -263,8 +263,7 @@ agoo_pages_init() {
     struct _agooErr	err = AGOO_ERR_INIT;
     
     memset(&cache, 0, sizeof(struct _cache));
-    cache.root = strdup(".");
-    AGOO_ALLOC(cache.root, 2);
+    cache.root = AGOO_STRDUP(".");
     for (m = mime_map; NULL != m->suffix; m++) {
 	mime_set(&err, m->suffix, m->type);
     }
@@ -276,8 +275,7 @@ agoo_pages_set_root(const char *root) {
     if (NULL == root) {
 	cache.root = NULL;
     } else {
-	cache.root = strdup(root);
-	AGOO_ALLOC(cache.root, strlen(cache.root));
+	cache.root = AGOO_STRDUP(root);
     }
 }
 
@@ -351,8 +349,7 @@ agoo_page_create(const char *path) {
 	if (NULL == path) {
 	    p->path = NULL;
 	} else {
-	    p->path = strdup(path);
-	    AGOO_ALLOC(p->path, strlen(p->path));
+	    p->path = AGOO_STRDUP(path);
 	}
 	p->mtime = 0;
 	p->last_check = 0.0;
@@ -376,9 +373,8 @@ agoo_page_immutable(agooErr err, const char *path, const char *content, int clen
     if (NULL == path) {
 	p->path = NULL;
     } else {
-	p->path = strdup(path);
+	p->path = AGOO_STRDUP(path);
 	plen = (int)strlen(path);
-	AGOO_ALLOC(p->path, plen);
     }
     p->mtime = 0;
     p->last_check = 0.0;
@@ -673,9 +669,8 @@ group_create(const char *path) {
     if (NULL != g) {
 	g->next = cache.groups;
 	cache.groups = g;
-	g->path = strdup(path);
+	g->path = AGOO_STRDUP(path);
 	g->plen = (int)strlen(path);
-	AGOO_ALLOC(g->path, g->plen);
 	g->dirs = NULL;
     }
     return g;
@@ -688,8 +683,7 @@ group_add(agooGroup g, const char *dir) {
     if (NULL != d) {
 	d->next = g->dirs;
 	g->dirs = d;
-	d->path = strdup(dir);
+	d->path = AGOO_STRDUP(dir);
 	d->plen = (int)strlen(dir);
-	AGOO_ALLOC(d->path, d->plen);
     }
 }

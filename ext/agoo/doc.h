@@ -24,6 +24,7 @@ extern void	agoo_doc_skip_comment(agooDoc doc);
 extern bool	agoo_doc_skip_to(agooDoc doc, char c);
 extern int	agoo_doc_read_desc(agooErr err, agooDoc doc);
 
+extern int	agoo_doc_skip_jwhite(agooDoc doc);
 
 extern void	agoo_doc_next_token(agooDoc doc);
 extern void	agoo_doc_read_token(agooDoc doc);

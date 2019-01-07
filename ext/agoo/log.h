@@ -124,5 +124,6 @@ extern void		agoo_log_catv(agooLogCat cat, const char *tid, const char *fmt, va_
 extern int		agoo_log_start(agooErr err, bool with_pid);
 
 extern agooColor	find_color(const char *name);
+extern int64_t		agoo_now_nano();
 
 #endif /* AGOO_LOG_H */

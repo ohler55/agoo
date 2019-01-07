@@ -10,7 +10,7 @@
 #define AGOO_TEXT_MIN_SIZE	8
 
 typedef struct _agooText {
-    long	len; // length of valid text
+    long	len;  // length of valid text
     long	alen; // size of allocated text
     atomic_int	ref_cnt;
     bool	bin;
@@ -24,5 +24,9 @@ extern void	agoo_text_ref(agooText t);
 extern void	agoo_text_release(agooText t);
 extern agooText	agoo_text_append(agooText t, const char *s, int len);
 extern agooText	agoo_text_prepend(agooText t, const char *s, int len);
+extern agooText	agoo_text_append_json(agooText t, const char *s, int len);
+extern agooText	agoo_text_append_char(agooText t, const char c);
+
+extern void	agoo_text_reset(agooText t);
 
 #endif // AGOO_TEXT_H

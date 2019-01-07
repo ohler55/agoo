@@ -78,6 +78,8 @@ extern void	gql_uuid_set(gqlValue value, uint64_t hi, uint64_t lo);
 extern int	gql_uuid_str_set(agooErr err, gqlValue value, const char *str, int len);
 extern void	gql_null_set(gqlValue value);
 
+extern const char*	gql_string_get(gqlValue value);
+
 extern agooText	gql_value_json(agooText text, gqlValue value, int indent, int depth);
 extern agooText	gql_value_sdl(agooText text, gqlValue value, int indent, int depth);
 
@@ -93,6 +95,7 @@ extern struct _gqlType	gql_time_type;
 extern struct _gqlType	gql_uuid_type;
 extern struct _gqlType	gql_url_type;
 extern struct _gqlType	gql_string_type;
-extern struct _gqlType	gql_token_type; // just a place holder until enum is determined
+extern struct _gqlType	gql_token_type; // just a place holder until enum is determined and for variables
+extern struct _gqlType	gql_token16_type; // just a place holder until enum is determined and for variables
 
 #endif // AGOO_GQLVALUE_H

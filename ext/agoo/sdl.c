@@ -9,7 +9,16 @@
 #include "graphql.h"
 #include "sdl.h"
 
-static int	make_sel(agooErr err, agooDoc doc, gqlOp op, gqlSel *parentp);
+static const char	query_str[] = "query";
+static const char	union_str[] = "union";
+static const char	enum_str[] = "enum";
+static const char	mutation_str[] = "mutation";
+static const char	subscription_str[] = "subscription";
+static const char	interface_str[] = "interface";
+static const char	input_str[] = "input";
+static const char	type_str[] = "type";
+
+static int	make_sel(agooErr err, agooDoc doc, gqlDoc gdoc, gqlOp op, gqlSel *parentp);
 
 static int
 extract_desc(agooErr err, agooDoc doc, const char **descp, size_t *lenp) {
@@ -23,7 +32,7 @@ extract_desc(agooErr err, agooDoc doc, const char **descp, size_t *lenp) {
     	if (AGOO_ERR_OK != agoo_doc_read_string(err, doc)) {
 	    return err->code;
 	}
-	if ('"' == *desc) { // must be a """
+	if ('"' == *desc && '"' == desc[1]) { // must be a """
 	    desc += 2;
 	    desc_end = doc->cur - 3;
 	} else {
@@ -194,7 +203,7 @@ make_enum(agooErr err, agooDoc doc, const char *desc, size_t dlen) {
     gqlEnumVal	ev;
     size_t	len;
     
-    if (AGOO_ERR_OK != extract_name(err, doc, "enum", 4, name, sizeof(name))) {
+    if (AGOO_ERR_OK != extract_name(err, doc, enum_str, sizeof(enum_str) - 1, name, sizeof(name))) {
 	return err->code;
     }
     if (AGOO_ERR_OK != extract_dir_use(err, doc, &uses)) {
@@ -246,7 +255,7 @@ make_union(agooErr err, agooDoc doc, const char *desc, int len) {
     gqlType	member;
     bool	required;
     
-    if (AGOO_ERR_OK != extract_name(err, doc, "union", 5, name, sizeof(name))) {
+    if (AGOO_ERR_OK != extract_name(err, doc, union_str, sizeof(union_str) - 1, name, sizeof(name))) {
 	return err->code;
     }
     if (AGOO_ERR_OK != extract_dir_use(err, doc, &uses)) {
@@ -536,7 +545,7 @@ make_interface(agooErr err, agooDoc doc, const char *desc, int len) {
     gqlType	type;
     gqlDirUse	uses = NULL;
     
-    if (AGOO_ERR_OK != extract_name(err, doc, "interface", 9, name, sizeof(name))) {
+    if (AGOO_ERR_OK != extract_name(err, doc, interface_str, sizeof(interface_str) - 1, name, sizeof(name))) {
 	return err->code;
     }
     if (AGOO_ERR_OK != extract_dir_use(err, doc, &uses)) {
@@ -572,7 +581,7 @@ make_input(agooErr err, agooDoc doc, const char *desc, int len) {
     gqlType	type;
     gqlDirUse	uses = NULL;
 
-    if (AGOO_ERR_OK != extract_name(err, doc, "input", 5, name, sizeof(name))) {
+    if (AGOO_ERR_OK != extract_name(err, doc, input_str, sizeof(input_str) - 1, name, sizeof(name))) {
 	return err->code;
     }
     if (AGOO_ERR_OK != extract_dir_use(err, doc, &uses)) {
@@ -660,7 +669,7 @@ make_type(agooErr err, agooDoc doc, const char *desc, int len) {
     gqlDirUse	uses = NULL;
     gqlTypeLink	interfaces = NULL;
 
-    if (AGOO_ERR_OK != extract_name(err, doc, "type", 4, name, sizeof(name))) {
+    if (AGOO_ERR_OK != extract_name(err, doc, type_str, sizeof(type_str) - 1, name, sizeof(name))) {
 	return err->code;
     }
     if (AGOO_ERR_OK != extract_interfaces(err, doc, &interfaces)) {
@@ -793,18 +802,17 @@ sel_arg_create(agooErr err, const char *name, gqlValue value, gqlVar var) {
 	agoo_err_set(err, AGOO_ERR_MEMORY, "Failed to allocation memory for a selection field argument.");
     } else {
 	arg->next = NULL;
-	if (NULL == (arg->name = strdup(name))) {
+	if (NULL == (arg->name = AGOO_STRDUP(name))) {
 	    agoo_err_set(err, AGOO_ERR_MEMORY, "strdup of field name failed. %s:%d", __FILE__, __LINE__);
 	    return NULL;
 	}
-	AGOO_ALLOC(arg->name, strlen(arg->name));
 	arg->var = var;
 	arg->value = value;
     }
     return arg;
 }
 static int
-make_sel_arg(agooErr err, agooDoc doc, gqlOp op, gqlSel sel) {
+make_sel_arg(agooErr err, agooDoc doc, gqlDoc gdoc, gqlOp op, gqlSel sel) {
     char	name[256];
     gqlValue	value = NULL;
     gqlVar	var = NULL;
@@ -833,7 +841,14 @@ make_sel_arg(agooErr err, agooDoc doc, gqlOp op, gqlSel sel) {
 	    }
 	}
 	if (NULL == var) {
-	    return agoo_doc_err(doc, err, "variable $%s not defined for operation", var_name);
+	    for (var = gdoc->vars; NULL != var; var = var->next) {
+		if (0 == strcmp(var_name, var->name)) {
+		    break;
+		}
+	    }
+	}
+	if (NULL == var) {
+	    return agoo_doc_err(doc, err, "variable $%s not defined for operation or document", var_name);
 	}
     } else if (NULL == (value = agoo_doc_read_value(err, doc, NULL))) {
 	return err->code;
@@ -853,19 +868,18 @@ make_sel_arg(agooErr err, agooDoc doc, gqlOp op, gqlSel sel) {
     return AGOO_ERR_OK;
 }
 
-static gqlVar
-op_var_create(agooErr err, const char *name, gqlType type, gqlValue value) {
+gqlVar
+gql_op_var_create(agooErr err, const char *name, gqlType type, gqlValue value) {
     gqlVar	var;
 
     if (NULL == (var = (gqlVar)AGOO_MALLOC(sizeof(struct _gqlVar)))) {
 	agoo_err_set(err, AGOO_ERR_MEMORY, "Failed to allocation memory for a operation variable.");
     } else {
 	var->next = NULL;
-	if (NULL == (var->name = strdup(name))) {
+	if (NULL == (var->name = AGOO_STRDUP(name))) {
 	    agoo_err_set(err, AGOO_ERR_MEMORY, "strdup of variable name failed. %s:%d", __FILE__, __LINE__);
 	    return NULL;
 	}
-	AGOO_ALLOC(var->name, strlen(var->name));
 	var->type = type;
 	var->value = value;
     }
@@ -905,7 +919,7 @@ make_op_var(agooErr err, agooDoc doc, gqlOp op) {
 	    return err->code;
 	}
     }
-    if (NULL == (var = op_var_create(err, name, type, value))) {
+    if (NULL == (var = gql_op_var_create(err, name, type, value))) {
 	return err->code;
     }
     if (NULL == op->vars) {
@@ -931,29 +945,26 @@ sel_create(agooErr err, const char *alias, const char *name, const char *frag) {
 	if (NULL == name) {
 	    sel->name = NULL;
 	} else {
-	    if (NULL == (sel->name = strdup(name))) {
+	    if (NULL == (sel->name = AGOO_STRDUP(name))) {
 		agoo_err_set(err, AGOO_ERR_MEMORY, "strdup of selection name failed. %s:%d", __FILE__, __LINE__);
 		return NULL;
 	    }
-	    AGOO_ALLOC(sel->name, strlen(sel->name));
 	}
 	if (NULL == alias) {
 	    sel->alias = NULL;
 	} else {
-	    if (NULL == (sel->alias = strdup(alias))) {
+	    if (NULL == (sel->alias = AGOO_STRDUP(alias))) {
 		agoo_err_set(err, AGOO_ERR_MEMORY, "strdup of selection alias failed. %s:%d", __FILE__, __LINE__);
 		return NULL;
 	    }
-	    AGOO_ALLOC(sel->alias, strlen(sel->alias));
 	}
 	if (NULL == frag) {
 	    sel->frag = NULL;
 	} else {
-	    if (NULL == (sel->frag = strdup(frag))) {
+	    if (NULL == (sel->frag = AGOO_STRDUP(frag))) {
 		agoo_err_set(err, AGOO_ERR_MEMORY, "strdup of selection fragment failed. %s:%d", __FILE__, __LINE__);
 		return NULL;
 	    }
-	    AGOO_ALLOC(sel->frag, strlen(sel->frag));
 	}
 	sel->type = NULL;
 	sel->dir = NULL;
@@ -965,7 +976,7 @@ sel_create(agooErr err, const char *alias, const char *name, const char *frag) {
 }    
 
 static gqlSel
-make_sel_inline(agooErr err, agooDoc doc, gqlOp op) {
+make_sel_inline(agooErr err, agooDoc doc, gqlDoc gdoc, gqlOp op) {
     gqlSel	sel = NULL;
 
     doc->cur += 3;
@@ -996,7 +1007,7 @@ make_sel_inline(agooErr err, agooDoc doc, gqlOp op) {
 		    doc->cur++;
 		    break;
 		}
-		if (AGOO_ERR_OK != make_sel(err, doc, op, &sel->inline_frag->sels)) {
+		if (AGOO_ERR_OK != make_sel(err, doc, gdoc, op, &sel->inline_frag->sels)) {
 		    return NULL;
 		}
 	    }
@@ -1012,7 +1023,7 @@ make_sel_inline(agooErr err, agooDoc doc, gqlOp op) {
 	if (NULL == (sel->inline_frag = gql_fragment_create(err, NULL, NULL))) {
 	    return NULL;
 	}
-	if (AGOO_ERR_OK != extract_dir_use(err, doc, &sel->dir)) {
+	if (AGOO_ERR_OK != extract_dir_use(err, doc, &sel->inline_frag->dir)) {
 	    return NULL;
 	}
 	agoo_doc_skip_white(doc);
@@ -1024,7 +1035,7 @@ make_sel_inline(agooErr err, agooDoc doc, gqlOp op) {
 		    doc->cur++;
 		    break;
 		}
-		if (AGOO_ERR_OK != make_sel(err, doc, op, &sel->inline_frag->sels)) {
+		if (AGOO_ERR_OK != make_sel(err, doc, gdoc, op, &sel->inline_frag->sels)) {
 		    return NULL;
 		}
 	    }
@@ -1045,7 +1056,7 @@ make_sel_inline(agooErr err, agooDoc doc, gqlOp op) {
 }
 
 static int
-make_sel(agooErr err, agooDoc doc, gqlOp op, gqlSel *parentp) {
+make_sel(agooErr err, agooDoc doc, gqlDoc gdoc, gqlOp op, gqlSel *parentp) {
     char	alias[256];
     char	name[256];
     gqlSel	sel = NULL;
@@ -1057,7 +1068,7 @@ make_sel(agooErr err, agooDoc doc, gqlOp op, gqlSel *parentp) {
     *name = '\0';
     agoo_doc_skip_white(doc);
     if ('.' == *doc->cur && '.' == doc->cur[1] && '.' == doc->cur[2]) {
-	if (NULL == (sel = make_sel_inline(err, doc, op))) {
+	if (NULL == (sel = make_sel_inline(err, doc, gdoc, op))) {
 	    return err->code;
 	}
     } else {
@@ -1112,7 +1123,7 @@ make_sel(agooErr err, agooDoc doc, gqlOp op, gqlSel *parentp) {
 		doc->cur++;
 		break;
 	    }
-	    if (AGOO_ERR_OK != make_sel_arg(err, doc, op, sel)) {
+	    if (AGOO_ERR_OK != make_sel_arg(err, doc, gdoc, op, sel)) {
 		return err->code;
 	    }
 	}
@@ -1129,7 +1140,7 @@ make_sel(agooErr err, agooDoc doc, gqlOp op, gqlSel *parentp) {
 		doc->cur++;
 		break;
 	    }
-	    if (AGOO_ERR_OK != make_sel(err, doc, op, &sel->sels)) {
+	    if (AGOO_ERR_OK != make_sel(err, doc, gdoc, op, &sel->sels)) {
 		return err->code;
 	    }
 	}
@@ -1153,11 +1164,11 @@ make_op(agooErr err, agooDoc doc, gqlDoc gdoc) {
     start = doc->cur;
     agoo_doc_read_token(doc);
     if (doc->cur == start ||
-	       (5 == (doc->cur - start) && 0 == strncmp("query", start, 5))) {
+	(5 == (doc->cur - start) && 0 == strncmp(query_str, start, sizeof(query_str) - 1))) {
 	kind = GQL_QUERY;
-    } else if (8 == (doc->cur - start) && 0 == strncmp("mutation", start, 8)) {
+    } else if (8 == (doc->cur - start) && 0 == strncmp(mutation_str, start, sizeof(mutation_str) - 1)) {
 	kind = GQL_MUTATION;
-    } else if (12 == (doc->cur - start) && 0 == strncmp("subscription", start, 12)) {
+    } else if (12 == (doc->cur - start) && 0 == strncmp(subscription_str, start, sizeof(subscription_str) - 1)) {
 	kind = GQL_SUBSCRIPTION;
     } else {
 	return agoo_doc_err(doc, err, "Invalid operation type");
@@ -1205,7 +1216,7 @@ make_op(agooErr err, agooDoc doc, gqlDoc gdoc) {
 	    doc->cur++;
 	    break;
 	}
-	if (AGOO_ERR_OK != make_sel(err, doc, op, NULL)) {
+	if (AGOO_ERR_OK != make_sel(err, doc, gdoc, op, NULL)) {
 	    return err->code;
 	}
     }
@@ -1270,7 +1281,7 @@ make_fragment(agooErr err, agooDoc doc, gqlDoc gdoc) {
 	    doc->cur++;
 	    break;
 	}
-	if (AGOO_ERR_OK != make_sel(err, doc, NULL, &frag->sels)) {
+	if (AGOO_ERR_OK != make_sel(err, doc, gdoc, NULL, &frag->sels)) {
 	    return err->code;
 	}
     }
@@ -1322,8 +1333,22 @@ sel_set_type(agooErr err, gqlType type, gqlSel sels) {
     gqlSel	sel;
     
     for (sel = sels; NULL != sel; sel = sel->next) {
-	if (NULL == (sel->type = lookup_field_type(type, sel->name))) {
-	    return agoo_err_set(err, AGOO_ERR_EVAL, "Failed to determine the type for %s.", sel->name);
+	if (NULL == sel->name) { // inline or fragment
+	    sel->type = type;
+	    if (NULL != sel->inline_frag) {
+		gqlType	ftype = type;
+
+		if (NULL != sel->inline_frag->on) {
+		    ftype = sel->inline_frag->on;
+		}
+		if (AGOO_ERR_OK != sel_set_type(err, ftype, sel->inline_frag->sels)) {
+		    return err->code;
+		}
+	    }
+	} else {
+	    if (NULL == (sel->type = lookup_field_type(type, sel->name))) {
+		return agoo_err_set(err, AGOO_ERR_EVAL, "Failed to determine the type for %s.", sel->name);
+	    }
 	}
 	if (NULL != sel->sels) {
 	    if (AGOO_ERR_OK != sel_set_type(err, sel->type, sel->sels)) {
@@ -1339,20 +1364,26 @@ validate_doc(agooErr err, gqlDoc doc) {
     gqlOp	op;
     gqlType	schema;
     gqlType	type = NULL;
+    gqlFrag	frag;
     
     if (NULL == (schema = gql_type_get("schema"))) {
 	return agoo_err_set(err, AGOO_ERR_EVAL, "No root (schema) type defined.");
     }
+    for (frag = doc->frags; NULL != frag; frag = frag->next) {
+	if (AGOO_ERR_OK != sel_set_type(err, frag->on, frag->sels)) {
+	    return err->code;
+	}
+    }
     for (op = doc->ops; NULL != op; op = op->next) {
 	switch (op->kind) {
 	case GQL_QUERY:
-	    type = lookup_field_type(schema, "query");
+	    type = lookup_field_type(schema, query_str);
 	    break;
 	case GQL_MUTATION:
-	    type = lookup_field_type(schema, "mutation");
+	    type = lookup_field_type(schema, mutation_str);
 	    break;
 	case GQL_SUBSCRIPTION:
-	    type = lookup_field_type(schema, "subscription");
+	    type = lookup_field_type(schema, subscription_str);
 	    break;
 	default:
 	    break;
@@ -1368,7 +1399,7 @@ validate_doc(agooErr err, gqlDoc doc) {
 }
 
 gqlDoc
-sdl_parse_doc(agooErr err, const char *str, int len) {
+sdl_parse_doc(agooErr err, const char *str, int len, gqlVar vars) {
     struct _agooDoc	doc;
     gqlDoc		gdoc = NULL;
     
@@ -1376,8 +1407,12 @@ sdl_parse_doc(agooErr err, const char *str, int len) {
     if (NULL == (gdoc = gql_doc_create(err))) {
 	return NULL;
     }
+    gdoc->vars = vars;
     while (doc.cur < doc.end) {
 	agoo_doc_next_token(&doc);
+	if (doc.end <= doc.cur) {
+	    break;
+	}
 	switch (*doc.cur) {
 	case '{': // no name query
 	case 'q':

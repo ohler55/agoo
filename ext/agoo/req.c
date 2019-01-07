@@ -136,3 +136,35 @@ agoo_req_query_decode(char *s, int len) {
     
     return (int)(sn - s);
 }
+
+const char*
+agoo_req_header_value(agooReq req, const char *key, int *vlen) {
+    // Search for \r then check for \n and then the key followed by a :. Keep
+    // trying until the end of the header.
+    const char	*h = req->header.start;
+    const char	*hend = h + req->header.len;
+    const char	*value;
+    int		klen = (int)strlen(key);
+    
+    while (h < hend) {
+	if (0 == strncmp(key, h, klen) && ':' == h[klen]) {
+	    h += klen + 1;
+	    for (; ' ' == *h; h++) {
+	    }
+	    value = h;
+	    for (; '\r' != *h && '\0' != *h; h++) {
+	    }
+	    *vlen = (int)(h - value);
+ 
+	    return value;
+	}
+	for (; h < hend; h++) {
+	    if ('\r' == *h && '\n' == *(h + 1)) {
+		h += 2;
+		break;
+	    }
+	}
+    }
+    return NULL;
+}
+

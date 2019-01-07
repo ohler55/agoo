@@ -6,9 +6,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-//#include <ruby.h>
-//#include <ruby/thread.h>
-
 #include "debug.h"
 
 typedef struct _rec {
@@ -31,6 +28,7 @@ typedef struct _rep {
 
 static pthread_mutex_t	lock = PTHREAD_MUTEX_INITIALIZER;
 static Rec		recs = NULL;
+static const char	mem_pad[] = "--- This is a memory pad and should not change until being freed. ---";
 
 void
 agoo_alloc(const void *ptr, size_t size, const char *file, int line) {
@@ -40,25 +38,26 @@ agoo_alloc(const void *ptr, size_t size, const char *file, int line) {
     r->size = size;
     r->file = file;
     r->line = line;
-    pthread_mutex_lock(&lock);	
+    pthread_mutex_lock(&lock);
     r->next = recs;
     recs = r;
-    pthread_mutex_unlock(&lock);	
+    pthread_mutex_unlock(&lock);
 }
 
 void*
 agoo_malloc(size_t size, const char *file, int line) {
-    void	*ptr = malloc(size);
+    void	*ptr = malloc(size + sizeof(mem_pad));
     Rec		r = (Rec)malloc(sizeof(struct _rec));
-    
+
+    strcpy(((char*)ptr) + size, mem_pad);
     r->ptr = ptr;
     r->size = size;
     r->file = file;
     r->line = line;
-    pthread_mutex_lock(&lock);	
+    pthread_mutex_lock(&lock);
     r->next = recs;
     recs = r;
-    pthread_mutex_unlock(&lock);	
+    pthread_mutex_unlock(&lock);
 
     return ptr;
 }
@@ -78,11 +77,87 @@ agoo_realloc(void *orig, size_t size, const char *file, int line) {
 	    break;
 	}
     }
-    pthread_mutex_unlock(&lock);	
+    pthread_mutex_unlock(&lock);
     if (NULL == r) {
 	printf("Realloc at %s:%d (%p) not allocated.\n", file, line, orig);
     }
     return ptr;
+}
+
+char*
+agoo_strdup(const char *str, const char *file, int line) {
+    size_t	size = strlen(str) + 1;
+    char	*ptr = (char*)malloc(size + sizeof(mem_pad));
+    Rec		r = (Rec)malloc(sizeof(struct _rec));
+
+    strcpy(ptr, str);
+    strcpy(((char*)ptr) + size, mem_pad);
+    r->ptr = (void*)ptr;
+    r->size = size;
+    r->file = file;
+    r->line = line;
+    pthread_mutex_lock(&lock);
+    r->next = recs;
+    recs = r;
+    pthread_mutex_unlock(&lock);
+
+    return ptr;
+}
+
+char*
+agoo_strndup(const char *str, size_t len, const char *file, int line) {
+    size_t	size = len + 1;
+    char	*ptr = (char*)malloc(size + sizeof(mem_pad));
+    Rec		r = (Rec)malloc(sizeof(struct _rec));
+
+    memcpy(ptr, str, len);
+    ptr[len] = '\0';
+    strcpy(((char*)ptr) + size, mem_pad);
+    r->ptr = (void*)ptr;
+    r->size = size;
+    r->file = file;
+    r->line = line;
+    pthread_mutex_lock(&lock);
+    r->next = recs;
+    recs = r;
+    pthread_mutex_unlock(&lock);
+
+    return ptr;
+}
+
+void
+agoo_mem_check(void *ptr, const char *file, int line) {
+    if (NULL != ptr) {
+	Rec	r = NULL;
+    
+	pthread_mutex_lock(&lock);
+	for (r = recs; NULL != r; r = r->next) {
+	    if (ptr == r->ptr) {
+		break;
+	    }
+	}
+	pthread_mutex_unlock(&lock);
+	if (NULL == r) {
+	    printf("Memory check at %s:%d (%p) not allocated or already freed.\n", file, line, ptr);
+	} else {
+	    char	*pad = (char*)r->ptr + r->size;
+
+	    if (0 != strcmp(mem_pad, pad)) {
+		uint8_t	*p;
+		uint8_t	*end = (uint8_t*)pad + sizeof(mem_pad);
+		
+		printf("Check - Memory at %s:%d (%p) write outside allocated.\n", file, line, ptr);
+		for (p = (uint8_t*)pad; p < end; p++) {
+		    if (0x20 < *p && *p < 0x7f) {
+			printf("%c  ", *p);
+		    } else {
+			printf("%02x ", *(uint8_t*)p);
+		    }
+		}
+		printf("\n");
+	    }
+	}
+    }
 }
 
 void
@@ -107,6 +182,22 @@ agoo_freed(void *ptr, const char *file, int line) {
 	if (NULL == r) {
 	    printf("Free at %s:%d (%p) not allocated or already freed.\n", file, line, ptr);
 	} else {
+	    char	*pad = (char*)r->ptr + r->size;
+
+	    if (0 != strcmp(mem_pad, pad)) {
+		uint8_t	*p;
+		uint8_t	*end = (uint8_t*)pad + sizeof(mem_pad);
+		
+		printf("Memory at %s:%d (%p) write outside allocated.\n", file, line, ptr);
+		for (p = (uint8_t*)pad; p < end; p++) {
+		    if (0x20 < *p && *p < 0x7f) {
+			printf("%c  ", *p);
+		    } else {
+			printf("%02x ", *(uint8_t*)p);
+		    }
+		}
+		printf("\n");
+	    }
 	    free(r);
 	}
     }
@@ -171,7 +262,7 @@ print_stats() {
 	}
 	printf("%lu bytes leaked\n", leaked);
     }
-    pthread_mutex_unlock(&lock);	
+    pthread_mutex_unlock(&lock);
     printf("********************************************************************************\n");
 }
 #endif

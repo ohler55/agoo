@@ -92,18 +92,15 @@ alloc_string(agooErr err, const char *s, size_t len) {
     
     if (NULL != s) {
 	if (0 >= len) {
-	    if (NULL == (a = strdup(s))) {
+	    if (NULL == (a = AGOO_STRDUP(s))) {
 		agoo_err_set(err, AGOO_ERR_MEMORY, "strdup() failed.");
 	    }
 	    len = strlen(a);
 	} else {
-	    if (NULL == (a = strndup(s, len))) {
+	    if (NULL == (a = AGOO_STRNDUP(s, len))) {
 		agoo_err_set(err, AGOO_ERR_MEMORY, "strndup() of length %d failed.", len);
 	    }
 	}
-    }
-    if (NULL != a) {
-	AGOO_ALLOC(a, len);
     }
     return a;
 }
@@ -150,7 +147,7 @@ field_destroy(gqlField f) {
     if (NULL != f->default_value) {
 	gql_value_destroy(f->default_value);
     }
-    AGOO_FREE(f);
+    AGOO_FREE(f); // TBD zzzzzzzz
 }
 
 static void
@@ -166,7 +163,7 @@ type_clean(gqlType type) {
     case GQL_INPUT: {
 	gqlField	f;
 	gqlTypeLink	link;
-	
+
 	while (NULL != (f = type->fields)) {
 	    type->fields = f->next;
 	    field_destroy(f);
@@ -262,6 +259,19 @@ gql_type_get(const char *name) {
 	}
     }
     return type;
+}
+
+void
+gql_type_iterate(void (*fun)(gqlType type, void *ctx), void *ctx) {
+    Slot	*sp = buckets;
+    Slot	s;
+    int		i;
+
+    for (i = BUCKET_SIZE; 0 < i; i--, sp++) {
+	for (s = *sp; NULL != s; s = s->next) {
+	    fun(s->type, ctx);
+	}
+    }
 }
 
 gqlDir
@@ -394,20 +404,17 @@ type_create(agooErr err, gqlKind kind, const char *name, const char *desc, size_
 	    agoo_err_set(err, AGOO_ERR_MEMORY, "Failed to allocation memory for a GraphQL Type.");
 	    return NULL;
 	}
-	if (NULL == (type->name = strdup(name))) {
+	if (NULL == (type->name = AGOO_STRDUP(name))) {
 	    agoo_err_set(err, AGOO_ERR_MEMORY, "strdup of type name failed. %s:%d", __FILE__, __LINE__);
 	    return NULL;
 	}
-	AGOO_ALLOC(type->name, strlen(type->name));
 	if (NULL == (type->desc = alloc_string(err, desc, dlen)) && AGOO_ERR_OK != err->code) {
 	    return NULL;
 	}
-	type->to_sdl = NULL;
 	type->dir = NULL;
 	type->kind = kind;
 	type->scalar_kind = GQL_SCALAR_UNDEF;
 	type->core = false;
-	type->to_sdl = gql_object_to_sdl;
 	
 	if (AGOO_ERR_OK != gql_type_set(err, type)) {
 	    gql_type_destroy(type);
@@ -468,8 +475,7 @@ assure_directive(agooErr err, const char *name) {
 	}
 	dir->next = directives;
 	directives = dir;
-	dir->name = strdup(name);
-	AGOO_ALLOC(dir->name, strlen(dir->name));
+	dir->name = AGOO_STRDUP(name);
 	dir->args = NULL;
 	dir->locs = NULL;
 	dir->defined = false;
@@ -483,7 +489,6 @@ gql_type_create(agooErr err, const char *name, const char *desc, size_t dlen, gq
     gqlType	type = type_create(err, GQL_OBJECT, name, desc, dlen);
 
     if (NULL != type) {
-	type->to_sdl = gql_object_to_sdl;
 	type->fields = NULL;
 	type->interfaces = interfaces;
     }
@@ -505,8 +510,7 @@ gql_type_field(agooErr		err,
 	agoo_err_set(err, AGOO_ERR_MEMORY, "Failed to allocation memory for a GraphQL field.");
     } else {
 	f->next = NULL;
-	f->name = strdup(name);
-	AGOO_ALLOC(f->name, strlen(f->name));
+	f->name = AGOO_STRDUP(name);
 	f->type = return_type;
 	if (NULL == (f->desc = alloc_string(err, desc, dlen)) && AGOO_ERR_OK != err->code) {
 	    return NULL;
@@ -543,8 +547,7 @@ gql_field_arg(agooErr		err,
 	agoo_err_set(err, AGOO_ERR_MEMORY, "Failed to allocation memory for a GraphQL field argument.");
     } else {
 	a->next = NULL;
-	a->name = strdup(name);
-	AGOO_ALLOC(a->name, strlen(a->name));
+	a->name = AGOO_STRDUP(name);
 	a->type = type;
 	if (NULL == (a->desc = alloc_string(err, desc, dlen)) && AGOO_ERR_OK != err->code) {
 	    return NULL;
@@ -565,18 +568,11 @@ gql_field_arg(agooErr		err,
     return a;
 }
 
-agooText
-gql_union_to_sdl(agooText text, gqlValue value, int indent, int depth) {
-    // TBD
-    return text;
-}
-
 gqlType
 gql_union_create(agooErr err, const char *name, const char *desc, size_t dlen) {
     gqlType	type = type_create(err, GQL_UNION, name, desc, dlen);
 
     if (NULL != type) {
-	type->to_sdl = gql_union_to_sdl;
 	type->types = NULL;
     }
     return type;
@@ -604,18 +600,11 @@ gql_union_add(agooErr err, gqlType type, gqlType member) {
     return AGOO_ERR_OK;
 }
 
-agooText
-gql_enum_to_sdl(agooText text, gqlValue value, int indent, int depth) {
-    // TBD
-    return text;
-}
-
 gqlType
 gql_enum_create(agooErr err, const char *name, const char *desc, size_t dlen) {
     gqlType	type = type_create(err, GQL_ENUM, name, desc, dlen);
 
     if (NULL != type) {
-	type->to_sdl = gql_enum_to_sdl;
 	type->choices = NULL;
     }
     return type;
@@ -632,11 +621,10 @@ gql_enum_append(agooErr err, gqlType type, const char *value, size_t len, const 
     if (0 >= len) {
 	len = strlen(value);
     }
-    if (NULL == (ev->value = strndup(value, len))) {
-	agoo_err_set(err, AGOO_ERR_MEMORY, "strdup or strndup of length %d failed. %s:%d", len, __FILE__, __LINE__);
+    if (NULL == (ev->value = AGOO_STRNDUP(value, len))) {
+	agoo_err_set(err, AGOO_ERR_MEMORY, "strndup of length %d failed. %s:%d", len, __FILE__, __LINE__);
 	return NULL;
     }
-    AGOO_ALLOC(ev->value, len);
     ev->dir = NULL;
     if (NULL == (ev->desc = alloc_string(err, desc, dlen)) && AGOO_ERR_OK != err->code) {
 	return NULL;
@@ -655,27 +643,15 @@ gql_enum_append(agooErr err, gqlType type, const char *value, size_t len, const 
     return ev;
 }
 
-static agooText
-input_to_sdl(agooText text, gqlValue value, int indent, int depth) {
-    // TBD
-    return text;
-}
-
 gqlType
 gql_input_create(agooErr err, const char *name, const char *desc, size_t dlen) {
     gqlType	type = type_create(err, GQL_INPUT, name, desc, dlen);
 
     if (NULL != type) {
-	type->to_sdl = input_to_sdl;
 	type->fields = NULL;
+	type->interfaces = NULL;
     }
     return type;
-}
-
-static agooText
-interface_to_sdl(agooText text, gqlValue value, int indent, int depth) {
-    // TBD
-    return text;
 }
 
 gqlType
@@ -683,14 +659,16 @@ gql_interface_create(agooErr err, const char *name, const char *desc, size_t dle
     gqlType	type = type_create(err, GQL_INTERFACE, name, desc, dlen);
 
     if (NULL != type) {
-	type->to_sdl = interface_to_sdl;
 	type->fields = NULL;
+	type->interfaces = NULL;
     }
     return type;
 }
 
+// TBD this is not correct. Is it used?
 static agooText
 scalar_to_text(agooText text, gqlValue value, int indent, int depth) {
+    printf("********** scalar_to_text\n");
     if (NULL == value->str) {
 	text = agoo_text_append(text, "null", 4);
     } else {
@@ -740,8 +718,7 @@ gql_directive_create(agooErr err, const char *name, const char *desc, size_t dle
 	}
 	dir->next = directives;
 	directives = dir;
-	dir->name = strdup(name);
-	AGOO_ALLOC(dir->name, strlen(dir->name));
+	dir->name = AGOO_STRDUP(name);
 	dir->args = NULL;
 	dir->locs = NULL;
 	dir->defined = true;
@@ -769,8 +746,7 @@ gql_dir_arg(agooErr 		err,
 	agoo_err_set(err, AGOO_ERR_MEMORY, "Failed to allocation memory for a GraphQL directive argument.");
     } else {
 	a->next = NULL;
-	a->name = strdup(name);
-	AGOO_ALLOC(a->name, strlen(a->name));
+	a->name = AGOO_STRDUP(name);
 	a->type = type;
 	if (NULL == (a->desc = alloc_string(err, desc, dlen)) && AGOO_ERR_OK != err->code) {
 	    return NULL;
@@ -811,11 +787,9 @@ gql_directive_on(agooErr err, gqlDir d, const char *on, int len) {
 	}
 	loc->next = link;
     }
-    if (NULL == (link->str = strndup(on, len))) {
-	return agoo_err_set(err, AGOO_ERR_MEMORY, "strdup or strndup of length %d failed. %s:%d", len, __FILE__, __LINE__);
+    if (NULL == (link->str = AGOO_STRNDUP(on, len))) {
+	return agoo_err_set(err, AGOO_ERR_MEMORY, "strndup of length %d failed. %s:%d", len, __FILE__, __LINE__);
     }
-    AGOO_ALLOC(link->str, len);
-
     return AGOO_ERR_OK;
 }
 
@@ -1240,11 +1214,10 @@ gql_fragment_create(agooErr err, const char *name, gqlType on) {
     } else {
 	frag->next = NULL;
 	if (NULL != name) {
-	    if (NULL == (frag->name = strdup(name))) {
+	    if (NULL == (frag->name = AGOO_STRDUP(name))) {
 		agoo_err_set(err, AGOO_ERR_MEMORY, "strdup of fragment name failed. %s:%d", __FILE__, __LINE__);
 		return NULL;
 	    }
-	    AGOO_ALLOC(frag->name, strlen(frag->name));
 	} else {
 	    frag->name = NULL;
 	}
@@ -1275,6 +1248,7 @@ gql_doc_create(agooErr err) {
 	agoo_err_set(err, AGOO_ERR_MEMORY, "GraphQL Document creation failed. %s:%d", __FILE__, __LINE__);
     } else {
 	doc->ops = NULL;
+	doc->vars = NULL;
 	doc->frags = NULL;
     }
     return doc;
@@ -1289,11 +1263,10 @@ gql_op_create(agooErr err, const char *name, gqlOpKind kind) {
     } else {
 	op->next = NULL;
 	if (NULL != name && '\0' != *name) {
-	    if (NULL == (op->name = strdup(name))) {
+	    if (NULL == (op->name = AGOO_STRDUP(name))) {
 		agoo_err_set(err, AGOO_ERR_MEMORY, "strdup of operation name failed. %s:%d", __FILE__, __LINE__);
 		return NULL;
 	    }
-	    AGOO_ALLOC(op->name, strlen(op->name));
 	} else {
 	    op->name = NULL;
 	}
@@ -1381,10 +1354,15 @@ void
 gql_doc_destroy(gqlDoc doc) {
     gqlOp	op;
     gqlFrag	frag;
-
+    gqlVar	var;
+    
     while (NULL != (op = doc->ops)) {
 	doc->ops = op->next;
 	gql_op_destroy(op);
+    }
+    while (NULL != (var = doc->vars)) {
+	doc->vars = var->next;
+	var_destroy(var);
     }
     while (NULL != (frag = doc->frags)) {
 	doc->frags = frag->next;
