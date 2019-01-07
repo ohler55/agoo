@@ -53,15 +53,16 @@ type Query @ruby(class: "Query") {
   artist(name: String!): Artist
 }
 
-type Artist {
+type Artist @ruby(class: "Artist") {
   name: String!
   songs: [Song]
   origin: [String]
 }
 
-type Song {
+type Song @ruby(class: "Song") {
   name: String!
   artist: Artist
+  duration: Int
 }
 ^
 
@@ -103,7 +104,7 @@ class GraphQLTest < Minitest::Test
   subscription: Subscription
 }
 
-type Artist {
+type Artist @ruby(class: "Artist") {
   name: String!
   songs: [Song]
   origin: [String]
@@ -116,9 +117,10 @@ type Query @ruby(class: "Query") {
   artist(name: String!): Artist
 }
 
-type Song {
+type Song @ruby(class: "Song") {
   name: String!
   artist: Artist
+  duration: Int
 }
 
 type Subscription {
@@ -157,15 +159,13 @@ directive @ruby(class: String!) on SCHEMA | OBJECT
 
       post_graphql_test
       post_json_test
-      #post_unknown_graphql_test
-      #post_unknown_json_test
+      post_fragment_test
+      post_inline_test
+      post_skip_test
+      # TBD variables from both query params and query args
+      #post_variables_test
+      post_nested_test
 
-      # TBD POST
-      #     fragment
-      #     inline fragment
-      #       on Song
-      #       @skip
-      #       @include
       # TBD introspection
 
     ensure
@@ -315,9 +315,8 @@ directive @ruby(class: String!) on SCHEMA | OBJECT
 
   def post_json_test
     uri = URI('http://localhost:6472/graphql?indent=2')
-  #"query":"{\\n  artist(name:\\\"Fazerdaze\\\"){\\n    name\\n  }\\n}"
     body = %^{
-  "query":"{artist(name:\\"Fazerdaze\\"){name}}"
+  "query":"{\\n  artist(name:\\\"Fazerdaze\\\"){\\n    name\\n  }\\n}"
 }^
     expect = %^{
   "data":{
@@ -328,6 +327,156 @@ directive @ruby(class: String!) on SCHEMA | OBJECT
 }^
 
     post_test(uri, body, 'application/json', expect)
+  end
+
+  def post_fragment_test
+    uri = URI('http://localhost:6472/graphql?indent=2')
+    body = %^
+{
+  artist(name:"Fazerdaze") {
+    ...basic
+  }
+}
+
+fragment basic on Artist {
+  name
+  origin
+}
+^
+    expect = %^{
+  "data":{
+    "artist":{
+      "name":"Fazerdaze",
+      "origin":[
+        "Morningside",
+        "Auckland",
+        "New Zealand"
+      ]
+    }
+  }
+}^
+
+    post_test(uri, body, 'application/graphql', expect)
+  end
+
+  def post_inline_test
+    uri = URI('http://localhost:6472/graphql?indent=2')
+    body = %^
+{
+  artist(name:"Fazerdaze") {
+    ... on Artist {
+      name
+      origin
+    }
+  }
+}
+^
+    expect = %^{
+  "data":{
+    "artist":{
+      "name":"Fazerdaze",
+      "origin":[
+        "Morningside",
+        "Auckland",
+        "New Zealand"
+      ]
+    }
+  }
+}^
+
+    post_test(uri, body, 'application/graphql', expect)
+  end
+
+  def post_skip_test
+    uri = URI('http://localhost:6472/graphql?indent=2')
+    body = %^
+query skippy($boo: Boolean = true){
+  artist(name:"Fazerdaze") {
+    ... @include(if: true) {
+      name
+    }
+    ... @skip(if: true) {
+      origin
+    }
+  }
+}
+^
+    expect = %^{
+  "data":{
+    "artist":{
+      "name":"Fazerdaze"
+    }
+  }
+}^
+
+    post_test(uri, body, 'application/graphql', expect)
+  end
+
+  def post_variables_test
+    uri = URI('http://localhost:6472/graphql?indent=2')
+    body = %^
+query skippy($boo: Boolean = true){
+  artist(name:"Fazerdaze") {
+    ... @include(if: $boo) {
+      name
+    }
+    ... @skip(if: $boo) {
+      origin
+    }
+  }
+}
+^
+    expect = %^{
+  "data":{
+    "artist":{
+      "name":"Fazerdaze"
+    }
+  }
+}^
+
+    post_test(uri, body, 'application/graphql', expect)
+  end
+
+  def post_nested_test
+    uri = URI('http://localhost:6472/graphql?indent=2')
+    body = %^
+query skippy($boo: Boolean = true){
+  artist(name:"Fazerdaze") {
+    name
+    songs {
+      name
+      duration
+    }
+  }
+}
+^
+    expect = %^{
+  "data":{
+    "artist":{
+      "name":"Fazerdaze",
+      "songs":[
+        {
+          "name":"Jennifer",
+          "duration":240
+        },
+        {
+          "name":"Lucky Girl",
+          "duration":170
+        },
+        {
+          "name":"Friends",
+          "duration":194
+        },
+        {
+          "name":"Reel",
+          "duration":193
+        }
+      ]
+    }
+  }
+}^
+
+    post_test(uri, body, 'application/graphql', expect)
   end
 
   ##################################

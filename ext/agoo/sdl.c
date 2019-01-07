@@ -1023,7 +1023,7 @@ make_sel_inline(agooErr err, agooDoc doc, gqlDoc gdoc, gqlOp op) {
 	if (NULL == (sel->inline_frag = gql_fragment_create(err, NULL, NULL))) {
 	    return NULL;
 	}
-	if (AGOO_ERR_OK != extract_dir_use(err, doc, &sel->dir)) {
+	if (AGOO_ERR_OK != extract_dir_use(err, doc, &sel->inline_frag->dir)) {
 	    return NULL;
 	}
 	agoo_doc_skip_white(doc);
@@ -1335,7 +1335,16 @@ sel_set_type(agooErr err, gqlType type, gqlSel sels) {
     for (sel = sels; NULL != sel; sel = sel->next) {
 	if (NULL == sel->name) { // inline or fragment
 	    sel->type = type;
-	    // TBD if ... on Zzz then use Zzz as type
+	    if (NULL != sel->inline_frag) {
+		gqlType	ftype = type;
+
+		if (NULL != sel->inline_frag->on) {
+		    ftype = sel->inline_frag->on;
+		}
+		if (AGOO_ERR_OK != sel_set_type(err, ftype, sel->inline_frag->sels)) {
+		    return err->code;
+		}
+	    }
 	} else {
 	    if (NULL == (sel->type = lookup_field_type(type, sel->name))) {
 		return agoo_err_set(err, AGOO_ERR_EVAL, "Failed to determine the type for %s.", sel->name);
@@ -1355,9 +1364,15 @@ validate_doc(agooErr err, gqlDoc doc) {
     gqlOp	op;
     gqlType	schema;
     gqlType	type = NULL;
+    gqlFrag	frag;
     
     if (NULL == (schema = gql_type_get("schema"))) {
 	return agoo_err_set(err, AGOO_ERR_EVAL, "No root (schema) type defined.");
+    }
+    for (frag = doc->frags; NULL != frag; frag = frag->next) {
+	if (AGOO_ERR_OK != sel_set_type(err, frag->on, frag->sels)) {
+	    return err->code;
+	}
     }
     for (op = doc->ops; NULL != op; op = op->next) {
 	switch (op->kind) {

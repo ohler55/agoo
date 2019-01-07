@@ -294,6 +294,13 @@ agoo_doc_read_value(agooErr err, agooDoc doc, gqlType type) {
     agoo_doc_skip_white(doc);
     start = doc->cur;    
     switch (*doc->cur) {
+    case '$':
+	agoo_doc_read_token(doc);
+
+	// TBD create a variable (a new type value)
+	//start, doc->cur - start);
+
+	break;
     case '"': {
 	const char	*end;
 
