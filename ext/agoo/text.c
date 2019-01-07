@@ -165,7 +165,7 @@ agoo_text_append_json(agooText t, const char *s, int len) {
 	len = (int)strlen(s);
     }
     jlen = json_size(s, len);
-    if (t->alen <= t->len + jlen) {
+    if (t->alen <= (long)(t->len + jlen)) {
 	long	new_len = t->alen + jlen + t->alen / 2;
 	size_t	size = sizeof(struct _agooText) - AGOO_TEXT_MIN_SIZE + new_len + 1;
 
