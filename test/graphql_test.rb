@@ -149,7 +149,7 @@ directive @ruby(class: String!) on SCHEMA | OBJECT
 
       load_test
       get_schema_test
-=begin
+
       get_query_test
       variable_query_test
       json_vars_query_test
@@ -163,7 +163,6 @@ directive @ruby(class: String!) on SCHEMA | OBJECT
       post_inline_test
       post_nested_test
       post_skip_test
-=end
       post_variables_test
 
       # TBD introspection
