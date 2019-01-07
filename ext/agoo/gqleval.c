@@ -122,6 +122,26 @@ static struct _implFuncs	intro_funcs = {
     .iterate = iterate_intro,
 };
 
+gqlValue
+doc_var_value(gqlDoc doc, const char *key) {
+    gqlVar	var;
+
+    // look in doc->vars and doc->op->vars
+    if (NULL != doc->op) {
+	for (var = doc->op->vars; NULL != var; var = var->next) {
+	    if (0 == strcmp(key, var->name)) {
+		return var->value;
+	    }
+	}
+    }
+    for (var = doc->vars; NULL != var; var = var->next) {
+	if (0 == strcmp(key, var->name)) {
+	    return var->value;
+	}
+    }
+    return NULL;
+}
+
 static bool
 frag_include(gqlDoc doc, gqlFrag frag, gqlRef ref, ImplFuncs funcs) {
     gqlDirUse	dir;
@@ -136,8 +156,25 @@ frag_include(gqlDoc doc, gqlFrag frag, gqlRef ref, ImplFuncs funcs) {
 	    gqlLink	arg;
 
 	    for (arg = dir->args; NULL != arg; arg = arg->next) {
-		if (0 == strcmp("if", arg->key) && NULL != arg->value && &gql_bool_type == arg->value->type && arg->value->b) {
-		    return false;
+		if (0 == strcmp("if", arg->key) && NULL != arg->value) {
+		    if (&gql_bool_type == arg->value->type && arg->value->b) {
+			return false;
+		    } else {
+			const char	*key = NULL;
+			
+			if (&gql_token_type == arg->value->type) {
+			    key = arg->value->str;
+			} else if (&gql_token16_type == arg->value->type) {
+			    key = arg->value->str16;
+			}
+			if (NULL != key) {
+			    gqlValue	var = doc_var_value(doc, key);
+
+			    if (NULL != var && &gql_bool_type == var->type && var->b) {
+				return false;
+			    }
+			}
+		    }
 		}
 	    }
 	}
@@ -145,8 +182,25 @@ frag_include(gqlDoc doc, gqlFrag frag, gqlRef ref, ImplFuncs funcs) {
 	    gqlLink	arg;
 
 	    for (arg = dir->args; NULL != arg; arg = arg->next) {
-		if (0 == strcmp("if", arg->key) && NULL != arg->value && &gql_bool_type == arg->value->type && !arg->value->b) {
-		    return false;
+		if (0 == strcmp("if", arg->key) && NULL != arg->value) {
+		    if (&gql_bool_type == arg->value->type && !arg->value->b) {
+			return false;
+		    } else {
+			const char	*key = NULL;
+
+			if (&gql_token_type == arg->value->type) {
+			    key = arg->value->str;
+			} else if (&gql_token16_type == arg->value->type) {
+			    key = arg->value->str16;
+			}
+			if (NULL != key) {
+			    gqlValue	var = doc_var_value(doc, key);
+
+			    if (NULL != var && &gql_bool_type == var->type && !var->b) {
+				return false;
+			    }
+			}
+		    }
 		}
 	    }
 	}

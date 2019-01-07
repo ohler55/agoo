@@ -95,6 +95,7 @@ extern struct _gqlType	gql_time_type;
 extern struct _gqlType	gql_uuid_type;
 extern struct _gqlType	gql_url_type;
 extern struct _gqlType	gql_string_type;
-extern struct _gqlType	gql_token_type; // just a place holder until enum is determined
+extern struct _gqlType	gql_token_type; // just a place holder until enum is determined and for variables
+extern struct _gqlType	gql_token16_type; // just a place holder until enum is determined and for variables
 
 #endif // AGOO_GQLVALUE_H

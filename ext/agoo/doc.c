@@ -295,11 +295,10 @@ agoo_doc_read_value(agooErr err, agooDoc doc, gqlType type) {
     start = doc->cur;    
     switch (*doc->cur) {
     case '$':
+	doc->cur++;
+	start++;
 	agoo_doc_read_token(doc);
-
-	// TBD create a variable (a new type value)
-	//start, doc->cur - start);
-
+	value = gql_token_create(err, start, doc->cur - start);
 	break;
     case '"': {
 	const char	*end;

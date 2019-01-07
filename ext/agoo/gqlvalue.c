@@ -1240,9 +1240,9 @@ gql_string_get(gqlValue value) {
     const char	*s = NULL;
 
     if (NULL != value) {
-	if (&gql_string_type == value->type) {
+	if (&gql_string_type == value->type || &gql_token_type == value->type) {
 	    s = value->str;
-	} else if (&gql_str16_type == value->type) {
+	} else if (&gql_str16_type == value->type || &gql_token16_type == value->type) {
 	    s = value->str16;
 	}
     }
