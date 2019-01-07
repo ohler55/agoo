@@ -50,9 +50,7 @@ parse_num(agooErr err, agooDoc doc) {
     }
     for (; doc->cur < doc->end && '0' <= c && c <= '9'; c = *++doc->cur) {
 	dec_cnt++;
-	if (big) {
-	    big++;
-	} else {
+	if (!big) {
 	    int	d = (c - '0');
 
 	    if (0 == d) {
@@ -315,7 +313,7 @@ parse_object(agooErr err, agooDoc doc) {
 	    start = doc->cur;
 	    for (; doc->cur < doc->end && '"' != *doc->cur; doc->cur++) {
 	    }
-	    if (sizeof(key) <= doc->cur - start) {
+	    if ((int)sizeof(key) <= (int)(doc->cur - start)) {
 		return return_parse_err(err, doc, "object key too long", value);
 	    }
 	    memcpy(key, start, doc->cur - start);

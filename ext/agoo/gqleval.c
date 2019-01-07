@@ -420,14 +420,13 @@ gql_eval_get_hook(agooReq req) {
 static gqlValue
 eval_post(agooErr err, agooReq req) {
     gqlDoc		doc;
-    int			indent = 0;
     const char		*op_name = NULL;
     const char		*var_json = NULL;
     const char		*query = NULL;
     int			oplen;
     int			vlen;
-    int			qlen;
-    gqlVar		vars;
+    int			qlen = 0;
+    gqlVar		vars = NULL;
     const char		*s;
     int			len;
     gqlValue		result;
