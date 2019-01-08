@@ -1,5 +1,6 @@
 // Copyright (c) 2018, Peter Ohler, All rights reserved.
 
+#include <stdint.h>
 #include <stdlib.h>
 
 #include <ruby.h>
@@ -94,6 +95,7 @@ static VALUE
 gval_to_ruby(gqlValue value) {
     volatile VALUE	rval = Qnil;
 
+    printf("*** gval to ruby - %s\n", value->type->name);
     if (NULL == value || NULL == value->type) {
 	return Qnil;
     }
@@ -156,6 +158,7 @@ static gqlRef
 resolve(agooErr err, gqlRef target, const char *field_name, gqlKeyVal args) {
     volatile VALUE	result;
 
+    printf("*** resolve %s\n", field_name);
     if (NULL != args && NULL != args->key) {
 	volatile VALUE	rargs = rb_hash_new();
 
@@ -166,7 +169,6 @@ resolve(agooErr err, gqlRef target, const char *field_name, gqlKeyVal args) {
     } else {
 	result = rb_funcall((VALUE)target, rb_intern(field_name), 0);
     }
-
     return (gqlRef)result;
 }
 
@@ -183,14 +185,98 @@ ref_to_string(gqlRef ref) {
 }
 
 static gqlValue
+time_to_time(agooErr err, VALUE rval) {
+    long long	sec;
+    long long	nsec;
+
+#ifdef HAVE_RB_TIME_TIMESPEC
+    // rb_time_timespec as well as rb_time_timeeval have a bug that causes an
+    // exception to be raised if a time is before 1970 on 32 bit systems so
+    // check the timespec size and use the ruby calls if a 32 bit system.
+    if (16 <= sizeof(struct timespec)) {
+	struct timespec	ts = rb_time_timespec(rval);
+
+	sec = (long long)ts.tv_sec;
+	nsec = ts.tv_nsec;
+    } else {
+	sec = rb_num2ll(rb_funcall2(rval, oj_tv_sec_id, 0, 0));
+	nsec = rb_num2ll(rb_funcall2(rval, oj_tv_nsec_id, 0, 0));
+    }
+#else
+    sec = rb_num2ll(rb_funcall2(rval, rb_intern("tv_sec"), 0, 0));
+    nsec = rb_num2ll(rb_funcall2(rval, rb_intern("tv_nsec"), 0, 0));
+#endif
+    return gql_time_create(err, (int64_t)(sec * 1000000000LL + nsec));
+}
+
+static gqlValue
 coerce(agooErr err, gqlRef ref, gqlType type) {
     gqlValue		value = NULL;
     volatile VALUE	v;
-    
+
+    printf("*** coerce\n");
     if (NULL == type) {
 	// This is really an error but make a best effort anyway.
+	switch (rb_type((VALUE)ref)) {
+	case RUBY_T_FLOAT:
+	    value = gql_float_create(err, rb_num2dbl(rb_to_float((VALUE)ref)));
+	    break;
+	case RUBY_T_STRING:
+	    v = ref_to_string(ref);
+	    value = gql_string_create(err, rb_string_value_ptr(&v), RSTRING_LEN(v));
+	    break;
+	case RUBY_T_ARRAY: {
+	    gqlValue	v;
+	    VALUE	a = (VALUE)ref;
+	    int		cnt = (int)RARRAY_LEN(a);
+	    int		i;
 
-	// TBD
+	    value = gql_list_create(err, NULL);
+	    for (i = 0; i < cnt; i++) {
+
+		if (NULL == (v =coerce(err, (gqlRef)rb_ary_entry(a, i), type->base)) ||
+		    AGOO_ERR_OK != gql_list_append(err, value, v)) {
+		    return NULL;
+		}
+	    }
+	    break;
+	}
+	case RUBY_T_TRUE:
+	    value = gql_bool_create(err, true);
+	    break;
+	case RUBY_T_FALSE:
+	    value = gql_bool_create(err, false);
+	    break;
+	case RUBY_T_SYMBOL:
+	    value = gql_string_create(err, rb_id2name(rb_sym2id((VALUE)ref)), -1);
+	    break;
+	case RUBY_T_FIXNUM: {
+	    long	i = RB_NUM2LONG(rb_to_int((VALUE)ref));
+
+	    if (i < INT32_MIN || INT32_MAX < i) {
+		value = gql_i64_create(err, i);
+	    } else {
+		value = gql_int_create(err, i);
+	    }
+	    break;
+	}
+	case RUBY_T_NIL:
+	    value = gql_null_create(err);
+	    break;
+	case RUBY_T_OBJECT: {
+	    VALUE	clas = rb_obj_class((VALUE)ref);
+
+	    if (rb_cTime == clas) {
+		value = time_to_time(err, (VALUE)ref);
+	    }
+	    // TBD UUID
+	    break;
+	}
+	default:
+	    v = ref_to_string(ref);
+	    value = gql_string_create(err, rb_string_value_ptr(&v), RSTRING_LEN(v));
+	    break;
+	}
     } else if (GQL_SCALAR == type->kind) {
 	switch (type->scalar_kind) {
 	case GQL_SCALAR_BOOL:
@@ -219,28 +305,9 @@ coerce(agooErr err, gqlRef ref, gqlType type) {
 	case GQL_SCALAR_TIME: {
 	    VALUE	clas = rb_obj_class((VALUE)ref);
 
+	    printf("*** time\n");
 	    if (rb_cTime == clas) {
-		long long	sec;
-		long long	nsec;
-
-#ifdef HAVE_RB_TIME_TIMESPEC
-		// rb_time_timespec as well as rb_time_timeeval have a bug that causes an
-		// exception to be raised if a time is before 1970 on 32 bit systems so
-		// check the timespec size and use the ruby calls if a 32 bit system.
-		if (16 <= sizeof(struct timespec)) {
-		    struct timespec	ts = rb_time_timespec((VALUE)ref);
-
-		    sec = (long long)ts.tv_sec;
-		    nsec = ts.tv_nsec;
-		} else {
-		    sec = rb_num2ll(rb_funcall2((VALUE)ref, oj_tv_sec_id, 0, 0));
-		    nsec = rb_num2ll(rb_funcall2((VALUE)ref, oj_tv_nsec_id, 0, 0));
-		}
-#else
-		sec = rb_num2ll(rb_funcall2((VALUE)ref, rb_intern("tv_sec"), 0, 0));
-		nsec = rb_num2ll(rb_funcall2((VALUE)ref, rb_intern("tv_nsec"), 0, 0));
-#endif
-		value = gql_time_create(err, (int64_t)(sec * 1000000000LL + nsec));
+		value = time_to_time(err, (VALUE)ref);
 	    }
 	    // TBD parse string and handle fixnum
 	    break;

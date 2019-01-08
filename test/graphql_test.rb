@@ -40,6 +40,15 @@ class Artist
     }
     a
   end
+
+  def songs_after(args={})
+    t = args['time']
+    a = []
+    @songs.each { |s|
+      a << s if t <= s.release
+    }
+    a
+  end
 end
 
 class Song
@@ -69,6 +78,7 @@ type Artist @ruby(class: "Artist") {
   songs: [Song]
   origin: [String]
   genre_songs(genre:Genre): [Song]
+  songs_after(time: Time): [Song]
 }
 
 type Song @ruby(class: "Song") {
@@ -76,6 +86,7 @@ type Song @ruby(class: "Song") {
   artist: Artist
   duration: Int
   genre: Genre
+  release: Time
 }
 
 enum Genre {
@@ -105,10 +116,10 @@ class Schema
   def initialize()
     # Set up some data for testing.
     artist = Artist.new('Fazerdaze', ['Morningside', 'Auckland', 'New Zealand'])
-    Song.new('Jennifer', artist, 240, Time.new(2017, 5, 5))
-    Song.new('Lucky Girl', artist, 170, Time.new(2017, 5, 5))
-    Song.new('Friends', artist, 194, Time.new(2017, 5, 5))
-    Song.new('Reel', artist, 193, Time.new(2015, 11, 2))
+    Song.new('Jennifer', artist, 240, Time.utc(2017, 5, 5))
+    Song.new('Lucky Girl', artist, 170, Time.utc(2017, 5, 5))
+    Song.new('Friends', artist, 194, Time.utc(2017, 5, 5))
+    Song.new('Reel', artist, 193, Time.utc(2015, 11, 2))
     @artists = {artist.name => artist}
 
     @query = Query.new(@artists)
@@ -128,6 +139,7 @@ type Artist @ruby(class: "Artist") {
   songs: [Song]
   origin: [String]
   genre_songs(genre: Genre): [Song]
+  songs_after(time: Time): [Song]
 }
 
 type Mutation {
@@ -142,6 +154,7 @@ type Song @ruby(class: "Song") {
   artist: Artist
   duration: Int
   genre: Genre
+  release: Time
 }
 
 type Subscription {
@@ -176,7 +189,7 @@ directive @ruby(class: String!) on SCHEMA | OBJECT
 
       load_test
       get_schema_test
-
+=begin
       get_query_test
       variable_query_test
       json_vars_query_test
@@ -192,6 +205,8 @@ directive @ruby(class: String!) on SCHEMA | OBJECT
       post_skip_test
       post_variables_test
       post_enum_test
+=end
+      post_time_test
 
       # TBD list arg
       # TBD obj arg
@@ -443,6 +458,48 @@ query skippy($boo: Boolean = true){
     post_test(uri, body, 'application/graphql', expect)
   end
 
+  def post_nested_test
+    uri = URI('http://localhost:6472/graphql?indent=2')
+    body = %^
+query skippy($boo: Boolean = true){
+  artist(name:"Fazerdaze") {
+    name
+    songs {
+      name
+      duration
+    }
+  }
+}
+^
+    expect = %^{
+  "data":{
+    "artist":{
+      "name":"Fazerdaze",
+      "songs":[
+        {
+          "name":"Jennifer",
+          "duration":240
+        },
+        {
+          "name":"Lucky Girl",
+          "duration":170
+        },
+        {
+          "name":"Friends",
+          "duration":194
+        },
+        {
+          "name":"Reel",
+          "duration":193
+        }
+      ]
+    }
+  }
+}^
+
+    post_test(uri, body, 'application/graphql', expect)
+  end
+
   def post_variables_test
     uri = URI('http://localhost:6472/graphql?indent=2')
     body = %^
@@ -509,15 +566,15 @@ query skippy($boo: Boolean = true){
 
     post_test(uri, body, 'application/graphql', expect)
   end
-  def post_nested_test
+
+  def post_time_test
     uri = URI('http://localhost:6472/graphql?indent=2')
     body = %^
-query skippy($boo: Boolean = true){
+{
   artist(name:"Fazerdaze") {
-    name
-    songs {
+    songs: songs_after(time: "2016-01-01T00:00:00.000000000Z") {
       name
-      duration
+      release
     }
   }
 }
@@ -525,23 +582,22 @@ query skippy($boo: Boolean = true){
     expect = %^{
   "data":{
     "artist":{
-      "name":"Fazerdaze",
       "songs":[
         {
           "name":"Jennifer",
-          "duration":240
+          "release":"2017-05-05T00:00:00.000000000Z"
         },
         {
           "name":"Lucky Girl",
-          "duration":170
+          "release":"2017-05-05T00:00:00.000000000Z"
         },
         {
           "name":"Friends",
-          "duration":194
+          "release":"2017-05-05T00:00:00.000000000Z"
         },
         {
           "name":"Reel",
-          "duration":193
+          "release":"2015-11-02T00:00:00.000000000Z"
         }
       ]
     }

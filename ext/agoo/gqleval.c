@@ -280,6 +280,8 @@ eval_sel(agooErr err, gqlDoc doc, gqlRef ref, gqlSel sel, gqlValue result, ImplF
 	    } else {
 		a->value = sa->value;
 	    }
+	    // TBD compare value type with expected type
+	    //   how to get expected type?
 	}
 	a->key = NULL;
 	if (NULL != sel->alias) {
@@ -373,6 +375,7 @@ gql_doc_eval(agooErr err, gqlDoc doc) {
 	    agoo_err_set(err, AGOO_ERR_EVAL, "root %s is not supported.", key);
 	    return NULL;
 	}
+	// TBD pass in type, get type from 'schema' type at key
 	if (AGOO_ERR_OK != eval_sels(err, doc, op_root, doc->op->sels, result, &funcs)) {
 	    gql_value_destroy(result);
 	    return NULL;
