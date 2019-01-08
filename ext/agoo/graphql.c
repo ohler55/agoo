@@ -208,7 +208,8 @@ type_destroy(gqlType type) {
 	&gql_float_type == type ||
 	&gql_time_type == type ||
 	&gql_uuid_type == type ||
-	&gql_url_type == type ||
+	&gql_token_type == type ||
+	&gql_var_type == type ||
 	&gql_string_type == type) {
 
 	return;
@@ -669,13 +670,6 @@ gql_interface_create(agooErr err, const char *name, const char *desc, size_t dle
 static agooText
 scalar_to_text(agooText text, gqlValue value, int indent, int depth) {
     printf("********** scalar_to_text\n");
-    if (NULL == value->str) {
-	text = agoo_text_append(text, "null", 4);
-    } else {
-	text = agoo_text_append(text, "\"", 1);
-	text = agoo_text_append(text, value->str, -1);
-	text = agoo_text_append(text, "\"", 1);
-    }
     return text;
 }
 

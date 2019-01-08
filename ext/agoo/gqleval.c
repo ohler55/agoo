@@ -161,11 +161,13 @@ frag_include(gqlDoc doc, gqlFrag frag, gqlRef ref, ImplFuncs funcs) {
 			return false;
 		    } else {
 			const char	*key = NULL;
-			
-			if (&gql_token_type == arg->value->type) {
-			    key = arg->value->str;
-			} else if (&gql_token16_type == arg->value->type) {
-			    key = arg->value->str16;
+
+			if (&gql_var_type == arg->value->type) {
+			    if (arg->value->str.alloced) {
+				key = arg->value->str.ptr;
+			    } else {
+				key = arg->value->str.a;
+			    }
 			}
 			if (NULL != key) {
 			    gqlValue	var = doc_var_value(doc, key);
@@ -188,10 +190,12 @@ frag_include(gqlDoc doc, gqlFrag frag, gqlRef ref, ImplFuncs funcs) {
 		    } else {
 			const char	*key = NULL;
 
-			if (&gql_token_type == arg->value->type) {
-			    key = arg->value->str;
-			} else if (&gql_token16_type == arg->value->type) {
-			    key = arg->value->str16;
+			if (&gql_var_type == arg->value->type) {
+			    if (arg->value->str.alloced) {
+				key = arg->value->str.ptr;
+			    } else {
+				key = arg->value->str.a;
+			    }
 			}
 			if (NULL != key) {
 			    gqlValue	var = doc_var_value(doc, key);
@@ -281,6 +285,7 @@ eval_sel(agooErr err, gqlDoc doc, gqlRef ref, gqlSel sel, gqlValue result, ImplF
 	if (NULL != sel->alias) {
 	    key = sel->alias;
 	}
+	// TBD __type nd __schema from the query root only, ___typename from anywhere
 	if ('_' == *sel->name && '_' == sel->name[1]) {
 	    funcs = &intro_funcs;
 	}

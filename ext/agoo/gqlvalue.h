@@ -20,14 +20,22 @@ typedef struct _gqlLink {
 typedef struct _gqlValue {
     struct _gqlType		*type;
     union {
-	char			*url;
 	int32_t			i;
 	int64_t			i64;
 	double			f;
 	bool			b;
 	int64_t			time;
-	char			*str;       // string or enum token
-	char			str16[16];  // string or enum token
+	union {
+	    struct {
+		char		alloced;
+		char		a[15];
+	    };
+	    struct {
+		char		x; // same memory location as kind
+		char		pad[7];
+		const char	*ptr;
+	    };
+	} str;
 	struct {
 	    uint64_t		hi;
 	    uint64_t		lo;
@@ -49,8 +57,8 @@ extern void	gql_link_destroy(gqlLink link);
 extern gqlValue	gql_int_create(agooErr err, int32_t i);
 extern gqlValue	gql_i64_create(agooErr err, int64_t i);
 extern gqlValue	gql_string_create(agooErr err, const char *str, int len);
-extern gqlValue	gql_token_create(agooErr err, const char *str, int len);
-extern gqlValue	gql_url_create(agooErr err, const char *url, int len);
+extern gqlValue	gql_token_create(agooErr err, const char *str, int len, struct _gqlType *type);
+extern gqlValue	gql_var_create(agooErr err, const char *str, int len);
 extern gqlValue	gql_bool_create(agooErr err, bool b);
 extern gqlValue	gql_float_create(agooErr err, double f);
 extern gqlValue	gql_time_create(agooErr err, int64_t t);
@@ -69,7 +77,6 @@ extern void	gql_int_set(gqlValue value, int32_t i);
 extern void	gql_i64_set(gqlValue value, int64_t i);
 extern int	gql_string_set(agooErr err, gqlValue value, const char *str, int len);
 extern int	gql_token_set(agooErr err, gqlValue value, const char *str, int len);
-extern int	gql_url_set(agooErr err, gqlValue value, const char *url, int len);
 extern void	gql_bool_set(gqlValue value, bool b);
 extern void	gql_float_set(gqlValue value, double f);
 extern void	gql_time_set(gqlValue value, int64_t t);
@@ -93,9 +100,8 @@ extern struct _gqlType	gql_bool_type;
 extern struct _gqlType	gql_float_type;
 extern struct _gqlType	gql_time_type;
 extern struct _gqlType	gql_uuid_type;
-extern struct _gqlType	gql_url_type;
 extern struct _gqlType	gql_string_type;
-extern struct _gqlType	gql_token_type; // just a place holder until enum is determined and for variables
-extern struct _gqlType	gql_token16_type; // just a place holder until enum is determined and for variables
+extern struct _gqlType	gql_token_type;   // used for enum values
+extern struct _gqlType	gql_var_type;     // used for variable keys
 
 #endif // AGOO_GQLVALUE_H

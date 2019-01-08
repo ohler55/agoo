@@ -75,10 +75,26 @@ struct _gqlType	gql_i64_type = {
 // String type
 static void
 string_destroy(gqlValue value) {
-    AGOO_FREE((char*)value->str);
+    if (value->str.alloced) {
+	AGOO_FREE((char*)value->str.ptr);
+    }
 }
 
-static agooText	string_to_text(agooText text, gqlValue value, int indent, int depth);
+static agooText
+string_to_text(agooText text, gqlValue value, int indent, int depth) {
+    if (!value->str.alloced) {
+	text = agoo_text_append(text, "\"", 1);
+	text = agoo_text_append_json(text, value->str.a, -1);
+	text = agoo_text_append(text, "\"", 1);
+    } else if (NULL == value->str.ptr) {
+	text = agoo_text_append(text, "null", 4);
+    } else {
+	text = agoo_text_append(text, "\"", 1);
+	text = agoo_text_append_json(text, value->str.ptr, -1);
+	text = agoo_text_append(text, "\"", 1);
+    }
+    return text;
+}
 
 struct _gqlType	gql_string_type = {
     .name = "String",
@@ -91,75 +107,55 @@ struct _gqlType	gql_string_type = {
     .to_sdl = string_to_text,
 };
 
-// Alternative to String but with no destroy needed.
-struct _gqlType	gql_str16_type = { // unregistered
-    .name = "str16",
-    .desc = NULL,
-    .kind = GQL_SCALAR,
-    .scalar_kind = GQL_SCALAR_STR16,
-    .core = true,
-    .destroy = NULL,
-    .to_json = string_to_text,
-    .to_sdl = string_to_text,
-};
-
+// Token type
 static agooText
-string_to_text(agooText text, gqlValue value, int indent, int depth) {
-    if (&gql_str16_type == value->type) {
-	text = agoo_text_append(text, "\"", 1);
-	text = agoo_text_append_json(text, value->str16, -1);
-	text = agoo_text_append(text, "\"", 1);
-    } else if (NULL == value->str) {
+token_to_text(agooText text, gqlValue value, int indent, int depth) {
+    if (!value->str.alloced) {
+	text = agoo_text_append_json(text, value->str.a, -1);
+    } else if (NULL == value->str.ptr) {
 	text = agoo_text_append(text, "null", 4);
     } else {
-	text = agoo_text_append(text, "\"", 1);
-	text = agoo_text_append_json(text, value->str, -1);
-	text = agoo_text_append(text, "\"", 1);
+	text = agoo_text_append_json(text, value->str.ptr, -1);
     }
     return text;
 }
 
-// Token type
-static void
-token_destroy(gqlValue value) {
-    AGOO_FREE((char*)value->str);
-}
-
-static agooText	token_to_text(agooText text, gqlValue value, int indent, int depth);
 struct _gqlType	gql_token_type = {
     .name = "Token",
     .desc = "Token scalar.",
     .kind = GQL_SCALAR,
     .scalar_kind = GQL_SCALAR_TOKEN,
     .core = true,
-    .destroy = token_destroy,
+    .destroy = string_destroy,
     .to_json = token_to_text,
     .to_sdl = token_to_text,
 };
 
-// Alternative to Token but with no destroy needed.
-struct _gqlType	gql_token16_type = { // unregistered
-    .name = "token16",
-    .desc = NULL,
-    .kind = GQL_SCALAR,
-    .scalar_kind = GQL_SCALAR_TOKEN16,
-    .core = true,
-    .destroy = NULL,
-    .to_json = token_to_text,
-    .to_sdl = token_to_text,
-};
-
+// Variable type ($var)
 static agooText
-token_to_text(agooText text, gqlValue value, int indent, int depth) {
-    if (&gql_token16_type == value->type) {
-	text = agoo_text_append(text, value->str16, -1);
-    } else if (NULL == value->str) {
+var_to_text(agooText text, gqlValue value, int indent, int depth) {
+    if (!value->str.alloced) {
+	text = agoo_text_append_char(text, '%');
+	text = agoo_text_append_json(text, value->str.a, -1);
+    } else if (NULL == value->str.ptr) {
 	text = agoo_text_append(text, "null", 4);
     } else {
-	text = agoo_text_append(text, value->str, -1);
+	text = agoo_text_append_char(text, '%');
+	text = agoo_text_append_json(text, value->str.ptr, -1);
     }
     return text;
 }
+
+struct _gqlType	gql_var_type = {
+    .name = "Var",
+    .desc = "Variable scalar.",
+    .kind = GQL_SCALAR,
+    .scalar_kind = GQL_SCALAR_VAR,
+    .core = true,
+    .destroy = string_destroy,
+    .to_json = var_to_text,
+    .to_sdl = var_to_text,
+};
 
 // Bool type
 static agooText
@@ -576,35 +572,6 @@ struct _gqlType	gql_uuid_type = {
     .to_sdl = uuid_to_text,
 };
 
-// Url type
-static void
-url_destroy(gqlValue value) {
-    AGOO_FREE((char*)value->url);
-}
-
-static agooText
-url_to_text(agooText text, gqlValue value, int indent, int depth) {
-    if (NULL == value->url) {
-	return agoo_text_append(text, "null", 4);
-    }
-    text = agoo_text_append(text, "\"", 1);
-    text = agoo_text_append(text, value->url, -1);
-    text = agoo_text_append(text, "\"", 1);
-
-    return text;
-}
-
-struct _gqlType	gql_url_type = {
-    .name = "Url",
-    .desc = "URL scalar.",
-    .kind = GQL_SCALAR,
-    .scalar_kind = GQL_SCALAR_URL,
-    .core = true,
-    .destroy = url_destroy,
-    .to_json = url_to_text,
-    .to_sdl = url_to_text,
-};
-
 // List, not visible but used for list values.
 static void
 list_destroy(gqlValue value) {
@@ -814,7 +781,6 @@ gql_value_init(agooErr err) {
 	AGOO_ERR_OK != gql_type_set(err, &gql_float_type) ||
 	AGOO_ERR_OK != gql_type_set(err, &gql_time_type) ||
 	AGOO_ERR_OK != gql_type_set(err, &gql_uuid_type) ||
-	AGOO_ERR_OK != gql_type_set(err, &gql_url_type) ||
 	AGOO_ERR_OK != gql_type_set(err, &gql_string_type)) {
 	return err->code;
     }
@@ -838,16 +804,18 @@ int
 gql_string_set(agooErr err, gqlValue value, const char *str, int len) {
     value->type = &gql_string_type;
     if (NULL == str) {
-	value->str = NULL;
+	value->str.alloced = true;
+	value->str.ptr = NULL;
     } else {
 	if (0 >= len) {
 	    len = (int)strlen(str);
 	}
-	if (len < (int)sizeof(value->str16)) {
-	    value->type = &gql_str16_type;
-	    strncpy(value->str16, str, len);
+	if (len < (int)sizeof(value->str.a)) {
+	    strncpy(value->str.a, str, len);
+	    value->str.alloced = false;
 	} else {
-	    if (NULL == (value->str = AGOO_STRNDUP(str, len))) {
+	    value->str.alloced = true;
+	    if (NULL == (value->str.ptr = AGOO_STRNDUP(str, len))) {
 		return agoo_err_set(err, AGOO_ERR_MEMORY, "strndup of length %d failed.", len);
 	    }
 	}
@@ -859,34 +827,20 @@ int
 gql_token_set(agooErr err, gqlValue value, const char *str, int len) {
     value->type = &gql_token_type;
     if (NULL == str) {
-	value->str = NULL;
+	value->str.alloced = true;
+	value->str.ptr = NULL;
     } else {
 	if (0 >= len) {
 	    len = (int)strlen(str);
 	}
-	if (len < (int)sizeof(value->str16)) {
-	    value->type = &gql_token16_type;
-	    strncpy(value->str16, str, len);
+	if (len < (int)sizeof(value->str.a)) {
+	    strncpy(value->str.a, str, len);
+	    value->str.alloced = false;
 	} else {
-	    if (NULL == (value->str = AGOO_STRNDUP(str, len))) {
+	    value->str.alloced = true;
+	    if (NULL == (value->str.ptr = AGOO_STRNDUP(str, len))) {
 		return agoo_err_set(err, AGOO_ERR_MEMORY, "strndup of length %d failed.", len);
 	    }
-	}
-    }
-    return AGOO_ERR_OK;
-}
-
-int
-gql_url_set(agooErr err, gqlValue value, const char *url, int len) {
-    value->type = &gql_url_type;
-    if (NULL == url) {
-	value->url = NULL;
-    } else {
-	if (0 >= len) {
-	    len = (int)strlen(url);
-	}
-	if (NULL == (value->url = AGOO_STRNDUP(url, len))) {
-	    return agoo_err_set(err, AGOO_ERR_MEMORY, "strndup of length %d failed.", len);
 	}
     }
     return AGOO_ERR_OK;
@@ -1056,56 +1010,66 @@ gql_string_create(agooErr err, const char *str, int len) {
     if (0 >= len) {
 	len = (int)strlen(str);
     }
-    if ((int)sizeof(v->str16) <= len) {
-	if (NULL != (v = value_create(&gql_string_type))) {
-	    if (NULL == (v->str = AGOO_STRNDUP(str, len))) {
+    if (NULL != (v = value_create(&gql_string_type))) {
+	if ((int)sizeof(v->str.a) <= len) {
+	    v->str.alloced = true;
+	    if (NULL == (v->str.ptr = AGOO_STRNDUP(str, len))) {
 		agoo_err_set(err, AGOO_ERR_MEMORY, "strndup of length %d failed.", len);
 		return NULL;
 	    }
-	}
-    } else {
-	if (NULL != (v = value_create(&gql_str16_type))) {
-	    strncpy(v->str16, str, len);
-	    v->str16[len] = '\0';
+	} else {
+	    v->str.alloced = false;
+	    strncpy(v->str.a, str, len);
+	    v->str.a[len] = '\0';
 	}
     }
     return v;
 }
 
 gqlValue
-gql_token_create(agooErr err, const char *str, int len) {
+gql_token_create(agooErr err, const char *str, int len, gqlType type) {
     gqlValue	v;
     
     if (0 >= len) {
 	len = (int)strlen(str);
     }
-    if ((int)sizeof(v->str16) <= len) {
-	if (NULL != (v = value_create(&gql_token_type))) {
-	    if (NULL == (v->str = AGOO_STRNDUP(str, len))) {
+    if (NULL == type || GQL_ENUM != type->kind) {
+	type = &gql_token_type;
+    }
+    if (NULL != (v = value_create(type))) {
+	if ((int)sizeof(v->str.a) <= len) {
+	    v->str.alloced = true;
+	    if (NULL == (v->str.ptr = AGOO_STRNDUP(str, len))) {
 		agoo_err_set(err, AGOO_ERR_MEMORY, "strndup of length %d failed.", len);
 		return NULL;
 	    }
-	}
-    } else {
-	if (NULL != (v = value_create(&gql_token16_type))) {
-	    strncpy(v->str16, str, len);
-	    v->str16[len] = '\0';
+	} else {
+	    v->str.alloced = false;
+	    strncpy(v->str.a, str, len);
+	    v->str.a[len] = '\0';
 	}
     }
     return v;
 }
 
 gqlValue
-gql_url_create(agooErr err, const char *url, int len) {
-    gqlValue	v = value_create(&gql_url_type);
+gql_var_create(agooErr err, const char *str, int len) {
+    gqlValue	v;
     
     if (0 >= len) {
-	len = (int)strlen(url);
+	len = (int)strlen(str);
     }
-    if (NULL != v) {
-	if (NULL == (v->url = AGOO_STRNDUP(url, len))) {
-	    agoo_err_set(err, AGOO_ERR_MEMORY, "strndup of length %d failed.", len);
-	    return NULL;
+    if (NULL != (v = value_create(&gql_var_type))) {
+	if ((int)sizeof(v->str.a) <= len) {
+	    v->str.alloced = true;
+	    if (NULL == (v->str.ptr = AGOO_STRNDUP(str, len))) {
+		agoo_err_set(err, AGOO_ERR_MEMORY, "strndup of length %d failed.", len);
+		return NULL;
+	    }
+	} else {
+	    v->str.alloced = false;
+	    strncpy(v->str.a, str, len);
+	    v->str.a[len] = '\0';
 	}
     }
     return v;
@@ -1240,10 +1204,13 @@ gql_string_get(gqlValue value) {
     const char	*s = NULL;
 
     if (NULL != value) {
-	if (&gql_string_type == value->type || &gql_token_type == value->type) {
-	    s = value->str;
-	} else if (&gql_str16_type == value->type || &gql_token16_type == value->type) {
-	    s = value->str16;
+	if (&gql_string_type == value->type || &gql_token_type == value->type || &gql_var_type == value->type ||
+	    GQL_ENUM == value->type->kind) {
+	    if (value->str.alloced) {
+		s = value->str.ptr;
+	    } else {
+		s = value->str.a;
+	    }
 	}
     }
     return s;

@@ -93,48 +93,61 @@ eval_wrap(agooErr err, gqlDoc doc) {
 static VALUE
 gval_to_ruby(gqlValue value) {
     volatile VALUE	rval = Qnil;
-    
-    if (NULL == value || NULL == value->type || GQL_SCALAR != value->type->kind) {
+
+    if (NULL == value || NULL == value->type) {
 	return Qnil;
     }
-    switch (value->type->scalar_kind) {
-    case GQL_SCALAR_BOOL:
-	rval = value->b ? Qtrue : Qfalse;
-	break;
-    case GQL_SCALAR_INT:
-	rval = RB_INT2NUM(value->i);
-	break;
-    case GQL_SCALAR_I64:
-	rval = RB_LONG2NUM(value->i64);
-	break;
-    case GQL_SCALAR_FLOAT:
-	rval = DBL2NUM(value->f);
-	break;
-    case GQL_SCALAR_STRING:
-    case GQL_SCALAR_TOKEN:
-	rval = rb_str_new_cstr(value->str);
-	break;
-    case GQL_SCALAR_STR16:
-    case GQL_SCALAR_TOKEN16:
-	rval = rb_str_new_cstr(value->str16);
-	break;
-    case GQL_SCALAR_TIME:
-	// TBD
-	break;
-    case GQL_SCALAR_UUID:
-	// TBD
-	break;
-    case GQL_SCALAR_URL:
-	// TBD
-	break;
-    case GQL_SCALAR_LIST:
-	// TBD
-	break;
-    case GQL_SCALAR_OBJECT:
-	// TBD
-	break;
-    default:
-	break;
+    if (GQL_SCALAR == value->type->kind) {
+	switch (value->type->scalar_kind) {
+	case GQL_SCALAR_BOOL:
+	    rval = value->b ? Qtrue : Qfalse;
+	    break;
+	case GQL_SCALAR_INT:
+	    rval = RB_INT2NUM(value->i);
+	    break;
+	case GQL_SCALAR_I64:
+	    rval = RB_LONG2NUM(value->i64);
+	    break;
+	case GQL_SCALAR_FLOAT:
+	    rval = DBL2NUM(value->f);
+	    break;
+	case GQL_SCALAR_STRING:
+	case GQL_SCALAR_TOKEN:
+	    rval = rb_str_new_cstr(gql_string_get(value));
+	    break;
+	case GQL_SCALAR_TIME: {
+	    time_t	secs = (time_t)(value->time / 1000000000LL);
+	    
+	    rval = rb_time_nano_new(secs, (long)(value->time - secs * 1000000000LL));
+	    break;
+	}
+	case GQL_SCALAR_UUID:
+	    // TBD value->uuid.hi or lo
+	    break;
+	case GQL_SCALAR_LIST: {
+	    gqlLink	link;
+	    
+	    rval = rb_ary_new();
+	    for (link = value->members; NULL != link; link = link->next) {
+		rb_ary_push(rval, gval_to_ruby(link->value));
+	    }
+	    break;
+	}
+	case GQL_SCALAR_OBJECT: {
+	    gqlLink	link;
+	    
+	    rval = rb_hash_new();
+	    for (link = value->members; NULL != link; link = link->next) {
+		rb_hash_aset(rval, rb_str_new_cstr(link->key), gval_to_ruby(link->value));
+		
+	    }
+	    break;
+	}
+	default:
+	    break;
+	}
+    } else if (GQL_ENUM == value->type->kind) {
+	rval = rb_str_new_cstr(gql_string_get(value));
     }
     return rval;
 }
@@ -171,17 +184,14 @@ ref_to_string(gqlRef ref) {
 
 static gqlValue
 coerce(agooErr err, gqlRef ref, gqlType type) {
-    gqlValue	value = NULL;
+    gqlValue		value = NULL;
+    volatile VALUE	v;
     
     if (NULL == type) {
 	// This is really an error but make a best effort anyway.
 
 	// TBD
-    } else if (GQL_SCALAR != type->kind) {
-	rb_raise(rb_eStandardError, "Can not coerce a non-scalar into a %s.", type->name);
-    } else {
-	volatile VALUE	v;
-
+    } else if (GQL_SCALAR == type->kind) {
 	switch (type->scalar_kind) {
 	case GQL_SCALAR_BOOL:
 	    if (Qtrue == (VALUE)ref) {
@@ -202,27 +212,58 @@ coerce(agooErr err, gqlRef ref, gqlType type) {
 	    value = gql_float_create(err, rb_num2dbl(rb_to_float((VALUE)ref)));
 	    break;
 	case GQL_SCALAR_STRING:
-	case GQL_SCALAR_STR16:
+	case GQL_SCALAR_TOKEN:
 	    v = ref_to_string(ref);
 	    value = gql_string_create(err, rb_string_value_ptr(&v), RSTRING_LEN(v));
 	    break;
-	case GQL_SCALAR_TOKEN:
-	case GQL_SCALAR_TOKEN16:
-	    v = ref_to_string(ref);
-	    value = gql_token_create(err, rb_string_value_ptr(&v), RSTRING_LEN(v));
+	case GQL_SCALAR_TIME: {
+	    VALUE	clas = rb_obj_class((VALUE)ref);
+
+	    if (rb_cTime == clas) {
+		long long	sec;
+		long long	nsec;
+
+#ifdef HAVE_RB_TIME_TIMESPEC
+		// rb_time_timespec as well as rb_time_timeeval have a bug that causes an
+		// exception to be raised if a time is before 1970 on 32 bit systems so
+		// check the timespec size and use the ruby calls if a 32 bit system.
+		if (16 <= sizeof(struct timespec)) {
+		    struct timespec	ts = rb_time_timespec((VALUE)ref);
+
+		    sec = (long long)ts.tv_sec;
+		    nsec = ts.tv_nsec;
+		} else {
+		    sec = rb_num2ll(rb_funcall2((VALUE)ref, oj_tv_sec_id, 0, 0));
+		    nsec = rb_num2ll(rb_funcall2((VALUE)ref, oj_tv_nsec_id, 0, 0));
+		}
+#else
+		sec = rb_num2ll(rb_funcall2((VALUE)ref, rb_intern("tv_sec"), 0, 0));
+		nsec = rb_num2ll(rb_funcall2((VALUE)ref, rb_intern("tv_nsec"), 0, 0));
+#endif
+		value = gql_time_create(err, (int64_t)(sec * 1000000000LL + nsec));
+	    }
+	    // TBD parse string and handle fixnum
 	    break;
-	case GQL_SCALAR_TIME:
-	    // TBD
-	    break;
+	}
 	case GQL_SCALAR_UUID:
-	    // TBD
+	    // TBD include a uuid or use ruby
 	    break;
-	case GQL_SCALAR_URL:
-	    // TBD
+	case GQL_SCALAR_LIST: {
+	    gqlValue	v;
+	    VALUE	a = (VALUE)ref;
+	    int		cnt = (int)RARRAY_LEN(a);
+	    int		i;
+
+	    value = gql_list_create(err, NULL);
+	    for (i = 0; i < cnt; i++) {
+
+		if (NULL == (v =coerce(err, (gqlRef)rb_ary_entry(a, i), type->base)) ||
+		    AGOO_ERR_OK != gql_list_append(err, value, v)) {
+		    return NULL;
+		}
+	    }
 	    break;
-	case GQL_SCALAR_LIST:
-	    // TBD
-	    break;
+	}
 	default:
 	    break;
 	}
@@ -231,6 +272,11 @@ coerce(agooErr err, gqlRef ref, gqlType type) {
 		agoo_err_set(err, AGOO_ERR_EVAL, "Failed to coerce a %s into a %s.", rb_obj_classname((VALUE)ref), type->name);
 	    }
 	}
+    } else if (GQL_ENUM == type->kind) {
+	v = ref_to_string(ref);
+	value = gql_string_create(err, rb_string_value_ptr(&v), RSTRING_LEN(v));
+    } else {
+	rb_raise(rb_eStandardError, "Can not coerce a non-scalar into a %s.", type->name);
     }
     return value;
 }

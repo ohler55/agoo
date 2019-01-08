@@ -31,6 +31,15 @@ class Artist
   def add_song(song)
     @songs << song
   end
+
+  def genre_songs(args={})
+    g = args['genre']
+    a = []
+    @songs.each { |s|
+      a << s if g == s.genre
+    }
+    a
+  end
 end
 
 class Song
@@ -38,12 +47,14 @@ class Song
   attr_reader :artist   # reference
   attr_reader :duration # integer
   attr_reader :release  # time
+  attr_reader :genre    # string
   
   def initialize(name, artist, duration, release)
     @name = name
     @artist = artist
     @duration = duration
     @release = release
+    @genre = 'INDIE'
     artist.add_song(self)
   end
 end
@@ -57,12 +68,20 @@ type Artist @ruby(class: "Artist") {
   name: String!
   songs: [Song]
   origin: [String]
+  genre_songs(genre:Genre): [Song]
 }
 
 type Song @ruby(class: "Song") {
   name: String!
   artist: Artist
   duration: Int
+  genre: Genre
+}
+
+enum Genre {
+  POP
+  ROCK
+  INDIE
 }
 ^
 
@@ -108,6 +127,7 @@ type Artist @ruby(class: "Artist") {
   name: String!
   songs: [Song]
   origin: [String]
+  genre_songs(genre: Genre): [Song]
 }
 
 type Mutation {
@@ -121,9 +141,16 @@ type Song @ruby(class: "Song") {
   name: String!
   artist: Artist
   duration: Int
+  genre: Genre
 }
 
 type Subscription {
+}
+
+enum Genre {
+  POP
+  ROCK
+  INDIE
 }
 
 directive @ruby(class: String!) on SCHEMA | OBJECT
@@ -164,6 +191,11 @@ directive @ruby(class: String!) on SCHEMA | OBJECT
       post_nested_test
       post_skip_test
       post_variables_test
+      post_enum_test
+
+      # TBD list arg
+      # TBD obj arg
+      # TBD time arg and out
 
       # TBD introspection
 
@@ -436,6 +468,47 @@ query skippy($boo: Boolean = true){
     post_test(uri, body, 'application/graphql', expect)
   end
 
+  def post_enum_test
+    uri = URI('http://localhost:6472/graphql?indent=2')
+    body = %^
+{
+  artist(name:"Fazerdaze") {
+    name
+    songs: genre_songs(genre: INDIE) {
+      name
+      genre
+    }
+  }
+}
+^
+    expect = %^{
+  "data":{
+    "artist":{
+      "name":"Fazerdaze",
+      "songs":[
+        {
+          "name":"Jennifer",
+          "genre":"INDIE"
+        },
+        {
+          "name":"Lucky Girl",
+          "genre":"INDIE"
+        },
+        {
+          "name":"Friends",
+          "genre":"INDIE"
+        },
+        {
+          "name":"Reel",
+          "genre":"INDIE"
+        }
+      ]
+    }
+  }
+}^
+
+    post_test(uri, body, 'application/graphql', expect)
+  end
   def post_nested_test
     uri = URI('http://localhost:6472/graphql?indent=2')
     body = %^
