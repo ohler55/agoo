@@ -100,10 +100,10 @@ class Schema
   def initialize()
     # Set up some data for testing.
     artist = Artist.new('Fazerdaze', ['Morningside', 'Auckland', 'New Zealand'])
-    Song.new('Jennifer', artist, 240, Time.new(2017, 5, 5))
-    Song.new('Lucky Girl', artist, 170, Time.new(2017, 5, 5))
-    Song.new('Friends', artist, 194, Time.new(2017, 5, 5))
-    Song.new('Reel', artist, 193, Time.new(2015, 11, 2))
+    Song.new('Jennifer', artist, 240, Time.utc(2017, 5, 5))
+    Song.new('Lucky Girl', artist, 170, Time.utc(2017, 5, 5))
+    Song.new('Friends', artist, 194, Time.utc(2017, 5, 5))
+    Song.new('Reel', artist, 193, Time.utc(2015, 11, 2))
     @artists = {artist.name => artist}
 
     @query = Query.new(@artists)

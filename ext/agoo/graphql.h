@@ -272,4 +272,6 @@ extern void		gql_eval_post_hook(struct _agooReq *req);
 
 extern int		gql_validate(agooErr err);
 
+extern gqlField		gql_type_get_field(gqlType type, const char *field);
+
 #endif // AGOO_GRAPHQL_H

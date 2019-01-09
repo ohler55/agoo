@@ -1536,3 +1536,34 @@ gql_dump_hook(agooReq req) {
     text = agoo_text_prepend(text, buf, cnt);
     agoo_res_set_message(req->res, text);
 }
+
+gqlField
+gql_type_get_field(gqlType type, const char *field) {
+    gqlField	f;
+
+    if (NULL == type) {
+	return NULL;
+    }
+    switch (type->kind) {
+    case GQL_OBJECT:
+    case GQL_INPUT:
+    case GQL_INTERFACE:
+	for (f = type->fields; NULL != f; f = f->next) {
+	    if (0 == strcmp(field, f->name)) {
+		return f;
+	    }
+	}
+	break;
+    case GQL_UNION:
+	// TBD
+	break;
+    case GQL_LIST:
+	return gql_type_get_field(type->base, field);
+	break;
+    default:
+	// TBD
+	break;
+    }
+    return NULL;
+}
+
