@@ -287,7 +287,7 @@ eval_sel(agooErr err, gqlDoc doc, gqlRef ref, gqlField field, gqlSel sel, gqlVal
 		
 		for (fa = field->args; NULL != fa; fa = fa->next) {
 		    if (0 == strcmp(a->key, fa->name)) {
-			if (a->value->type != fa->type) {
+			if (a->value->type != fa->type && GQL_SCALAR_VAR != a->value->type->scalar_kind) {
 			    if (NULL == (a->value = gql_value_convert(err, a->value, fa->type))) {
 				return err->code;
 			    }
@@ -348,7 +348,13 @@ eval_sels(agooErr err, gqlDoc doc, gqlRef ref, gqlField field, gqlSel sels, gqlV
 
     for (sel = sels; NULL != sel; sel = sel->next) {
 	if (NULL != field) {
-	    sf = gql_type_get_field(field->type, sel->name);
+	    if (NULL == sel->name) {
+		sf = field;
+	    } else {
+		sf = gql_type_get_field(field->type, sel->name);
+	    }
+	} else {
+	    sf = NULL;
 	}
 	if (AGOO_ERR_OK != eval_sel(err, doc, ref, sf, sel, result, funcs)) {
 	    return err->code;

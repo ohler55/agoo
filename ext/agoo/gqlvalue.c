@@ -1217,12 +1217,230 @@ gql_string_get(gqlValue value) {
 }
 
 static gqlValue
+convert_to_bool(agooErr err, gqlValue value) {
+    gqlValue	nv = NULL;
+    
+    switch (value->type->scalar_kind) {
+    case GQL_SCALAR_INT:
+	nv = gql_bool_create(err, 0 != value->i);
+	break;
+    case GQL_SCALAR_I64:
+	nv = gql_bool_create(err, 0 != value->i64);
+	break;
+    case GQL_SCALAR_FLOAT:
+	nv = gql_bool_create(err, 0.0 != value->f);
+	break;
+    case GQL_SCALAR_STRING:
+    case GQL_SCALAR_TOKEN: {
+	const char	*s = gql_string_get(value);
+	
+	if (0 == strcasecmp("true", s)) {
+	    nv = gql_bool_create(err, true);
+	} else if (0 == strcasecmp("false", s)) {
+	    nv = gql_bool_create(err, false);
+	}
+	break;
+    }
+    default:
+	agoo_err_set(err, AGOO_ERR_PARSE, "Can not coerce a %s into a Boolean value.", value->type->name);
+	break;
+    }
+    return nv;
+}
+
+static gqlValue
+convert_to_int(agooErr err, gqlValue value) {
+    gqlValue	nv = NULL;
+    
+    switch (value->type->scalar_kind) {
+    case GQL_SCALAR_I64:
+	if (value->i64 < INT32_MIN || INT32_MAX < value->i64) {
+	    agoo_err_set(err, ERANGE, "Can not coerce a %lld into an Int value. Out of range.", (long long)value->i64);
+	} else {
+	    nv = gql_int_create(err, value->i64);
+	}
+	break;
+    case GQL_SCALAR_FLOAT:
+	if (value->f < (double)INT32_MIN || (double)INT32_MAX < value->f) {
+	    agoo_err_set(err, ERANGE, "Can not coerce a %g into an Int value. Out of range.", value->f);
+	} else if ((double)(int32_t)value->f != value->f) {
+	    agoo_err_set(err, ERANGE, "Can not coerce a %g into an Int value. Loss of precision.", value->f);
+	} else {
+	    nv = gql_int_create(err, (int32_t)value->f);
+	}
+	break;
+    case GQL_SCALAR_STRING: {
+	const char	*s = gql_string_get(value);
+	char		*end;
+	long		i = strtol(s, &end, 10);
+
+	if ('\0' != *end || (0 == i && 0 != errno)) {
+	    agoo_err_set(err, ERANGE, "Can not coerce a '%s' into an Int value.", s);
+	} else if (i < INT32_MIN || INT32_MAX < i) {
+	    agoo_err_set(err, ERANGE, "Can not coerce a %lld into an Int value. Out of range.", (long long)i);
+	} else {
+	    nv = gql_int_create(err, i);
+	}
+	break;
+    }
+    default:
+	agoo_err_set(err, AGOO_ERR_PARSE, "Can not coerce a %s into an Int value.", value->type->name);
+	break;
+    }
+    return nv;
+}
+
+static gqlValue
+convert_to_i64(agooErr err, gqlValue value) {
+    gqlValue	nv = NULL;
+    
+    switch (value->type->scalar_kind) {
+    case GQL_SCALAR_INT:
+	nv = gql_i64_create(err, value->i);
+	break;
+    case GQL_SCALAR_FLOAT:
+	if ((double)(int64_t)value->f != value->f) {
+	    agoo_err_set(err, ERANGE, "Can not coerce a %g into an I64 value. Loss of precision.", value->f);
+	} else {
+	    nv = gql_i64_create(err, (int64_t)value->f);
+	}
+	break;
+    case GQL_SCALAR_STRING: {
+	const char	*s = gql_string_get(value);
+	char		*end;
+	long long	i = strtoll(s, &end, 10);
+
+	if ('\0' != *end || (0 == i && 0 != errno)) {
+	    agoo_err_set(err, ERANGE, "Can not coerce a '%s' into an I64 value.", s);
+	} else {
+	    nv = gql_i64_create(err, i);
+	}
+	break;
+    }
+    case GQL_SCALAR_TIME:
+	nv = gql_i64_create(err, value->time);
+	break;
+    default:
+	agoo_err_set(err, AGOO_ERR_PARSE, "Can not coerce a %s into an I64 value.", value->type->name);
+	break;
+    }
+    return nv;
+}
+
+static gqlValue
+convert_to_float(agooErr err, gqlValue value) {
+    gqlValue	nv = NULL;
+    
+    switch (value->type->scalar_kind) {
+    case GQL_SCALAR_INT:
+	nv = gql_float_create(err, (double)value->i);
+	break;
+    case GQL_SCALAR_I64:
+	nv = gql_float_create(err, (double)value->i64);
+	break;
+    case GQL_SCALAR_STRING: {
+	const char	*s = gql_string_get(value);
+	char		*end;
+	double		d = strtod(s, &end);
+
+	if ('\0' != *end) {
+	    agoo_err_set(err, ERANGE, "Can not coerce a '%s' into a Float value.", s);
+	} else {
+	    nv = gql_float_create(err, d);
+	}
+	break;
+    }
+    case GQL_SCALAR_TIME:
+	nv = gql_float_create(err, (double)value->time / 1000000000.0);
+	break;
+    default:
+	agoo_err_set(err, AGOO_ERR_PARSE, "Can not coerce a %s into a Float value.", value->type->name);
+	break;
+    }
+    return nv;
+}
+
+static gqlValue
+convert_to_string(agooErr err, gqlValue value) {
+    gqlValue	nv = NULL;
+    char	buf[64];
+    int		cnt;
+    
+    switch (value->type->scalar_kind) {
+    case GQL_SCALAR_BOOL:
+	nv = gql_string_create(err, value->b ? "true" : "false", -1);
+	break;
+    case GQL_SCALAR_INT:
+	cnt = sprintf(buf, "%d", value->i);
+	nv = gql_string_create(err, buf, cnt);
+	break;
+    case GQL_SCALAR_I64:
+	cnt = sprintf(buf, "%lld", (long long)value->i64);
+	nv = gql_string_create(err, buf, cnt);
+	break;
+    case GQL_SCALAR_FLOAT:
+	cnt = sprintf(buf, "%g", value->f);
+	nv = gql_string_create(err, buf, cnt);
+	break;
+    case GQL_SCALAR_TOKEN:
+	nv = gql_string_create(err, gql_string_get(value), -1);
+	break;
+    case GQL_SCALAR_TIME: {
+	struct tm	tm;
+	int64_t		tt = value->time;
+	time_t		t = (time_t)(tt / 1000000000LL);
+	long		nsecs = tt - (int64_t)t * 1000000000LL;
+
+	if (0 > nsecs) {
+	    nsecs = -nsecs;
+	}
+	gmtime_r(&t, &tm);
+	cnt = sprintf(buf, "%04d-%02d-%02dT%02d:%02d:%02d.%09ldZ",
+		      1900 + tm.tm_year, 1 + tm.tm_mon, tm.tm_mday,
+		      tm.tm_hour, tm.tm_min, tm.tm_sec, (long)nsecs);
+	nv = gql_string_create(err, buf, cnt);
+	break;
+    }
+    case GQL_SCALAR_UUID:
+	cnt = sprintf(buf, "%08lx-%04lx-%04lx-%04lx-%012lx",
+		      (unsigned long)(value->uuid.hi >> 32),
+		      (unsigned long)((value->uuid.hi >> 16) & 0x000000000000FFFFUL),
+		      (unsigned long)(value->uuid.hi & 0x000000000000FFFFUL),
+		      (unsigned long)(value->uuid.lo >> 48),
+		      (unsigned long)(value->uuid.lo & 0x0000FFFFFFFFFFFFUL));
+	nv = gql_string_create(err, buf, cnt);
+	break;
+    default:
+	agoo_err_set(err, AGOO_ERR_PARSE, "Can not coerce a %s into a String value.", value->type->name);
+	break;
+    }
+    return nv;
+}
+
+static gqlValue
+convert_to_token(agooErr err, gqlValue value) {
+    gqlValue	nv = NULL;
+    char	buf[64];
+    int		cnt;
+    
+    switch (value->type->scalar_kind) {
+    case GQL_SCALAR_STRING:
+	nv = gql_token_create(err, gql_string_get(value), -1, NULL);
+	break;
+    default:
+	agoo_err_set(err, AGOO_ERR_PARSE, "Can not coerce a %s into a token value.", value->type->name);
+	break;
+    }
+    return nv;
+}
+
+static gqlValue
 convert_to_time(agooErr err, gqlValue value) {
     gqlValue	nv = NULL;
     
     switch (value->type->scalar_kind) {
     case GQL_SCALAR_I64:
-	// TBD
+	nv = gql_time_create(err, value->i64);
 	break;
     case GQL_SCALAR_STRING: {
 	int64_t	nsecs = time_parse(err, gql_string_get(value), -1);
@@ -1233,12 +1451,6 @@ convert_to_time(agooErr err, gqlValue value) {
 	nv = gql_time_create(err, nsecs);
 	break;
     }
-    case GQL_SCALAR_TOKEN:
-	// TBD
-	break;
-    case GQL_SCALAR_TIME:
-	nv = value;
-	break;
     default:
 	agoo_err_set(err, AGOO_ERR_PARSE, "Can not coerce a %s into a Time value.", value->type->name);
 	break;
@@ -1246,49 +1458,53 @@ convert_to_time(agooErr err, gqlValue value) {
     return nv;
 }
 
+static gqlValue
+convert_to_uuid(agooErr err, gqlValue value) {
+    gqlValue	nv = NULL;
+    
+    switch (value->type->scalar_kind) {
+    case GQL_SCALAR_STRING:
+	nv = gql_uuid_str_create(err, gql_string_get(value), -1);
+	break;
+    default:
+	agoo_err_set(err, AGOO_ERR_PARSE, "Can not coerce a %s into a UUID value.", value->type->name);
+	break;
+    }
+    return nv;
+}
+
 gqlValue
 gql_value_convert(agooErr err, gqlValue value, struct _gqlType *type) {
-
-    printf("*** convert %s to %s\n", value->type->name, type->name);
+    if (type == value->type) {
+	return value;
+    }
     switch (type->scalar_kind) {
     case GQL_SCALAR_BOOL:
-	// TBD
+	value = convert_to_bool(err, value);
 	break;
     case GQL_SCALAR_INT:
-	// TBD
+	value = convert_to_int(err, value);
 	break;
     case GQL_SCALAR_I64:
-	// TBD
+	value = convert_to_i64(err, value);
 	break;
     case GQL_SCALAR_FLOAT:
-	// TBD
+	value = convert_to_float(err, value);
 	break;
     case GQL_SCALAR_STRING:
-	// TBD
+	value = convert_to_string(err, value);
 	break;
     case GQL_SCALAR_TOKEN:
-	// TBD
-	break;
-    case GQL_SCALAR_VAR:
-	// TBD
+	value = convert_to_token(err, value);
 	break;
     case GQL_SCALAR_TIME:
 	value = convert_to_time(err, value);
-	// TBD
 	break;
     case GQL_SCALAR_UUID:
-	// TBD
-	break;
-    case GQL_SCALAR_LIST:
-	// TBD
-	break;
-    case GQL_SCALAR_OBJECT:
-	// TBD
+	value = convert_to_uuid(err, value);
 	break;
     default:
 	break;
     }
-    // TBD
-    
     return value;
 }
