@@ -1214,5 +1214,81 @@ gql_string_get(gqlValue value) {
 	}
     }
     return s;
+}
 
+static gqlValue
+convert_to_time(agooErr err, gqlValue value) {
+    gqlValue	nv = NULL;
+    
+    switch (value->type->scalar_kind) {
+    case GQL_SCALAR_I64:
+	// TBD
+	break;
+    case GQL_SCALAR_STRING: {
+	int64_t	nsecs = time_parse(err, gql_string_get(value), -1);
+
+	if (AGOO_ERR_OK != err->code) {
+	    return NULL;
+	}
+	nv = gql_time_create(err, nsecs);
+	break;
+    }
+    case GQL_SCALAR_TOKEN:
+	// TBD
+	break;
+    case GQL_SCALAR_TIME:
+	nv = value;
+	break;
+    default:
+	agoo_err_set(err, AGOO_ERR_PARSE, "Can not coerce a %s into a Time value.", value->type->name);
+	break;
+    }
+    return nv;
+}
+
+gqlValue
+gql_value_convert(agooErr err, gqlValue value, struct _gqlType *type) {
+
+    printf("*** convert %s to %s\n", value->type->name, type->name);
+    switch (type->scalar_kind) {
+    case GQL_SCALAR_BOOL:
+	// TBD
+	break;
+    case GQL_SCALAR_INT:
+	// TBD
+	break;
+    case GQL_SCALAR_I64:
+	// TBD
+	break;
+    case GQL_SCALAR_FLOAT:
+	// TBD
+	break;
+    case GQL_SCALAR_STRING:
+	// TBD
+	break;
+    case GQL_SCALAR_TOKEN:
+	// TBD
+	break;
+    case GQL_SCALAR_VAR:
+	// TBD
+	break;
+    case GQL_SCALAR_TIME:
+	value = convert_to_time(err, value);
+	// TBD
+	break;
+    case GQL_SCALAR_UUID:
+	// TBD
+	break;
+    case GQL_SCALAR_LIST:
+	// TBD
+	break;
+    case GQL_SCALAR_OBJECT:
+	// TBD
+	break;
+    default:
+	break;
+    }
+    // TBD
+    
+    return value;
 }

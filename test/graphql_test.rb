@@ -594,10 +594,6 @@ query skippy($boo: Boolean = true){
         {
           "name":"Friends",
           "release":"2017-05-05T00:00:00.000000000Z"
-        },
-        {
-          "name":"Reel",
-          "release":"2015-11-02T00:00:00.000000000Z"
         }
       ]
     }

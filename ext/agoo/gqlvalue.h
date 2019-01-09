@@ -93,6 +93,8 @@ extern agooText	gql_value_sdl(agooText text, gqlValue value, int indent, int dep
 //extern agooText	gql_object_to_json(agooText text, gqlValue value, int indent, int depth);
 extern agooText	gql_object_to_sdl(agooText text, gqlValue value, int indent, int depth);
 
+extern gqlValue	gql_value_convert(agooErr err, gqlValue value, struct _gqlType *type);
+
 extern struct _gqlType	gql_null_type;
 extern struct _gqlType	gql_int_type;
 extern struct _gqlType	gql_i64_type;

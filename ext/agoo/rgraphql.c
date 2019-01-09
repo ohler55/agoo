@@ -95,7 +95,6 @@ static VALUE
 gval_to_ruby(gqlValue value) {
     volatile VALUE	rval = Qnil;
 
-    printf("*** gval to ruby - %s\n", value->type->name);
     if (NULL == value || NULL == value->type) {
 	return Qnil;
     }
@@ -158,7 +157,6 @@ static gqlRef
 resolve(agooErr err, gqlRef target, const char *field_name, gqlKeyVal args) {
     volatile VALUE	result;
 
-    printf("*** resolve %s\n", field_name);
     if (NULL != args && NULL != args->key) {
 	volatile VALUE	rargs = rb_hash_new();
 
@@ -214,7 +212,6 @@ coerce(agooErr err, gqlRef ref, gqlType type) {
     gqlValue		value = NULL;
     volatile VALUE	v;
 
-    printf("*** coerce\n");
     if (NULL == type) {
 	// This is really an error but make a best effort anyway.
 	switch (rb_type((VALUE)ref)) {
@@ -284,8 +281,6 @@ coerce(agooErr err, gqlRef ref, gqlType type) {
 		value = gql_bool_create(err, true);
 	    } else if (Qfalse == (VALUE)ref) {
 		value = gql_bool_create(err, false);
-	    } else {
-		// TBD int, float, string
 	    }
 	    break;
 	case GQL_SCALAR_INT:
@@ -305,11 +300,9 @@ coerce(agooErr err, gqlRef ref, gqlType type) {
 	case GQL_SCALAR_TIME: {
 	    VALUE	clas = rb_obj_class((VALUE)ref);
 
-	    printf("*** time\n");
 	    if (rb_cTime == clas) {
 		value = time_to_time(err, (VALUE)ref);
 	    }
-	    // TBD parse string and handle fixnum
 	    break;
 	}
 	case GQL_SCALAR_UUID:
