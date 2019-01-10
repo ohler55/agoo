@@ -122,9 +122,18 @@ gval_to_ruby(gqlValue value) {
 	    rval = rb_time_nano_new(secs, (long)(value->time - secs * 1000000000LL));
 	    break;
 	}
-	case GQL_SCALAR_UUID:
-	    // TBD value->uuid.hi or lo
+	case GQL_SCALAR_UUID: {
+	    char	buf[64];
+
+	     sprintf(buf, "%08lx-%04lx-%04lx-%04lx-%012lx",
+		     (unsigned long)(value->uuid.hi >> 32),
+		     (unsigned long)((value->uuid.hi >> 16) & 0x000000000000FFFFUL),
+		     (unsigned long)(value->uuid.hi & 0x000000000000FFFFUL),
+		     (unsigned long)(value->uuid.lo >> 48),
+		     (unsigned long)(value->uuid.lo & 0x0000FFFFFFFFFFFFUL));
+	    rval = rb_str_new_cstr(buf);
 	    break;
+	}
 	case GQL_SCALAR_LIST: {
 	    gqlLink	link;
 	    
@@ -266,7 +275,6 @@ coerce(agooErr err, gqlRef ref, gqlType type) {
 	    if (rb_cTime == clas) {
 		value = time_to_time(err, (VALUE)ref);
 	    }
-	    // TBD UUID
 	    break;
 	}
 	default:
@@ -306,7 +314,8 @@ coerce(agooErr err, gqlRef ref, gqlType type) {
 	    break;
 	}
 	case GQL_SCALAR_UUID:
-	    // TBD include a uuid or use ruby
+	    v = ref_to_string(ref);
+	    value = gql_uuid_str_create(err, rb_string_value_ptr(&v), RSTRING_LEN(v));
 	    break;
 	case GQL_SCALAR_LIST: {
 	    gqlValue	v;

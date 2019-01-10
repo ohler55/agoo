@@ -1420,8 +1420,6 @@ convert_to_string(agooErr err, gqlValue value) {
 static gqlValue
 convert_to_token(agooErr err, gqlValue value) {
     gqlValue	nv = NULL;
-    char	buf[64];
-    int		cnt;
     
     switch (value->type->scalar_kind) {
     case GQL_SCALAR_STRING:
