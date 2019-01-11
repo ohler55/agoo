@@ -1316,6 +1316,9 @@ lookup_field_type(gqlType type, const char *field) {
 		break;
 	    }
 	}
+	if (NULL == ftype && 0 == strcmp("__typename", field)) {
+	    ftype = &gql_string_type;
+	}
 	break;
     }
     case GQL_LIST:

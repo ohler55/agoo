@@ -14,81 +14,81 @@ require 'socket'
 require 'agoo'
 
 class BindTest < Minitest::Test
+  @@server_started = false
+  @@addr = '127.0.0.1'
+  @@addr6 = '::1'
+  @@name = '/tmp/agoo_test.socket'
 
-  # Run all the tests in one test to avoid creating the server multiple times.
-  def test_static
-    begin
-      Agoo::Log.configure(dir: '',
-			  console: true,
-			  classic: true,
-			  colorize: true,
-			  states: {
-			    INFO: false,
-			    DEBUG: false,
-			    connect: false,
-			    request: false,
-			    response: false,
-			    eval: true,
-			  })
+  def start_server
+    Agoo::Log.configure(dir: '',
+			console: true,
+			classic: true,
+			colorize: true,
+			states: {
+			  INFO: false,
+			  DEBUG: false,
+			  connect: false,
+			  request: false,
+			  response: false,
+			  eval: true,
+			})
 
-      addr = '127.0.0.1'
-      Socket.ip_address_list.each { |ai|
-	if ai.ipv4? && '127.0.0.1' != ai.ip_address
-	  addr = ai.ip_address
-	  break
-	end
-      }
-      addr6 = '::1'
-      name = '/tmp/agoo_test.socket'
-      Agoo::Server.init(6471, 'root', thread_count: 1,
-			bind: ['http://127.0.0.1:6472',
-			       "http://#{addr}:6473",
-			       "http://[#{addr6}]:6474",
-			       "unix://#{name}",
-			      ])
-      Agoo::Server.start()
+    Socket.ip_address_list.each { |ai|
+      if ai.ipv4? && '127.0.0.1' != ai.ip_address
+	@@addr = ai.ip_address
+	break
+      end
+    }
+    Agoo::Server.init(6471, 'root', thread_count: 1,
+		      bind: ['http://127.0.0.1:6472',
+			     "http://#{@@addr}:6473",
+			     "http://[#{@@addr6}]:6474",
+			     "unix://#{@@name}",
+			    ])
+    Agoo::Server.start()
+  end
 
-      port_test
-      localhost_test
-      ipv4_test(addr)
-      ipv6_test(addr6)
-      restrict_test unless '127.0.0.1' == addr
-      named_test(name)
-    ensure
-      Agoo::shutdown
+  def setup
+    unless @@server_started
+      start_server
     end
   end
 
-  def port_test
+  Minitest.after_run {
+    Agoo::shutdown
+  }
+
+  def test_port
     uri = URI('http://localhost:6471/index.html')
     request(uri)
   end
 
-  def localhost_test
+  def test_localhost
     uri = URI('http://localhost:6472/index.html')
     request(uri)
   end
 
-  def ipv4_test(addr)
-    uri = URI("http://#{addr}:6473/index.html")
+  def test_ipv4_test
+    uri = URI("http://#{@@addr}:6473/index.html")
     request(uri)
   end
 
-  def ipv6_test(addr)
-    uri = URI("http://[#{addr}]:6474/index.html")
+  def test_ipv6_test
+    uri = URI("http://[#{@@addr6}]:6474/index.html")
     request(uri)
   end
 
-  def restrict_test
+  def test_restrict
+    return if '127.0.0.1' == @@addr
     uri = URI("http://127.0.0.1:6473/index.html")
     assert_raises Exception do
       Net::HTTP.get(uri)
     end
   end
 
-  def named_test(name)
+  def test_named_test
     content = ''
-    UNIXSocket.open(name) {|c|
+    UNIXSocket.open(@@name) {|c|
       c.print(%|GET /index.html HTTP/1.1\r
 Accept-Encoding: *\r
 Accept: */*\r

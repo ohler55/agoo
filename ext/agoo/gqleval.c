@@ -23,6 +23,7 @@ typedef struct _implFuncs {
 } *ImplFuncs;
 
 gqlRef		gql_root = NULL;
+gqlRef		gql_query_root = NULL;
 gqlResolveFunc	gql_resolve_func = NULL;
 gqlCoerceFunc	gql_coerce_func = NULL;
 gqlTypeFunc	gql_type_func = NULL;
@@ -302,8 +303,34 @@ eval_sel(agooErr err, gqlDoc doc, gqlRef ref, gqlField field, gqlSel sel, gqlVal
 	    key = sel->alias;
 	}
 	// TBD __type nd __schema from the query root only, ___typename from anywhere
+	//   how can root.query be detected? maybe keep a static and fetch on init
 	if ('_' == *sel->name && '_' == sel->name[1]) {
-	    funcs = &intro_funcs;
+	    if (0 == strcmp("__typename", sel->name)) {
+		gqlType	rt;
+
+		if (NULL == gql_type_func || NULL == (rt = gql_type_func(ref))) {
+		    return agoo_err_set(err, AGOO_ERR_EVAL, "Could not determine the type.");
+		}
+		if (NULL == (child = gql_string_create(err, rt->name, -1)) ||
+		    AGOO_ERR_OK != gql_object_set(err, result, key, child)) {
+		    return err->code;
+		}
+	    } else {
+		// TBD set ref to intro root
+		funcs = &intro_funcs;
+		if (0 == strcmp("__type", sel->name)) {
+		    if (gql_query_root != ref) {
+			return agoo_err_set(err, AGOO_ERR_EVAL, "__type can only be called from a query root.");
+		    }
+		} else if (0 == strcmp("__schema", sel->name)) {
+		    if (gql_query_root != ref) {
+			return agoo_err_set(err, AGOO_ERR_EVAL, "__scheme can only be called from a query root.");
+		    }
+		} else {
+		    return agoo_err_set(err, AGOO_ERR_EVAL, "%s can only be called from the query root.", sel->name);
+		}
+	    }
+	    return AGOO_ERR_OK;
 	}
 	if (NULL == (r2 = funcs->resolve(err, ref, sel->name, args))) {
 	    return err->code;
@@ -401,6 +428,9 @@ gql_doc_eval(agooErr err, gqlDoc doc) {
 	if (NULL == (op_root = gql_resolve_func(err, gql_root, key, NULL))) {
 	    agoo_err_set(err, AGOO_ERR_EVAL, "root %s is not supported.", key);
 	    return NULL;
+	}
+	if (NULL == gql_query_root && GQL_QUERY == doc->op->kind) {
+	    gql_query_root = op_root;
 	}
 	if (NULL != (type = gql_type_get("schema"))) {
 	    field = gql_type_get_field(type, key);

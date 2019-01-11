@@ -15,7 +15,8 @@ require 'oj'
 require 'agoo'
 
 class RackHandlerTest < Minitest::Test
-
+  @@server_started = false
+  
   class TellMeHandler
     def initialize
     end
@@ -40,39 +41,41 @@ class RackHandlerTest < Minitest::Test
     end
   end
 
-  def test_rack
-    begin
-      Agoo::Log.configure(dir: '',
-			  console: true,
-			  classic: true,
-			  colorize: true,
-			  states: {
-			    INFO: false,
-			    DEBUG: false,
-			    connect: false,
-			    request: false,
-			    response: false,
-			    eval: true,
-			  })
+  def start_server
+    Agoo::Log.configure(dir: '',
+			console: true,
+			classic: true,
+			colorize: true,
+			states: {
+			  INFO: false,
+			  DEBUG: false,
+			  connect: false,
+			  request: false,
+			  response: false,
+			  eval: true,
+			})
 
-      Agoo::Server.init(6467, 'root', thread_count: 1)
+    Agoo::Server.init(6467, 'root', thread_count: 1)
 
-      handler = TellMeHandler.new
-      Agoo::Server.handle(:GET, "/tellme", handler)
-      Agoo::Server.handle(:POST, "/makeme", handler)
-      Agoo::Server.handle(:PUT, "/makeme", handler)
+    handler = TellMeHandler.new
+    Agoo::Server.handle(:GET, "/tellme", handler)
+    Agoo::Server.handle(:POST, "/makeme", handler)
+    Agoo::Server.handle(:PUT, "/makeme", handler)
 
-      Agoo::Server.start()
+    Agoo::Server.start()
+  end
 
-      eval_test
-      post_test
-      put_test
-    ensure
-      Agoo.shutdown
+  def setup
+    unless @@server_started
+      start_server
     end
   end
-  
-  def eval_test
+
+  Minitest.after_run {
+    Agoo::shutdown
+  }
+
+  def test_eval
     uri = URI('http://localhost:6467/tellme?a=1')
     req = Net::HTTP::Get.new(uri)
     # Set the headers the way we want them.
@@ -114,7 +117,7 @@ class RackHandlerTest < Minitest::Test
     }
   end
 
-  def post_test
+  def test_post
     uri = URI('http://localhost:6467/makeme')
     req = Net::HTTP::Post.new(uri)
     # Set the headers the way we want them.
@@ -128,7 +131,7 @@ class RackHandlerTest < Minitest::Test
     assert_equal(Net::HTTPNoContent, res.class)
   end
   
-  def put_test
+  def test_put
     uri = URI('http://localhost:6467/makeme')
     req = Net::HTTP::Put.new(uri)
     # Set the headers the way we want them.

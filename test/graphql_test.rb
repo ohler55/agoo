@@ -127,7 +127,8 @@ class Schema
 end
 
 class GraphQLTest < Minitest::Test
-
+  @@server_started = false
+  
   SCHEMA_EXPECT = %^type schema @ruby(class: "Schema") {
   query: Query
   mutation: Mutation
@@ -169,64 +170,53 @@ enum Genre {
 directive @ruby(class: String!) on SCHEMA | OBJECT
 ^
 
-  def test_graphql
-    begin
-      Agoo::Log.configure(dir: '',
-			  console: true,
-			  classic: true,
-			  colorize: true,
-			  states: {
-			    INFO: false,
-			    DEBUG: false,
-			    connect: false,
-			    request: false,
-			    response: false,
-			    eval: true,
-			  })
+  def start_server
+    Agoo::Log.configure(dir: '',
+			console: true,
+			classic: true,
+			colorize: true,
+			states: {
+			  INFO: false,
+			  DEBUG: false,
+			  connect: false,
+			  request: false,
+			  response: false,
+			  eval: true,
+			})
 
-      Agoo::Server.init(6472, 'root', thread_count: 1, graphql: '/graphql')
-      Agoo::Server.start()
+    Agoo::Server.init(6472, 'root', thread_count: 1, graphql: '/graphql')
+    Agoo::Server.start()
 
-      load_test
-      get_schema_test
-
-      get_query_test
-      variable_query_test
-      json_vars_query_test
-      alias_query_test
-      list_query_test
-      array_query_test # returns an array
-
-      post_graphql_test
-      post_json_test
-      post_fragment_test
-      post_inline_test
-      post_nested_test
-      post_skip_test
-      post_variables_test
-      post_enum_test
-      post_time_test
-
-      # TBD list arg
-      # TBD obj arg
-
-      # TBD introspection
-
-    ensure
-      Agoo::shutdown
-    end
-  end
-
-  def load_test
     Agoo::GraphQL.schema(Schema.new) {
       Agoo::GraphQL.load($songs_sdl)
     }
+
+    @@server_started = true
+  end
+  
+  def setup
+    if @@server_started == false
+      start_server
+    end
+  end
+
+  Minitest.after_run {
+    Agoo::shutdown
+  }
+
+  # TBD list arg
+  # TBD obj arg
+  # TBD introspection
+
+  ##################################
+  
+  def test_load
     content = Agoo::GraphQL.sdl_dump(with_descriptions: false, all: false)
     content.force_encoding('UTF-8')
     assert_equal(SCHEMA_EXPECT, content)
   end
 
-  def get_schema_test
+  def test_get_schema
     uri = URI('http://localhost:6472/graphql/schema?with_desc=false&all=false')
     req = Net::HTTP::Get.new(uri)
     req['Accept-Encoding'] = '*'
@@ -239,7 +229,7 @@ directive @ruby(class: String!) on SCHEMA | OBJECT
     assert_equal(SCHEMA_EXPECT, content)
   end
 
-  def get_query_test
+  def test_get_query
     uri = URI('http://localhost:6472/graphql?query={artist(name:"Fazerdaze"){name}}&indent=2')
     expect = %^{
   "data":{
@@ -259,7 +249,7 @@ directive @ruby(class: String!) on SCHEMA | OBJECT
     assert_equal(expect, content)
   end
   
-  def variable_query_test
+  def test_variable_query
     uri = URI('http://localhost:6472/graphql?query={artist(name:"Fazerdaze"){name}}&indent=2')
     expect = %^{
   "data":{
@@ -271,7 +261,7 @@ directive @ruby(class: String!) on SCHEMA | OBJECT
     req_test(uri, expect)
   end
   
-  def alias_query_test
+  def test_alias_query
     uri = URI('http://localhost:6472/graphql?query=query withVar($name:String="Fazerdaze"){artist(name:$name){name}}&indent=2')
     expect = %^{
   "data":{
@@ -283,7 +273,7 @@ directive @ruby(class: String!) on SCHEMA | OBJECT
     req_test(uri, expect)
   end
   
-  def json_vars_query_test
+  def test_json_vars_query
     uri = URI('http://localhost:6472/graphql?query={artist(name:$name){name}}&indent=2&variables={"name":"Fazerdaze"}')
     expect = %^{
   "data":{
@@ -295,7 +285,7 @@ directive @ruby(class: String!) on SCHEMA | OBJECT
     req_test(uri, expect)
   end
   
-  def list_query_test
+  def test_list_query
     uri = URI('http://localhost:6472/graphql?query=query withVar($name:String="Fazerdaze"){artist(name:$name){name,songs{name}}}&indent=2')
     expect = %^{
   "data":{
@@ -321,7 +311,7 @@ directive @ruby(class: String!) on SCHEMA | OBJECT
     req_test(uri, expect)
   end
 
-  def array_query_test
+  def test_array_query
     uri = URI('http://localhost:6472/graphql?query={artist(name:"Fazerdaze"){name,origin}}&indent=2')
     expect = %^{
   "data":{
@@ -338,7 +328,7 @@ directive @ruby(class: String!) on SCHEMA | OBJECT
     req_test(uri, expect)
   end
 
-  def post_graphql_test
+  def test_post_graphql
     uri = URI('http://localhost:6472/graphql?indent=2')
     body = %^{
   artist(name:"Fazerdaze"){
@@ -357,7 +347,7 @@ directive @ruby(class: String!) on SCHEMA | OBJECT
     post_test(uri, body, 'application/graphql', expect)
   end
 
-  def post_json_test
+  def test_post_json
     uri = URI('http://localhost:6472/graphql?indent=2')
     body = %^{
   "query":"{\\n  artist(name:\\\"Fazerdaze\\\"){\\n    name\\n  }\\n}"
@@ -373,7 +363,7 @@ directive @ruby(class: String!) on SCHEMA | OBJECT
     post_test(uri, body, 'application/json', expect)
   end
 
-  def post_fragment_test
+  def test_post_fragment
     uri = URI('http://localhost:6472/graphql?indent=2')
     body = %^
 {
@@ -403,7 +393,7 @@ fragment basic on Artist {
     post_test(uri, body, 'application/graphql', expect)
   end
 
-  def post_inline_test
+  def test_post_inline
     uri = URI('http://localhost:6472/graphql?indent=2')
     body = %^
 {
@@ -431,7 +421,7 @@ fragment basic on Artist {
     post_test(uri, body, 'application/graphql', expect)
   end
 
-  def post_skip_test
+  def test_post_skip
     uri = URI('http://localhost:6472/graphql?indent=2')
     body = %^
 query skippy($boo: Boolean = true){
@@ -456,7 +446,7 @@ query skippy($boo: Boolean = true){
     post_test(uri, body, 'application/graphql', expect)
   end
 
-  def post_nested_test
+  def test_post_nested
     uri = URI('http://localhost:6472/graphql?indent=2')
     body = %^
 query skippy($boo: Boolean = true){
@@ -498,7 +488,7 @@ query skippy($boo: Boolean = true){
     post_test(uri, body, 'application/graphql', expect)
   end
 
-  def post_variables_test
+  def test_post_variables
     uri = URI('http://localhost:6472/graphql?indent=2')
     body = %^
 query skippy($boo: Boolean = true){
@@ -523,7 +513,7 @@ query skippy($boo: Boolean = true){
     post_test(uri, body, 'application/graphql', expect)
   end
 
-  def post_enum_test
+  def test_post_enum
     uri = URI('http://localhost:6472/graphql?indent=2')
     body = %^
 {
@@ -565,7 +555,7 @@ query skippy($boo: Boolean = true){
     post_test(uri, body, 'application/graphql', expect)
   end
 
-  def post_time_test
+  def test_post_time
     uri = URI('http://localhost:6472/graphql?indent=2')
     body = %^
 {

@@ -15,6 +15,7 @@ require 'oj'
 require 'agoo'
 
 class BaseHandlerTest < Minitest::Test
+  @@server_started = false
 
   class TellMeHandler
     def initialize
@@ -42,45 +43,44 @@ class BaseHandlerTest < Minitest::Test
     end
   end
 
-  def test_base_handler
-    begin
-      Agoo::Log.configure(dir: '',
-			  console: true,
-			  classic: true,
-			  colorize: true,
-			  states: {
-			    INFO: false,
-			    DEBUG: false,
-			    connect: false,
-			    request: false,
-			    response: false,
-			    eval: true,
-			  })
+  def start_server
+    Agoo::Log.configure(dir: '',
+			console: true,
+			classic: true,
+			colorize: true,
+			states: {
+			  INFO: false,
+			  DEBUG: false,
+			  connect: false,
+			  request: false,
+			  response: false,
+			  eval: true,
+			})
 
-      Agoo::Server.init(6470, 'root', thread_count: 1)
+    Agoo::Server.init(6470, 'root', thread_count: 1)
 
-      handler = TellMeHandler.new
+    handler = TellMeHandler.new
 
-      Agoo::Server.handle(:GET, "/tellme", handler)
-      Agoo::Server.handle(:POST, "/makeme", handler)
-      Agoo::Server.handle(:PUT, "/makeme", handler)
-      Agoo::Server.handle(:GET, "/wild/*/one", WildHandler.new('one'))
-      Agoo::Server.handle(:GET, "/wild/all/**", WildHandler.new('all'))
+    Agoo::Server.handle(:GET, "/tellme", handler)
+    Agoo::Server.handle(:POST, "/makeme", handler)
+    Agoo::Server.handle(:PUT, "/makeme", handler)
+    Agoo::Server.handle(:GET, "/wild/*/one", WildHandler.new('one'))
+    Agoo::Server.handle(:GET, "/wild/all/**", WildHandler.new('all'))
 
-      Agoo::Server.start()
+    Agoo::Server.start()
+  end
 
-      #sleep(100)
-      eval_test
-      post_test
-      put_test
-      wild_one_test
-      wild_all_test
-    ensure
-      Agoo.shutdown
+  def setup
+    unless @@server_started
+      start_server
     end
   end
+
+  Minitest.after_run {
+    Agoo::shutdown
+  }
   
-  def eval_test
+  def test_eval
     uri = URI('http://localhost:6470/tellme?a=1')
     req = Net::HTTP::Get.new(uri)
     # Set the headers the way we want them.
@@ -122,7 +122,7 @@ class BaseHandlerTest < Minitest::Test
     }
   end
 
-  def post_test
+  def test_post
     uri = URI('http://localhost:6470/makeme')
     req = Net::HTTP::Post.new(uri)
     # Set the headers the way we want them.
@@ -136,7 +136,7 @@ class BaseHandlerTest < Minitest::Test
     assert_equal(Net::HTTPNoContent, res.class)
   end
   
-  def put_test
+  def test_put
     uri = URI('http://localhost:6470/makeme')
     req = Net::HTTP::Put.new(uri)
     # Set the headers the way we want them.
@@ -152,7 +152,7 @@ class BaseHandlerTest < Minitest::Test
     assert_equal('hello', res.body)
   end
 
-  def wild_one_test
+  def test_wild_one
     uri = URI('http://localhost:6470/wild/abc/one')
     req = Net::HTTP::Get.new(uri)
     res = Net::HTTP.start(uri.hostname, uri.port) { |h|
@@ -161,7 +161,7 @@ class BaseHandlerTest < Minitest::Test
     assert_equal('one - /wild/abc/one', res.body)
   end
 
-  def wild_all_test
+  def test_wild_all
     uri = URI('http://localhost:6470/wild/all/x/y')
     req = Net::HTTP::Get.new(uri)
     res = Net::HTTP.start(uri.hostname, uri.port) { |h|
