@@ -310,6 +310,7 @@ agoo_pages_cleanup() {
     for (i = MIME_BUCKET_SIZE; 0 < i; i--, mp++) {
 	for (sm = *mp; NULL != sm; sm = m) {
 	    m = sm->next;
+	    AGOO_FREE(sm->value);
 	    AGOO_FREE(sm);
 	}
 	*mp = NULL;

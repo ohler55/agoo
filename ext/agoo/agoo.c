@@ -38,6 +38,7 @@ ragoo_shutdown(VALUE self) {
     agoo_shutdown();
     gql_destroy();
     debug_report();
+
     return Qnil;
 }
 

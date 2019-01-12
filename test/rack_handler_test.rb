@@ -63,6 +63,8 @@ class RackHandlerTest < Minitest::Test
     Agoo::Server.handle(:PUT, "/makeme", handler)
 
     Agoo::Server.start()
+
+    @@server_started = true
   end
 
   def setup
@@ -72,6 +74,7 @@ class RackHandlerTest < Minitest::Test
   end
 
   Minitest.after_run {
+    GC.start
     Agoo::shutdown
   }
 

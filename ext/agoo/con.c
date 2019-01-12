@@ -73,6 +73,8 @@ agoo_con_create(agooErr err, int sock, uint64_t id, agooBind b) {
 
 void
 agoo_con_destroy(agooCon c) {
+    agooRes	res;
+
     atomic_fetch_sub(&agoo_server.con_cnt, 1);
 
     if (AGOO_CON_WS == c->bind->kind || AGOO_CON_SSE == c->bind->kind) {
@@ -90,6 +92,11 @@ agoo_con_destroy(agooCon c) {
 	c->up = NULL;
     }
     agoo_log_cat(&agoo_con_cat, "Connection %llu closed.", (unsigned long long)c->id);
+
+    while (NULL != (res = c->res_head)) {
+	c->res_head = res->next;
+	AGOO_FREE(res);
+    }
     AGOO_FREE(c);
 }
 

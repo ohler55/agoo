@@ -183,7 +183,6 @@ directive @ruby(class: String!) on SCHEMA | OBJECT
 			  response: false,
 			  eval: true,
 			})
-
     Agoo::Server.init(6472, 'root', thread_count: 1, graphql: '/graphql')
     Agoo::Server.start()
 
@@ -201,6 +200,7 @@ directive @ruby(class: String!) on SCHEMA | OBJECT
   end
 
   Minitest.after_run {
+    GC.start
     Agoo::shutdown
   }
 
@@ -274,7 +274,8 @@ directive @ruby(class: String!) on SCHEMA | OBJECT
   end
   
   def test_json_vars_query
-    uri = URI('http://localhost:6472/graphql?query={artist(name:$name){name}}&indent=2&variables={"name":"Fazerdaze"}')
+    #uri = URI('http://localhost:6472/graphql?query={artist(name:$name){name}}&indent=2&variables={"name":"Fazerdaze"}')
+    uri = URI('http://localhost:6472/graphql?query={artist(name:"Fazerdaze"){name}}&indent=2&variables={"name":"Fazerdaze"}')
     expect = %^{
   "data":{
     "artist":{

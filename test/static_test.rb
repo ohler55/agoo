@@ -32,6 +32,8 @@ class StaticTest < Minitest::Test
     Agoo::Server.init(6469, 'root', thread_count: 1)
     Agoo::Server.add_mime('odd', 'text/odd')
     Agoo::Server.start()
+
+    @@server_started = true
   end  
 
   def setup
@@ -41,6 +43,7 @@ class StaticTest < Minitest::Test
   end
 
   Minitest.after_run {
+    GC.start
     Agoo::shutdown
   }
 

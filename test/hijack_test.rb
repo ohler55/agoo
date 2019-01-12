@@ -52,6 +52,7 @@ hello world|)
       jack
 
     ensure
+      GC.start
       Agoo.shutdown
     end
   end

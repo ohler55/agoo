@@ -68,6 +68,8 @@ class BaseHandlerTest < Minitest::Test
     Agoo::Server.handle(:GET, "/wild/all/**", WildHandler.new('all'))
 
     Agoo::Server.start()
+
+    @@server_started = true
   end
 
   def setup
@@ -77,6 +79,7 @@ class BaseHandlerTest < Minitest::Test
   end
 
   Minitest.after_run {
+    GC.start
     Agoo::shutdown
   }
   

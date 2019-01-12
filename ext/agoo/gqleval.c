@@ -12,6 +12,7 @@
 #include "req.h"
 #include "res.h"
 #include "sdl.h"
+#include "text.h"
 
 #define MAX_RESOLVE_ARGS	16
 
@@ -73,18 +74,21 @@ value_resp(agooRes res, gqlValue result, int status, int indent) {
     if (NULL == msg) {
 	agoo_err_set(&err, AGOO_ERR_MEMORY, "Out of memory.");
 	err_resp(res, &err, 500);
+	gql_value_destroy(result);
+	return;
     }
     if (AGOO_ERR_OK != gql_object_set(&err, msg, "data", result)) {
 	err_resp(res, &err, 500);
+	gql_value_destroy(result);
 	return;
     }
     text = gql_value_json(text, msg, indent, 0);
+    gql_value_destroy(msg); // also destroys result
 
     cnt = snprintf(buf, sizeof(buf), "HTTP/1.1 %d %s\r\nContent-Type: application/json\r\nContent-Length: %ld\r\n\r\n",
 		   status, agoo_http_code_message(status), text->len);
     text = agoo_text_prepend(text, buf, cnt);
     agoo_res_set_message(res, text);
-    gql_value_destroy(result);
 }
 
 static gqlRef
@@ -289,7 +293,7 @@ eval_sel(agooErr err, gqlDoc doc, gqlRef ref, gqlField field, gqlSel sel, gqlVal
 		for (fa = field->args; NULL != fa; fa = fa->next) {
 		    if (0 == strcmp(a->key, fa->name)) {
 			if (a->value->type != fa->type && GQL_SCALAR_VAR != a->value->type->scalar_kind) {
-			    if (NULL == (a->value = gql_value_convert(err, a->value, fa->type))) {
+			    if (AGOO_ERR_OK != gql_value_convert(err, a->value, fa->type)) {
 				return err->code;
 			    }
 			}
@@ -445,7 +449,7 @@ gql_doc_eval(agooErr err, gqlDoc doc) {
 
 static gqlVar
 parse_query_vars(agooErr err, const char *var_json, int vlen) {
-    gqlValue	vlist;
+    gqlValue	vlist = NULL;
     gqlLink	link;
     gqlVar	vars = NULL;
     
@@ -460,6 +464,7 @@ parse_query_vars(agooErr err, const char *var_json, int vlen) {
     for (link = vlist->members; NULL != link; link = link->next) {
 	gqlVar	v = gql_op_var_create(err, link->key, link->value->type, link->value);
 
+	link->value = NULL;
 	if (NULL == v) {
 	    goto DONE;
 	}
@@ -467,6 +472,9 @@ parse_query_vars(agooErr err, const char *var_json, int vlen) {
 	vars = v;
     }
 DONE:
+    if (NULL != vlist) {
+	gql_value_destroy(vlist);
+    }
     return vars;
 }
 
@@ -531,6 +539,7 @@ gql_eval_get_hook(agooReq req) {
     } else {
 	result = gql_doc_eval_func(&err, doc);
     }
+    gql_doc_destroy(doc);
     if (NULL == result) {
 	err_resp(req->res, &err, 500);
 	return;
@@ -550,7 +559,8 @@ eval_post(agooErr err, agooReq req) {
     gqlVar		vars = NULL;
     const char		*s;
     int			len;
-    gqlValue		result;
+    gqlValue		result = NULL;
+    gqlValue		j = NULL;
 
     // TBD handle query parameter and concatenate with body query if present
 
@@ -571,26 +581,25 @@ eval_post(agooErr err, agooReq req) {
 	    return NULL;
 	}
     } else if (0 == strncmp(json_content_type, s, sizeof(json_content_type) - 1)) {
-	gqlValue	j;
-	gqlLink		m;
+	gqlLink	m;
 	
 	if (NULL != (j = gql_json_parse(err, req->body.start, req->body.len))) {
 	    if (GQL_SCALAR_OBJECT != j->type->scalar_kind) {
 		agoo_err_set(err, AGOO_ERR_TYPE, "JSON request must be an object");
-		return NULL;
+		goto DONE;
 	    }
 	    for (m = j->members; NULL != m; m = m->next) {
 		if (0 == strcmp("query", m->key)) {
 		    if (NULL == (s = gql_string_get(m->value))) {
 			agoo_err_set(err, AGOO_ERR_TYPE, "query must be an string");
-			return NULL;
+			goto DONE;
 		    }
 		    query = s;
 		    qlen = strlen(s);
 		} else if (0 == strcmp("operationName", m->key)) {
 		    if (NULL == (s = gql_string_get(m->value))) {
 			agoo_err_set(err, AGOO_ERR_TYPE, "operationName must be an string");
-			return NULL;
+			goto DONE;
 		    }
 		    op_name = s;
 		    oplen = strlen(s);
@@ -599,13 +608,14 @@ eval_post(agooErr err, agooReq req) {
 
 		    if (GQL_SCALAR_OBJECT != m->value->type->scalar_kind) {
 			agoo_err_set(err, AGOO_ERR_EVAL, "expected variables to be an object.");
-			return NULL;
+			goto DONE;
 		    }
 		    for (link = m->value->members; NULL != link; link = link->next) {
 			gqlVar	v = gql_op_var_create(err, link->key, link->value->type, link->value);
 
+			link->value = NULL; // TBD is this correct?
 			if (NULL == v) {
-			    return NULL;
+			    goto DONE;
 			}
 			v->next = vars;
 			vars = v;
@@ -613,10 +623,10 @@ eval_post(agooErr err, agooReq req) {
 		}
 	    }
 	    if (NULL == (doc = sdl_parse_doc(err, query, qlen, vars))) {
-		return NULL;
+		goto DONE;
 	    }
 	} else {
-	    return NULL;
+	    goto DONE;
 	}
     } else {
 	agoo_err_set(err, AGOO_ERR_TYPE, "unsupported content type");
@@ -629,6 +639,11 @@ eval_post(agooErr err, agooReq req) {
     } else {
 	result = gql_doc_eval_func(err, doc);
     }
+    gql_doc_destroy(doc);
+
+DONE:
+    gql_value_destroy(j);
+
     return result;
 }
 

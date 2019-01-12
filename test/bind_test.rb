@@ -46,6 +46,7 @@ class BindTest < Minitest::Test
 			     "unix://#{@@name}",
 			    ])
     Agoo::Server.start()
+    @@server_started = true
   end
 
   def setup
