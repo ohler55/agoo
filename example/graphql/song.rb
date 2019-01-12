@@ -23,21 +23,21 @@ Agoo::Server.start()
 # link the GraphQL type to a Ruby class. This is only needed when using
 # fragments.
 $songs_sdl = %^
-type Query @ruby(class: "Query") {
+type Query {
   artist(name: String!): Artist
 }
 
-type Artist @ruby(class: "Artist") {
+type Artist {
   name: String!
   songs: [Song]
   origin: [String]
 }
 
-type Song @ruby(class: "Song") {
+type Song {
   name: String!
   artist: Artist
   duration: Int
-  release: String
+  release: Time
 }
 ^
 
@@ -115,14 +115,13 @@ Agoo::GraphQL.schema(Schema.new) {
   Agoo::GraphQL.load($songs_sdl)
 }
 
+puts %^open 'localhost:6464/graphql?query={artist(name:"Fazerdaze"){name,songs{name,duration}}}&indent=2' in a browser.^
+
 # When starting with a thread_count over 0 just sleep until a ^C is
 # signalled. Agoo must be running to load the SDL.
 sleep
 
-puts %^open 'localhost:6464/graphql?query={artist(name:"Fazerdaze"){name}}&indent=2' in a browser.^
-
-# To run this example type the following then go to a browser and enter a URL
-# of
+# To run this example type the following then go to a browser and enter a URL of
 # localhost:6464/graphql?query={artist(name:"Fazerdaze"){name}}&indent=2. For
 # a more complex query try
 # localhost:6464/graphql?query={artist(name:"Fazerdaze"){name,songs{name,duration}}}&indent=2.
