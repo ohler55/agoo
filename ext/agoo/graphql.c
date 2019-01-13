@@ -156,7 +156,7 @@ type_clean(gqlType type) {
     type->desc = NULL;
     free_dir_uses(type->dir);
     type->dir = NULL;
-
+    
     switch (type->kind) {
     case GQL_OBJECT:
     case GQL_INTERFACE:
@@ -215,6 +215,7 @@ type_destroy(gqlType type) {
 	return;
     }
     type_clean(type);
+    AGOO_FREE(type->intro);
     AGOO_FREE((char*)type->name);
     AGOO_FREE(type);
 }
@@ -416,7 +417,10 @@ type_create(agooErr err, gqlKind kind, const char *name, const char *desc, size_
 	type->kind = kind;
 	type->scalar_kind = GQL_SCALAR_UNDEF;
 	type->core = false;
-	
+
+	if (NULL == (type->intro = gql_type_intro_create(err, type))) {
+	    return NULL;
+	}
 	if (AGOO_ERR_OK != gql_type_set(err, type)) {
 	    gql_type_destroy(type);
 	    type = NULL;

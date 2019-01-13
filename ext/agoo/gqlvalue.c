@@ -23,6 +23,7 @@ struct _gqlType	gql_null_type = {
     .kind = GQL_SCALAR,
     .scalar_kind = GQL_SCALAR_NULL,
     .core = true,
+    .intro = NULL,
     .destroy = NULL,
     .to_json = null_to_text,
     .to_sdl = null_to_text,
@@ -45,6 +46,7 @@ struct _gqlType	gql_int_type = {
     .kind = GQL_SCALAR,
     .scalar_kind = GQL_SCALAR_INT,
     .core = true,
+    .intro = NULL,
     .destroy = NULL,
     .to_json = int_to_text,
     .to_sdl = int_to_text,
@@ -67,6 +69,7 @@ struct _gqlType	gql_i64_type = {
     .kind = GQL_SCALAR,
     .scalar_kind = GQL_SCALAR_I64,
     .core = true,
+    .intro = NULL,
     .destroy = NULL,
     .to_json = i64_to_text,
     .to_sdl = i64_to_text,
@@ -102,6 +105,7 @@ struct _gqlType	gql_string_type = {
     .kind = GQL_SCALAR,
     .scalar_kind = GQL_SCALAR_STRING,
     .core = true,
+    .intro = NULL,
     .destroy = string_destroy,
     .to_json = string_to_text,
     .to_sdl = string_to_text,
@@ -126,8 +130,9 @@ struct _gqlType	gql_token_type = {
     .kind = GQL_SCALAR,
     .scalar_kind = GQL_SCALAR_TOKEN,
     .core = true,
+    .intro = NULL,
     .destroy = string_destroy,
-    .to_json = token_to_text,
+    .to_json = string_to_text,
     .to_sdl = token_to_text,
 };
 
@@ -152,6 +157,7 @@ struct _gqlType	gql_var_type = {
     .kind = GQL_SCALAR,
     .scalar_kind = GQL_SCALAR_VAR,
     .core = true,
+    .intro = NULL,
     .destroy = string_destroy,
     .to_json = var_to_text,
     .to_sdl = var_to_text,
@@ -174,6 +180,7 @@ struct _gqlType	gql_bool_type = {
     .kind = GQL_SCALAR,
     .scalar_kind = GQL_SCALAR_BOOL,
     .core = true,
+    .intro = NULL,
     .destroy = NULL,
     .to_json = bool_to_text,
     .to_sdl = bool_to_text,
@@ -196,6 +203,7 @@ struct _gqlType	gql_float_type = {
     .kind = GQL_SCALAR,
     .scalar_kind = GQL_SCALAR_FLOAT,
     .core = true,
+    .intro = NULL,
     .destroy = NULL,
     .to_json = float_to_text,
     .to_sdl = float_to_text,
@@ -474,6 +482,7 @@ struct _gqlType	gql_time_type = {
     .kind = GQL_SCALAR,
     .scalar_kind = GQL_SCALAR_TIME,
     .core = true,
+    .intro = NULL,
     .destroy = NULL,
     .to_json = time_to_text,
     .to_sdl = time_to_text,
@@ -567,6 +576,7 @@ struct _gqlType	gql_uuid_type = {
     .kind = GQL_SCALAR,
     .scalar_kind = GQL_SCALAR_UUID,
     .core = true,
+    .intro = NULL,
     .destroy = NULL,
     .to_json = uuid_to_text,
     .to_sdl = uuid_to_text,
@@ -604,7 +614,7 @@ list_to_json(agooText text, gqlValue value, int indent, int depth) {
 	if (0 < i2) {
 	    text = agoo_text_append(text, spaces, i2);
 	}
-	text = link->value->type->to_json(text, link->value, indent, d2);
+	text = gql_value_json(text, link->value, indent, d2);
 	if (NULL != link->next) {
 	    text = agoo_text_append(text, ",", 1);
 	}
@@ -656,6 +666,7 @@ struct _gqlType	list_type = { // unregistered
     .kind = GQL_SCALAR,
     .scalar_kind = GQL_SCALAR_LIST,
     .core = true,
+    .intro = NULL,
     .destroy = list_destroy,
     .to_json = list_to_json,
     .to_sdl = list_to_sdl,
@@ -701,7 +712,7 @@ gql_object_to_json(agooText text, gqlValue value, int indent, int depth) {
 	} else {
 	    text = agoo_text_append(text, "\":", 2);
 	}
-	text = link->value->type->to_json(text, link->value, indent, d2);
+	text = gql_value_json(text, link->value, indent, d2);
 	if (NULL != link->next) {
 	    text = agoo_text_append(text, ",", 1);
 	}
@@ -759,6 +770,7 @@ struct _gqlType	object_type = { // unregistered
     .kind = GQL_SCALAR,
     .scalar_kind = GQL_SCALAR_OBJECT,
     .core = true,
+    .intro = NULL,
     .destroy = object_destroy,
     .to_json = gql_object_to_json,
     .to_sdl = gql_object_to_sdl,
@@ -1186,7 +1198,11 @@ gql_object_create(agooErr err) {
 agooText
 gql_value_json(agooText text, gqlValue value, int indent, int depth) {
     if (NULL == value->type || GQL_SCALAR != value->type->kind) {
-	text = agoo_text_append(text, "null", 4);
+	if (GQL_ENUM == value->type->kind) {
+	    text = string_to_text(text, value, indent, depth);
+	} else {
+	    text = agoo_text_append(text, "null", 4);
+	}
     } else if (NULL == value->type->to_json) {
 	text = agoo_text_append(text, "null", 4);
     } else {
@@ -1197,8 +1213,12 @@ gql_value_json(agooText text, gqlValue value, int indent, int depth) {
 
 agooText
 gql_value_sdl(agooText text, gqlValue value, int indent, int depth) {
-    if (NULL == value->type) {
-	text = agoo_text_append(text, "null", 4);
+    if (NULL == value->type || GQL_SCALAR != value->type->kind) {
+	if (GQL_ENUM == value->type->kind) {
+	    text = token_to_text(text, value, indent, depth);
+	} else {
+	    text = agoo_text_append(text, "null", 4);
+	}
     } else if (NULL == value->type->to_sdl) {
 	text = agoo_text_append(text, "null", 4);
     } else {

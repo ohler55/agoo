@@ -1301,7 +1301,7 @@ make_fragment(agooErr err, agooDoc doc, gqlDoc gdoc) {
 }
 
 static gqlType
-lookup_field_type(gqlType type, const char *field) {
+lookup_field_type(gqlType type, const char *field, bool qroot) {
     gqlType	ftype = NULL;
     
     switch (type->kind) {
@@ -1316,13 +1316,21 @@ lookup_field_type(gqlType type, const char *field) {
 		break;
 	    }
 	}
-	if (NULL == ftype && 0 == strcmp("__typename", field)) {
-	    ftype = &gql_string_type;
+	if (NULL == ftype) {
+	    if (0 == strcmp("__typename", field)) {
+		ftype = &gql_string_type;
+	    } else if (qroot) {
+		if (0 == strcmp("__type", field)) {
+		    ftype = gql_type_get("__Type");
+		} else if (0 == strcmp("__schema", field)) {
+		    ftype = gql_type_get("__Schema");
+		}
+	    }
 	}
 	break;
     }
     case GQL_LIST:
-	ftype = lookup_field_type(type->base, field);
+	ftype = lookup_field_type(type->base, field, false);
 	break;
     case GQL_UNION: // Can not be used directly for query type determinations.
     default:
@@ -1332,7 +1340,7 @@ lookup_field_type(gqlType type, const char *field) {
 }
 
 static int
-sel_set_type(agooErr err, gqlType type, gqlSel sels) {
+sel_set_type(agooErr err, gqlType type, gqlSel sels, bool qroot) {
     gqlSel	sel;
     
     for (sel = sels; NULL != sel; sel = sel->next) {
@@ -1344,17 +1352,17 @@ sel_set_type(agooErr err, gqlType type, gqlSel sels) {
 		if (NULL != sel->inline_frag->on) {
 		    ftype = sel->inline_frag->on;
 		}
-		if (AGOO_ERR_OK != sel_set_type(err, ftype, sel->inline_frag->sels)) {
+		if (AGOO_ERR_OK != sel_set_type(err, ftype, sel->inline_frag->sels, false)) {
 		    return err->code;
 		}
 	    }
 	} else {
-	    if (NULL == (sel->type = lookup_field_type(type, sel->name))) {
+	    if (NULL == (sel->type = lookup_field_type(type, sel->name, qroot))) {
 		return agoo_err_set(err, AGOO_ERR_EVAL, "Failed to determine the type for %s.", sel->name);
 	    }
 	}
 	if (NULL != sel->sels) {
-	    if (AGOO_ERR_OK != sel_set_type(err, sel->type, sel->sels)) {
+	    if (AGOO_ERR_OK != sel_set_type(err, sel->type, sel->sels, false)) {
 		return err->code;
 	    }
 	}
@@ -1373,20 +1381,20 @@ validate_doc(agooErr err, gqlDoc doc) {
 	return agoo_err_set(err, AGOO_ERR_EVAL, "No root (schema) type defined.");
     }
     for (frag = doc->frags; NULL != frag; frag = frag->next) {
-	if (AGOO_ERR_OK != sel_set_type(err, frag->on, frag->sels)) {
+	if (AGOO_ERR_OK != sel_set_type(err, frag->on, frag->sels, false)) {
 	    return err->code;
 	}
     }
     for (op = doc->ops; NULL != op; op = op->next) {
 	switch (op->kind) {
 	case GQL_QUERY:
-	    type = lookup_field_type(schema, query_str);
+	    type = lookup_field_type(schema, query_str, false);
 	    break;
 	case GQL_MUTATION:
-	    type = lookup_field_type(schema, mutation_str);
+	    type = lookup_field_type(schema, mutation_str, false);
 	    break;
 	case GQL_SUBSCRIPTION:
-	    type = lookup_field_type(schema, subscription_str);
+	    type = lookup_field_type(schema, subscription_str, false);
 	    break;
 	default:
 	    break;
@@ -1394,7 +1402,7 @@ validate_doc(agooErr err, gqlDoc doc) {
 	if (NULL == type) {
 	    return agoo_err_set(err, AGOO_ERR_EVAL, "Not a supported operation type.");
 	}
-	if (AGOO_ERR_OK != sel_set_type(err, type, op->sels)) {
+	if (AGOO_ERR_OK != sel_set_type(err, type, op->sels, GQL_QUERY == op->kind)) {
 	    return err->code;
 	}
     }

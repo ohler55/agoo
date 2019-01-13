@@ -4,6 +4,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "debug.h"
+#include "gqlcobj.h"
 #include "gqlintro.h"
 #include "gqlvalue.h"
 #include "graphql.h"
@@ -362,3 +364,131 @@ gql_intro_init(agooErr err) {
     }
     return AGOO_ERR_OK;
 }
+
+// introspection handlers /////////////////////////////////////////////////////////////////////
+
+// __Field
+
+// __InputValue
+
+// EnumValue
+
+// __Directive
+
+
+
+// kind: __TypeKind!
+static gqlRef
+intro_type_kind(agooErr err, gqlCobj obj, gqlKeyVal args) {
+    gqlType	type = (gqlType)obj->ref;
+    const char	*kind = NULL;
+    
+    switch (type->kind) {
+    case GQL_OBJECT:	kind = "OBJECT";	break;
+    case GQL_INPUT:	kind = "INPUT_OBJECT";	break;
+    case GQL_UNION:	kind = "UNION";		break;
+    case GQL_INTERFACE:	kind = "INTERFACE";	break;
+    case GQL_ENUM:	kind = "ENUM";		break;
+    case GQL_SCALAR:	kind = "SCALAR";	break;
+    case GQL_LIST:	kind = "LIST";		break;
+    default:
+	agoo_err_set(err, AGOO_ERR_ARG, "__Type kind field not valid. %s:%d", __FILE__, __LINE__);
+	return NULL;
+    }
+    return (gqlRef)gql_token_create(err, kind, -1, gql_type_get("__TypeKind"));
+}
+
+// name: String
+static gqlRef
+intro_type_name(agooErr err, gqlCobj obj, gqlKeyVal args) {
+    return (gqlRef)gql_string_create(err, ((gqlType)obj->ref)->name, -1);
+}
+
+// description: String
+static gqlRef
+intro_type_description(agooErr err, gqlCobj obj, gqlKeyVal args) {
+    gqlType	type = (gqlType)obj->ref;
+    
+    if (NULL == type->desc) {
+	return (gqlRef)gql_null_create(err);
+    }
+    return (gqlRef)gql_string_create(err, ((gqlType)obj->ref)->desc, -1);
+}
+
+// OBJECT and INTERFACE only
+// fields(includeDeprecated: Boolean = false): [__Field!]
+
+// OBJECT only
+// interfaces: [__Type!]
+
+// INTERFACE and UNION only
+// possibleTypes: [__Type!]
+
+// ENUM only
+// enumValues(includeDeprecated: Boolean = false): [__EnumValue!]
+
+// INPUT_OBJECT only
+// inputFields: [__InputValue!]
+
+// NON_NULL and LIST only
+// ofType: __Type
+
+
+
+static struct _gqlCmethod	type_methods[] = {
+    { .key = "kind",        .func = intro_type_kind },
+    { .key = "name",        .func = intro_type_name },
+    { .key = "description", .func = intro_type_description },
+    { .key = NULL,          .func = NULL },
+};
+
+// __Type
+static struct _gqlCclass	type_class = {
+    .name = "__Type",
+    .methods = type_methods,
+};
+
+gqlCobj
+gql_type_intro_create(agooErr err, gqlType type) {
+    return gql_c_obj_create(err, (gqlRef)type, &type_class);
+}
+
+// Introspection Query Root
+
+static gqlRef
+intro_root_type(agooErr err, gqlCobj obj, gqlKeyVal args) {
+    const char	*name = gql_string_get(gql_get_arg_value(args, "name"));
+    gqlType	type;
+    
+    if (NULL == name) {
+	agoo_err_set(err, AGOO_ERR_ARG, "__type field requires a name argument. %s:%d", __FILE__, __LINE__);
+	return NULL;
+    }
+    if (NULL == (type = gql_type_get(name))) {
+	agoo_err_set(err, AGOO_ERR_ARG, "%s is not a defined type. %s:%d", name, __FILE__, __LINE__);
+	return NULL;
+    }
+    return type->intro;
+}
+
+static gqlRef
+intro_root_schema(agooErr err, gqlCobj obj, gqlKeyVal args) {
+    // TBD return intro_schema_obj
+    return NULL;
+}
+
+static struct _gqlCmethod	root_methods[] = {
+    { .key = "__type",   .func = intro_root_type },
+    { .key = "__schema", .func = intro_root_schema },
+    { .key = NULL,       .func = NULL },
+};
+
+static struct _gqlCclass	root_class = {
+    .name = "__Query",
+    .methods = root_methods,
+};
+
+struct _gqlCobj		gql_intro_query_root = {
+    .clas = &root_class,
+    .ref = NULL,
+};

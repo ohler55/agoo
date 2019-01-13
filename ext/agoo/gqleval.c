@@ -4,6 +4,7 @@
 #include <string.h>
 
 #include "gqleval.h"
+#include "gqlintro.h"
 #include "gqljson.h"
 #include "gqlvalue.h"
 #include "graphql.h"
@@ -21,6 +22,7 @@ typedef struct _implFuncs {
     gqlCoerceFunc	coerce;
     gqlTypeFunc		type;
     gqlIterateFunc	iterate;
+    bool		(*is_null)(gqlRef ref);
 } *ImplFuncs;
 
 gqlRef		gql_root = NULL;
@@ -92,14 +94,6 @@ value_resp(agooRes res, gqlValue result, int status, int indent) {
     agoo_res_set_message(res, text);
 }
 
-static gqlRef
-resolve_intro(agooErr err, gqlRef target, const char *field_name, gqlKeyVal args) {
-
-    // TBD
-    
-    return NULL;
-}
-
 static gqlValue
 coerce_intro(agooErr err, gqlRef ref, struct _gqlType *type) {
     return (gqlValue)ref;
@@ -121,11 +115,17 @@ iterate_intro(agooErr err, gqlRef ref, int (*cb)(agooErr err, gqlRef ref, void *
     return AGOO_ERR_OK;
 }
 
+static bool
+is_null_intro(gqlRef ref) {
+    return NULL == ref;
+}
+
 static struct _implFuncs	intro_funcs = {
-    .resolve = resolve_intro,
+    .resolve = gql_c_obj_resolve,
     .coerce = coerce_intro,
     .type = type_intro,
     .iterate = iterate_intro,
+    .is_null = is_null_intro,
 };
 
 gqlValue
@@ -320,25 +320,27 @@ eval_sel(agooErr err, gqlDoc doc, gqlRef ref, gqlField field, gqlSel sel, gqlVal
 		    AGOO_ERR_OK != gql_object_set(err, result, key, child)) {
 		    return err->code;
 		}
+		return AGOO_ERR_OK;
 	    } else {
-		// TBD set ref to intro root
 		funcs = &intro_funcs;
+
 		if (0 == strcmp("__type", sel->name)) {
 		    if (gql_query_root != ref) {
 			return agoo_err_set(err, AGOO_ERR_EVAL, "__type can only be called from a query root.");
 		    }
+		    ref = (gqlRef)&gql_intro_query_root;
 		} else if (0 == strcmp("__schema", sel->name)) {
 		    if (gql_query_root != ref) {
 			return agoo_err_set(err, AGOO_ERR_EVAL, "__scheme can only be called from a query root.");
 		    }
+		    ref = (gqlRef)&gql_intro_query_root;
 		} else {
 		    return agoo_err_set(err, AGOO_ERR_EVAL, "%s can only be called from the query root.", sel->name);
 		}
 	    }
-	    return AGOO_ERR_OK;
 	}
 	r2 = funcs->resolve(err, ref, sel->name, args);
-	if (AGOO_ERR_OK != err->code || gql_is_null_func(r2)) {
+	if (AGOO_ERR_OK != err->code || funcs->is_null(r2)) {
 	    return err->code;
 	}
 	if (NULL != sel->type && GQL_LIST == sel->type->kind) { // TBD only for lists of objects, not scalars
@@ -414,6 +416,7 @@ gql_doc_eval(agooErr err, gqlDoc doc) {
 	    .coerce = gql_coerce_func,
 	    .type = gql_type_func,
 	    .iterate = gql_iterate_func,
+	    .is_null = gql_is_null_func,
 	};
 
 	switch (doc->op->kind) {
@@ -666,4 +669,19 @@ gql_eval_post_hook(agooReq req) {
     } else {
 	value_resp(req->res, result, 200, indent);
     }
+}
+
+gqlValue
+gql_get_arg_value(gqlKeyVal args, const char *key) {
+    gqlValue	value = NULL;
+    
+    if (NULL != args) {
+	for (; NULL != args->key; args++) {
+	    if (0 == strcmp(key, args->key)) {
+		value = args->value;
+		break;
+	    }
+	}
+    }
+    return value;
 }

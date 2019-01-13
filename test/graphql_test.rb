@@ -607,6 +607,22 @@ query skippy($boo: Boolean = true){
     post_test(uri, body, 'application/graphql', expect)
   end
 
+  def test_intro_type
+    uri = URI('http://localhost:6472/graphql?query={__type(name:"Artist"){kind,name,description}}&indent=2')
+    expect = %^{
+  "data":{
+    "__type":{
+      "kind":"OBJECT",
+      "name":"Artist",
+      "description":null
+    }
+  }
+}^
+    req_test(uri, expect)
+  end
+  
+
+
   ##################################
 
   def deep_delete(obj, path)

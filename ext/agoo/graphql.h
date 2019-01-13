@@ -8,6 +8,7 @@
 #include <stdlib.h>
 
 #include "err.h"
+#include "gqlcobj.h"
 #include "text.h"
 
 typedef enum {
@@ -121,6 +122,7 @@ typedef struct _gqlType {
     gqlKind		kind;
     gqlScalarKind	scalar_kind;
     bool		core;
+    gqlCobj		intro;
     union {
 	struct { // Objects, interfaces, and input_objects
 	    gqlField		fields;

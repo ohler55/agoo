@@ -32,6 +32,7 @@ typedef struct _gqlType*	(*gqlTypeFunc)(gqlRef ref);
 typedef int			(*gqlIterateFunc)(agooErr err, gqlRef ref, int (*cb)(agooErr err, gqlRef ref, void *ctx), void *ctx);
 
 extern struct _gqlValue*	gql_doc_eval(agooErr err, struct _gqlDoc *doc);
+extern struct _gqlValue*	gql_get_arg_value(gqlKeyVal args, const char *key);
 
 extern gqlRef			gql_root;
 extern gqlResolveFunc		gql_resolve_func;
