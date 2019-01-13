@@ -10,6 +10,7 @@ require 'minitest'
 require 'minitest/autorun'
 require 'net/http'
 
+require 'oj'
 require 'agoo'
 
 class Artist
@@ -271,6 +272,20 @@ directive @ruby(class: String!) on SCHEMA | OBJECT
   }
 }^
     req_test(uri, expect)
+  end
+  
+  def test_parse_error
+    uri = URI('http://localhost:6472/graphql?query=nonsense')
+    expect = %^{
+  "errors":[
+    {
+      "message":"unexpected character at 1:1",
+      "code":"parse error"
+    }
+  ]
+}
+^
+    req_test(uri, expect, 'errors.0.timestamp')
   end
   
   def test_json_vars_query
@@ -593,13 +608,31 @@ query skippy($boo: Boolean = true){
   end
 
   ##################################
+
+  def deep_delete(obj, path)
+    key = path[0]
+    if 1 == path.length
+      obj.delete(key)
+    else
+      if key == key.to_i.to_s
+	deep_delete(obj[key.to_i], path[1..-1])
+      else
+	deep_delete(obj[key], path[1..-1])
+      end
+    end
+  end
   
-  def req_test(uri, expect)
+  def req_test(uri, expect, ignore=nil)
     req = Net::HTTP::Get.new(uri)
     res = Net::HTTP.start(uri.hostname, uri.port) { |h|
       h.request(req)
     }
     content = res.body
+    unless ignore.nil?
+      result = Oj.load(content, mode: :strict)
+      deep_delete(result, ignore.split('.'))
+      content = Oj.dump(result, indent: 2)
+    end
     assert_equal(expect, content)
   end
 

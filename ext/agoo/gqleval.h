@@ -3,6 +3,8 @@
 #ifndef AGOO_GQLEVAL_H
 #define AGOO_GQLEVAL_H
 
+#include <stdbool.h>
+
 #include "err.h"
 
 // Used for references to implemenation entities.
@@ -36,6 +38,7 @@ extern gqlResolveFunc		gql_resolve_func;
 extern gqlCoerceFunc		gql_coerce_func;
 extern gqlTypeFunc		gql_type_func;
 extern gqlIterateFunc		gql_iterate_func;
+extern bool			(*gql_is_null_func)(gqlRef ref);
 
 extern struct _gqlValue*	(*gql_doc_eval_func)(agooErr err, struct _gqlDoc *doc);
 

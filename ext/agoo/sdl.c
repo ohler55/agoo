@@ -1422,11 +1422,13 @@ sdl_parse_doc(agooErr err, const char *str, int len, gqlVar vars) {
 	case 'm':
 	case 's':
 	    if (AGOO_ERR_OK != make_op(err, &doc, gdoc)) {
+		gql_doc_destroy(gdoc);
 		return NULL;
 	    }
 	    break;
 	case 'f':
 	    if (AGOO_ERR_OK != make_fragment(err, &doc, gdoc)) {
+		gql_doc_destroy(gdoc);
 		return NULL;
 	    }
 	    break;
@@ -1434,6 +1436,7 @@ sdl_parse_doc(agooErr err, const char *str, int len, gqlVar vars) {
 	    goto DONE;
 	default:
 	    agoo_doc_err(&doc, err, "unexpected character");
+	    gql_doc_destroy(gdoc);
 	    return NULL;
 	}
     }

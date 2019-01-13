@@ -29,6 +29,7 @@ gqlResolveFunc	gql_resolve_func = NULL;
 gqlCoerceFunc	gql_coerce_func = NULL;
 gqlTypeFunc	gql_type_func = NULL;
 gqlIterateFunc	gql_iterate_func = NULL;
+bool		(*gql_is_null_func)(gqlRef ref) = NULL;
 
 static const char	graphql_content_type[] = "application/graphql";
 static const char	indent_str[] = "indent";
@@ -336,7 +337,8 @@ eval_sel(agooErr err, gqlDoc doc, gqlRef ref, gqlField field, gqlSel sel, gqlVal
 	    }
 	    return AGOO_ERR_OK;
 	}
-	if (NULL == (r2 = funcs->resolve(err, ref, sel->name, args))) {
+	r2 = funcs->resolve(err, ref, sel->name, args);
+	if (AGOO_ERR_OK != err->code || gql_is_null_func(r2)) {
 	    return err->code;
 	}
 	if (NULL != sel->type && GQL_LIST == sel->type->kind) { // TBD only for lists of objects, not scalars
@@ -549,7 +551,7 @@ gql_eval_get_hook(agooReq req) {
 
 static gqlValue
 eval_post(agooErr err, agooReq req) {
-    gqlDoc		doc;
+    gqlDoc		doc = NULL;
     const char		*op_name = NULL;
     const char		*var_json = NULL;
     const char		*query = NULL;
@@ -639,9 +641,9 @@ eval_post(agooErr err, agooReq req) {
     } else {
 	result = gql_doc_eval_func(err, doc);
     }
-    gql_doc_destroy(doc);
 
 DONE:
+    gql_doc_destroy(doc);
     gql_value_destroy(j);
 
     return result;

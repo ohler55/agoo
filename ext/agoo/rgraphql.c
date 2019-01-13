@@ -179,6 +179,11 @@ resolve(agooErr err, gqlRef target, const char *field_name, gqlKeyVal args) {
     return (gqlRef)result;
 }
 
+static bool
+ref_is_null(gqlRef ref) {
+    return Qnil == (VALUE)ref;
+}
+
 static VALUE
 ref_to_string(gqlRef ref) {
     volatile VALUE	value;
@@ -468,6 +473,7 @@ graphql_schema(VALUE self, VALUE root) {
     gql_coerce_func = coerce;
     gql_type_func = ref_type;
     gql_iterate_func = iterate;
+    gql_is_null_func = ref_is_null;
 
     if (NULL == (use = gql_dir_use_create(&err, "ruby"))) {
 	rb_raise(rb_eStandardError, "%s", err.msg);
