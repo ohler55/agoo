@@ -780,8 +780,15 @@ struct _gqlType	object_type = { // unregistered
 void
 gql_value_destroy(gqlValue value) {
     if (NULL != value) {
-	if (NULL != value->type->destroy) {
-	    value->type->destroy(value);
+	if (GQL_SCALAR == value->type->kind) {
+	    if (NULL != value->type->destroy) {
+		value->type->destroy(value);
+	    }
+	} else if (GQL_ENUM == value->type->kind) {
+	    // TBD destroy string
+	    string_destroy(value);
+	} else {
+	    return;
 	}
 	AGOO_FREE(value);
     }

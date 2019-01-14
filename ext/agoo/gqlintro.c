@@ -417,29 +417,80 @@ intro_type_description(agooErr err, gqlCobj obj, gqlKeyVal args) {
 
 // OBJECT and INTERFACE only
 // fields(includeDeprecated: Boolean = false): [__Field!]
+static gqlRef
+intro_type_fields(agooErr err, gqlCobj obj, gqlKeyVal args) {
+
+    // TBD
+
+    return NULL;
+}
 
 // OBJECT only
 // interfaces: [__Type!]
+static gqlRef
+intro_type_interfaces(agooErr err, gqlCobj obj, gqlKeyVal args) {
+
+    // TBD if an object then form a list and and add each interface type
+    //  type->iterfaces
+    //  need a c-obj for that, how to destroy those when no longer needed?
+    // maybe add object to list type type
+
+    return NULL;
+}
 
 // INTERFACE and UNION only
 // possibleTypes: [__Type!]
+static gqlRef
+intro_type_possible_types(agooErr err, gqlCobj obj, gqlKeyVal args) {
+
+    // TBD
+
+    return NULL;
+}
 
 // ENUM only
 // enumValues(includeDeprecated: Boolean = false): [__EnumValue!]
+static gqlRef
+intro_type_enum_values(agooErr err, gqlCobj obj, gqlKeyVal args) {
+
+    // TBD
+
+    return NULL;
+}
 
 // INPUT_OBJECT only
 // inputFields: [__InputValue!]
+static gqlRef
+intro_type_input_fields(agooErr err, gqlCobj obj, gqlKeyVal args) {
+
+    // TBD
+
+    return NULL;
+}
 
 // NON_NULL and LIST only
 // ofType: __Type
+static gqlRef
+intro_type_of_type(agooErr err, gqlCobj obj, gqlKeyVal args) {
+    gqlType	type = (gqlType)obj->ref;
 
-
+    if (NULL == type || NULL == type->base || (GQL_LIST != type->kind && GQL_NON_NULL != type->kind)) {
+	return NULL;
+    }
+    return (gqlRef)type->base->intro;
+}
 
 static struct _gqlCmethod	type_methods[] = {
-    { .key = "kind",        .func = intro_type_kind },
-    { .key = "name",        .func = intro_type_name },
-    { .key = "description", .func = intro_type_description },
-    { .key = NULL,          .func = NULL },
+    { .key = "kind",          .func = intro_type_kind },
+    { .key = "name",          .func = intro_type_name },
+    { .key = "description",   .func = intro_type_description },
+    { .key = "fields",        .func = intro_type_fields },
+    { .key = "interfaces",    .func = intro_type_interfaces },
+    { .key = "possibleTypes", .func = intro_type_possible_types },
+    { .key = "enumValues",    .func = intro_type_enum_values },
+    { .key = "inputFields",   .func = intro_type_input_fields },
+    { .key = "ofType",        .func = intro_type_of_type },
+    { .key = NULL,            .func = NULL },
 };
 
 // __Type

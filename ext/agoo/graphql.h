@@ -21,6 +21,7 @@ typedef enum {
     GQL_ENUM		= (int8_t)6,
     GQL_SCALAR		= (int8_t)7,
     GQL_LIST		= (int8_t)8,
+    GQL_NON_NULL	= (int8_t)9,
 } gqlKind;
 
 typedef enum {

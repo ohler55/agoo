@@ -101,15 +101,18 @@ coerce_intro(agooErr err, gqlRef ref, struct _gqlType *type) {
 
 static gqlType
 type_intro(gqlRef ref) {
+    gqlCobj	obj = (gqlCobj)ref;
 
-    // TBD 
-    
+    if (NULL != obj && NULL != obj->clas) {
+	return gql_type_get(obj->clas->name);
+    }
     return NULL;
 }
 
 static int
 iterate_intro(agooErr err, gqlRef ref, int (*cb)(agooErr err, gqlRef ref, void *ctx), void *ctx) {
 
+    printf("*** iterate intro\n");
     // TBD
     
     return AGOO_ERR_OK;
