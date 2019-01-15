@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "debug.h"
 #include "gqleval.h"
 #include "gqlintro.h"
 #include "gqljson.h"
@@ -23,6 +24,7 @@ typedef struct _implFuncs {
     gqlTypeFunc		type;
     gqlIterateFunc	iterate;
     bool		(*is_null)(gqlRef ref);
+    gqlEvalCtx		eval_ctx;
 } *ImplFuncs;
 
 gqlRef		gql_root = NULL;
@@ -32,6 +34,7 @@ gqlCoerceFunc	gql_coerce_func = NULL;
 gqlTypeFunc	gql_type_func = NULL;
 gqlIterateFunc	gql_iterate_func = NULL;
 bool		(*gql_is_null_func)(gqlRef ref) = NULL;
+int		(*gql_eval_ctx_init)(agooErr err, gqlEvalCtx etx) = NULL;
 
 static const char	graphql_content_type[] = "application/graphql";
 static const char	indent_str[] = "indent";
@@ -110,9 +113,10 @@ type_intro(gqlRef ref) {
 }
 
 static int
-iterate_intro(agooErr err, gqlRef ref, int (*cb)(agooErr err, gqlRef ref, void *ctx), void *ctx) {
+iterate_intro(agooErr err, gqlRef ref, int (*cb)(agooErr err, gqlRef ref, void *ctx), void *ctx, gqlEvalCtx etx) {
 
     printf("*** iterate intro\n");
+    printf("***   ref: %s\n", ((gqlCobj)ref)->clas->name);
     // TBD
     
     return AGOO_ERR_OK;
@@ -129,7 +133,23 @@ static struct _implFuncs	intro_funcs = {
     .type = type_intro,
     .iterate = iterate_intro,
     .is_null = is_null_intro,
+    .eval_ctx = NULL,
 };
+
+static gqlEvalCtx
+eval_ctx_create(agooErr err) {
+    gqlEvalCtx	etx;
+    
+    if (NULL == (etx = (gqlEvalCtx)AGOO_MALLOC(sizeof(struct _gqlEvalCtx)))) {
+	agoo_err_set(err, AGOO_ERR_MEMORY, "Failed to allocate memory for a Eval Context type.");
+	return NULL;
+    }
+    etx->next = NULL;
+    etx->ptr = NULL;
+    etx->destroy = NULL;
+
+    return etx;
+}
 
 gqlValue
 doc_var_value(gqlDoc doc, const char *key) {
@@ -280,7 +300,8 @@ eval_sel(agooErr err, gqlDoc doc, gqlRef ref, gqlField field, gqlSel sel, gqlVal
 	const char		*key = sel->name;
 	gqlSelArg		sa;
 	int			i;
-
+	struct _implFuncs	ifuncs = intro_funcs;
+	
 	for (sa = sel->args, a = args, i = 0; NULL != sa; sa = sa->next, a++, i++) {
 	    if (MAX_RESOLVE_ARGS <= i) {
 		return agoo_err_set(err, AGOO_ERR_EVAL, "Too many arguments to %s.", sel->name);
@@ -325,8 +346,6 @@ eval_sel(agooErr err, gqlDoc doc, gqlRef ref, gqlField field, gqlSel sel, gqlVal
 		}
 		return AGOO_ERR_OK;
 	    } else {
-		funcs = &intro_funcs;
-
 		if (0 == strcmp("__type", sel->name)) {
 		    if (gql_query_root != ref) {
 			return agoo_err_set(err, AGOO_ERR_EVAL, "__type can only be called from a query root.");
@@ -340,9 +359,17 @@ eval_sel(agooErr err, gqlDoc doc, gqlRef ref, gqlField field, gqlSel sel, gqlVal
 		} else {
 		    return agoo_err_set(err, AGOO_ERR_EVAL, "%s can only be called from the query root.", sel->name);
 		}
+		funcs = &ifuncs;
+		if (NULL == (ifuncs.eval_ctx = eval_ctx_create(err))) {
+		    return err->code;
+		}
+		gql_c_eval_ctx_init(err, ifuncs.eval_ctx);
+
+		ifuncs.eval_ctx->next = doc->eval_ctx;
+		doc->eval_ctx = ifuncs.eval_ctx;
 	    }
 	}
-	r2 = funcs->resolve(err, ref, sel->name, args);
+	r2 = funcs->resolve(err, ref, sel->name, args, funcs->eval_ctx);
 	if (AGOO_ERR_OK != err->code || funcs->is_null(r2)) {
 	    return err->code;
 	}
@@ -357,7 +384,7 @@ eval_sel(agooErr err, gqlDoc doc, gqlRef ref, gqlField field, gqlSel sel, gqlVal
 	    };
 
 	    if (NULL == ec.result ||
-		AGOO_ERR_OK != funcs->iterate(err, r2, eval_list_sel, &ec) ||
+		AGOO_ERR_OK != funcs->iterate(err, r2, eval_list_sel, &ec, NULL) || // TBD , gqlEvalCtx etx
 		AGOO_ERR_OK != gql_object_set(err, result, key, ec.result)) {
 		return err->code;
 	    }
@@ -420,8 +447,18 @@ gql_doc_eval(agooErr err, gqlDoc doc) {
 	    .type = gql_type_func,
 	    .iterate = gql_iterate_func,
 	    .is_null = gql_is_null_func,
+	    .eval_ctx = NULL,
 	};
 
+	if (NULL != gql_eval_ctx_init) {
+	    if (NULL == (funcs.eval_ctx = eval_ctx_create(err))) {
+		return NULL;
+	    }
+	    doc->eval_ctx = funcs.eval_ctx;
+	    if (AGOO_ERR_OK != gql_eval_ctx_init(err, funcs.eval_ctx)) {
+		return NULL;
+	    }
+	}
 	switch (doc->op->kind) {
 	case GQL_QUERY:
 	    key = "query";
@@ -437,7 +474,7 @@ gql_doc_eval(agooErr err, gqlDoc doc) {
 	    return NULL;
 	    break;
 	}
-	if (NULL == (op_root = gql_resolve_func(err, gql_root, key, NULL))) {
+	if (NULL == (op_root = gql_resolve_func(err, gql_root, key, NULL, funcs.eval_ctx))) {
 	    agoo_err_set(err, AGOO_ERR_EVAL, "root %s is not supported.", key);
 	    return NULL;
 	}

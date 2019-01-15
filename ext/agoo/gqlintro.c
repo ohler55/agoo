@@ -368,6 +368,26 @@ gql_intro_init(agooErr err) {
 // introspection handlers /////////////////////////////////////////////////////////////////////
 
 // __Field
+// name: String
+static gqlRef
+intro_field_name(agooErr err, gqlCobj obj, gqlKeyVal args) {
+    return (gqlRef)gql_string_create(err, ((gqlField)obj->ref)->name, -1);
+}
+
+static struct _gqlCmethod	field_methods[] = {
+    { .key = "name",          .func = intro_field_name },
+    { .key = NULL,            .func = NULL },
+};
+
+static struct _gqlCclass	field_class = {
+    .name = "__Field",
+    .methods = field_methods,
+};
+
+gqlCobj
+gql_field_intro_create(agooErr err, gqlField field) {
+    return gql_c_obj_create(err, (gqlRef)field, &field_class);
+}
 
 // __InputValue
 
@@ -419,7 +439,12 @@ intro_type_description(agooErr err, gqlCobj obj, gqlKeyVal args) {
 // fields(includeDeprecated: Boolean = false): [__Field!]
 static gqlRef
 intro_type_fields(agooErr err, gqlCobj obj, gqlKeyVal args) {
+    gqlType	type = (gqlType)obj->ref;
+    
+    // TBD get deprecated flag
 
+    
+    
     // TBD
 
     return NULL;
@@ -519,6 +544,8 @@ intro_root_type(agooErr err, gqlCobj obj, gqlKeyVal args) {
 	agoo_err_set(err, AGOO_ERR_ARG, "%s is not a defined type. %s:%d", name, __FILE__, __LINE__);
 	return NULL;
     }
+    // TBD create cobj instead
+
     return type->intro;
 }
 

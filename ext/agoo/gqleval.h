@@ -15,12 +15,18 @@ typedef struct _gqlKeyVal {
     struct _gqlValue	*value;
 } *gqlKeyVal;
 
+typedef struct _gqlEvalCtx {
+    struct _gqlEvalCtx	*next;
+    void		*ptr;
+    void		(*destroy)(void *ptr);
+} *gqlEvalCtx;
+
 struct _gqlDoc;
 struct _gqlType;
 struct _gqlValue;
 
 // Resolve field on a target to a child reference.
-typedef gqlRef			(*gqlResolveFunc)(agooErr err, gqlRef target, const char *field_name, gqlKeyVal args);
+typedef gqlRef			(*gqlResolveFunc)(agooErr err, gqlRef target, const char *field_name, gqlKeyVal args, gqlEvalCtx etx);
 
 // Coerce an implemenation reference into a gqlValue.
 typedef struct _gqlValue*	(*gqlCoerceFunc)(agooErr err, gqlRef ref, struct _gqlType *type);
@@ -29,7 +35,7 @@ typedef struct _gqlValue*	(*gqlCoerceFunc)(agooErr err, gqlRef ref, struct _gqlT
 typedef struct _gqlType*	(*gqlTypeFunc)(gqlRef ref);
 
 // Iterate over a list reference.
-typedef int			(*gqlIterateFunc)(agooErr err, gqlRef ref, int (*cb)(agooErr err, gqlRef ref, void *ctx), void *ctx);
+typedef int			(*gqlIterateFunc)(agooErr err, gqlRef ref, int (*cb)(agooErr err, gqlRef ref, void *ctx), void *ctx, gqlEvalCtx etx);
 
 extern struct _gqlValue*	gql_doc_eval(agooErr err, struct _gqlDoc *doc);
 extern struct _gqlValue*	gql_get_arg_value(gqlKeyVal args, const char *key);
@@ -42,5 +48,6 @@ extern gqlIterateFunc		gql_iterate_func;
 extern bool			(*gql_is_null_func)(gqlRef ref);
 
 extern struct _gqlValue*	(*gql_doc_eval_func)(agooErr err, struct _gqlDoc *doc);
+extern int			(*gql_eval_ctx_init)(agooErr err, gqlEvalCtx etx);
 
 #endif // AGOO_GQLEVAL_H

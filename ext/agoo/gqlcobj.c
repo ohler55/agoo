@@ -6,6 +6,7 @@
 
 #include "debug.h"
 #include "gqlcobj.h"
+#include "gqleval.h"
 
 gqlCobj
 gql_c_obj_create(agooErr err, gqlRef ref, gqlCclass clas) {
@@ -21,7 +22,7 @@ gql_c_obj_create(agooErr err, gqlRef ref, gqlCclass clas) {
 }
 
 gqlRef
-gql_c_obj_resolve(agooErr err, gqlRef target, const char *field_name, gqlKeyVal args) {
+gql_c_obj_resolve(agooErr err, gqlRef target, const char *field_name, gqlKeyVal args, gqlEvalCtx etx) {
     gqlCobj	obj = (gqlCobj)target;
     gqlCmethod	m;
     gqlCmethod	method = NULL;
@@ -45,3 +46,18 @@ gql_c_obj_resolve(agooErr err, gqlRef target, const char *field_name, gqlKeyVal 
 
 
 // TBD when a type is created, add a cobj to it
+
+static void
+eval_ctx_destroy(void *ptr) {
+    // TBD free generated gqlCobj
+
+}
+
+int
+gql_c_eval_ctx_init(agooErr err, gqlEvalCtx ctx) {
+    ctx->ptr = NULL;
+    ctx->destroy = eval_ctx_destroy;
+
+    return AGOO_ERR_OK;
+}
+

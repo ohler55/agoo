@@ -621,6 +621,20 @@ query skippy($boo: Boolean = true){
     req_test(uri, expect)
   end
   
+  def xtest_intro_fields
+    uri = URI('http://localhost:6472/graphql?query={__type(name:"Artist"){name,fields{name}}}&indent=2')
+    expect = %^{
+  "data":{
+    "__type":{
+      "name":"Artist",
+      "fields":[
+      ]
+    }
+  }
+}^
+    req_test(uri, expect)
+  end
+  
 
 
   ##################################

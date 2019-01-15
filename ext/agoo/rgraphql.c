@@ -163,7 +163,7 @@ gval_to_ruby(gqlValue value) {
 }
 
 static gqlRef
-resolve(agooErr err, gqlRef target, const char *field_name, gqlKeyVal args) {
+resolve(agooErr err, gqlRef target, const char *field_name, gqlKeyVal args, gqlEvalCtx etx) {
     volatile VALUE	result;
 
     if (NULL != args && NULL != args->key) {
@@ -413,7 +413,7 @@ build_type_class_map() {
 }
 
 static int
-iterate(agooErr err, gqlRef ref, int (*cb)(agooErr err, gqlRef ref, void *ctx), void *ctx) {
+iterate(agooErr err, gqlRef ref, int (*cb)(agooErr err, gqlRef ref, void *ctx), void *ctx, gqlEvalCtx etx) {
     VALUE	a = (VALUE)ref;
     int		cnt = (int)RARRAY_LEN(a);
     int		i;

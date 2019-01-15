@@ -9,6 +9,7 @@
 
 #include "err.h"
 #include "gqlcobj.h"
+#include "gqleval.h"
 #include "text.h"
 
 typedef enum {
@@ -97,6 +98,7 @@ typedef struct _gqlField {
     gqlArg		args;
     struct _gqlDirUse	*dir;
     struct _gqlValue	*default_value;
+    gqlCobj		intro;
     bool		required;
 } *gqlField;
 
@@ -194,6 +196,7 @@ typedef struct _gqlDoc {
     gqlVar		vars;
     gqlFrag		frags;
     gqlOp		op; // the op to execute
+    gqlEvalCtx		eval_ctx;
 } *gqlDoc;
 
 extern int	gql_init(agooErr err);
