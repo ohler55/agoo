@@ -35,7 +35,10 @@ typedef struct _gqlValue*	(*gqlCoerceFunc)(agooErr err, gqlRef ref, struct _gqlT
 typedef struct _gqlType*	(*gqlTypeFunc)(gqlRef ref);
 
 // Iterate over a list reference.
-typedef int			(*gqlIterateFunc)(agooErr err, gqlRef ref, int (*cb)(agooErr err, gqlRef ref, void *ctx), void *ctx, gqlEvalCtx etx);
+typedef int			(*gqlIterateFunc)(agooErr	err,
+						  gqlRef	ref,
+						  int		(*cb)(agooErr err, gqlRef ref, void *ctx),
+						  void		*ctx);
 
 extern struct _gqlValue*	gql_doc_eval(agooErr err, struct _gqlDoc *doc);
 extern struct _gqlValue*	gql_get_arg_value(gqlKeyVal args, const char *key);

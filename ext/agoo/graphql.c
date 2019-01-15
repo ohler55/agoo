@@ -146,7 +146,6 @@ field_destroy(gqlField f) {
     if (NULL != f->default_value) {
 	gql_value_destroy(f->default_value);
     }
-    AGOO_FREE(f->intro);
     AGOO_FREE(f);
 }
 
@@ -215,7 +214,6 @@ type_destroy(gqlType type) {
 	return;
     }
     type_clean(type);
-    AGOO_FREE(type->intro);
     AGOO_FREE((char*)type->name);
     AGOO_FREE(type);
 }
@@ -418,9 +416,6 @@ type_create(agooErr err, gqlKind kind, const char *name, const char *desc, size_
 	type->scalar_kind = GQL_SCALAR_UNDEF;
 	type->core = false;
 
-	if (NULL == (type->intro = gql_type_intro_create(err, type))) {
-	    return NULL;
-	}
 	if (AGOO_ERR_OK != gql_type_set(err, type)) {
 	    gql_type_destroy(type);
 	    type = NULL;
@@ -523,9 +518,6 @@ gql_type_field(agooErr		err,
 	f->args = NULL;
 	f->dir = NULL;
 	f->default_value = default_value;
-	if (NULL == (f->intro = gql_field_intro_create(err, f))) {
-	    return NULL;
-	}
 	f->required = required;
 	if (NULL == type->fields) {
 	    type->fields = f;
@@ -1374,6 +1366,7 @@ gql_doc_destroy(gqlDoc doc) {
     while (NULL != (etx = doc->eval_ctx)) {
 	doc->eval_ctx = etx->next;
 	if (NULL != etx->destroy && NULL != etx->ptr) {
+	    
 	    etx->destroy(etx->ptr);
 	}
 	AGOO_FREE(etx);

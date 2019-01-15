@@ -15,6 +15,7 @@ gql_c_obj_create(agooErr err, gqlRef ref, gqlCclass clas) {
     if (NULL == obj) {
 	agoo_err_set(err, AGOO_ERR_MEMORY, "GraphQL C object creation failed. %s:%d", __FILE__, __LINE__);
     } else {
+	obj->next = NULL;
 	obj->ref = ref;
 	obj->clas = clas;
     }
@@ -41,7 +42,7 @@ gql_c_obj_resolve(agooErr err, gqlRef target, const char *field_name, gqlKeyVal 
 	agoo_err_set(err, AGOO_ERR_IMPL, "GraphQL C object has no %s field. %s:%d", field_name, __FILE__, __LINE__);
 	return NULL;
     }
-    return method->func(err, obj, args);
+    return method->func(err, obj, args, etx);
 }
 
 
@@ -49,8 +50,13 @@ gql_c_obj_resolve(agooErr err, gqlRef target, const char *field_name, gqlKeyVal 
 
 static void
 eval_ctx_destroy(void *ptr) {
-    // TBD free generated gqlCobj
+    gqlCobj	objs = (gqlCobj)ptr;
+    gqlCobj	obj;
 
+    while (NULL != (obj = objs)) {
+	objs = obj->next;
+	AGOO_FREE(obj);
+    }
 }
 
 int
@@ -60,4 +66,3 @@ gql_c_eval_ctx_init(agooErr err, gqlEvalCtx ctx) {
 
     return AGOO_ERR_OK;
 }
-

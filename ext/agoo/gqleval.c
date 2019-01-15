@@ -113,10 +113,14 @@ type_intro(gqlRef ref) {
 }
 
 static int
-iterate_intro(agooErr err, gqlRef ref, int (*cb)(agooErr err, gqlRef ref, void *ctx), void *ctx, gqlEvalCtx etx) {
+iterate_intro(agooErr err, gqlRef ref, int (*cb)(agooErr err, gqlRef ref, void *ctx), void *ctx) {
 
     printf("*** iterate intro\n");
     printf("***   ref: %s\n", ((gqlCobj)ref)->clas->name);
+
+    // call iterate on clas
+    //  should create an obj for each element an call cb
+    
     // TBD
     
     return AGOO_ERR_OK;
@@ -384,7 +388,7 @@ eval_sel(agooErr err, gqlDoc doc, gqlRef ref, gqlField field, gqlSel sel, gqlVal
 	    };
 
 	    if (NULL == ec.result ||
-		AGOO_ERR_OK != funcs->iterate(err, r2, eval_list_sel, &ec, NULL) || // TBD , gqlEvalCtx etx
+		AGOO_ERR_OK != funcs->iterate(err, r2, eval_list_sel, &ec) ||
 		AGOO_ERR_OK != gql_object_set(err, result, key, ec.result)) {
 		return err->code;
 	    }

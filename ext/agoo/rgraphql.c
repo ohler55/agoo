@@ -413,7 +413,7 @@ build_type_class_map() {
 }
 
 static int
-iterate(agooErr err, gqlRef ref, int (*cb)(agooErr err, gqlRef ref, void *ctx), void *ctx, gqlEvalCtx etx) {
+iterate(agooErr err, gqlRef ref, int (*cb)(agooErr err, gqlRef ref, void *ctx), void *ctx) {
     VALUE	a = (VALUE)ref;
     int		cnt = (int)RARRAY_LEN(a);
     int		i;

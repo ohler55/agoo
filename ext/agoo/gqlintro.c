@@ -370,7 +370,7 @@ gql_intro_init(agooErr err) {
 // __Field
 // name: String
 static gqlRef
-intro_field_name(agooErr err, gqlCobj obj, gqlKeyVal args) {
+intro_field_name(agooErr err, gqlCobj obj, gqlKeyVal args, gqlEvalCtx etx) {
     return (gqlRef)gql_string_create(err, ((gqlField)obj->ref)->name, -1);
 }
 
@@ -384,10 +384,7 @@ static struct _gqlCclass	field_class = {
     .methods = field_methods,
 };
 
-gqlCobj
-gql_field_intro_create(agooErr err, gqlField field) {
-    return gql_c_obj_create(err, (gqlRef)field, &field_class);
-}
+// [__Field]
 
 // __InputValue
 
@@ -399,7 +396,7 @@ gql_field_intro_create(agooErr err, gqlField field) {
 
 // kind: __TypeKind!
 static gqlRef
-intro_type_kind(agooErr err, gqlCobj obj, gqlKeyVal args) {
+intro_type_kind(agooErr err, gqlCobj obj, gqlKeyVal args, gqlEvalCtx etx) {
     gqlType	type = (gqlType)obj->ref;
     const char	*kind = NULL;
     
@@ -420,13 +417,13 @@ intro_type_kind(agooErr err, gqlCobj obj, gqlKeyVal args) {
 
 // name: String
 static gqlRef
-intro_type_name(agooErr err, gqlCobj obj, gqlKeyVal args) {
+intro_type_name(agooErr err, gqlCobj obj, gqlKeyVal args, gqlEvalCtx etx) {
     return (gqlRef)gql_string_create(err, ((gqlType)obj->ref)->name, -1);
 }
 
 // description: String
 static gqlRef
-intro_type_description(agooErr err, gqlCobj obj, gqlKeyVal args) {
+intro_type_description(agooErr err, gqlCobj obj, gqlKeyVal args, gqlEvalCtx etx) {
     gqlType	type = (gqlType)obj->ref;
     
     if (NULL == type->desc) {
@@ -438,14 +435,13 @@ intro_type_description(agooErr err, gqlCobj obj, gqlKeyVal args) {
 // OBJECT and INTERFACE only
 // fields(includeDeprecated: Boolean = false): [__Field!]
 static gqlRef
-intro_type_fields(agooErr err, gqlCobj obj, gqlKeyVal args) {
-    gqlType	type = (gqlType)obj->ref;
+intro_type_fields(agooErr err, gqlCobj obj, gqlKeyVal args, gqlEvalCtx etx) {
+    //gqlType	type = (gqlType)obj->ref;
     
     // TBD get deprecated flag
-
     
-    
-    // TBD
+    // TBD return c-obj with linked list of fields and field_list_type
+    //  clas should have iterator function
 
     return NULL;
 }
@@ -453,7 +449,7 @@ intro_type_fields(agooErr err, gqlCobj obj, gqlKeyVal args) {
 // OBJECT only
 // interfaces: [__Type!]
 static gqlRef
-intro_type_interfaces(agooErr err, gqlCobj obj, gqlKeyVal args) {
+intro_type_interfaces(agooErr err, gqlCobj obj, gqlKeyVal args, gqlEvalCtx etx) {
 
     // TBD if an object then form a list and and add each interface type
     //  type->iterfaces
@@ -466,7 +462,7 @@ intro_type_interfaces(agooErr err, gqlCobj obj, gqlKeyVal args) {
 // INTERFACE and UNION only
 // possibleTypes: [__Type!]
 static gqlRef
-intro_type_possible_types(agooErr err, gqlCobj obj, gqlKeyVal args) {
+intro_type_possible_types(agooErr err, gqlCobj obj, gqlKeyVal args, gqlEvalCtx etx) {
 
     // TBD
 
@@ -476,7 +472,7 @@ intro_type_possible_types(agooErr err, gqlCobj obj, gqlKeyVal args) {
 // ENUM only
 // enumValues(includeDeprecated: Boolean = false): [__EnumValue!]
 static gqlRef
-intro_type_enum_values(agooErr err, gqlCobj obj, gqlKeyVal args) {
+intro_type_enum_values(agooErr err, gqlCobj obj, gqlKeyVal args, gqlEvalCtx etx) {
 
     // TBD
 
@@ -486,7 +482,7 @@ intro_type_enum_values(agooErr err, gqlCobj obj, gqlKeyVal args) {
 // INPUT_OBJECT only
 // inputFields: [__InputValue!]
 static gqlRef
-intro_type_input_fields(agooErr err, gqlCobj obj, gqlKeyVal args) {
+intro_type_input_fields(agooErr err, gqlCobj obj, gqlKeyVal args, gqlEvalCtx etx) {
 
     // TBD
 
@@ -496,13 +492,15 @@ intro_type_input_fields(agooErr err, gqlCobj obj, gqlKeyVal args) {
 // NON_NULL and LIST only
 // ofType: __Type
 static gqlRef
-intro_type_of_type(agooErr err, gqlCobj obj, gqlKeyVal args) {
+intro_type_of_type(agooErr err, gqlCobj obj, gqlKeyVal args, gqlEvalCtx etx) {
     gqlType	type = (gqlType)obj->ref;
 
     if (NULL == type || NULL == type->base || (GQL_LIST != type->kind && GQL_NON_NULL != type->kind)) {
 	return NULL;
     }
-    return (gqlRef)type->base->intro;
+    //return (gqlRef)type->base->intro;
+    // TBD
+    return NULL;
 }
 
 static struct _gqlCmethod	type_methods[] = {
@@ -524,15 +522,10 @@ static struct _gqlCclass	type_class = {
     .methods = type_methods,
 };
 
-gqlCobj
-gql_type_intro_create(agooErr err, gqlType type) {
-    return gql_c_obj_create(err, (gqlRef)type, &type_class);
-}
-
 // Introspection Query Root
 
 static gqlRef
-intro_root_type(agooErr err, gqlCobj obj, gqlKeyVal args) {
+intro_root_type(agooErr err, gqlCobj obj, gqlKeyVal args, gqlEvalCtx etx) {
     const char	*name = gql_string_get(gql_get_arg_value(args, "name"));
     gqlType	type;
     
@@ -544,13 +537,15 @@ intro_root_type(agooErr err, gqlCobj obj, gqlKeyVal args) {
 	agoo_err_set(err, AGOO_ERR_ARG, "%s is not a defined type. %s:%d", name, __FILE__, __LINE__);
 	return NULL;
     }
-    // TBD create cobj instead
-
-    return type->intro;
+    if (NULL != (obj = gql_c_obj_create(err, (gqlRef)type, &type_class))) {
+	obj->next = (gqlCobj)etx->ptr;
+	etx->ptr = (void*)obj;
+    }
+    return obj;
 }
 
 static gqlRef
-intro_root_schema(agooErr err, gqlCobj obj, gqlKeyVal args) {
+intro_root_schema(agooErr err, gqlCobj obj, gqlKeyVal args, gqlEvalCtx etx) {
     // TBD return intro_schema_obj
     return NULL;
 }

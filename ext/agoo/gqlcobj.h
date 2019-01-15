@@ -10,16 +10,18 @@ struct _gqlEvalCtx;
 
 typedef struct _gqlCmethod {
     const char		*key;
-    gqlRef		(*func)(agooErr err, struct _gqlCobj *obj, gqlKeyVal args);
+    gqlRef		(*func)(agooErr err, struct _gqlCobj *obj, gqlKeyVal args, struct _gqlEvalCtx *etx);
     
 } *gqlCmethod;
 
 typedef struct _gqlCclass {
     const char		*name;
     gqlCmethod		methods; // TBD use a hash instead of a simple array
+    // TBD iterate
 } *gqlCclass;
 
 typedef struct _gqlCobj {
+    struct _gqlCobj	*next;
     gqlCclass		clas;
     gqlRef		ref;
 } *gqlCobj;

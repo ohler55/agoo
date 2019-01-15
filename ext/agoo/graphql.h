@@ -98,7 +98,6 @@ typedef struct _gqlField {
     gqlArg		args;
     struct _gqlDirUse	*dir;
     struct _gqlValue	*default_value;
-    gqlCobj		intro;
     bool		required;
 } *gqlField;
 
@@ -125,7 +124,6 @@ typedef struct _gqlType {
     gqlKind		kind;
     gqlScalarKind	scalar_kind;
     bool		core;
-    gqlCobj		intro;
     union {
 	struct { // Objects, interfaces, and input_objects
 	    gqlField		fields;
