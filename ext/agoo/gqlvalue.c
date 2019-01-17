@@ -1544,3 +1544,50 @@ gql_value_convert(agooErr err, gqlValue value, struct _gqlType *type) {
     }
     return code;
 }
+
+gqlValue
+gql_value_dup(agooErr err, gqlValue value) {
+    gqlValue	dup = value_create(value->type);
+
+    if (NULL == dup) {
+	agoo_err_set(err, AGOO_ERR_MEMORY, "failed to duplicate a value.");
+	return NULL;
+    }
+    switch (value->type->scalar_kind) {
+    case GQL_SCALAR_BOOL:
+	dup->b = value->b;
+	break;
+    case GQL_SCALAR_INT:
+	dup->i = value->i;
+	break;
+    case GQL_SCALAR_I64:
+	dup->i64 = value->i64;
+	break;
+    case GQL_SCALAR_FLOAT:
+	dup->f = value->f;
+	break;
+    case GQL_SCALAR_STRING:
+    case GQL_SCALAR_TOKEN:
+	if (value->str.alloced) {
+	    if (NULL == (dup->str.ptr = strdup(value->str.ptr))) {
+		agoo_err_set(err, AGOO_ERR_MEMORY, "strdup of length %d failed.", strlen(value->str.ptr));
+		AGOO_FREE(dup);
+		dup = NULL;
+	    }
+	} else {
+	    memcpy(dup->str.a, value->str.a, sizeof(value->str.a));
+	}
+	break;
+    case GQL_SCALAR_TIME:
+	dup->time = value->time;
+	break;
+    case GQL_SCALAR_UUID:
+	dup->uuid.hi = value->uuid.hi;
+	dup->uuid.lo = value->uuid.lo;
+	break;
+    default:
+	break;
+    }
+    return dup;
+}
+

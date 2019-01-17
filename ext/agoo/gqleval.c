@@ -18,23 +18,10 @@
 
 #define MAX_RESOLVE_ARGS	16
 
-typedef struct _implFuncs {
-    gqlResolveFunc	resolve;
-    gqlCoerceFunc	coerce;
-    gqlTypeFunc		type;
-    gqlIterateFunc	iterate;
-    bool		(*is_null)(gqlRef ref);
-    gqlEvalCtx		eval_ctx;
-} *ImplFuncs;
-
 gqlRef		gql_root = NULL;
-gqlRef		gql_query_root = NULL;
 gqlResolveFunc	gql_resolve_func = NULL;
-gqlCoerceFunc	gql_coerce_func = NULL;
 gqlTypeFunc	gql_type_func = NULL;
-gqlIterateFunc	gql_iterate_func = NULL;
-bool		(*gql_is_null_func)(gqlRef ref) = NULL;
-int		(*gql_eval_ctx_init)(agooErr err, gqlEvalCtx etx) = NULL;
+gqlRef		(*gql_root_op)(const char *op) = NULL;
 
 static const char	graphql_content_type[] = "application/graphql";
 static const char	indent_str[] = "indent";
@@ -44,9 +31,6 @@ static const char	query_str[] = "query";
 static const char	variables_str[] = "variables";
 
 gqlValue	(*gql_doc_eval_func)(agooErr err, gqlDoc doc) = NULL;
-
-static int	eval_sels(agooErr err, gqlDoc doc, gqlRef ref, gqlField field, gqlSel sels, gqlValue result, ImplFuncs funcs);
-static int	eval_sel(agooErr err, gqlDoc doc, gqlRef ref, gqlField field, gqlSel sel, gqlValue result, ImplFuncs funcs);
 
 // TBD errors should have message, location, and path
 static void
@@ -97,11 +81,6 @@ value_resp(agooRes res, gqlValue result, int status, int indent) {
     agoo_res_set_message(res, text);
 }
 
-static gqlValue
-coerce_intro(agooErr err, gqlRef ref, struct _gqlType *type) {
-    return (gqlValue)ref;
-}
-
 static gqlType
 type_intro(gqlRef ref) {
     gqlCobj	obj = (gqlCobj)ref;
@@ -110,49 +89,6 @@ type_intro(gqlRef ref) {
 	return gql_type_get(obj->clas->name);
     }
     return NULL;
-}
-
-static int
-iterate_intro(agooErr err, gqlRef ref, int (*cb)(agooErr err, gqlRef ref, void *ctx), void *ctx) {
-
-    printf("*** iterate intro\n");
-    printf("***   ref: %s\n", ((gqlCobj)ref)->clas->name);
-
-    // call iterate on clas
-    //  should create an obj for each element an call cb
-    
-    // TBD
-    
-    return AGOO_ERR_OK;
-}
-
-static bool
-is_null_intro(gqlRef ref) {
-    return NULL == ref;
-}
-
-static struct _implFuncs	intro_funcs = {
-    .resolve = gql_c_obj_resolve,
-    .coerce = coerce_intro,
-    .type = type_intro,
-    .iterate = iterate_intro,
-    .is_null = is_null_intro,
-    .eval_ctx = NULL,
-};
-
-static gqlEvalCtx
-eval_ctx_create(agooErr err) {
-    gqlEvalCtx	etx;
-    
-    if (NULL == (etx = (gqlEvalCtx)AGOO_MALLOC(sizeof(struct _gqlEvalCtx)))) {
-	agoo_err_set(err, AGOO_ERR_MEMORY, "Failed to allocate memory for a Eval Context type.");
-	return NULL;
-    }
-    etx->next = NULL;
-    etx->ptr = NULL;
-    etx->destroy = NULL;
-
-    return etx;
 }
 
 gqlValue
@@ -176,11 +112,11 @@ doc_var_value(gqlDoc doc, const char *key) {
 }
 
 static bool
-frag_include(gqlDoc doc, gqlFrag frag, gqlRef ref, ImplFuncs funcs) {
+frag_include(gqlDoc doc, gqlFrag frag, gqlRef ref) {
     gqlDirUse	dir;
 
     if (NULL != frag->on) {
-	if (frag->on != funcs->type(ref)) {
+	if (frag->on != doc->funcs.type(ref)) {
 	    return false;
 	}
     }
@@ -245,176 +181,27 @@ frag_include(gqlDoc doc, gqlFrag frag, gqlRef ref, ImplFuncs funcs) {
     return true;
 }
 
-typedef struct _evalCtx {
-    gqlDoc	doc;
-    gqlRef	ref;
-    gqlType	base;
-    gqlField	field;
-    gqlSel	sels;
-    gqlValue	result;
-    ImplFuncs	funcs;
-} *EvalCtx;
-
-static int
-eval_list_sel(agooErr err, gqlRef ref, void *ctx) {
-    EvalCtx	ec = (EvalCtx)ctx;
-    gqlValue	obj;
+int
+gql_set_typename(agooErr err, gqlType type, const char *key, gqlValue result) {
+    gqlValue	child;
     
-    if (NULL == ec->sels) {
-	if (NULL == (obj = ec->funcs->coerce(err, ref, ec->base)) ||
-	    AGOO_ERR_OK != gql_list_append(err, ec->result, obj)) {
-	    return err->code;
-	}
-    } else {
-	if (NULL == (obj = gql_object_create(err)) ||
-	    // TBD or should this be type->base?
-	    AGOO_ERR_OK != eval_sels(err, ec->doc, ref, ec->field, ec->sels, obj, ec->funcs) ||
-	    AGOO_ERR_OK != gql_list_append(err, ec->result, obj)) {
-	    return err->code;
-	}
+    if (NULL == type) {
+	return agoo_err_set(err, AGOO_ERR_EVAL, "Internal error, failed to determine the __typename.");
+    }
+    if (NULL == (child = gql_string_create(err, type->name, -1)) ||
+	AGOO_ERR_OK != gql_object_set(err, result, key, child)) {
+	return err->code;
     }
     return AGOO_ERR_OK;
 }
 
-static int
-eval_sel(agooErr err, gqlDoc doc, gqlRef ref, gqlField field, gqlSel sel, gqlValue result, ImplFuncs funcs) {
-    if (NULL != sel->inline_frag) {
-	if (frag_include(doc, sel->inline_frag, ref, funcs)) {
-	    if (AGOO_ERR_OK != eval_sels(err, doc, ref, field, sel->inline_frag->sels, result, funcs)) {
-		return err->code;
-	    }
-	}
-    } else if (NULL != sel->frag) {
-	gqlFrag	frag;
-
-	for (frag = doc->frags; NULL != frag; frag = frag->next) {
-	    if (NULL != frag->name && 0 == strcmp(frag->name, sel->frag)) {
-		if (frag_include(doc, frag, ref, funcs)) {
-		    if (AGOO_ERR_OK != eval_sels(err, doc, ref, field, frag->sels, result, funcs)) {
-			return err->code;
-		    }
-		}
-	    }
-	}
-    } else {
-	struct _gqlKeyVal	args[MAX_RESOLVE_ARGS];
-	gqlKeyVal		a;
-	gqlValue		child;
-	gqlRef			r2;
-	const char		*key = sel->name;
-	gqlSelArg		sa;
-	int			i;
-	struct _implFuncs	ifuncs = intro_funcs;
-	
-	for (sa = sel->args, a = args, i = 0; NULL != sa; sa = sa->next, a++, i++) {
-	    if (MAX_RESOLVE_ARGS <= i) {
-		return agoo_err_set(err, AGOO_ERR_EVAL, "Too many arguments to %s.", sel->name);
-	    }
-	    a->key = sa->name;
-	    if (NULL != sa->var) {
-		a->value = sa->var->value;
-	    } else {
-		a->value = sa->value;
-	    }
-	    if (NULL != field) {
-		gqlArg	fa;
-		
-		for (fa = field->args; NULL != fa; fa = fa->next) {
-		    if (0 == strcmp(a->key, fa->name)) {
-			if (a->value->type != fa->type && GQL_SCALAR_VAR != a->value->type->scalar_kind) {
-			    if (AGOO_ERR_OK != gql_value_convert(err, a->value, fa->type)) {
-				return err->code;
-			    }
-			}
-			break;
-		    }
-		}
-	    }
-	}
-	a->key = NULL;
-	if (NULL != sel->alias) {
-	    key = sel->alias;
-	}
-	// TBD __type nd __schema from the query root only, ___typename from anywhere
-	//   how can root.query be detected? maybe keep a static and fetch on init
-	if ('_' == *sel->name && '_' == sel->name[1]) {
-	    if (0 == strcmp("__typename", sel->name)) {
-		gqlType	rt;
-
-		if (NULL == gql_type_func || NULL == (rt = gql_type_func(ref))) {
-		    return agoo_err_set(err, AGOO_ERR_EVAL, "Could not determine the type.");
-		}
-		if (NULL == (child = gql_string_create(err, rt->name, -1)) ||
-		    AGOO_ERR_OK != gql_object_set(err, result, key, child)) {
-		    return err->code;
-		}
-		return AGOO_ERR_OK;
-	    } else {
-		if (0 == strcmp("__type", sel->name)) {
-		    if (gql_query_root != ref) {
-			return agoo_err_set(err, AGOO_ERR_EVAL, "__type can only be called from a query root.");
-		    }
-		    ref = (gqlRef)&gql_intro_query_root;
-		} else if (0 == strcmp("__schema", sel->name)) {
-		    if (gql_query_root != ref) {
-			return agoo_err_set(err, AGOO_ERR_EVAL, "__scheme can only be called from a query root.");
-		    }
-		    ref = (gqlRef)&gql_intro_query_root;
-		} else {
-		    return agoo_err_set(err, AGOO_ERR_EVAL, "%s can only be called from the query root.", sel->name);
-		}
-		funcs = &ifuncs;
-		if (NULL == (ifuncs.eval_ctx = eval_ctx_create(err))) {
-		    return err->code;
-		}
-		gql_c_eval_ctx_init(err, ifuncs.eval_ctx);
-
-		ifuncs.eval_ctx->next = doc->eval_ctx;
-		doc->eval_ctx = ifuncs.eval_ctx;
-	    }
-	}
-	r2 = funcs->resolve(err, ref, sel->name, args, funcs->eval_ctx);
-	if (AGOO_ERR_OK != err->code || funcs->is_null(r2)) {
-	    return err->code;
-	}
-	if (NULL != sel->type && GQL_LIST == sel->type->kind) { // TBD only for lists of objects, not scalars
-	    struct _evalCtx	ec = {
-		.doc = doc,
-		.ref = ref,
-		.base = sel->type->base,
-		.sels = sel->sels,
-		.result = gql_list_create(err, NULL),
-		.funcs = funcs,
-	    };
-
-	    if (NULL == ec.result ||
-		AGOO_ERR_OK != funcs->iterate(err, r2, eval_list_sel, &ec) ||
-		AGOO_ERR_OK != gql_object_set(err, result, key, ec.result)) {
-		return err->code;
-	    }
-	} else if (NULL == sel->sels) {
-	    if (NULL == (child = funcs->coerce(err, r2, sel->type)) ||
-		AGOO_ERR_OK != gql_object_set(err, result, key, child)) {
-		return err->code;
-	    }
-	} else {
-	    if (NULL == (child = gql_object_create(err)) ||
-		AGOO_ERR_OK != gql_object_set(err, result, key, child)) {
-		return err->code;
-	    }
-	    if (AGOO_ERR_OK != eval_sels(err, doc, r2, field, sel->sels, child, funcs)) {
-		return err->code;
-	    }
-	}
-    }
-    return AGOO_ERR_OK;
-}
-
-static int
-eval_sels(agooErr err, gqlDoc doc, gqlRef ref, gqlField field, gqlSel sels, gqlValue result, ImplFuncs funcs) {
+int
+gql_eval_sels(agooErr err, gqlDoc doc, gqlRef ref, gqlField field, gqlSel sels, gqlValue result, int depth) {
     gqlSel	sel;
     gqlField	sf = NULL;
 
+    // TBD if depth over max then return an error
+    
     for (sel = sels; NULL != sel; sel = sel->next) {
 	if (NULL != field) {
 	    if (NULL == sel->name) {
@@ -425,8 +212,28 @@ eval_sels(agooErr err, gqlDoc doc, gqlRef ref, gqlField field, gqlSel sels, gqlV
 	} else {
 	    sf = NULL;
 	}
-	if (AGOO_ERR_OK != eval_sel(err, doc, ref, sf, sel, result, funcs)) {
-	    return err->code;
+	if (NULL != sel->inline_frag) {
+	    if (frag_include(doc, sel->inline_frag, ref)) {
+		if (AGOO_ERR_OK != gql_eval_sels(err, doc, ref, sf, sel->inline_frag->sels, result, depth)) {
+		    return err->code;
+		}
+	    }
+	} else if (NULL != sel->frag) {
+	    gqlFrag	frag;
+
+	    for (frag = doc->frags; NULL != frag; frag = frag->next) {
+		if (NULL != frag->name && 0 == strcmp(frag->name, sel->frag)) {
+		    if (frag_include(doc, frag, ref)) {
+			if (AGOO_ERR_OK != gql_eval_sels(err, doc, ref, sf, frag->sels, result, depth)) {
+			    return err->code;
+			}
+		    }
+		}
+	    }
+	} else {
+	    if (AGOO_ERR_OK != doc->funcs.resolve(err, doc, ref, sf, sel, result, depth)) {
+		return err->code;
+	    }
 	}
     }
     return AGOO_ERR_OK;
@@ -441,28 +248,15 @@ gql_doc_eval(agooErr err, gqlDoc doc) {
 	return NULL;
     }
     if (NULL != (result = gql_object_create(err))) {
-	gqlRef		op_root;
 	const char	*key;
 	gqlType		type;
 	gqlField	field = NULL;
-	struct _implFuncs	funcs = {
-	    .resolve = gql_resolve_func,
-	    .coerce = gql_coerce_func,
-	    .type = gql_type_func,
-	    .iterate = gql_iterate_func,
-	    .is_null = gql_is_null_func,
-	    .eval_ctx = NULL,
-	};
+	struct _gqlSel	sel;
 
-	if (NULL != gql_eval_ctx_init) {
-	    if (NULL == (funcs.eval_ctx = eval_ctx_create(err))) {
-		return NULL;
-	    }
-	    doc->eval_ctx = funcs.eval_ctx;
-	    if (AGOO_ERR_OK != gql_eval_ctx_init(err, funcs.eval_ctx)) {
-		return NULL;
-	    }
-	}
+	memset(&sel, 0, sizeof(sel));
+	doc->funcs.resolve = gql_resolve_func;
+	doc->funcs.type = gql_type_func;
+
 	switch (doc->op->kind) {
 	case GQL_QUERY:
 	    key = "query";
@@ -475,20 +269,23 @@ gql_doc_eval(agooErr err, gqlDoc doc) {
 	    break;
 	default:
 	    agoo_err_set(err, AGOO_ERR_EVAL, "Not a valid operation on the root object.");
+	    gql_value_destroy(result);
 	    return NULL;
 	    break;
-	}
-	if (NULL == (op_root = gql_resolve_func(err, gql_root, key, NULL, funcs.eval_ctx))) {
-	    agoo_err_set(err, AGOO_ERR_EVAL, "root %s is not supported.", key);
-	    return NULL;
-	}
-	if (NULL == gql_query_root && GQL_QUERY == doc->op->kind) {
-	    gql_query_root = op_root;
 	}
 	if (NULL != (type = gql_type_get("schema"))) {
 	    field = gql_type_get_field(type, key);
 	}
-	if (AGOO_ERR_OK != eval_sels(err, doc, op_root, field, doc->op->sels, result, &funcs)) {
+	if (NULL == field) {
+	    agoo_err_set(err, AGOO_ERR_EVAL, "GraphQL not initialized.");
+	    gql_value_destroy(result);
+	    return NULL;
+	}
+	sel.name = key;
+	sel.type = type;
+	sel.dir = doc->op->dir;
+	sel.sels = doc->op->sels;
+	if (AGOO_ERR_OK != doc->funcs.resolve(err, doc, gql_root, field, &sel, result, 0)) {
 	    gql_value_destroy(result);
 	    return NULL;
 	}

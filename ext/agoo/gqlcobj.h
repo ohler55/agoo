@@ -6,30 +6,20 @@
 #include "gqleval.h"
 
 struct _gqlCobj;
-struct _gqlEvalCtx;
 
 typedef struct _gqlCmethod {
     const char		*key;
-    gqlRef		(*func)(agooErr err, struct _gqlCobj *obj, gqlKeyVal args, struct _gqlEvalCtx *etx);
-    
+    int			(*func)(agooErr err, struct _gqlDoc *doc, struct _gqlCobj *obj, struct _gqlField *field, struct _gqlSel *sel, struct _gqlValue *result, int depth);
 } *gqlCmethod;
 
 typedef struct _gqlCclass {
     const char		*name;
     gqlCmethod		methods; // TBD use a hash instead of a simple array
-    // TBD iterate
 } *gqlCclass;
 
 typedef struct _gqlCobj {
-    struct _gqlCobj	*next;
     gqlCclass		clas;
-    gqlRef		ref;
+    void		*ptr;
 } *gqlCobj;
-
-
-extern gqlCobj	gql_c_obj_create(agooErr err, gqlRef ref, gqlCclass clas);
-extern gqlRef	gql_c_obj_resolve(agooErr err, gqlRef target, const char *field_name, gqlKeyVal args, gqlEvalCtx etx);
-extern int	gql_c_eval_ctx_init(agooErr err, struct _gqlEvalCtx *ctx);
-
 
 #endif // AGOO_GQLCOBJ_H

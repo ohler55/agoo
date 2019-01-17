@@ -8,6 +8,7 @@
 
 #include "err.h"
 #include "gqleval.h"
+#include "gqlintro.h"
 #include "gqlvalue.h"
 #include "graphql.h"
 #include "sdl.h"
@@ -162,28 +163,6 @@ gval_to_ruby(gqlValue value) {
     return rval;
 }
 
-static gqlRef
-resolve(agooErr err, gqlRef target, const char *field_name, gqlKeyVal args, gqlEvalCtx etx) {
-    volatile VALUE	result;
-
-    if (NULL != args && NULL != args->key) {
-	volatile VALUE	rargs = rb_hash_new();
-
-	for (; NULL != args->key; args++) {
-	    rb_hash_aset(rargs, rb_str_new_cstr(args->key), gval_to_ruby(args->value));
-	}
-	result = rb_funcall((VALUE)target, rb_intern(field_name), 1, rargs);
-    } else {
-	result = rb_funcall((VALUE)target, rb_intern(field_name), 0);
-    }
-    return (gqlRef)result;
-}
-
-static bool
-ref_is_null(gqlRef ref) {
-    return Qnil == (VALUE)ref;
-}
-
 static VALUE
 ref_to_string(gqlRef ref) {
     volatile VALUE	value;
@@ -244,8 +223,7 @@ coerce(agooErr err, gqlRef ref, gqlType type) {
 
 	    value = gql_list_create(err, NULL);
 	    for (i = 0; i < cnt; i++) {
-
-		if (NULL == (v =coerce(err, (gqlRef)rb_ary_entry(a, i), type->base)) ||
+		if (NULL == (v = coerce(err, (gqlRef)rb_ary_entry(a, i), type->base)) ||
 		    AGOO_ERR_OK != gql_list_append(err, value, v)) {
 		    return NULL;
 		}
@@ -373,6 +351,124 @@ ref_type(gqlRef ref) {
     return type;
 }
 
+static int
+resolve(agooErr err, gqlDoc doc, gqlRef target, gqlField field, gqlSel sel, gqlValue result, int depth) {
+    volatile VALUE	child;
+    VALUE		obj = (VALUE)target;
+    int			d2 = depth + 1;
+    const char		*key = sel->name;
+    
+    if ('_' == *sel->name && '_' == sel->name[1]) {
+	if (0 == strcmp("__typename", sel->name)) {
+	    if (AGOO_ERR_OK != gql_set_typename(err, ref_type(target), key, result)) {
+		return err->code;
+	    }
+	    return AGOO_ERR_OK;
+	}
+	switch (doc->op->kind) {
+	case GQL_QUERY:
+	    return gql_intro_eval(err, doc, sel, result, depth);
+	case GQL_MUTATION:
+	    return agoo_err_set(err, AGOO_ERR_EVAL, "%s can not be called on a mutation.", sel->name);
+	case GQL_SUBSCRIPTION:
+	    return agoo_err_set(err, AGOO_ERR_EVAL, "%s can not be called on a subscription.", sel->name);
+	default:
+	    return agoo_err_set(err, AGOO_ERR_EVAL, "Not a valid operation on the root object.");
+	}
+    }
+    if (NULL == sel->args) {
+	child = rb_funcall(obj, rb_intern(sel->name), 0);
+    } else {
+	volatile VALUE	rargs = rb_hash_new();	
+	gqlSelArg	sa;
+	gqlValue	v;
+	
+	for (sa = sel->args; NULL != sa; sa = sa->next) {
+	    if (NULL != sa->var) {
+		v = sa->var->value;
+	    } else {
+		v = sa->value;
+	    }
+	    if (NULL != field) {
+		gqlArg	fa;
+		
+		for (fa = field->args; NULL != fa; fa = fa->next) {
+		    if (0 == strcmp(sa->name, fa->name)) {
+			if (v->type != fa->type && GQL_SCALAR_VAR != v->type->scalar_kind) {
+			    if (AGOO_ERR_OK != gql_value_convert(err, v, fa->type)) {
+				return err->code;
+			    }
+			}
+			break;
+		    }
+		}
+	    }
+	    rb_hash_aset(rargs, rb_str_new_cstr(sa->name), gval_to_ruby(v));
+	}
+	child = rb_funcall(obj, rb_intern(sel->name), 1, rargs);
+    }
+    if (NULL != sel->alias) {
+	key = sel->alias;
+    }
+    if (NULL != sel->type && GQL_LIST == sel->type->kind) {
+	gqlValue	list;
+	int		cnt;
+	int		i;
+	
+	rb_check_type(child, RUBY_T_ARRAY);
+	if (NULL == (list = gql_list_create(err, NULL))) {
+	    return err->code;
+	}
+	cnt = (int)RARRAY_LEN(child);
+	for (i = 0; i < cnt; i++) {
+	    gqlValue	co;
+
+	    if (NULL != sel->type->base && GQL_SCALAR != sel->type->base->kind) {
+		struct _gqlField	cf;
+
+		if (NULL == (co = gql_object_create(err)) ||
+		    AGOO_ERR_OK != gql_list_append(err, list, co)) {
+		    return err->code;
+		}
+		memset(&cf, 0, sizeof(cf));
+		cf.type = sel->type->base;
+
+		if (AGOO_ERR_OK != gql_eval_sels(err, doc, (gqlRef)rb_ary_entry(child, i), &cf, sel->sels, co, d2)) {
+		    return err->code;
+		}
+	    } else {
+		if (NULL == (co = coerce(err, (gqlRef)rb_ary_entry(child, i), sel->type->base)) ||
+		    AGOO_ERR_OK != gql_list_append(err, list, co)) {
+		    return err->code;
+		}
+	    }
+	}
+	if (AGOO_ERR_OK != gql_object_set(err, result, key, list)) {
+	    return err->code;
+	}
+    } else if (NULL == sel->sels) {
+	gqlValue	cv;
+	
+	if (NULL == (cv = coerce(err, (gqlRef)child, sel->type)) ||
+	    AGOO_ERR_OK != gql_object_set(err, result, key, cv)) {
+	    return err->code;
+	}
+    } else {
+	gqlValue	co;
+
+	if (0 == depth) {
+	    co = result;
+	} else if (NULL == (co = gql_object_create(err)) ||
+	    AGOO_ERR_OK != gql_object_set(err, result, key, co)) {
+	    return err->code;
+	}
+	if (AGOO_ERR_OK != gql_eval_sels(err, doc, (gqlRef)child, field, sel->sels, co, d2)) {
+	    return err->code;
+	}
+    }
+    return AGOO_ERR_OK;
+}
+
 static void
 ruby_types_cb(gqlType type, void *ctx) {
     gqlDirUse	dir;
@@ -412,18 +508,9 @@ build_type_class_map() {
     gql_type_iterate(ruby_types_cb, &cnt);
 }
 
-static int
-iterate(agooErr err, gqlRef ref, int (*cb)(agooErr err, gqlRef ref, void *ctx), void *ctx) {
-    VALUE	a = (VALUE)ref;
-    int		cnt = (int)RARRAY_LEN(a);
-    int		i;
-    
-    for (i = 0; i < cnt; i++) {
-	if (AGOO_ERR_OK != cb(err, (gqlRef)rb_ary_entry(a, i), ctx)) {
-	    return err->code;
-	}
-    }
-    return AGOO_ERR_OK;
+static gqlRef
+root_op(const char *op) {
+    return (gqlRef)rb_funcall((VALUE)gql_root, rb_intern(op), 0);
 }
 
 /* Document-method: schema
@@ -470,10 +557,8 @@ graphql_schema(VALUE self, VALUE root) {
 
     gql_doc_eval_func = eval_wrap;
     gql_resolve_func = resolve;
-    gql_coerce_func = coerce;
     gql_type_func = ref_type;
-    gql_iterate_func = iterate;
-    gql_is_null_func = ref_is_null;
+    gql_root_op = root_op;
 
     if (NULL == (use = gql_dir_use_create(&err, "ruby"))) {
 	rb_raise(rb_eStandardError, "%s", err.msg);

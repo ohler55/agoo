@@ -50,6 +50,7 @@ typedef struct _gqlValue {
 extern int	gql_value_init(agooErr err);
 
 extern void	gql_value_destroy(gqlValue value);
+extern gqlValue	gql_value_dup(agooErr err, gqlValue value);
 
 extern gqlLink	gql_link_create(agooErr err, const char *key, gqlValue value);
 extern void	gql_link_destroy(gqlLink link);

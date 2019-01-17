@@ -468,8 +468,10 @@ query skippy($boo: Boolean = true){
 query skippy($boo: Boolean = true){
   artist(name:"Fazerdaze") {
     name
+    __typename
     songs {
       name
+      __typename
       duration
     }
   }
@@ -479,21 +481,26 @@ query skippy($boo: Boolean = true){
   "data":{
     "artist":{
       "name":"Fazerdaze",
+      "__typename":"Artist",
       "songs":[
         {
           "name":"Jennifer",
+          "__typename":"Song",
           "duration":240
         },
         {
           "name":"Lucky Girl",
+          "__typename":"Song",
           "duration":170
         },
         {
           "name":"Friends",
+          "__typename":"Song",
           "duration":194
         },
         {
           "name":"Reel",
+          "__typename":"Song",
           "duration":193
         }
       ]
@@ -621,13 +628,284 @@ query skippy($boo: Boolean = true){
     req_test(uri, expect)
   end
   
-  def xtest_intro_fields
-    uri = URI('http://localhost:6472/graphql?query={__type(name:"Artist"){name,fields{name}}}&indent=2')
+  def test_intro_of_type
+    uri = URI('http://localhost:6472/graphql?query={__type(name:"[__Type!]"){name,ofType{name}}}&indent=2')
+    expect = %^{
+  "data":{
+    "__type":{
+      "name":"[__Type!]",
+      "ofType":{
+        "name":"__Type"
+      }
+    }
+  }
+}^
+    req_test(uri, expect)
+  end
+
+  def test_intro_enum_values
+    uri = URI('http://localhost:6472/graphql?query={__type(name:"__TypeKind"){name,choices:enumValues{name,isDeprecated}}}&indent=2')
+    expect = %^{
+  "data":{
+    "__type":{
+      "name":"__TypeKind",
+      "choices":[
+        {
+          "name":"SCALAR",
+          "isDeprecated":false
+        },
+        {
+          "name":"OBJECT",
+          "isDeprecated":false
+        },
+        {
+          "name":"INTERFACE",
+          "isDeprecated":false
+        },
+        {
+          "name":"UNION",
+          "isDeprecated":false
+        },
+        {
+          "name":"ENUM",
+          "isDeprecated":false
+        },
+        {
+          "name":"INPUT_OBJECT",
+          "isDeprecated":false
+        },
+        {
+          "name":"LIST",
+          "isDeprecated":false
+        },
+        {
+          "name":"NON_NULL",
+          "isDeprecated":false
+        }
+      ]
+    }
+  }
+}^
+    req_test(uri, expect)
+  end
+
+  def test_intro_fields
+    uri = URI('http://localhost:6472/graphql?query={__type(name:"Artist"){name,fields{name,type{name},args{name,type{name},defaultValue}}}}&indent=2')
     expect = %^{
   "data":{
     "__type":{
       "name":"Artist",
       "fields":[
+        {
+          "name":"name",
+          "type":{
+            "name":"String"
+          },
+          "args":[
+          ]
+        },
+        {
+          "name":"songs",
+          "type":{
+            "name":"[Song]"
+          },
+          "args":[
+          ]
+        },
+        {
+          "name":"origin",
+          "type":{
+            "name":"[String]"
+          },
+          "args":[
+          ]
+        },
+        {
+          "name":"genre_songs",
+          "type":{
+            "name":"[Song]"
+          },
+          "args":[
+            {
+              "name":"genre",
+              "type":{
+                "name":"Genre"
+              },
+              "defaultValue":null
+            }
+          ]
+        },
+        {
+          "name":"songs_after",
+          "type":{
+            "name":"[Song]"
+          },
+          "args":[
+            {
+              "name":"time",
+              "type":{
+                "name":"Time"
+              },
+              "defaultValue":null
+            }
+          ]
+        }
+      ]
+    }
+  }
+}^
+    req_test(uri, expect)
+  end
+  
+  def test_intro_schema_types
+    uri = URI('http://localhost:6472/graphql?query={__schema{types{name}}}&indent=2')
+    expect = %^{
+  "data":{
+    "__schema":{
+      "types":[
+        {
+          "name":"__EnumValue"
+        },
+        {
+          "name":"Int"
+        },
+        {
+          "name":"Subscription"
+        },
+        {
+          "name":"I64"
+        },
+        {
+          "name":"__DirectiveLocation"
+        },
+        {
+          "name":"Time"
+        },
+        {
+          "name":"Genre"
+        },
+        {
+          "name":"__Schema"
+        },
+        {
+          "name":"Mutation"
+        },
+        {
+          "name":"Uuid"
+        },
+        {
+          "name":"Boolean"
+        },
+        {
+          "name":"schema"
+        },
+        {
+          "name":"String"
+        },
+        {
+          "name":"Song"
+        },
+        {
+          "name":"Artist"
+        },
+        {
+          "name":"__Directive"
+        },
+        {
+          "name":"__Field"
+        },
+        {
+          "name":"__TypeKind"
+        },
+        {
+          "name":"Query"
+        },
+        {
+          "name":"__InputValue"
+        },
+        {
+          "name":"__Type"
+        },
+        {
+          "name":"Float"
+        }
+      ]
+    }
+  }
+}^
+    req_test(uri, expect)
+  end
+
+  def test_intro_schema_query_type
+    uri = URI('http://localhost:6472/graphql?query={__schema{queryType{name}}}&indent=2')
+    expect = %^{
+  "data":{
+    "__schema":{
+      "queryType":{
+        "name":"Query"
+      }
+    }
+  }
+}^
+    req_test(uri, expect)
+  end
+  
+  def test_intro_schema_directives
+    uri = URI('http://localhost:6472/graphql?query={__schema{directives{name,locations,args{name}}}}&indent=2')
+    expect = %^{
+  "data":{
+    "__schema":{
+      "directives":[
+        {
+          "name":"ruby",
+          "locations":[
+            "SCHEMA",
+            "OBJECT"
+          ],
+          "args":[
+            {
+              "name":"class"
+            }
+          ]
+        },
+        {
+          "name":"skip",
+          "locations":[
+            "FIELD",
+            "FRAGMENT_SPREAD",
+            "INLINE_FRAGMENT"
+          ],
+          "args":[
+            {
+              "name":"if"
+            }
+          ]
+        },
+        {
+          "name":"include",
+          "locations":[
+            "FIELD",
+            "FRAGMENT_SPREAD",
+            "INLINE_FRAGMENT"
+          ],
+          "args":[
+            {
+              "name":"if"
+            }
+          ]
+        },
+        {
+          "name":"deprecated",
+          "locations":[
+            "FIELD_DEFINITION",
+            "ENUM_VALUE"
+          ],
+          "args":[
+            {
+              "name":"reason"
+            }
+          ]
+        }
       ]
     }
   }
