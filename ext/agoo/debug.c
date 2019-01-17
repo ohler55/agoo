@@ -2,6 +2,7 @@
 
 #include <pthread.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -240,7 +241,7 @@ update_reps(Rep reps, Rec r) {
 
 static void
 print_stats() {
-    printf("\n*** Memory Usage Report ********************************************************\n");
+    printf("\n--- Memory Usage Report --------------------------------------------------------\n");
     pthread_mutex_lock(&lock);
 
     if (NULL == recs) {
@@ -263,7 +264,7 @@ print_stats() {
 	printf("%lu bytes leaked\n", leaked);
     }
     pthread_mutex_unlock(&lock);
-    printf("********************************************************************************\n");
+    printf("--------------------------------------------------------------------------------\n");
 }
 #endif
 

@@ -3,7 +3,9 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "debug.h"
 #include "gqleval.h"
+#include "gqlintro.h"
 #include "gqljson.h"
 #include "gqlvalue.h"
 #include "graphql.h"
@@ -12,21 +14,14 @@
 #include "req.h"
 #include "res.h"
 #include "sdl.h"
+#include "text.h"
 
 #define MAX_RESOLVE_ARGS	16
 
-typedef struct _implFuncs {
-    gqlResolveFunc	resolve;
-    gqlCoerceFunc	coerce;
-    gqlTypeFunc		type;
-    gqlIterateFunc	iterate;
-} *ImplFuncs;
-
 gqlRef		gql_root = NULL;
 gqlResolveFunc	gql_resolve_func = NULL;
-gqlCoerceFunc	gql_coerce_func = NULL;
 gqlTypeFunc	gql_type_func = NULL;
-gqlIterateFunc	gql_iterate_func = NULL;
+gqlRef		(*gql_root_op)(const char *op) = NULL;
 
 static const char	graphql_content_type[] = "application/graphql";
 static const char	indent_str[] = "indent";
@@ -36,9 +31,6 @@ static const char	query_str[] = "query";
 static const char	variables_str[] = "variables";
 
 gqlValue	(*gql_doc_eval_func)(agooErr err, gqlDoc doc) = NULL;
-
-static int	eval_sels(agooErr err, gqlDoc doc, gqlRef ref, gqlField field, gqlSel sels, gqlValue result, ImplFuncs funcs);
-static int	eval_sel(agooErr err, gqlDoc doc, gqlRef ref, gqlField field, gqlSel sel, gqlValue result, ImplFuncs funcs);
 
 // TBD errors should have message, location, and path
 static void
@@ -72,55 +64,32 @@ value_resp(agooRes res, gqlValue result, int status, int indent) {
     if (NULL == msg) {
 	agoo_err_set(&err, AGOO_ERR_MEMORY, "Out of memory.");
 	err_resp(res, &err, 500);
+	gql_value_destroy(result);
+	return;
     }
     if (AGOO_ERR_OK != gql_object_set(&err, msg, "data", result)) {
 	err_resp(res, &err, 500);
+	gql_value_destroy(result);
 	return;
     }
     text = gql_value_json(text, msg, indent, 0);
+    gql_value_destroy(msg); // also destroys result
 
     cnt = snprintf(buf, sizeof(buf), "HTTP/1.1 %d %s\r\nContent-Type: application/json\r\nContent-Length: %ld\r\n\r\n",
 		   status, agoo_http_code_message(status), text->len);
     text = agoo_text_prepend(text, buf, cnt);
     agoo_res_set_message(res, text);
-    gql_value_destroy(result);
-}
-
-static gqlRef
-resolve_intro(agooErr err, gqlRef target, const char *field_name, gqlKeyVal args) {
-
-    // TBD
-    
-    return NULL;
-}
-
-static gqlValue
-coerce_intro(agooErr err, gqlRef ref, struct _gqlType *type) {
-    return (gqlValue)ref;
 }
 
 static gqlType
 type_intro(gqlRef ref) {
+    gqlCobj	obj = (gqlCobj)ref;
 
-    // TBD 
-    
+    if (NULL != obj && NULL != obj->clas) {
+	return gql_type_get(obj->clas->name);
+    }
     return NULL;
 }
-
-static int
-iterate_intro(agooErr err, gqlRef ref, int (*cb)(agooErr err, gqlRef ref, void *ctx), void *ctx) {
-
-    // TBD
-    
-    return AGOO_ERR_OK;
-}
-
-static struct _implFuncs	intro_funcs = {
-    .resolve = resolve_intro,
-    .coerce = coerce_intro,
-    .type = type_intro,
-    .iterate = iterate_intro,
-};
 
 gqlValue
 doc_var_value(gqlDoc doc, const char *key) {
@@ -143,11 +112,11 @@ doc_var_value(gqlDoc doc, const char *key) {
 }
 
 static bool
-frag_include(gqlDoc doc, gqlFrag frag, gqlRef ref, ImplFuncs funcs) {
+frag_include(gqlDoc doc, gqlFrag frag, gqlRef ref) {
     gqlDirUse	dir;
 
     if (NULL != frag->on) {
-	if (frag->on != funcs->type(ref)) {
+	if (frag->on != doc->funcs.type(ref)) {
 	    return false;
 	}
     }
@@ -212,140 +181,27 @@ frag_include(gqlDoc doc, gqlFrag frag, gqlRef ref, ImplFuncs funcs) {
     return true;
 }
 
-typedef struct _evalCtx {
-    gqlDoc	doc;
-    gqlRef	ref;
-    gqlType	base;
-    gqlField	field;
-    gqlSel	sels;
-    gqlValue	result;
-    ImplFuncs	funcs;
-} *EvalCtx;
-
-static int
-eval_list_sel(agooErr err, gqlRef ref, void *ctx) {
-    EvalCtx	ec = (EvalCtx)ctx;
-    gqlValue	obj;
+int
+gql_set_typename(agooErr err, gqlType type, const char *key, gqlValue result) {
+    gqlValue	child;
     
-    if (NULL == ec->sels) {
-	if (NULL == (obj = ec->funcs->coerce(err, ref, ec->base)) ||
-	    AGOO_ERR_OK != gql_list_append(err, ec->result, obj)) {
-	    return err->code;
-	}
-    } else {
-	if (NULL == (obj = gql_object_create(err)) ||
-	    // TBD or should this be type->base?
-	    AGOO_ERR_OK != eval_sels(err, ec->doc, ref, ec->field, ec->sels, obj, ec->funcs) ||
-	    AGOO_ERR_OK != gql_list_append(err, ec->result, obj)) {
-	    return err->code;
-	}
+    if (NULL == type) {
+	return agoo_err_set(err, AGOO_ERR_EVAL, "Internal error, failed to determine the __typename.");
+    }
+    if (NULL == (child = gql_string_create(err, type->name, -1)) ||
+	AGOO_ERR_OK != gql_object_set(err, result, key, child)) {
+	return err->code;
     }
     return AGOO_ERR_OK;
 }
 
-static int
-eval_sel(agooErr err, gqlDoc doc, gqlRef ref, gqlField field, gqlSel sel, gqlValue result, ImplFuncs funcs) {
-    if (NULL != sel->inline_frag) {
-	if (frag_include(doc, sel->inline_frag, ref, funcs)) {
-	    if (AGOO_ERR_OK != eval_sels(err, doc, ref, field, sel->inline_frag->sels, result, funcs)) {
-		return err->code;
-	    }
-	}
-    } else if (NULL != sel->frag) {
-	gqlFrag	frag;
-
-	for (frag = doc->frags; NULL != frag; frag = frag->next) {
-	    if (NULL != frag->name && 0 == strcmp(frag->name, sel->frag)) {
-		if (frag_include(doc, frag, ref, funcs)) {
-		    if (AGOO_ERR_OK != eval_sels(err, doc, ref, field, frag->sels, result, funcs)) {
-			return err->code;
-		    }
-		}
-	    }
-	}
-    } else {
-	struct _gqlKeyVal	args[MAX_RESOLVE_ARGS];
-	gqlKeyVal		a;
-	gqlValue		child;
-	gqlRef			r2;
-	const char		*key = sel->name;
-	gqlSelArg		sa;
-	int			i;
-
-	for (sa = sel->args, a = args, i = 0; NULL != sa; sa = sa->next, a++, i++) {
-	    if (MAX_RESOLVE_ARGS <= i) {
-		return agoo_err_set(err, AGOO_ERR_EVAL, "Too many arguments to %s.", sel->name);
-	    }
-	    a->key = sa->name;
-	    if (NULL != sa->var) {
-		a->value = sa->var->value;
-	    } else {
-		a->value = sa->value;
-	    }
-	    if (NULL != field) {
-		gqlArg	fa;
-		
-		for (fa = field->args; NULL != fa; fa = fa->next) {
-		    if (0 == strcmp(a->key, fa->name)) {
-			if (a->value->type != fa->type && GQL_SCALAR_VAR != a->value->type->scalar_kind) {
-			    if (NULL == (a->value = gql_value_convert(err, a->value, fa->type))) {
-				return err->code;
-			    }
-			}
-			break;
-		    }
-		}
-	    }
-	}
-	a->key = NULL;
-	if (NULL != sel->alias) {
-	    key = sel->alias;
-	}
-	// TBD __type nd __schema from the query root only, ___typename from anywhere
-	if ('_' == *sel->name && '_' == sel->name[1]) {
-	    funcs = &intro_funcs;
-	}
-	if (NULL == (r2 = funcs->resolve(err, ref, sel->name, args))) {
-	    return err->code;
-	}
-	if (NULL != sel->type && GQL_LIST == sel->type->kind) { // TBD only for lists of objects, not scalars
-	    struct _evalCtx	ec = {
-		.doc = doc,
-		.ref = ref,
-		.base = sel->type->base,
-		.sels = sel->sels,
-		.result = gql_list_create(err, NULL),
-		.funcs = funcs,
-	    };
-
-	    if (NULL == ec.result ||
-		AGOO_ERR_OK != funcs->iterate(err, r2, eval_list_sel, &ec) ||
-		AGOO_ERR_OK != gql_object_set(err, result, key, ec.result)) {
-		return err->code;
-	    }
-	} else if (NULL == sel->sels) {
-	    if (NULL == (child = funcs->coerce(err, r2, sel->type)) ||
-		AGOO_ERR_OK != gql_object_set(err, result, key, child)) {
-		return err->code;
-	    }
-	} else {
-	    if (NULL == (child = gql_object_create(err)) ||
-		AGOO_ERR_OK != gql_object_set(err, result, key, child)) {
-		return err->code;
-	    }
-	    if (AGOO_ERR_OK != eval_sels(err, doc, r2, field, sel->sels, child, funcs)) {
-		return err->code;
-	    }
-	}
-    }
-    return AGOO_ERR_OK;
-}
-
-static int
-eval_sels(agooErr err, gqlDoc doc, gqlRef ref, gqlField field, gqlSel sels, gqlValue result, ImplFuncs funcs) {
+int
+gql_eval_sels(agooErr err, gqlDoc doc, gqlRef ref, gqlField field, gqlSel sels, gqlValue result, int depth) {
     gqlSel	sel;
     gqlField	sf = NULL;
 
+    // TBD if depth over max then return an error
+    
     for (sel = sels; NULL != sel; sel = sel->next) {
 	if (NULL != field) {
 	    if (NULL == sel->name) {
@@ -356,8 +212,28 @@ eval_sels(agooErr err, gqlDoc doc, gqlRef ref, gqlField field, gqlSel sels, gqlV
 	} else {
 	    sf = NULL;
 	}
-	if (AGOO_ERR_OK != eval_sel(err, doc, ref, sf, sel, result, funcs)) {
-	    return err->code;
+	if (NULL != sel->inline_frag) {
+	    if (frag_include(doc, sel->inline_frag, ref)) {
+		if (AGOO_ERR_OK != gql_eval_sels(err, doc, ref, sf, sel->inline_frag->sels, result, depth)) {
+		    return err->code;
+		}
+	    }
+	} else if (NULL != sel->frag) {
+	    gqlFrag	frag;
+
+	    for (frag = doc->frags; NULL != frag; frag = frag->next) {
+		if (NULL != frag->name && 0 == strcmp(frag->name, sel->frag)) {
+		    if (frag_include(doc, frag, ref)) {
+			if (AGOO_ERR_OK != gql_eval_sels(err, doc, ref, sf, frag->sels, result, depth)) {
+			    return err->code;
+			}
+		    }
+		}
+	    }
+	} else {
+	    if (AGOO_ERR_OK != doc->funcs.resolve(err, doc, ref, sf, sel, result, depth)) {
+		return err->code;
+	    }
 	}
     }
     return AGOO_ERR_OK;
@@ -372,16 +248,14 @@ gql_doc_eval(agooErr err, gqlDoc doc) {
 	return NULL;
     }
     if (NULL != (result = gql_object_create(err))) {
-	gqlRef		op_root;
 	const char	*key;
 	gqlType		type;
 	gqlField	field = NULL;
-	struct _implFuncs	funcs = {
-	    .resolve = gql_resolve_func,
-	    .coerce = gql_coerce_func,
-	    .type = gql_type_func,
-	    .iterate = gql_iterate_func,
-	};
+	struct _gqlSel	sel;
+
+	memset(&sel, 0, sizeof(sel));
+	doc->funcs.resolve = gql_resolve_func;
+	doc->funcs.type = gql_type_func;
 
 	switch (doc->op->kind) {
 	case GQL_QUERY:
@@ -395,17 +269,23 @@ gql_doc_eval(agooErr err, gqlDoc doc) {
 	    break;
 	default:
 	    agoo_err_set(err, AGOO_ERR_EVAL, "Not a valid operation on the root object.");
+	    gql_value_destroy(result);
 	    return NULL;
 	    break;
-	}
-	if (NULL == (op_root = gql_resolve_func(err, gql_root, key, NULL))) {
-	    agoo_err_set(err, AGOO_ERR_EVAL, "root %s is not supported.", key);
-	    return NULL;
 	}
 	if (NULL != (type = gql_type_get("schema"))) {
 	    field = gql_type_get_field(type, key);
 	}
-	if (AGOO_ERR_OK != eval_sels(err, doc, op_root, field, doc->op->sels, result, &funcs)) {
+	if (NULL == field) {
+	    agoo_err_set(err, AGOO_ERR_EVAL, "GraphQL not initialized.");
+	    gql_value_destroy(result);
+	    return NULL;
+	}
+	sel.name = key;
+	sel.type = type;
+	sel.dir = doc->op->dir;
+	sel.sels = doc->op->sels;
+	if (AGOO_ERR_OK != doc->funcs.resolve(err, doc, gql_root, field, &sel, result, 0)) {
 	    gql_value_destroy(result);
 	    return NULL;
 	}
@@ -415,7 +295,7 @@ gql_doc_eval(agooErr err, gqlDoc doc) {
 
 static gqlVar
 parse_query_vars(agooErr err, const char *var_json, int vlen) {
-    gqlValue	vlist;
+    gqlValue	vlist = NULL;
     gqlLink	link;
     gqlVar	vars = NULL;
     
@@ -430,6 +310,7 @@ parse_query_vars(agooErr err, const char *var_json, int vlen) {
     for (link = vlist->members; NULL != link; link = link->next) {
 	gqlVar	v = gql_op_var_create(err, link->key, link->value->type, link->value);
 
+	link->value = NULL;
 	if (NULL == v) {
 	    goto DONE;
 	}
@@ -437,6 +318,9 @@ parse_query_vars(agooErr err, const char *var_json, int vlen) {
 	vars = v;
     }
 DONE:
+    if (NULL != vlist) {
+	gql_value_destroy(vlist);
+    }
     return vars;
 }
 
@@ -501,6 +385,7 @@ gql_eval_get_hook(agooReq req) {
     } else {
 	result = gql_doc_eval_func(&err, doc);
     }
+    gql_doc_destroy(doc);
     if (NULL == result) {
 	err_resp(req->res, &err, 500);
 	return;
@@ -510,7 +395,7 @@ gql_eval_get_hook(agooReq req) {
 
 static gqlValue
 eval_post(agooErr err, agooReq req) {
-    gqlDoc		doc;
+    gqlDoc		doc = NULL;
     const char		*op_name = NULL;
     const char		*var_json = NULL;
     const char		*query = NULL;
@@ -520,7 +405,8 @@ eval_post(agooErr err, agooReq req) {
     gqlVar		vars = NULL;
     const char		*s;
     int			len;
-    gqlValue		result;
+    gqlValue		result = NULL;
+    gqlValue		j = NULL;
 
     // TBD handle query parameter and concatenate with body query if present
 
@@ -541,26 +427,25 @@ eval_post(agooErr err, agooReq req) {
 	    return NULL;
 	}
     } else if (0 == strncmp(json_content_type, s, sizeof(json_content_type) - 1)) {
-	gqlValue	j;
-	gqlLink		m;
+	gqlLink	m;
 	
 	if (NULL != (j = gql_json_parse(err, req->body.start, req->body.len))) {
 	    if (GQL_SCALAR_OBJECT != j->type->scalar_kind) {
 		agoo_err_set(err, AGOO_ERR_TYPE, "JSON request must be an object");
-		return NULL;
+		goto DONE;
 	    }
 	    for (m = j->members; NULL != m; m = m->next) {
 		if (0 == strcmp("query", m->key)) {
 		    if (NULL == (s = gql_string_get(m->value))) {
 			agoo_err_set(err, AGOO_ERR_TYPE, "query must be an string");
-			return NULL;
+			goto DONE;
 		    }
 		    query = s;
 		    qlen = strlen(s);
 		} else if (0 == strcmp("operationName", m->key)) {
 		    if (NULL == (s = gql_string_get(m->value))) {
 			agoo_err_set(err, AGOO_ERR_TYPE, "operationName must be an string");
-			return NULL;
+			goto DONE;
 		    }
 		    op_name = s;
 		    oplen = strlen(s);
@@ -569,13 +454,14 @@ eval_post(agooErr err, agooReq req) {
 
 		    if (GQL_SCALAR_OBJECT != m->value->type->scalar_kind) {
 			agoo_err_set(err, AGOO_ERR_EVAL, "expected variables to be an object.");
-			return NULL;
+			goto DONE;
 		    }
 		    for (link = m->value->members; NULL != link; link = link->next) {
 			gqlVar	v = gql_op_var_create(err, link->key, link->value->type, link->value);
 
+			link->value = NULL; // TBD is this correct?
 			if (NULL == v) {
-			    return NULL;
+			    goto DONE;
 			}
 			v->next = vars;
 			vars = v;
@@ -583,10 +469,10 @@ eval_post(agooErr err, agooReq req) {
 		}
 	    }
 	    if (NULL == (doc = sdl_parse_doc(err, query, qlen, vars))) {
-		return NULL;
+		goto DONE;
 	    }
 	} else {
-	    return NULL;
+	    goto DONE;
 	}
     } else {
 	agoo_err_set(err, AGOO_ERR_TYPE, "unsupported content type");
@@ -599,6 +485,11 @@ eval_post(agooErr err, agooReq req) {
     } else {
 	result = gql_doc_eval_func(err, doc);
     }
+
+DONE:
+    gql_doc_destroy(doc);
+    gql_value_destroy(j);
+
     return result;
 }
 
@@ -619,4 +510,19 @@ gql_eval_post_hook(agooReq req) {
     } else {
 	value_resp(req->res, result, 200, indent);
     }
+}
+
+gqlValue
+gql_get_arg_value(gqlKeyVal args, const char *key) {
+    gqlValue	value = NULL;
+    
+    if (NULL != args) {
+	for (; NULL != args->key; args++) {
+	    if (0 == strcmp(key, args->key)) {
+		value = args->value;
+		break;
+	    }
+	}
+    }
+    return value;
 }

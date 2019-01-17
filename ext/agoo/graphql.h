@@ -8,6 +8,8 @@
 #include <stdlib.h>
 
 #include "err.h"
+#include "gqlcobj.h"
+#include "gqleval.h"
 #include "text.h"
 
 typedef enum {
@@ -20,6 +22,7 @@ typedef enum {
     GQL_ENUM		= (int8_t)6,
     GQL_SCALAR		= (int8_t)7,
     GQL_LIST		= (int8_t)8,
+    GQL_NON_NULL	= (int8_t)9,
 } gqlKind;
 
 typedef enum {
@@ -122,12 +125,13 @@ typedef struct _gqlType {
     gqlScalarKind	scalar_kind;
     bool		core;
     union {
-	struct { // Objects, interfaces, and input_objects
+	struct { // Objects and interfaces
 	    gqlField		fields;
 	    gqlTypeLink		interfaces;	// Types
 	};
 	gqlTypeLink		types;		// Union
 	gqlEnumVal		choices;	// Enums
+	gqlArg			args;		// InputObject
 	struct {				// scalar
 	    agooText		(*to_sdl)(agooText text, struct _gqlValue *value, int indent, int depth);
 	    agooText		(*to_json)(agooText text, struct _gqlValue *value, int indent, int depth);
@@ -186,11 +190,17 @@ typedef struct _gqlFrag {
     gqlSel		sels;
 } *gqlFrag;
 
+typedef struct _gqlFuncs {
+    gqlResolveFunc	resolve; // TBD change
+    gqlTypeFunc		type;
+} *gqlFuncs;
+
 typedef struct _gqlDoc {
     gqlOp		ops;
     gqlVar		vars;
     gqlFrag		frags;
     gqlOp		op; // the op to execute
+    struct _gqlFuncs	funcs;
 } *gqlDoc;
 
 extern int	gql_init(agooErr err);
@@ -273,5 +283,7 @@ extern void		gql_eval_post_hook(struct _agooReq *req);
 extern int		gql_validate(agooErr err);
 
 extern gqlField		gql_type_get_field(gqlType type, const char *field);
+
+extern gqlDir		gql_directives; // linked list
 
 #endif // AGOO_GRAPHQL_H

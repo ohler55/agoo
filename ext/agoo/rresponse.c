@@ -17,19 +17,17 @@ response_free(void *ptr) {
 
     while (NULL != (h = res->headers)) {
 	res->headers = h->next;
-	AGOO_FREED(h);
+	AGOO_FREE(h);
 	xfree(h);
     }
     AGOO_FREE(res->body); // allocated with strdup
-    AGOO_FREED(ptr);
-    xfree(ptr);
+    AGOO_FREE(ptr);
 }
 
 VALUE
-response_new( ) {
-    agooResponse	res = ALLOC(struct _agooResponse);
+response_new() {
+    agooResponse	res = (agooResponse)AGOO_MALLOC(sizeof(struct _agooResponse));
 
-    AGOO_ALLOC(res, sizeof(struct _agooResponse));
     memset(res, 0, sizeof(struct _agooResponse));
     res->code = 200;
     
@@ -46,9 +44,8 @@ static VALUE
 to_s(VALUE self) {
     agooResponse	res = (agooResponse)DATA_PTR(self);
     int			len = agoo_response_len(res);
-    char		*s = ALLOC_N(char, len + 1);
+    char		*s = (char*)AGOO_MALLOC(len + 1);
 
-    AGOO_ALLOC(s, len);
     agoo_response_fill(res, s);
     
     return rb_str_new(s, len);
@@ -95,10 +92,9 @@ body_set(VALUE self, VALUE val) {
     agooResponse	res = (agooResponse)DATA_PTR(self);
 
     if (T_STRING == rb_type(val)) {
-	if (NULL == (res->body = strdup(StringValuePtr(val)))) {
+	if (NULL == (res->body = AGOO_STRDUP(StringValuePtr(val)))) {
 	    rb_raise(rb_eArgError, "failed to copy body");
 	}
-	AGOO_ALLOC(res->body, strlen(res->body));
 	res->blen = (int)RSTRING_LEN(val);
     } else {
 	rb_raise(rb_eArgError, "Expected a string");
@@ -201,8 +197,7 @@ head_set(VALUE self, VALUE key, VALUE val) {
 	}
     }
     hlen = klen + vlen + 4;
-    h = (agooHeader)ALLOC_N(char, sizeof(struct _agooHeader) - 8 + hlen + 1);
-    AGOO_ALLOC(h, sizeof(struct _agooHeader) - 8 + hlen + 1);
+    h = (agooHeader)AGOO_MALLOC(sizeof(struct _agooHeader) - 8 + hlen + 1);
 
     h->next = NULL;
     h->len = hlen;

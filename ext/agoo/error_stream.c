@@ -17,15 +17,13 @@ es_free(void *ptr) {
     ErrorStream	es = (ErrorStream)ptr;
 
     AGOO_FREE(es->text); // allocated with malloc
-    AGOO_FREED(ptr);
-    xfree(ptr);
+    AGOO_FREE(ptr);
 }
 
 VALUE
 error_stream_new() {
-    ErrorStream	es = ALLOC(struct _errorStream);
+    ErrorStream	es = (ErrorStream)AGOO_MALLOC(sizeof(struct _errorStream));
 
-    AGOO_ALLOC(es, sizeof(struct _errorStream));
     es->text = agoo_text_allocate(1024);
     
     return Data_Wrap_Struct(es_class, NULL, es_free, es);

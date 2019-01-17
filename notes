@@ -1,5 +1,17 @@
 ;; -*- mode: outline; outline-regexp: " *[-\+]"; indent-tabs-mode: nil; fill-column: 120 -*-
 
+todo
+-----------
+
+- graphql
+ - introspection
+ - mutation
+ - validation
+ 
+ - subscription
+
+
+
 - refs
   - http://www.rubydoc.info/github/rack/rack/master/file/SPEC
 
@@ -20,10 +32,10 @@ use nice -n19 perfer when on same machine
  - cd example && ruby memx.rb
   - memory and performance with perfer, multiple workers
 
+
 - server log hook
  - log callback grabs gvl
  
-
 - remote cluster
  - worker server
   - connect, maybe with some kind of security
@@ -36,11 +48,4 @@ use nice -n19 perfer when on same machine
      - multiple and pick lowest
     - packet is con id + len + request
 
-- action cable
-
- - implement spec using actioncable
-  - middleware to grab env[upgrade] and then make the actioncable calls
-  - maybe set up explicit channel for the connection
-  
- - maybe we can expand spec to include pub-sub since ac uses it
  

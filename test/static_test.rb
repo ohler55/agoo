@@ -13,37 +13,41 @@ require 'net/http'
 require 'agoo'
 
 class StaticTest < Minitest::Test
+  @@server_started = false
 
-  # Run all the tests in one test to avoid creating the server multiple times.
-  def test_static
-    begin
-      Agoo::Log.configure(dir: '',
-			  console: true,
-			  classic: true,
-			  colorize: true,
-			  states: {
-			    INFO: false,
-			    DEBUG: false,
-			    connect: false,
-			    request: false,
-			    response: false,
-			    eval: true,
-			  })
+  def start_server
+    Agoo::Log.configure(dir: '',
+			console: true,
+			classic: true,
+			colorize: true,
+			states: {
+			  INFO: false,
+			  DEBUG: false,
+			  connect: false,
+			  request: false,
+			  response: false,
+			  eval: true,
+			})
 
-      Agoo::Server.init(6469, 'root', thread_count: 1)
-      Agoo::Server.add_mime('odd', 'text/odd')
-      Agoo::Server.start()
-      fetch_index_test
-      mime_test
-      fetch_auto_index_test
-      fetch_nested_test
-      fetch_not_found_test
-    ensure
-      Agoo::shutdown
+    Agoo::Server.init(6469, 'root', thread_count: 1)
+    Agoo::Server.add_mime('odd', 'text/odd')
+    Agoo::Server.start()
+
+    @@server_started = true
+  end  
+
+  def setup
+    unless @@server_started
+      start_server
     end
   end
 
-  def fetch_index_test
+  Minitest.after_run {
+    GC.start
+    Agoo::shutdown
+  }
+
+  def test_fetch_index
     uri = URI('http://localhost:6469/index.html')
     expect = %|<!DOCTYPE html>
 <html>
@@ -62,7 +66,7 @@ class StaticTest < Minitest::Test
     assert_equal(expect, content)
   end
 
-  def mime_test
+  def test_mime
     uri = URI('http://localhost:6469/odd.odd')
     req = Net::HTTP::Get.new(uri)
     res = Net::HTTP.start(uri.hostname, uri.port) { |h|
@@ -71,7 +75,7 @@ class StaticTest < Minitest::Test
     assert_equal('text/odd', res['Content-Type'])
   end
 
-  def fetch_auto_index_test
+  def test_fetch_auto_index
     uri = URI('http://localhost:6469/')
     content = Net::HTTP.get(uri)
     expect = %|<!DOCTYPE html>
@@ -83,14 +87,14 @@ class StaticTest < Minitest::Test
     assert_equal(expect, content)
   end
 
-  def fetch_nested_test
+  def test_fetch_nested
     uri = URI('http://localhost:6469/nest/something.txt')
     content = Net::HTTP.get(uri)
     assert_equal('Just some text.
 ', content)
   end
 
-  def fetch_not_found_test
+  def test_fetch_not_found
     uri = URI('http://localhost:6469/bad.html')
     res = Net::HTTP.get_response(uri)
     assert_equal("404", res.code)

@@ -44,7 +44,6 @@ agoo_res_destroy(agooRes res) {
 	if (NULL != message) {
 	    agoo_text_release(message);
 	}
-
 	res->next = NULL;
 	pthread_mutex_lock(&res->con->loop->lock);
 	if (NULL == res->con->loop->res_tail) {
