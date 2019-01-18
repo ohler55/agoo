@@ -81,16 +81,6 @@ value_resp(agooRes res, gqlValue result, int status, int indent) {
     agoo_res_set_message(res, text);
 }
 
-static gqlType
-type_intro(gqlRef ref) {
-    gqlCobj	obj = (gqlCobj)ref;
-
-    if (NULL != obj && NULL != obj->clas) {
-	return gql_type_get(obj->clas->name);
-    }
-    return NULL;
-}
-
 gqlValue
 doc_var_value(gqlDoc doc, const char *key) {
     gqlVar	var;
