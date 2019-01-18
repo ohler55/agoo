@@ -15,10 +15,6 @@ Agoo::Log.configure(dir: '',
 		      push: false,
 		    })
 
-Agoo::Server.init(6464, 'root', thread_count: 1, graphql: '/graphql')
-
-Agoo::Server.start()
-
 # Define the API using GraphQL SDL. Use the Agoo specific directive @ruby to
 # link the GraphQL type to a Ruby class. This is only needed when using
 # fragments.
@@ -110,12 +106,13 @@ class Schema
   end
 end
 
-# Ready to load up the SDL. This also validates the SDL.
+puts %^\nopen 'localhost:6464/graphql?query={artist(name:"Fazerdaze"){name,songs{name,duration}}}&indent=2' in a browser.\n\n^
+
+Agoo::Server.init(6464, 'root', thread_count: 1, graphql: '/graphql')
+Agoo::Server.start()
 Agoo::GraphQL.schema(Schema.new) {
   Agoo::GraphQL.load($songs_sdl)
 }
-
-puts %^open 'localhost:6464/graphql?query={artist(name:"Fazerdaze"){name,songs{name,duration}}}&indent=2' in a browser.^
 
 # When starting with a thread_count over 0 just sleep until a ^C is
 # signalled. Agoo must be running to load the SDL.

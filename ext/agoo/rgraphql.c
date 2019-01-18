@@ -28,26 +28,29 @@ typedef struct _typeClass {
 
 static TypeClass	type_class_map = NULL;
 
-static void
-make_ruby_use(VALUE root, const char *method, const char *type_name) {
-    struct _agooErr	err = AGOO_ERR_INIT;
+static int
+make_ruby_use(agooErr err, VALUE root, const char *method, const char *type_name) {
     gqlType		type;
     gqlDirUse		use;
-    volatile VALUE	v = rb_funcall(root, rb_intern(method), 0);
+    volatile VALUE	v;
+    ID			m = rb_intern(method);
 
-    if (Qnil == v) {
-	return;
+    if (!rb_respond_to(root, m) ||
+	Qnil == (v = rb_funcall(root, m, 0))) {
+	return AGOO_ERR_OK;
     }
     if (NULL == (type = gql_type_get(type_name))) {
-	rb_raise(rb_eStandardError, "Failed to find the '%s' type.", type_name);
+	return agoo_err_set(err, AGOO_ERR_ARG, "Failed to find the '%s' type.", type_name);
     }
-    if (NULL == (use = gql_dir_use_create(&err, "ruby"))) {
-	rb_raise(rb_eStandardError, "%s", err.msg);
+    if (NULL == (use = gql_dir_use_create(err, "ruby"))) {
+	return err->code;
     }
-    if (AGOO_ERR_OK != gql_dir_use_arg(&err, use, "class", gql_string_create(&err, rb_obj_classname(v), 0))) {
-	rb_raise(rb_eStandardError, "%s", err.msg);
+    if (AGOO_ERR_OK != gql_dir_use_arg(err, use, "class", gql_string_create(err, rb_obj_classname(v), 0))) {
+	return err->code;
     }
     gql_type_directive_use(type, use);
+
+    return AGOO_ERR_OK;
 }
 
 static VALUE
@@ -491,8 +494,8 @@ ruby_types_cb(gqlType type, void *ctx) {
     }
 }
 
-static void
-build_type_class_map() {
+static int
+build_type_class_map(agooErr err) {
     int		cnt = 0;
     
     free(type_class_map);
@@ -501,11 +504,13 @@ build_type_class_map() {
     gql_type_iterate(ruby_types_cb, &cnt);
 
     if (NULL == (type_class_map = (TypeClass)malloc(sizeof(struct _typeClass) * (cnt + 1)))) {
-	rb_raise(rb_eNoMemError, "out of memory");
+	return agoo_err_set(err, AGOO_ERR_MEMORY, "out of memory");
     }
     memset(type_class_map, 0, sizeof(struct _typeClass) * (cnt + 1));
     cnt = 0;
     gql_type_iterate(ruby_types_cb, &cnt);
+
+    return AGOO_ERR_OK;
 }
 
 static gqlRef
@@ -535,22 +540,26 @@ graphql_schema(VALUE self, VALUE root) {
     gqlType		type;
     gqlDir		dir;
     gqlDirUse		use;
-    
+
     if (!rb_block_given_p()) {
 	rb_raise(rb_eStandardError, "A block is required.");
     }
     if (AGOO_ERR_OK != gql_init(&err)) {
-	rb_raise(rb_eStandardError, "%s", err.msg);
+	printf("*-*-* Error: %s\n", err.msg);
+	exit(0);
     }
     if (NULL == (dir = gql_directive_create(&err, "ruby", "Associates a Ruby class with a GraphQL type.", 0))) {
-	rb_raise(rb_eStandardError, "%s", err.msg);
+	printf("*-*-* Error: %s\n", err.msg);
+	exit(0);
     }
     if (NULL == gql_dir_arg(&err, dir, "class", &gql_string_type, NULL, 0, NULL, true)) {
-	rb_raise(rb_eStandardError, "%s", err.msg);
+	printf("*-*-* Error: %s\n", err.msg);
+	exit(0);
     }
     if (AGOO_ERR_OK != gql_directive_on(&err, dir, "SCHEMA", 6) ||
 	AGOO_ERR_OK != gql_directive_on(&err, dir, "OBJECT", 6)) {
-	rb_raise(rb_eStandardError, "%s", err.msg);
+	printf("*-*-* Error: %s\n", err.msg);
+	exit(0);
     }
     gql_root = (gqlRef)root;
     rb_gc_register_address(&root);
@@ -561,28 +570,32 @@ graphql_schema(VALUE self, VALUE root) {
     gql_root_op = root_op;
 
     if (NULL == (use = gql_dir_use_create(&err, "ruby"))) {
-	rb_raise(rb_eStandardError, "%s", err.msg);
+	printf("*-*-* Error: %s\n", err.msg);
+	exit(0);
     }
     if (AGOO_ERR_OK != gql_dir_use_arg(&err, use, "class", gql_string_create(&err, rb_obj_classname(root), 0))) {
-	rb_raise(rb_eStandardError, "%s", err.msg);
+	printf("*-*-* Error: %s\n", err.msg);
+	exit(0);
     }
     if (NULL == (type = gql_type_get("schema"))) {
-	rb_raise(rb_eStandardError, "Failed to find the 'schema' type.");
+	printf("*-*-* Error: Failed to find the 'schema' type.");
+	exit(0);
     }
     gql_type_directive_use(type, use);
 
-    make_ruby_use(root, "query", "Query");
-    make_ruby_use(root, "mutation", "Mutation");
-    make_ruby_use(root, "subscription", "Subscription");
-
-    if (rb_block_given_p()) {
-	rb_yield_values2(0, NULL);
+    if (AGOO_ERR_OK != make_ruby_use(&err, root, "query", "Query") ||
+	AGOO_ERR_OK != make_ruby_use(&err, root, "mutation", "Mutation") ||
+	AGOO_ERR_OK != make_ruby_use(&err, root, "subscription", "Subscription")) {
+	printf("*-*-* Error: %s\n", err.msg);
+	exit(0);
     }
-    if (AGOO_ERR_OK != gql_validate(&err)) {
-	rb_raise(rb_eStandardError, "%s", err.msg);
-    }
-    build_type_class_map();
+    rb_yield_values2(0, NULL);
 
+    if (AGOO_ERR_OK != gql_validate(&err) ||
+	AGOO_ERR_OK != build_type_class_map(&err)) {
+	printf("*-*-* Error: %s\n", err.msg);
+	exit(0);
+    }
     return Qnil;
 }
 
