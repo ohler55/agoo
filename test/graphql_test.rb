@@ -17,11 +17,13 @@ class Artist
   attr_reader :name
   attr_reader :songs
   attr_reader :origin
+  attr_reader :likes
   
   def initialize(name, origin)
     @name = name
     @songs = []
     @origin = origin
+    @likes = 0
   end
 
   def song(args={})
@@ -50,6 +52,11 @@ class Artist
     }
     a
   end
+
+  def like
+    @likes += 1
+  end
+
 end
 
 class Song
@@ -74,12 +81,17 @@ type Query @ruby(class: "Query") {
   artist(name: String!): Artist
 }
 
+type Mutation {
+  like(artist: String!): Artist
+}
+
 type Artist @ruby(class: "Artist") {
   name: String!
   songs: [Song]
   origin: [String]
   genre_songs(genre:Genre): [Song]
   songs_after(time: Time): [Song]
+  likes: Int
 }
 
 type Song @ruby(class: "Song") {
@@ -109,6 +121,20 @@ class Query
   end
 end
 
+class Mutation
+  attr_reader :artists
+
+  def initialize(artists)
+    @artists = artists
+  end
+
+  def like(args={})
+    artist = @artists[args['artist']]
+    artist.like
+    artist
+  end
+end
+
 class Schema
   attr_reader :query
   attr_reader :mutation
@@ -124,6 +150,7 @@ class Schema
     @artists = {artist.name => artist}
 
     @query = Query.new(@artists)
+    @mutation = Mutation.new(@artists)
   end
 end
 
@@ -142,9 +169,11 @@ type Artist @ruby(class: "Artist") {
   origin: [String]
   genre_songs(genre: Genre): [Song]
   songs_after(time: Time): [Song]
+  likes: Int
 }
 
 type Mutation {
+  like(artist: String!): Artist
 }
 
 type Query @ruby(class: "Query") {
@@ -749,6 +778,14 @@ query skippy($boo: Boolean = true){
               "defaultValue":null
             }
           ]
+        },
+        {
+          "name":"likes",
+          "type":{
+            "name":"Int"
+          },
+          "args":[
+          ]
         }
       ]
     }
@@ -913,6 +950,28 @@ query skippy($boo: Boolean = true){
     req_test(uri, expect)
   end
   
+  def test_mutation
+    uri = URI('http://localhost:6472/graphql?indent=2')
+    body = %^
+mutation {
+  like(artist:"Fazerdaze") {
+    name
+    likes
+  }
+}
+^
+    expect = %^{
+  "data":{
+    "like":{
+      "name":"Fazerdaze",
+      "likes":1
+    }
+  }
+}^
+
+    post_test(uri, body, 'application/graphql', expect)
+  end
+
 
 
   ##################################
