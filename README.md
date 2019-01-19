@@ -31,7 +31,7 @@ Agoo::Server.start()
 # ruby hello.rb
 ```
 
-#### GraphQL:
+#### GraphQL
 
 ```ruby
 require 'agoo'
@@ -88,8 +88,10 @@ Agoo is not available on Windows.
 
 ## News
 
-- Agoo now supports GraphQL with a simple, easy to use API. Checkout
-  the [song
+- Agoo has a new GraphQL module with a simple, easy to use
+  API. Checkout the [hello
+  example](https://github.com/ohler55/agoo/example/graphql/hello.rb) or
+  [song
   example](https://github.com/ohler55/agoo/example/graphql/song.rb).
 
 - Agoo takes first place as the highest throughput on [web-frameworks
