@@ -79,6 +79,9 @@ ragoo_unsubscribe(VALUE self, VALUE subject) {
 
 static void
 sig_handler(int sig) {
+#ifdef MEM_DEBUG
+    rb_gc();
+#endif
     agoo_shutdown();
     gql_destroy();
     debug_report();

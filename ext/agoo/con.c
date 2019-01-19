@@ -794,7 +794,6 @@ con_sse_write(agooCon c) {
     ssize_t	cnt;
 
     if (NULL == message) {
-	agoo_ws_req_close(c);
 	agoo_res_destroy(res);
 
 	return false;
@@ -804,7 +803,7 @@ con_sse_write(agooCon c) {
 	agooText	t;
 	
 	if (agoo_push_cat.on) {
-	    agoo_log_cat(&agoo_push_cat, "%llu: %s", (unsigned long long)c->id, message->text);
+	    agoo_log_cat(&agoo_push_cat, "%llu: %s %p", (unsigned long long)c->id, message->text, (void*)res);
 	}
 	t = agoo_sse_expand(message);
 	if (t != message) {
@@ -822,7 +821,6 @@ con_sse_write(agooCon c) {
 	len = snprintf(msg, sizeof(msg) - 1, "Socket error @ %llu.", (unsigned long long)c->id);
 	push_error(c->up, msg, len);
 	agoo_log_cat(&agoo_error_cat, "Socket error @ %llu.", (unsigned long long)c->id);
-	agoo_ws_req_close(c);
 	
 	return false;
     }
@@ -844,13 +842,13 @@ con_sse_write(agooCon c) {
 }
 
 static void
-publish_pub(agooPub pub) {
+publish_pub(agooPub pub, agooConLoop loop) {
     agooUpgraded	up;
     const char		*sub = pub->subject->pattern;
     int			cnt = 0;
-    
+
     for (up = agoo_server.up_list; NULL != up; up = up->next) {
-	if (NULL != up->con && agoo_upgraded_match(up, sub)) {
+	if (NULL != up->con && up->con->loop == loop && agoo_upgraded_match(up, sub)) {
 	    agooRes	res = agoo_res_create(up->con);
 
 	    if (NULL != res) {
@@ -882,10 +880,10 @@ unsubscribe_pub(agooPub pub) {
 }
 
 static void
-process_pub_con(agooPub pub) {
+process_pub_con(agooPub pub, agooConLoop loop) {
     agooUpgraded	up = pub->up;
 
-    if (NULL != up) {
+    if (NULL != up && NULL != up->con && up->con->loop == loop) {
 	int	pending;
 	
 	// TBD Change pending to be based on length of con queue
@@ -906,7 +904,7 @@ process_pub_con(agooPub pub) {
 	// A close after already closed is used to decrement the reference
 	// count on the upgraded so it can be destroyed in the con loop
 	// threads.
-	if (NULL != up->con) {
+	if (NULL != up->con && up->con->loop == loop) {
 	    agooRes	res = agoo_res_create(up->con);
 
 	    if (NULL != res) {
@@ -924,7 +922,7 @@ process_pub_con(agooPub pub) {
     case AGOO_PUB_WRITE: {
 	if (NULL == up->con) {
 	    agoo_log_cat(&agoo_warn_cat, "Connection already closed. WebSocket write failed.");
-	} else {
+	} else if (up->con->loop == loop) {
 	    agooRes	res = agoo_res_create(up->con);
 
 	    if (NULL != res) {
@@ -940,14 +938,18 @@ process_pub_con(agooPub pub) {
 	}
 	break;
     case AGOO_PUB_SUB:
-	agoo_upgraded_add_subject(pub->up, pub->subject);
-	pub->subject = NULL;
+	if (NULL != up && up->con->loop == loop) {
+	    agoo_upgraded_add_subject(pub->up, pub->subject);
+	    pub->subject = NULL;
+	}
 	break;
     case AGOO_PUB_UN:
-	unsubscribe_pub(pub);
+	if (NULL != up && up->con->loop == loop) {
+	    unsubscribe_pub(pub);
+	}
 	break;
     case AGOO_PUB_MSG:
-	publish_pub(pub);
+	publish_pub(pub, loop);
 	break;
     }
     default:
@@ -1058,6 +1060,8 @@ con_ready_read(agooReady ready, void *ctx) {
 	if (!c->bind->read(c)) {
 	    return true;
 	}
+    } else {
+	return true; // not an error, just ignore
     }
     return false;
 }
@@ -1143,7 +1147,7 @@ pub_queue_ready_read(agooReady ready, void *ctx) {
 
     agoo_queue_release(&loop->pub_queue);
     while (NULL != (pub = (agooPub)agoo_queue_pop(&loop->pub_queue, 0.0))) {
-	process_pub_con(pub);
+	process_pub_con(pub, loop);
     }
     return true;
 }
@@ -1190,7 +1194,7 @@ agoo_con_loop(void *x) {
 	    }
 	}
 	while (NULL != (pub = (agooPub)agoo_queue_pop(&loop->pub_queue, 0.0))) {
-	    process_pub_con(pub);
+	    process_pub_con(pub, loop);
 	}
 	if (AGOO_ERR_OK != agoo_ready_go(&err, ready)) {
 	    agoo_log_cat(&agoo_error_cat, "IO error. %s", err.msg);

@@ -1,5 +1,5 @@
 
 module Agoo
   # Agoo version.
-  VERSION = '2.5.7'
+  VERSION = '2.6.0'
 end

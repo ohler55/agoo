@@ -1376,6 +1376,7 @@ validate_doc(agooErr err, gqlDoc doc) {
     gqlType	schema;
     gqlType	type = NULL;
     gqlFrag	frag;
+    int		cnt;
     
     if (NULL == (schema = gql_type_get("schema"))) {
 	return agoo_err_set(err, AGOO_ERR_EVAL, "No root (schema) type defined.");
@@ -1383,6 +1384,26 @@ validate_doc(agooErr err, gqlDoc doc) {
     for (frag = doc->frags; NULL != frag; frag = frag->next) {
 	if (AGOO_ERR_OK != sel_set_type(err, frag->on, frag->sels, false)) {
 	    return err->code;
+	}
+    }
+    cnt = 0;
+    for (op = doc->ops; NULL != op; op = op->next) {
+	if (NULL == op->name) {
+	    cnt++;
+	    if (1 < cnt) {
+		return agoo_err_set(err, AGOO_ERR_EVAL, "Multiple un-named operation.");
+	    }
+	} else {
+	    gqlOp	o2 = op->next;
+	    
+	    for (; NULL != o2; o2 = o2->next) {
+		if (NULL == o2->name) {
+		    continue;
+		}
+		if (0 == strcmp(o2->name, op->name)) {
+		    return agoo_err_set(err, AGOO_ERR_EVAL, "Multiple operation named '%s'.", op->name);
+		}
+	    }
 	}
     }
     for (op = doc->ops; NULL != op; op = op->next) {

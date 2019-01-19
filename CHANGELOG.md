@@ -1,5 +1,9 @@
 # CHANGELOG
 
+### 2.6.0 - 2019-01-19
+
+GraphQL supported with a simple, easy to use API. Existing API remain the same but a new Agoo::GraphQL module has been added along with supporting examples.
+
 ### 2.5.7 - 2018-12-03
 
 Bad release fix along with upload example.

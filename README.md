@@ -8,6 +8,8 @@ A High Performance HTTP Server for Ruby
 
 ## Usage
 
+#### Rack
+
 ```ruby
 require 'agoo'
 
@@ -25,6 +27,38 @@ Agoo::Server.start()
 
 # To run this example type the following then go to a browser and enter a URL
 # of localhost:6464/hello.
+#
+# ruby hello.rb
+```
+
+#### GraphQL
+
+```ruby
+require 'agoo'
+
+class Query
+  def hello
+    'hello'
+  end
+end
+
+class Schema
+  attr_reader :query
+
+  def initialize
+    @query = Query.new()
+  end
+end
+
+Agoo::Server.init(6464, 'root', thread_count: 1, graphql: '/graphql')
+Agoo::Server.start()
+Agoo::GraphQL.schema(Schema.new) {
+  Agoo::GraphQL.load(%^type Query { hello: String }^)
+}
+sleep
+
+# To run this GraphQL example type the following then go to a browser and enter
+# a URL of localhost:6464/graphql?query={hello}
 #
 # ruby hello.rb
 ```
@@ -53,6 +87,12 @@ use of rack compatible gems such as Hanami and Rails. Agoo also supports WebSock
 Agoo is not available on Windows.
 
 ## News
+
+- Agoo has a new GraphQL module with a simple, easy to use
+  API. Checkout the [hello
+  example](https://github.com/ohler55/agoo/example/graphql/hello.rb) or
+  [song
+  example](https://github.com/ohler55/agoo/example/graphql/song.rb).
 
 - Agoo takes first place as the highest throughput on [web-frameworks
   benchmarks](https://github.com/the-benchmarker/web-frameworks). Latency was

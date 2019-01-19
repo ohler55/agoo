@@ -154,7 +154,7 @@ agoo_server_start(agooErr err, const char *app_name, const char *version) {
     agoo_server.con_loops = agoo_conloop_create(err, 0);
     agoo_server.loop_cnt = 1;
     xcnt++;
-    
+
     // If the eval thread count is 1 that implies the eval load is low so
     // might as well create the maximum number of con threads as is
     // reasonable.
