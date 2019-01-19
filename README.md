@@ -8,6 +8,8 @@ A High Performance HTTP Server for Ruby
 
 ## Usage
 
+#### Rack
+
 ```ruby
 require 'agoo'
 
@@ -29,7 +31,7 @@ Agoo::Server.start()
 # ruby hello.rb
 ```
 
-For GraphQL:
+#### GraphQL:
 
 ```ruby
 require 'agoo'
