@@ -1397,7 +1397,7 @@ validate_doc(agooErr err, gqlDoc doc) {
 	    gqlOp	o2 = op->next;
 	    
 	    for (; NULL != o2; o2 = o2->next) {
-		if (NULL != o2->name) {
+		if (NULL == o2->name) {
 		    continue;
 		}
 		if (0 == strcmp(o2->name, op->name)) {

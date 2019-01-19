@@ -65,9 +65,10 @@ agoo_malloc(size_t size, const char *file, int line) {
 
 void*
 agoo_realloc(void *orig, size_t size, const char *file, int line) {
-    void	*ptr = realloc(orig, size);
+    void	*ptr = realloc(orig, size + sizeof(mem_pad));
     Rec		r;
     
+    strcpy(((char*)ptr) + size, mem_pad);
     pthread_mutex_lock(&lock);
     for (r = recs; NULL != r; r = r->next) {
 	if (orig == r->ptr) {

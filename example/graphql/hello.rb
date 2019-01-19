@@ -2,7 +2,7 @@ require 'agoo'
 
 class Query
   def hello
-    'hello'
+    'Agoo GraphQL says Hello'
   end
 end
 

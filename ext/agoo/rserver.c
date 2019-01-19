@@ -493,7 +493,6 @@ handle_rack_inner(void *x) {
 	    }
 	    req->hook = agoo_hook_create(AGOO_NONE, NULL, (void*)handler, PUSH_HOOK, &agoo_server.eval_queue);
 	    rupgraded_create(req->res->con, handler, request_env(req, Qnil));
-
 	    t->len = snprintf(t->text, 1024, "HTTP/1.1 101 %s\r\n", status_msg);
 	    t = agoo_ws_add_headers(req, t);
 	    break;
@@ -556,7 +555,7 @@ handle_rack(void *x) {
 
 static VALUE
 handle_wab_inner(void *x) {
-    agooReq			req = (agooReq)x;
+    agooReq		req = (agooReq)x;
     volatile VALUE	rr = request_wrap(req);
     volatile VALUE	rres = response_new();
 
@@ -760,10 +759,10 @@ rserver_start(VALUE self) {
 	rb_raise(rb_eStandardError, "%s", err.msg);
     }
     if (0 >= agoo_server.thread_cnt) {
-	agooReq		req;
+	agooReq	req;
 
 	while (agoo_server.active) {
-	    if (NULL != (req = (agooReq)agoo_queue_pop(&agoo_server.eval_queue, 0.1))) {
+	    if (NULL != (req = (agooReq)agoo_queue_pop(&agoo_server.eval_queue, 0.01))) { // TBD 0.1
 		handle_protected(req, false);
 		agoo_req_destroy(req);
 	    } else {

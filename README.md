@@ -48,8 +48,6 @@ class Schema
   end
 end
 
-puts %^\nopen 'localhost:6464/graphql?query={hello}' in a browser.\n\n^
-
 Agoo::Server.init(6464, 'root', thread_count: 1, graphql: '/graphql')
 Agoo::Server.start()
 Agoo::GraphQL.schema(Schema.new) {
@@ -57,6 +55,9 @@ Agoo::GraphQL.schema(Schema.new) {
 }
 sleep
 
+# To run this GraphQL example type the following then go to a browser and enter
+# a URL of localhost:6464/graphql?query={hello}
+#
 # ruby hello.rb
 ```
 

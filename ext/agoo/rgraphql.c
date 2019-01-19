@@ -518,6 +518,26 @@ root_op(const char *op) {
     return (gqlRef)rb_funcall((VALUE)gql_root, rb_intern(op), 0);
 }
 
+static VALUE
+rescue_yield_error(VALUE x) {
+    agooErr		err = (agooErr)x;
+    volatile VALUE	info = rb_errinfo();
+    volatile VALUE	msg = rb_funcall(info, rb_intern("message"), 0);
+    const char		*classname = rb_obj_classname(info);
+    const char		*ms = rb_string_value_ptr(&msg);
+
+    agoo_err_set(err, AGOO_ERR_EVAL, "%s: %s", classname, ms);
+
+    return Qfalse;
+}
+
+static VALUE
+rescue_yield(VALUE x) {
+    rb_yield_values2(0, NULL);
+
+    return Qnil;
+}
+
 /* Document-method: schema
  *
  * call-seq: schema(root) { }
@@ -528,11 +548,12 @@ root_op(const char *op) {
  * is performed.
  *
  * Note that the _@ruby_ directive is added to the _schema_ type as well as
- * the _Query_, _Mutation_, and _Subscriptio_ type based on the _root_
+ * the _Query_, _Mutation_, and _Subscription_ types based on the _root_
  * class. Any _@ruby_ directives on the object types in the SDL will also
  * associate a GraphQL and Ruby class. The association will be used to
- * validate the Ruby class to verify it implements yhe methods described by
- * the GraphQL type.
+ * validate the Ruby class as a way to verify the class implements the methods
+ * described by the GraphQL type. The association is also use for resolving
+ * @skip and @include directives.
  */
 static VALUE
 graphql_schema(VALUE self, VALUE root) {
@@ -545,20 +566,20 @@ graphql_schema(VALUE self, VALUE root) {
 	rb_raise(rb_eStandardError, "A block is required.");
     }
     if (AGOO_ERR_OK != gql_init(&err)) {
-	printf("*-*-* Error: %s\n", err.msg);
+	printf("*-*-* %s\n", err.msg);
 	exit(0);
     }
     if (NULL == (dir = gql_directive_create(&err, "ruby", "Associates a Ruby class with a GraphQL type.", 0))) {
-	printf("*-*-* Error: %s\n", err.msg);
+	printf("*-*-* %s\n", err.msg);
 	exit(0);
     }
     if (NULL == gql_dir_arg(&err, dir, "class", &gql_string_type, NULL, 0, NULL, true)) {
-	printf("*-*-* Error: %s\n", err.msg);
+	printf("*-*-* %s\n", err.msg);
 	exit(0);
     }
     if (AGOO_ERR_OK != gql_directive_on(&err, dir, "SCHEMA", 6) ||
 	AGOO_ERR_OK != gql_directive_on(&err, dir, "OBJECT", 6)) {
-	printf("*-*-* Error: %s\n", err.msg);
+	printf("*-*-* %s\n", err.msg);
 	exit(0);
     }
     gql_root = (gqlRef)root;
@@ -570,11 +591,11 @@ graphql_schema(VALUE self, VALUE root) {
     gql_root_op = root_op;
 
     if (NULL == (use = gql_dir_use_create(&err, "ruby"))) {
-	printf("*-*-* Error: %s\n", err.msg);
+	printf("*-*-* %s\n", err.msg);
 	exit(0);
     }
     if (AGOO_ERR_OK != gql_dir_use_arg(&err, use, "class", gql_string_create(&err, rb_obj_classname(root), 0))) {
-	printf("*-*-* Error: %s\n", err.msg);
+	printf("*-*-* %s\n", err.msg);
 	exit(0);
     }
     if (NULL == (type = gql_type_get("schema"))) {
@@ -586,14 +607,17 @@ graphql_schema(VALUE self, VALUE root) {
     if (AGOO_ERR_OK != make_ruby_use(&err, root, "query", "Query") ||
 	AGOO_ERR_OK != make_ruby_use(&err, root, "mutation", "Mutation") ||
 	AGOO_ERR_OK != make_ruby_use(&err, root, "subscription", "Subscription")) {
-	printf("*-*-* Error: %s\n", err.msg);
+	printf("*-*-* %s\n", err.msg);
 	exit(0);
     }
-    rb_yield_values2(0, NULL);
-
+    rb_rescue2(rescue_yield, Qnil, rescue_yield_error, (VALUE)&err, rb_eException, 0);
+    if (AGOO_ERR_OK != err.code) {
+	printf("*-*-* %s\n", err.msg);
+	exit(0);
+    }
     if (AGOO_ERR_OK != gql_validate(&err) ||
 	AGOO_ERR_OK != build_type_class_map(&err)) {
-	printf("*-*-* Error: %s\n", err.msg);
+	printf("*-*-* %s\n", err.msg);
 	exit(0);
     }
     return Qnil;
