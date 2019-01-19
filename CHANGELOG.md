@@ -1,8 +1,10 @@
 # CHANGELOG
 
-### 2.6.0 - 2019-01-19
+### 2.6.0 - 2019-01-20
 
 GraphQL supported with a simple, easy to use API. Existing API remain the same but a new Agoo::GraphQL module has been added along with supporting examples.
+
+- Replaced the use of `gmtime` with an included function to assure support for dates before 1970.
 
 ### 2.5.7 - 2018-12-03
 
