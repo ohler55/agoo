@@ -347,7 +347,7 @@ gql_eval_get_hook(agooReq req) {
     gqlDoc		doc;
     gqlValue		result;
     gqlVar		vars = NULL;
-    
+
     if (NULL != (gq = agoo_req_query_value(req, indent_str, sizeof(indent_str) - 1, &qlen))) {
 	indent = (int)strtol(gq, NULL, 10);
     }

@@ -1434,7 +1434,7 @@ gqlDoc
 sdl_parse_doc(agooErr err, const char *str, int len, gqlVar vars) {
     struct _agooDoc	doc;
     gqlDoc		gdoc = NULL;
-    
+
     agoo_doc_init(&doc, str, len);
     if (NULL == (gdoc = gql_doc_create(err))) {
 	return NULL;

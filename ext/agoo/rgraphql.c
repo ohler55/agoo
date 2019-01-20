@@ -13,8 +13,6 @@
 #include "graphql.h"
 #include "sdl.h"
 
-static VALUE	graphql_class = Qundef;
-
 typedef struct _eval {
     gqlDoc	doc;
     agooErr	err;
@@ -25,6 +23,9 @@ typedef struct _typeClass {
     gqlType	type;
     const char	*classname;
 } *TypeClass;
+
+static VALUE		graphql_class = Qundef;
+static VALUE		vroot = Qnil;
 
 static TypeClass	type_class_map = NULL;
 
@@ -360,7 +361,7 @@ resolve(agooErr err, gqlDoc doc, gqlRef target, gqlField field, gqlSel sel, gqlV
     VALUE		obj = (VALUE)target;
     int			d2 = depth + 1;
     const char		*key = sel->name;
-    
+
     if ('_' == *sel->name && '_' == sel->name[1]) {
 	if (0 == strcmp("__typename", sel->name)) {
 	    if (AGOO_ERR_OK != gql_set_typename(err, ref_type(target), key, result)) {
@@ -583,7 +584,8 @@ graphql_schema(VALUE self, VALUE root) {
 	exit(0);
     }
     gql_root = (gqlRef)root;
-    rb_gc_register_address(&root);
+    vroot = root;
+    rb_gc_register_address(&vroot);
 
     gql_doc_eval_func = eval_wrap;
     gql_resolve_func = resolve;
