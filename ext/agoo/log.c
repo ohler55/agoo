@@ -15,6 +15,7 @@
 #include "debug.h"
 #include "dtime.h"
 #include "log.h"
+#include "sectime.h"
 
 // lower gives faster response but burns more CPU. This is a reasonable compromise.
 #define RETRY_SECS	0.0001
@@ -183,12 +184,14 @@ classic_write(agooLogEntry e, FILE *file) {
 	min = t % 3600 / 60;
 	sec = t % 60;
     } else {
-	struct tm	*tm = gmtime(&t);
+	struct _agooTime	at;
 
-	hour = tm->tm_hour;
-	min = tm->tm_min;
-	sec = tm->tm_sec;
-	sprintf(agoo_log.day_buf, "%04d/%02d/%02d ", tm->tm_year + 1900, tm->tm_mon + 1, tm->tm_mday);
+	agoo_sectime(t, &at);
+
+	hour = at.hour;
+	min = at.min;
+	sec = at.sec;
+	sprintf(agoo_log.day_buf, "%04d/%02d/%02d ", at.year, at.mon, at.day);
 	agoo_log.day_start = t - (hour * 3600 + min * 60 + sec);
 	agoo_log.day_end = agoo_log.day_start + 86400;
     }

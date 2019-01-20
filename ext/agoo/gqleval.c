@@ -14,6 +14,7 @@
 #include "req.h"
 #include "res.h"
 #include "sdl.h"
+#include "sectime.h"
 #include "text.h"
 
 #define MAX_RESOLVE_ARGS	16
@@ -35,20 +36,21 @@ gqlValue	(*gql_doc_eval_func)(agooErr err, gqlDoc doc) = NULL;
 // TBD errors should have message, location, and path
 static void
 err_resp(agooRes res, agooErr err, int status) {
-    char	buf[256];
-    int		cnt;
-    int64_t	now = agoo_now_nano();
-    time_t	t = (time_t)(now / 1000000000LL);
-    long long	frac = (long long)now % 1000000000LL;
-    struct tm	*tm = gmtime(&t);
-    const char	*code = agoo_err_str(err->code);
-    int		clen = strlen(code);
+    char		buf[256];
+    int			cnt;
+    int64_t		now = agoo_now_nano();
+    time_t		t = (time_t)(now / 1000000000LL);
+    long long		frac = (long long)now % 1000000000LL;
+    struct _agooTime	at;
+    const char		*code = agoo_err_str(err->code);
+    int			clen = strlen(code);
 
+    agoo_sectime(t, &at);
     cnt = snprintf(buf, sizeof(buf),
 		   "HTTP/1.1 %d %s\r\nContent-Type: application/json\r\nContent-Length: %ld\r\n\r\n{\"errors\":[{\"message\":\"%s\",\"code\":\"%s\",\"timestamp\":\"%04d-%02d-%02dT%02d:%02d:%02d.%09lldZ\"}]}",
 		   status, agoo_http_code_message(status), strlen(err->msg) + 27 + 45 + clen + 10, err->msg,
 		   code,
-		   tm->tm_year + 1900, tm->tm_mon + 1, tm->tm_mday, tm->tm_hour, tm->tm_min, tm->tm_sec, frac);
+		   at.year, at.mon, at.day, at.hour, at.min, at.sec, frac);
 
     agoo_res_set_message(res, agoo_text_create(buf, cnt));
 }

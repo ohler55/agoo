@@ -8,6 +8,7 @@
 #include "debug.h"
 #include "gqlvalue.h"
 #include "graphql.h"
+#include "sectime.h"
 
 static const char	spaces[256] = "\n                                                                                                                                                                                                                                                               ";
 
@@ -450,20 +451,18 @@ time_parse(agooErr err, const char *str, int len) {
 
 static agooText
 time_to_text(agooText text, gqlValue value, int indent, int depth) {
-    char	str[64];
-    int		cnt;
-    struct tm	tm;
-    int64_t	tt = value->time;
-    time_t	t = (time_t)(tt / 1000000000LL);
-    long	nsecs = tt - (int64_t)t * 1000000000LL;
+    char		str[64];
+    int			cnt;
+    struct _agooTime	at;
+    int64_t		tt = value->time;
+    time_t		t = (time_t)(tt / 1000000000LL);
+    long		nsecs = tt - (int64_t)t * 1000000000LL;
 
     if (0 > nsecs) {
 	nsecs = -nsecs;
     }
-    gmtime_r(&t, &tm);
-    cnt = sprintf(str, "\"%04d-%02d-%02dT%02d:%02d:%02d.%09ldZ\"",
-		  1900 + tm.tm_year, 1 + tm.tm_mon, tm.tm_mday,
-		  tm.tm_hour, tm.tm_min, tm.tm_sec, (long)nsecs);
+    agoo_sectime(t, &at);
+    cnt = sprintf(str, "\"%04d-%02d-%02dT%02d:%02d:%02d.%09ldZ\"", at.year, at.mon, at.day, at.hour, at.min, at.sec, (long)nsecs);
     
     return agoo_text_append(text, str, cnt);
 }
@@ -1419,18 +1418,16 @@ convert_to_string(agooErr err, gqlValue value) {
 	value->type = &gql_string_type;
 	break;
     case GQL_SCALAR_TIME: {
-	struct tm	tm;
-	int64_t		tt = value->time;
-	time_t		t = (time_t)(tt / 1000000000LL);
-	long		nsecs = tt - (int64_t)t * 1000000000LL;
+	struct _agooTime	at;
+	int64_t			tt = value->time;
+	time_t			t = (time_t)(tt / 1000000000LL);
+	long			nsecs = tt - (int64_t)t * 1000000000LL;
 
 	if (0 > nsecs) {
 	    nsecs = -nsecs;
 	}
-	gmtime_r(&t, &tm);
-	cnt = sprintf(buf, "%04d-%02d-%02dT%02d:%02d:%02d.%09ldZ",
-		      1900 + tm.tm_year, 1 + tm.tm_mon, tm.tm_mday,
-		      tm.tm_hour, tm.tm_min, tm.tm_sec, (long)nsecs);
+	agoo_sectime(t, &at);
+	cnt = sprintf(buf, "%04d-%02d-%02dT%02d:%02d:%02d.%09ldZ", at.year, at.mon, at.day, at.hour, at.min, at.sec, (long)nsecs);
 	gql_string_set(err, value, buf, cnt);
 	break;
     }
