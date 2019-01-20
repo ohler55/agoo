@@ -1,5 +1,11 @@
 # CHANGELOG
 
+### 2.6.1 - 2019-01-20
+
+Ruby 2.6.0 compatibility release.
+
+- Registering the GraphQL root object fixed for 2.6.0.
+
 ### 2.6.0 - 2019-01-20
 
 GraphQL supported with a simple, easy to use API. Existing API remain the same but a new Agoo::GraphQL module has been added along with supporting examples.
