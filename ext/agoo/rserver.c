@@ -4,6 +4,7 @@
 #include <netinet/tcp.h>
 #include <signal.h>
 #include <stdio.h>
+#include <string.h>
 #include <sys/wait.h>
 
 #include <ruby.h>
@@ -1019,6 +1020,32 @@ path_group(VALUE self, VALUE path, VALUE dirs) {
     return Qnil;
 }
 
+/* Document-method: header_rule
+ *
+ * call-seq: header_rule(path, mime, key, value)
+ *
+ * Add a header rule. A header rule will ad the key and value to the headers
+ * of any static asset that matches the path and mime type specified. The path
+ * pattern follows glob like rules in that a single * matches a single token
+ * bounded by the `/` character and a double ** matches all remaining. The
+ * mime can also be a * which matches all types. All rules that match add the
+ * header key and value to the header of a static asset.
+ */
+static VALUE
+header_rule(VALUE self, VALUE path, VALUE mime, VALUE key, VALUE value) {
+    struct _agooErr	err = AGOO_ERR_INIT;
+    
+    rb_check_type(path, T_STRING);
+    rb_check_type(mime, T_STRING);
+    rb_check_type(key, T_STRING);
+    rb_check_type(value, T_STRING);
+
+    if (AGOO_ERR_OK != agoo_header_rule(&err, StringValuePtr(path), StringValuePtr(mime), StringValuePtr(key), StringValuePtr(value))) {
+	rb_raise(rb_eArgError, "%s", err.msg);
+    }
+    return Qnil;
+}
+
 /* Document-class: Agoo::Server
  *
  * An HTTP server that support the rack API as well as some other optimized
@@ -1036,6 +1063,7 @@ server_init(VALUE mod) {
     rb_define_module_function(server_mod, "handle_not_found", handle_not_found, 1);
     rb_define_module_function(server_mod, "add_mime", add_mime, 2);
     rb_define_module_function(server_mod, "path_group", path_group, 2);
+    rb_define_module_function(server_mod, "header_rule", header_rule, 4);
 
     call_id = rb_intern("call");
     each_id = rb_intern("each");

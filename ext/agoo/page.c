@@ -29,6 +29,15 @@ typedef struct _slot {
     int			klen;
 } *Slot;
 
+typedef struct _headRule {
+    struct _headRule	*next;
+    char		*path;
+    char		*mime;
+    char		*key;
+    char		*value;
+    int			len; // length of key + value + ': ' + '\r\n'
+} *HeadRule;
+
 typedef struct _mimeSlot {
     struct _mimeSlot	*next;
     char		key[MAX_MIME_KEY_LEN + 1];
@@ -42,6 +51,7 @@ typedef struct _cache {
     MimeSlot		muckets[MIME_BUCKET_SIZE];
     char		*root;
     agooGroup		groups;
+    HeadRule		head_rules;
 } *Cache;
 
 typedef struct _mime {
@@ -104,6 +114,7 @@ static struct _cache	cache = {
     .muckets = {0},
     .root = NULL,
     .groups = NULL,
+    .head_rules = NULL,
 };
 
 static uint64_t
@@ -297,6 +308,7 @@ agoo_pages_cleanup() {
     MimeSlot	*mp = cache.muckets;
     MimeSlot	sm;
     MimeSlot	m;
+    HeadRule	hr;
     int		i;
 
     for (i = PAGE_BUCKET_SIZE; 0 < i; i--, sp++) {
@@ -314,6 +326,14 @@ agoo_pages_cleanup() {
 	    AGOO_FREE(sm);
 	}
 	*mp = NULL;
+    }
+    while (NULL != (hr = cache.head_rules)) {
+	cache.head_rules = hr->next;
+	AGOO_FREE(hr->path);
+	AGOO_FREE(hr->mime);
+	AGOO_FREE(hr->key);
+	AGOO_FREE(hr->value);
+	AGOO_FREE(hr);
     }
     AGOO_FREE(cache.root);
 }
@@ -337,6 +357,14 @@ path_mime(const char *path) {
 	mime = mime_get(suffix);
     }
     return mime;
+}
+
+static bool
+head_rule_match(HeadRule rule, const char *path, const char *mime) {
+
+    // TBD
+
+    return false;
 }
 
 // The page resp points to the page resp msg to save memory and reduce
@@ -395,6 +423,9 @@ agoo_page_immutable(agooErr err, const char *path, const char *content, int clen
 	agoo_err_set(err, AGOO_ERR_MEMORY, "Failed to allocate memory for page content.");
 	return NULL;
     }
+
+    // TD add mime headers
+
     cnt = sprintf(p->resp->text, page_fmt, mime, (long)clen);
     msize = cnt + clen;
     memcpy(p->resp->text + cnt, content, clen);
@@ -420,10 +451,12 @@ update_contents(agooPage p) {
     long	size;
     struct stat	fattr;
     long	msize;
+    long	hlen = 0;
     int		cnt;
     struct stat	fs;
     agooText	t;
     FILE	*f = fopen(p->path, "rb");
+    HeadRule	hr;
     
     // On linux a directory is opened by fopen (sometimes? all the time?) so
     // fstat is called to get the file mode and verify it is a regular file or
@@ -471,12 +504,26 @@ update_contents(agooPage p) {
     }
     rewind(f);
 
+    for (hr = cache.head_rules; NULL != hr; hr = hr->next) {
+	if (head_rule_match(hr, p->path, mime)) {
+	    hlen += hr->len;
+	}
+    }
     // Format size plus space for the length, the mime type, and some
-    // padding. Then add the content length.
-    msize = sizeof(page_fmt) + 60 + size;
+    // padding. Then add the header rule and content length.
+    msize = sizeof(page_fmt) + 60 + size + hlen;
     if (NULL == (t = agoo_text_allocate((int)msize))) {
 	return close_return_false(f);
     }
+    if (0 < hlen) {
+	for (hr = cache.head_rules; NULL != hr; hr = hr->next) {
+	    if (head_rule_match(hr, p->path, mime)) {
+		// TBD append key value
+		// flag if Content-Type matched
+	    }
+	}
+    }
+    // TBD if content type was already added just add content length
     cnt = sprintf(t->text, page_fmt, mime, size);
     msize = cnt + size;
     if (0 < size) {
@@ -687,4 +734,25 @@ group_add(agooGroup g, const char *dir) {
 	d->path = AGOO_STRDUP(dir);
 	d->plen = (int)strlen(dir);
     }
+}
+
+int
+agoo_header_rule(agooErr err, const char *path, const char *mime, const char *key, const char *value) {
+    HeadRule	hr;
+    
+    if (0 == strcasecmp("Content-Length", key)) {
+	return agoo_err_set(err, AGOO_ERR_ARG, "Can not mask COntent-Length with a header rule.");
+    }
+    if (NULL == (hr = (HeadRule)AGOO_MALLOC(sizeof(struct _headRule))) ||
+	NULL == (hr->path = AGOO_STRDUP(path)) ||
+	NULL == (hr->mime = AGOO_STRDUP(mime)) ||
+	NULL == (hr->key = AGOO_STRDUP(key)) ||
+	NULL == (hr->value = AGOO_STRDUP(value))) {	
+	return agoo_err_set(err, AGOO_ERR_MEMORY, "out of memory adding a header rule");
+    }
+    hr->len = strlen(hr->key) + strlen(hr->value) + 4;
+    hr->next = cache.head_rules;
+    cache.head_rules = hr;
+    
+    return AGOO_ERR_OK;
 }

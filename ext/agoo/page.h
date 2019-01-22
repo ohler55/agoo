@@ -42,5 +42,6 @@ extern agooPage		agoo_page_create(const char *path);
 extern agooPage		agoo_page_immutable(agooErr err, const char *path, const char *content, int clen);
 extern agooPage		agoo_page_get(agooErr err, const char *path, int plen);
 extern int		mime_set(agooErr err, const char *key, const char *value);
+extern int		agoo_header_rule(agooErr err, const char *path, const char *mime, const char *key, const char *value);
 
 #endif // AGOO_PAGE_H
