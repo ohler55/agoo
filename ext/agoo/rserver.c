@@ -1024,12 +1024,15 @@ path_group(VALUE self, VALUE path, VALUE dirs) {
  *
  * call-seq: header_rule(path, mime, key, value)
  *
- * Add a header rule. A header rule will ad the key and value to the headers
+ * Add a header rule. A header rule will add the key and value to the headers
  * of any static asset that matches the path and mime type specified. The path
  * pattern follows glob like rules in that a single * matches a single token
  * bounded by the `/` character and a double ** matches all remaining. The
- * mime can also be a * which matches all types. All rules that match add the
- * header key and value to the header of a static asset.
+ * mime can also be a * which matches all types. The mime argument will be
+ * compared to the mine type as well as the file extension so
+ * 'applicaiton/json', a mime type can be used as can 'json' as a file
+ * extension. All rules that match add the header key and value to the header
+ * of a static asset.
  */
 static VALUE
 header_rule(VALUE self, VALUE path, VALUE mime, VALUE key, VALUE value) {
