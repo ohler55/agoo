@@ -1,5 +1,11 @@
 # CHANGELOG
 
+### 2.7.0 - 2019-01-tbd
+
+Static asset header rules functionality added.
+
+- `Agoo::Server.header_rule()` added.
+
 ### 2.6.1 - 2019-01-20
 
 Ruby 2.6.0 compatibility release.
