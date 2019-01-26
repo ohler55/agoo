@@ -50,18 +50,24 @@ agoo_alloc(const void *ptr, size_t size, const char *file, int line) {
 void*
 agoo_malloc(size_t size, const char *file, int line) {
     void	*ptr = malloc(size + sizeof(mem_pad));
-    Rec		r = (Rec)malloc(sizeof(struct _rec));
 
-    if (NULL != ptr && NULL != r) {
-	strcpy(((char*)ptr) + size, mem_pad);
-	r->ptr = ptr;
-	r->size = size;
-	r->file = file;
-	r->line = line;
-	pthread_mutex_lock(&lock);
-	r->next = recs;
-	recs = r;
-	pthread_mutex_unlock(&lock);
+    if (NULL != ptr) {
+	Rec	r = (Rec)malloc(sizeof(struct _rec));
+	
+	if (NULL != r) {
+	    strcpy(((char*)ptr) + size, mem_pad);
+	    r->ptr = ptr;
+	    r->size = size;
+	    r->file = file;
+	    r->line = line;
+	    pthread_mutex_lock(&lock);
+	    r->next = recs;
+	    recs = r;
+	    pthread_mutex_unlock(&lock);
+	} else {
+	    free(ptr);
+	    ptr = NULL;
+	}
     }
     return ptr;
 }
@@ -95,19 +101,25 @@ char*
 agoo_strdup(const char *str, const char *file, int line) {
     size_t	size = strlen(str) + 1;
     char	*ptr = (char*)malloc(size + sizeof(mem_pad));
-    Rec		r = (Rec)malloc(sizeof(struct _rec));
 
-    if (NULL != ptr && NULL != r) {
-	strcpy(ptr, str);
-	strcpy(((char*)ptr) + size, mem_pad);
-	r->ptr = (void*)ptr;
-	r->size = size;
-	r->file = file;
-	r->line = line;
-	pthread_mutex_lock(&lock);
-	r->next = recs;
-	recs = r;
-	pthread_mutex_unlock(&lock);
+    if (NULL != ptr) {
+	Rec	r = (Rec)malloc(sizeof(struct _rec));
+	
+	if (NULL != r) {
+	    strcpy(ptr, str);
+	    strcpy(((char*)ptr) + size, mem_pad);
+	    r->ptr = (void*)ptr;
+	    r->size = size;
+	    r->file = file;
+	    r->line = line;
+	    pthread_mutex_lock(&lock);
+	    r->next = recs;
+	    recs = r;
+	    pthread_mutex_unlock(&lock);
+	} else {
+	    free(ptr);
+	    ptr = NULL;
+	}
     }
     return ptr;
 }
@@ -116,20 +128,26 @@ char*
 agoo_strndup(const char *str, size_t len, const char *file, int line) {
     size_t	size = len + 1;
     char	*ptr = (char*)malloc(size + sizeof(mem_pad));
-    Rec		r = (Rec)malloc(sizeof(struct _rec));
 
-    if (NULL != ptr && NULL != r) {
-	memcpy(ptr, str, len);
-	ptr[len] = '\0';
-	strcpy(((char*)ptr) + size, mem_pad);
-	r->ptr = (void*)ptr;
-	r->size = size;
-	r->file = file;
-	r->line = line;
-	pthread_mutex_lock(&lock);
-	r->next = recs;
-	recs = r;
-	pthread_mutex_unlock(&lock);
+    if (NULL != ptr) {
+	Rec	r = (Rec)malloc(sizeof(struct _rec));
+	
+	if (NULL != r) {
+	    memcpy(ptr, str, len);
+	    ptr[len] = '\0';
+	    strcpy(((char*)ptr) + size, mem_pad);
+	    r->ptr = (void*)ptr;
+	    r->size = size;
+	    r->file = file;
+	    r->line = line;
+	    pthread_mutex_lock(&lock);
+	    r->next = recs;
+	    recs = r;
+	    pthread_mutex_unlock(&lock);
+	} else {
+	    free(ptr);
+	    ptr = NULL;
+	}
     }
     return ptr;
 }
