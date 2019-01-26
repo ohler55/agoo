@@ -22,6 +22,10 @@ agoo_hook_create(agooMethod method, const char *pattern, void *handler, agooHook
 	} else {
 	    pat = AGOO_STRDUP(pattern);
 	}
+	if (NULL == pat) {
+	    AGOO_FREE(hook);
+	    return NULL;
+	}
 	hook->pattern = pat;
 	hook->next = NULL;
 	hook->method = method;
@@ -47,6 +51,10 @@ agoo_hook_func_create(agooMethod method, const char *pattern, void (*func)(agooR
 	} else {
 	    pat = AGOO_STRDUP(pattern);
 	}
+	if (NULL == pat) {
+	    AGOO_FREE(hook);
+	    return NULL;
+	}
 	hook->pattern = pat;
 	hook->next = NULL;
 	hook->method = method;
@@ -60,9 +68,7 @@ agoo_hook_func_create(agooMethod method, const char *pattern, void (*func)(agooR
 
 void
 agoo_hook_destroy(agooHook hook) {
-    if (NULL != hook->pattern) {
-	AGOO_FREE(hook->pattern);
-    }
+    AGOO_FREE(hook->pattern);
     AGOO_FREE(hook);
 }
 

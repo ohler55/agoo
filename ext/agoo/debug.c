@@ -232,10 +232,8 @@ agoo_freed(void *ptr, const char *file, int line) {
 
 void
 agoo_free(void *ptr, const char *file, int line) {
-    if (NULL != ptr) {
-	agoo_freed(ptr, file, line);
-	free(ptr);
-    }
+    agoo_freed(ptr, file, line);
+    free(ptr);
 }
 
 #endif

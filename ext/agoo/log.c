@@ -327,12 +327,8 @@ loop(void *ctx) {
 		    agoo_log_rotate();
 		}
 	    }
-	    if (NULL != e->whatp) {
-		AGOO_FREE(e->whatp);
-	    }
-	    if (NULL != e->tidp) {
-		AGOO_FREE(e->tidp);
-	    }
+	    AGOO_FREE(e->whatp);
+	    AGOO_FREE(e->tidp);
 	    e->ready = false;
 	}
     }

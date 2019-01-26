@@ -237,9 +237,10 @@ configure(agooErr err, int port, const char *root, VALUE options) {
  * call-seq: init(port, root, options)
  *
  * Configures the server that will listen on the designated _port_ and using
- * the _root_ as the root of the static resources. Logging is feature based
- * and not level based and the options reflect that approach. If bind option
- * is to be used instead of the port then set the port to zero.
+ * the _root_ as the root of the static resources. This must be called before
+ * using other server methods. Logging is feature based and not level based
+ * and the options reflect that approach. If bind option is to be used instead
+ * of the port then set the port to zero.
  *
  * - *options* [_Hash_] server options
  *
@@ -1001,7 +1002,8 @@ add_mime(VALUE self, VALUE suffix, VALUE type) {
  */
 static VALUE
 path_group(VALUE self, VALUE path, VALUE dirs) {
-    agooGroup	g;
+    struct _agooErr	err = AGOO_ERR_INIT;
+    agooGroup		g;
 
     rb_check_type(path, T_STRING);
     rb_check_type(dirs, T_ARRAY);
@@ -1016,7 +1018,9 @@ path_group(VALUE self, VALUE path, VALUE dirs) {
 	    if (T_STRING != rb_type(entry)) {
 		entry = rb_funcall(entry, rb_intern("to_s"), 0);
 	    }
-	    group_add(g, StringValuePtr(entry));
+	    if (NULL == group_add(&err, g, StringValuePtr(entry))) {
+		rb_raise(rb_eStandardError, "%s", err.msg);
+	    }
 	}
     }
     return Qnil;
@@ -1035,6 +1039,8 @@ path_group(VALUE self, VALUE path, VALUE dirs) {
  * 'applicaiton/json', a mime type can be used as can 'json' as a file
  * extension. All rules that match add the header key and value to the header
  * of a static asset.
+ *
+ * Note that the server must be initialized before calling this method.
  */
 static VALUE
 header_rule(VALUE self, VALUE path, VALUE mime, VALUE key, VALUE value) {

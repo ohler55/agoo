@@ -208,7 +208,9 @@ mime_set(agooErr err, const char *key, const char *value) {
 	    ((0 <= len && len <= MAX_KEY_UNIQ) || 0 == strncmp(s->key, key, len))) {
 
 	    AGOO_FREE(s->value);
-	    s->value = AGOO_STRDUP(value);
+	    if (NULL == (s->value = AGOO_STRDUP(value))) {
+		return agoo_err_set(err, AGOO_ERR_ARG, "out of memory adding %s", key);
+	    }
 	    return AGOO_ERR_OK;
 	}
     }
@@ -222,7 +224,10 @@ mime_set(agooErr err, const char *key, const char *value) {
     } else {
 	strcpy(s->key, key);
     }
-    s->value = AGOO_STRDUP(value);
+    if (NULL == (s->value = AGOO_STRDUP(value))) {
+	AGOO_FREE(s);
+	return agoo_err_set(err, AGOO_ERR_ARG, "out of memory adding %s", key);
+    }
     s->next = *bucket;
     *bucket = s;
 
@@ -275,7 +280,7 @@ agoo_pages_init() {
     struct _agooErr	err = AGOO_ERR_INIT;
     
     memset(&cache, 0, sizeof(struct _cache));
-    cache.root = AGOO_STRDUP(".");
+    cache.root = AGOO_STRDUP("."); // allowed to fail
     for (m = mime_map; NULL != m->suffix; m++) {
 	mime_set(&err, m->suffix, m->type);
     }
@@ -287,7 +292,7 @@ agoo_pages_set_root(const char *root) {
     if (NULL == root) {
 	cache.root = NULL;
     } else {
-	cache.root = AGOO_STRDUP(root);
+	cache.root = AGOO_STRDUP(root); // allowed to fail
     }
 }
 
@@ -429,7 +434,10 @@ agoo_page_create(const char *path) {
 	if (NULL == path) {
 	    p->path = NULL;
 	} else {
-	    p->path = AGOO_STRDUP(path);
+	    if (NULL == (p->path = AGOO_STRDUP(path))) {
+		AGOO_FREE(p);
+		return NULL;
+	    }
 	}
 	p->mtime = 0;
 	p->last_check = 0.0;
@@ -456,7 +464,10 @@ agoo_page_immutable(agooErr err, const char *path, const char *content, int clen
     if (NULL == path) {
 	p->path = NULL;
     } else {
-	p->path = AGOO_STRDUP(path);
+	if (NULL == (p->path = AGOO_STRDUP(path))) {
+	    AGOO_FREE(p);
+	    return NULL;
+	}
 	plen = (int)strlen(path);
 	if (NULL != cache.root) {
 	    int	rlen = strlen(cache.root);
@@ -821,25 +832,32 @@ group_create(const char *path) {
     agooGroup	g = (agooGroup)AGOO_MALLOC(sizeof(struct _agooGroup));
 
     if (NULL != g) {
-	g->next = cache.groups;
-	cache.groups = g;
-	g->path = AGOO_STRDUP(path);
+	if (NULL == (g->path = AGOO_STRDUP(path))) {
+	    AGOO_FREE(g);
+	    return NULL;
+	}
 	g->plen = (int)strlen(path);
 	g->dirs = NULL;
+	g->next = cache.groups;
+	cache.groups = g;
     }
     return g;
 }
 
-void
-group_add(agooGroup g, const char *dir) {
+agooDir
+group_add(agooErr err, agooGroup g, const char *dir) {
     agooDir	d = (agooDir)AGOO_MALLOC(sizeof(struct _agooDir));
 
     if (NULL != d) {
+	if (NULL == (d->path = AGOO_STRDUP(dir))) {
+	    agoo_err_set(err, AGOO_ERR_MEMORY, "out of memory adding group");
+	    return NULL;
+	}
+	d->plen = (int)strlen(dir);
 	d->next = g->dirs;
 	g->dirs = d;
-	d->path = AGOO_STRDUP(dir);
-	d->plen = (int)strlen(dir);
     }
+    return d;
 }
 
 int
@@ -849,16 +867,25 @@ agoo_header_rule(agooErr err, const char *path, const char *mime, const char *ke
     if (0 == strcasecmp("Content-Length", key)) {
 	return agoo_err_set(err, AGOO_ERR_ARG, "Can not mask COntent-Length with a header rule.");
     }
-    if (NULL == (hr = (HeadRule)AGOO_MALLOC(sizeof(struct _headRule))) ||
-	NULL == (hr->path = AGOO_STRDUP(path)) ||
+    if (NULL == (hr = (HeadRule)AGOO_MALLOC(sizeof(struct _headRule)))) {
+	return agoo_err_set(err, AGOO_ERR_MEMORY, "out of memory adding a header rule");
+    }
+    memset(hr, 0, sizeof(struct _headRule));
+    if (NULL == (hr->path = AGOO_STRDUP(path)) ||
 	NULL == (hr->key = AGOO_STRDUP(key)) ||
 	NULL == (hr->value = AGOO_STRDUP(value))) {	
+	AGOO_FREE(hr->path);
+	AGOO_FREE(hr->key);
+	AGOO_FREE(hr->value);
 	AGOO_FREE(hr);
 	return agoo_err_set(err, AGOO_ERR_MEMORY, "out of memory adding a header rule");
     }
     if ('*' == *mime && '\0' == mime[1]) {
 	hr->mime = NULL;
     } else if (NULL == (hr->mime = AGOO_STRDUP(mime))) {
+	AGOO_FREE(hr->path);
+	AGOO_FREE(hr->key);
+	AGOO_FREE(hr->value);
 	AGOO_FREE(hr);
 	return agoo_err_set(err, AGOO_ERR_MEMORY, "out of memory adding a header rule");
     }

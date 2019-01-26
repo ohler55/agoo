@@ -35,7 +35,7 @@ extern void		agoo_pages_set_root(const char *root);
 extern void		agoo_pages_cleanup();
 
 extern agooGroup	group_create(const char *path);
-extern void		group_add(agooGroup g, const char *dir);
+extern agooDir		group_add(agooErr err, agooGroup g, const char *dir);
 extern agooPage		group_get(agooErr err, const char *path, int plen);
 
 extern agooPage		agoo_page_create(const char *path);

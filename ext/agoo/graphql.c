@@ -486,7 +486,11 @@ assure_directive(agooErr err, const char *name) {
 	} else {
 	    dir->next = gql_directives;
 	    gql_directives = dir;
-	    dir->name = AGOO_STRDUP(name);
+	    if (NULL == (dir->name = AGOO_STRDUP(name))) {
+		agoo_err_set(err, AGOO_ERR_MEMORY, "Failed to allocate memory for a GraphQL directive.");
+		AGOO_FREE(dir);
+		return NULL;
+	    }
 	    dir->args = NULL;
 	    dir->locs = NULL;
 	    dir->defined = false;
@@ -522,7 +526,11 @@ gql_type_field(agooErr		err,
 	agoo_err_set(err, AGOO_ERR_MEMORY, "Failed to allocate memory for a GraphQL field.");
     } else {
 	f->next = NULL;
-	f->name = AGOO_STRDUP(name);
+	if (NULL == (f->name = AGOO_STRDUP(name))) {
+	    agoo_err_set(err, AGOO_ERR_MEMORY, "Failed to allocate memory for a string");
+	    AGOO_FREE(f);
+	    return NULL;
+	}
 	f->type = return_type;
 	if (NULL == (f->desc = alloc_string(err, desc, dlen)) && AGOO_ERR_OK != err->code) {
 	    AGOO_FREE(f);
@@ -560,7 +568,11 @@ gql_field_arg(agooErr		err,
 	agoo_err_set(err, AGOO_ERR_MEMORY, "Failed to allocate memory for a GraphQL field argument.");
     } else {
 	a->next = NULL;
-	a->name = AGOO_STRDUP(name);
+	if (NULL == (a->name = AGOO_STRDUP(name))) {
+	    agoo_err_set(err, AGOO_ERR_MEMORY, "Failed to allocate memory for a string.");
+	    AGOO_FREE(a);
+	    return NULL;
+	}
 	a->type = type;
 	if (NULL == (a->desc = alloc_string(err, desc, dlen)) && AGOO_ERR_OK != err->code) {
 	    AGOO_FREE(a);
@@ -722,9 +734,13 @@ gql_directive_create(agooErr err, const char *name, const char *desc, size_t dle
     } else {
 	if (NULL == (dir = (gqlDir)AGOO_MALLOC(sizeof(struct _gqlDir)))) {
 	    agoo_err_set(err, AGOO_ERR_MEMORY, "Failed to allocate memory for a GraphQL directive.");
-	    return dir;
+	    return NULL;
 	}
-	dir->name = AGOO_STRDUP(name);
+	if (NULL == (dir->name = AGOO_STRDUP(name))) {
+	    agoo_err_set(err, AGOO_ERR_MEMORY, "Failed to allocate memory for a string.");
+	    AGOO_FREE(dir);
+	    return NULL;
+	}
 	dir->args = NULL;
 	dir->locs = NULL;
 	dir->defined = true;
@@ -755,7 +771,11 @@ gql_dir_arg(agooErr 		err,
 	agoo_err_set(err, AGOO_ERR_MEMORY, "Failed to allocate memory for a GraphQL directive argument.");
     } else {
 	a->next = NULL;
-	a->name = AGOO_STRDUP(name);
+	if (NULL == (a->name = AGOO_STRDUP(name))) {
+	    AGOO_FREE(a);
+	    agoo_err_set(err, AGOO_ERR_MEMORY, "Failed to allocate memory for a string.");
+	    return NULL;
+	}
 	a->type = type;
 	if (NULL == (a->desc = alloc_string(err, desc, dlen)) && AGOO_ERR_OK != err->code) {
 	    AGOO_FREE(a);
