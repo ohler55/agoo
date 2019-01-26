@@ -49,7 +49,8 @@ typedef struct _agooServer {
 } *agooServer;
 
 extern struct _agooServer	agoo_server;
-extern void	agoo_server_setup();
+
+extern int	agoo_server_setup(agooErr err);
 extern void	agoo_server_shutdown(const char *app_name, void (*stop)());
 extern void	agoo_server_bind(agooBind b);
 

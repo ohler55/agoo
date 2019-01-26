@@ -269,7 +269,9 @@ rserver_init(int argc, VALUE *argv, VALUE self) {
     if (3 <= argc) {
 	options = argv[2];
     }
-    agoo_server_setup();
+    if (AGOO_ERR_OK != agoo_server_setup(&err)) {
+	rb_raise(rb_eStandardError, "%s", err.msg);
+    }
     agoo_server.ctx_nil_value = (void*)Qnil;
     agoo_server.env_nil_value = (void*)Qnil;
 

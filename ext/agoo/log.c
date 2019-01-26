@@ -590,8 +590,8 @@ agoo_log_start(agooErr err, bool with_pid) {
     return AGOO_ERR_OK;
 }
 
-void
-agoo_log_init(const char *app) {
+int
+agoo_log_init(agooErr err, const char *app) {
     time_t	t = time(NULL);
     struct tm	*tm = localtime(&t);
     int		qsize = 1024;
@@ -615,7 +615,9 @@ agoo_log_init(const char *app) {
     *agoo_log.day_buf = '\0';
     agoo_log.thread = 0;
 
-    agoo_log.q = (agooLogEntry)AGOO_MALLOC(sizeof(struct _agooLogEntry) * qsize);
+    if (NULL == (agoo_log.q = (agooLogEntry)AGOO_MALLOC(sizeof(struct _agooLogEntry) * qsize))) {
+	return agoo_err_set(err, AGOO_ERR_MEMORY, "Failed to allocate memory for the log queue.");
+    }
     agoo_log.end = agoo_log.q + qsize;
     memset(agoo_log.q, 0, sizeof(struct _agooLogEntry) * qsize);
     atomic_init(&agoo_log.head, agoo_log.q);
@@ -639,4 +641,5 @@ agoo_log_init(const char *app) {
     agoo_log_cat_reg(&agoo_push_cat,  "push",     AGOO_INFO,  AGOO_DARK_CYAN, false);
 
     //agoo_log_start(false);
+    return AGOO_ERR_OK;
 }

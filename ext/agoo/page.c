@@ -853,11 +853,13 @@ agoo_header_rule(agooErr err, const char *path, const char *mime, const char *ke
 	NULL == (hr->path = AGOO_STRDUP(path)) ||
 	NULL == (hr->key = AGOO_STRDUP(key)) ||
 	NULL == (hr->value = AGOO_STRDUP(value))) {	
+	AGOO_FREE(hr);
 	return agoo_err_set(err, AGOO_ERR_MEMORY, "out of memory adding a header rule");
     }
     if ('*' == *mime && '\0' == mime[1]) {
 	hr->mime = NULL;
     } else if (NULL == (hr->mime = AGOO_STRDUP(mime))) {
+	AGOO_FREE(hr);
 	return agoo_err_set(err, AGOO_ERR_MEMORY, "out of memory adding a header rule");
     }
     hr->len = strlen(hr->key) + strlen(hr->value) + 4;

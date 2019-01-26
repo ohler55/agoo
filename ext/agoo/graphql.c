@@ -411,13 +411,16 @@ type_create(agooErr err, gqlKind kind, const char *name, const char *desc, size_
     if (NULL == type) {
 	if (NULL == (type = (gqlType)AGOO_MALLOC(sizeof(struct _gqlType)))) {
 	    agoo_err_set(err, AGOO_ERR_MEMORY, "Failed to allocate memory for a GraphQL Type.");
-	    return NULL;
+	    return type; // type will always be NULL but C++ checker flags this as an error otherwise
 	}
 	if (NULL == (type->name = AGOO_STRDUP(name))) {
 	    agoo_err_set(err, AGOO_ERR_MEMORY, "strdup of type name failed. %s:%d", __FILE__, __LINE__);
+	    AGOO_FREE(type);
 	    return NULL;
 	}
 	if (NULL == (type->desc = alloc_string(err, desc, dlen)) && AGOO_ERR_OK != err->code) {
+	    AGOO_FREE((char*)type->name);
+	    AGOO_FREE(type);
 	    return NULL;
 	}
 	type->dir = NULL;
@@ -480,15 +483,15 @@ assure_directive(agooErr err, const char *name) {
     if (NULL == dir) {
 	if (NULL == (dir = (gqlDir)AGOO_MALLOC(sizeof(struct _gqlDir)))) {
 	    agoo_err_set(err, AGOO_ERR_MEMORY, "Failed to allocate memory for a GraphQL directive.");
-	    return NULL;
+	} else {
+	    dir->next = gql_directives;
+	    gql_directives = dir;
+	    dir->name = AGOO_STRDUP(name);
+	    dir->args = NULL;
+	    dir->locs = NULL;
+	    dir->defined = false;
+	    dir->desc = NULL;
 	}
-	dir->next = gql_directives;
-	gql_directives = dir;
-	dir->name = AGOO_STRDUP(name);
-	dir->args = NULL;
-	dir->locs = NULL;
-	dir->defined = false;
-	dir->desc = NULL;
     }
     return dir;
 }
@@ -522,6 +525,7 @@ gql_type_field(agooErr		err,
 	f->name = AGOO_STRDUP(name);
 	f->type = return_type;
 	if (NULL == (f->desc = alloc_string(err, desc, dlen)) && AGOO_ERR_OK != err->code) {
+	    AGOO_FREE(f);
 	    return NULL;
 	}
 	f->args = NULL;
@@ -559,6 +563,7 @@ gql_field_arg(agooErr		err,
 	a->name = AGOO_STRDUP(name);
 	a->type = type;
 	if (NULL == (a->desc = alloc_string(err, desc, dlen)) && AGOO_ERR_OK != err->code) {
+	    AGOO_FREE(a);
 	    return NULL;
 	}
 	a->default_value = def_value;
@@ -632,10 +637,12 @@ gql_enum_append(agooErr err, gqlType type, const char *value, size_t len, const 
     }
     if (NULL == (ev->value = AGOO_STRNDUP(value, len))) {
 	agoo_err_set(err, AGOO_ERR_MEMORY, "strndup of length %d failed. %s:%d", len, __FILE__, __LINE__);
+	AGOO_FREE(ev);
 	return NULL;
     }
     ev->dir = NULL;
     if (NULL == (ev->desc = alloc_string(err, desc, dlen)) && AGOO_ERR_OK != err->code) {
+	AGOO_FREE(ev);
 	return NULL;
     }
     if (NULL == type->choices) {
@@ -715,18 +722,19 @@ gql_directive_create(agooErr err, const char *name, const char *desc, size_t dle
     } else {
 	if (NULL == (dir = (gqlDir)AGOO_MALLOC(sizeof(struct _gqlDir)))) {
 	    agoo_err_set(err, AGOO_ERR_MEMORY, "Failed to allocate memory for a GraphQL directive.");
-	    return NULL;
+	    return dir;
 	}
-	dir->next = gql_directives;
-	gql_directives = dir;
 	dir->name = AGOO_STRDUP(name);
 	dir->args = NULL;
 	dir->locs = NULL;
 	dir->defined = true;
 	dir->core = false;
 	if (NULL == (dir->desc = alloc_string(err, desc, dlen)) && AGOO_ERR_OK != err->code) {
+	    AGOO_FREE(dir);
 	    return NULL;
 	}
+	dir->next = gql_directives;
+	gql_directives = dir;
     }
     return dir;
 }
@@ -750,6 +758,7 @@ gql_dir_arg(agooErr 		err,
 	a->name = AGOO_STRDUP(name);
 	a->type = type;
 	if (NULL == (a->desc = alloc_string(err, desc, dlen)) && AGOO_ERR_OK != err->code) {
+	    AGOO_FREE(a);
 	    return NULL;
 	}
 	a->default_value = def_value;
@@ -1172,6 +1181,7 @@ gql_dir_use_create(agooErr err, const char *name) {
 	agoo_err_set(err, AGOO_ERR_MEMORY, "Failed to allocate memory for a directive useage.");
     } else {
 	if (NULL == (use->dir = assure_directive(err, name))) {
+	    AGOO_FREE(use);
 	    return NULL;
 	}
 	use->next = NULL;
@@ -1217,6 +1227,7 @@ gql_fragment_create(agooErr err, const char *name, gqlType on) {
 	if (NULL != name) {
 	    if (NULL == (frag->name = AGOO_STRDUP(name))) {
 		agoo_err_set(err, AGOO_ERR_MEMORY, "strdup of fragment name failed. %s:%d", __FILE__, __LINE__);
+		AGOO_FREE(frag);
 		return NULL;
 	    }
 	} else {
@@ -1266,6 +1277,7 @@ gql_op_create(agooErr err, const char *name, gqlOpKind kind) {
 	if (NULL != name && '\0' != *name) {
 	    if (NULL == (op->name = AGOO_STRDUP(name))) {
 		agoo_err_set(err, AGOO_ERR_MEMORY, "strdup of operation name failed. %s:%d", __FILE__, __LINE__);
+		AGOO_FREE(op);
 		return NULL;
 	    }
 	} else {

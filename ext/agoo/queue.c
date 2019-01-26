@@ -26,17 +26,19 @@
 // When head == tail the queue is full. This happens when tail catches up with head.
 // 
 
-void
-agoo_queue_init(agooQueue q, size_t qsize) {
-    agoo_queue_multi_init(q, qsize, false, false);
+int
+agoo_queue_init(agooErr err, agooQueue q, size_t qsize) {
+    return agoo_queue_multi_init(err, q, qsize, false, false);
 }
 
-void
-agoo_queue_multi_init(agooQueue q, size_t qsize, bool multi_push, bool multi_pop) {
+int
+agoo_queue_multi_init(agooErr err, agooQueue q, size_t qsize, bool multi_push, bool multi_pop) {
     if (qsize < 4) {
 	qsize = 4;
     }
-    q->q = (agooQItem*)AGOO_MALLOC(sizeof(agooQItem) * qsize);
+    if (NULL == (q->q = (agooQItem*)AGOO_MALLOC(sizeof(agooQItem) * qsize))) {
+	return agoo_err_set(err, AGOO_ERR_MEMORY, "Failed to allocate memory for queue.");
+    }
     q->end = q->q + qsize;
 
     memset(q->q, 0, sizeof(agooQItem) * qsize);
@@ -50,6 +52,8 @@ agoo_queue_multi_init(agooQueue q, size_t qsize, bool multi_push, bool multi_pop
     // Create when/if needed.
     q->rsock = 0;
     q->wsock = 0;
+
+    return AGOO_ERR_OK;
 }
 
 void

@@ -804,6 +804,7 @@ sel_arg_create(agooErr err, const char *name, gqlValue value, gqlVar var) {
 	arg->next = NULL;
 	if (NULL == (arg->name = AGOO_STRDUP(name))) {
 	    agoo_err_set(err, AGOO_ERR_MEMORY, "strdup of field name failed. %s:%d", __FILE__, __LINE__);
+	    AGOO_FREE(arg);
 	    return NULL;
 	}
 	arg->var = var;
@@ -878,6 +879,7 @@ gql_op_var_create(agooErr err, const char *name, gqlType type, gqlValue value) {
 	var->next = NULL;
 	if (NULL == (var->name = AGOO_STRDUP(name))) {
 	    agoo_err_set(err, AGOO_ERR_MEMORY, "strdup of variable name failed. %s:%d", __FILE__, __LINE__);
+	    AGOO_FREE(var);
 	    return NULL;
 	}
 	var->type = type;
@@ -947,6 +949,7 @@ sel_create(agooErr err, const char *alias, const char *name, const char *frag) {
 	} else {
 	    if (NULL == (sel->name = AGOO_STRDUP(name))) {
 		agoo_err_set(err, AGOO_ERR_MEMORY, "strdup of selection name failed. %s:%d", __FILE__, __LINE__);
+		AGOO_FREE(sel);
 		return NULL;
 	    }
 	}
@@ -955,6 +958,7 @@ sel_create(agooErr err, const char *alias, const char *name, const char *frag) {
 	} else {
 	    if (NULL == (sel->alias = AGOO_STRDUP(alias))) {
 		agoo_err_set(err, AGOO_ERR_MEMORY, "strdup of selection alias failed. %s:%d", __FILE__, __LINE__);
+		AGOO_FREE(sel);
 		return NULL;
 	    }
 	}
@@ -963,6 +967,7 @@ sel_create(agooErr err, const char *alias, const char *name, const char *frag) {
 	} else {
 	    if (NULL == (sel->frag = AGOO_STRDUP(frag))) {
 		agoo_err_set(err, AGOO_ERR_MEMORY, "strdup of selection fragment failed. %s:%d", __FILE__, __LINE__);
+		AGOO_FREE(sel);
 		return NULL;
 	    }
 	}

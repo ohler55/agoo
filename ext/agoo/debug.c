@@ -50,16 +50,17 @@ agoo_malloc(size_t size, const char *file, int line) {
     void	*ptr = malloc(size + sizeof(mem_pad));
     Rec		r = (Rec)malloc(sizeof(struct _rec));
 
-    strcpy(((char*)ptr) + size, mem_pad);
-    r->ptr = ptr;
-    r->size = size;
-    r->file = file;
-    r->line = line;
-    pthread_mutex_lock(&lock);
-    r->next = recs;
-    recs = r;
-    pthread_mutex_unlock(&lock);
-
+    if (NULL != r) {
+	strcpy(((char*)ptr) + size, mem_pad);
+	r->ptr = ptr;
+	r->size = size;
+	r->file = file;
+	r->line = line;
+	pthread_mutex_lock(&lock);
+	r->next = recs;
+	recs = r;
+	pthread_mutex_unlock(&lock);
+    }
     return ptr;
 }
 

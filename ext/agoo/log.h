@@ -105,7 +105,7 @@ extern struct _agooLogCat	agoo_resp_cat;
 extern struct _agooLogCat	agoo_eval_cat;
 extern struct _agooLogCat	agoo_push_cat;
 
-extern void		agoo_log_init(const char *app);
+extern int		agoo_log_init(agooErr err, const char *app);
 extern void		agoo_log_open_file();
 
 extern void		agoo_log_close();

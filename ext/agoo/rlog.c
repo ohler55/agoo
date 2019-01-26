@@ -468,8 +468,8 @@ rlog_init(VALUE mod) {
 
     agoo_log.on_error = on_error;
     
-    agoo_log_init("agoo");
-    if (AGOO_ERR_OK != agoo_log_start(&err, false)) {
+    if (AGOO_ERR_OK != agoo_log_init(&err, "agoo") ||
+	AGOO_ERR_OK != agoo_log_start(&err, false)) {
 	rb_raise(rb_eStandardError, "%s", err.msg);
     }
 }

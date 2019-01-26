@@ -7,6 +7,7 @@
 #include <stdlib.h>
 
 #include "atomic.h"
+#include "err.h"
 
 typedef void	*agooQItem;
 
@@ -24,9 +25,9 @@ typedef struct _agooQueue {
     int			wsock;
 } *agooQueue;
 
-extern void		agoo_queue_init(agooQueue q, size_t qsize);
+extern int		agoo_queue_init(agooErr err, agooQueue q, size_t qsize);
 
-extern void		agoo_queue_multi_init(agooQueue q, size_t qsize, bool multi_push, bool multi_pop);
+extern int		agoo_queue_multi_init(agooErr err, agooQueue q, size_t qsize, bool multi_push, bool multi_pop);
 
 extern void		agoo_queue_cleanup(agooQueue q);
 extern void		agoo_queue_push(agooQueue q, agooQItem item);

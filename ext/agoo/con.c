@@ -1217,7 +1217,10 @@ agoo_conloop_create(agooErr err, int id) {
 	int	stat;
 	
 	loop->next = NULL;
-	agoo_queue_multi_init(&loop->pub_queue, 256, true, false);
+	if (AGOO_ERR_OK != agoo_queue_multi_init(err, &loop->pub_queue, 256, true, false)) {
+	    AGOO_FREE(loop);
+	    return NULL;
+	}
 	loop->id = id;
 	loop->res_head = NULL;
 	loop->res_tail = NULL;

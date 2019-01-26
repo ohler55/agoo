@@ -6,6 +6,7 @@
 #include <ruby.h>
 #include <ruby/thread.h>
 
+#include "debug.h"
 #include "err.h"
 #include "gqleval.h"
 #include "gqlintro.h"
@@ -499,12 +500,12 @@ static int
 build_type_class_map(agooErr err) {
     int		cnt = 0;
     
-    free(type_class_map);
+    AGOO_FREE(type_class_map);
     type_class_map = NULL;
 
     gql_type_iterate(ruby_types_cb, &cnt);
 
-    if (NULL == (type_class_map = (TypeClass)malloc(sizeof(struct _typeClass) * (cnt + 1)))) {
+    if (NULL == (type_class_map = (TypeClass)AGOO_MALLOC(sizeof(struct _typeClass) * (cnt + 1)))) {
 	return agoo_err_set(err, AGOO_ERR_MEMORY, "out of memory");
     }
     memset(type_class_map, 0, sizeof(struct _typeClass) * (cnt + 1));
@@ -670,9 +671,13 @@ graphql_load_file(VALUE self, VALUE path) {
     if (0 != fseek(f, 0, SEEK_END)) {
 	rb_raise(rb_eIOError, "%s", strerror(errno));
     }
-    len = ftell(f);
+    if (0 > (len = ftell(f))) {
+	rb_raise(rb_eIOError, "%s", strerror(errno));
+    }
     sdl = ALLOC_N(char, len + 1);
-    fseek(f, 0, SEEK_SET);
+    if (0 != fseek(f, 0, SEEK_SET)) {
+	rb_raise(rb_eIOError, "%s", strerror(errno));
+    }
     if (len != fread(sdl, 1, len, f)) {
 	rb_raise(rb_eIOError, "%s", strerror(errno));
     } else {

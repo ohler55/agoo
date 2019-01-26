@@ -24,8 +24,8 @@
 
 struct _agooServer	agoo_server = {false};
 
-void
-agoo_server_setup() {
+int
+agoo_server_setup(agooErr err) {
     long	i;
     
     memset(&agoo_server, 0, sizeof(struct _agooServer));
@@ -33,8 +33,10 @@ agoo_server_setup() {
     agoo_server.up_list = NULL;
     agoo_server.max_push_pending = 32;
     agoo_pages_init();
-    agoo_queue_multi_init(&agoo_server.con_queue, 1024, false, true);
-    agoo_queue_multi_init(&agoo_server.eval_queue, 1024, true, true);
+    if (AGOO_ERR_OK != agoo_queue_multi_init(err, &agoo_server.con_queue, 1024, false, true) ||
+	AGOO_ERR_OK != agoo_queue_multi_init(err, &agoo_server.eval_queue, 1024, true, true)) {
+	return err->code;
+    }
     agoo_server.loop_max = 4;
     if (0 < (i = sysconf(_SC_NPROCESSORS_ONLN))) {
 	i /= 2;
@@ -43,6 +45,7 @@ agoo_server_setup() {
 	}
 	agoo_server.loop_max = (int)i;
     }
+    return AGOO_ERR_OK;
 }
 
 static void
