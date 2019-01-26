@@ -31,10 +31,13 @@ class StaticTest < Minitest::Test
 
     Agoo::Server.init(6469, 'root', thread_count: 1)
     Agoo::Server.add_mime('odd', 'text/odd')
+    #Agoo::Server.header_rule('odd.odd', 'text/odd', "Cookie", "fast=Agoo");
+    Agoo::Server.header_rule('odd.odd', '*', "Cookie", "fast=Agoo");
+    Agoo::Server.header_rule('**', 'odd', "Warning", "nothing wrong");
     Agoo::Server.start()
 
     @@server_started = true
-  end  
+  end
 
   def setup
     unless @@server_started
@@ -73,6 +76,8 @@ class StaticTest < Minitest::Test
       h.request(req)
     }
     assert_equal('text/odd', res['Content-Type'])
+    assert_equal('fast=Agoo', res['Cookie'])
+    assert_equal('nothing wrong', res['Warning'])
   end
 
   def test_fetch_auto_index
