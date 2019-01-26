@@ -34,15 +34,17 @@ static const char	mem_pad[] = "--- This is a memory pad and should not change un
 void
 agoo_alloc(const void *ptr, size_t size, const char *file, int line) {
     Rec		r = (Rec)malloc(sizeof(struct _rec));
-    
-    r->ptr = ptr;
-    r->size = size;
-    r->file = file;
-    r->line = line;
-    pthread_mutex_lock(&lock);
-    r->next = recs;
-    recs = r;
-    pthread_mutex_unlock(&lock);
+
+    if (NULL != r) {
+	r->ptr = ptr;
+	r->size = size;
+	r->file = file;
+	r->line = line;
+	pthread_mutex_lock(&lock);
+	r->next = recs;
+	recs = r;
+	pthread_mutex_unlock(&lock);
+    }
 }
 
 void*
@@ -50,18 +52,16 @@ agoo_malloc(size_t size, const char *file, int line) {
     void	*ptr = malloc(size + sizeof(mem_pad));
     Rec		r = (Rec)malloc(sizeof(struct _rec));
 
-    if (NULL != ptr) {
-	if (NULL != r) {
-	    strcpy(((char*)ptr) + size, mem_pad);
-	    r->ptr = ptr;
-	    r->size = size;
-	    r->file = file;
-	    r->line = line;
-	    pthread_mutex_lock(&lock);
-	    r->next = recs;
-	    recs = r;
-	    pthread_mutex_unlock(&lock);
-	}
+    if (NULL != ptr && NULL != r) {
+	strcpy(((char*)ptr) + size, mem_pad);
+	r->ptr = ptr;
+	r->size = size;
+	r->file = file;
+	r->line = line;
+	pthread_mutex_lock(&lock);
+	r->next = recs;
+	recs = r;
+	pthread_mutex_unlock(&lock);
     }
     return ptr;
 }
@@ -71,20 +71,22 @@ agoo_realloc(void *orig, size_t size, const char *file, int line) {
     void	*ptr = realloc(orig, size + sizeof(mem_pad));
     Rec		r;
     
-    strcpy(((char*)ptr) + size, mem_pad);
-    pthread_mutex_lock(&lock);
-    for (r = recs; NULL != r; r = r->next) {
-	if (orig == r->ptr) {
-	    r->ptr = ptr;
-	    r->size = size;
-	    r->file = file;
-	    r->line = line;
-	    break;
+    if (NULL != ptr) {
+	strcpy(((char*)ptr) + size, mem_pad);
+	pthread_mutex_lock(&lock);
+	for (r = recs; NULL != r; r = r->next) {
+	    if (orig == r->ptr) {
+		r->ptr = ptr;
+		r->size = size;
+		r->file = file;
+		r->line = line;
+		break;
+	    }
 	}
-    }
-    pthread_mutex_unlock(&lock);
-    if (NULL == r) {
-	printf("Realloc at %s:%d (%p) not allocated.\n", file, line, orig);
+	pthread_mutex_unlock(&lock);
+	if (NULL == r) {
+	    printf("Realloc at %s:%d (%p) not allocated.\n", file, line, orig);
+	}
     }
     return ptr;
 }
@@ -95,17 +97,18 @@ agoo_strdup(const char *str, const char *file, int line) {
     char	*ptr = (char*)malloc(size + sizeof(mem_pad));
     Rec		r = (Rec)malloc(sizeof(struct _rec));
 
-    strcpy(ptr, str);
-    strcpy(((char*)ptr) + size, mem_pad);
-    r->ptr = (void*)ptr;
-    r->size = size;
-    r->file = file;
-    r->line = line;
-    pthread_mutex_lock(&lock);
-    r->next = recs;
-    recs = r;
-    pthread_mutex_unlock(&lock);
-
+    if (NULL != ptr && NULL != r) {
+	strcpy(ptr, str);
+	strcpy(((char*)ptr) + size, mem_pad);
+	r->ptr = (void*)ptr;
+	r->size = size;
+	r->file = file;
+	r->line = line;
+	pthread_mutex_lock(&lock);
+	r->next = recs;
+	recs = r;
+	pthread_mutex_unlock(&lock);
+    }
     return ptr;
 }
 
@@ -115,18 +118,19 @@ agoo_strndup(const char *str, size_t len, const char *file, int line) {
     char	*ptr = (char*)malloc(size + sizeof(mem_pad));
     Rec		r = (Rec)malloc(sizeof(struct _rec));
 
-    memcpy(ptr, str, len);
-    ptr[len] = '\0';
-    strcpy(((char*)ptr) + size, mem_pad);
-    r->ptr = (void*)ptr;
-    r->size = size;
-    r->file = file;
-    r->line = line;
-    pthread_mutex_lock(&lock);
-    r->next = recs;
-    recs = r;
-    pthread_mutex_unlock(&lock);
-
+    if (NULL != ptr && NULL != r) {
+	memcpy(ptr, str, len);
+	ptr[len] = '\0';
+	strcpy(((char*)ptr) + size, mem_pad);
+	r->ptr = (void*)ptr;
+	r->size = size;
+	r->file = file;
+	r->line = line;
+	pthread_mutex_lock(&lock);
+	r->next = recs;
+	recs = r;
+	pthread_mutex_unlock(&lock);
+    }
     return ptr;
 }
 
@@ -231,8 +235,8 @@ update_reps(Rep reps, Rec r) {
 	    break;
 	}
     }
-    if (NULL == rp) {
-	rp = (Rep)malloc(sizeof(struct _rep));
+    if (NULL == rp &&
+	NULL != (rp = (Rep)malloc(sizeof(struct _rep)))) {
 	rp->size = r->size;
 	rp->file = r->file;
 	rp->line = r->line;
