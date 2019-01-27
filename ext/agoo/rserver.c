@@ -94,7 +94,9 @@ url_bind(VALUE rurl) {
 
 static int
 configure(agooErr err, int port, const char *root, VALUE options) {
-    agoo_pages_set_root(root);
+    if (AGOO_ERR_OK != agoo_pages_set_root(err, root)) {
+	return err->code;
+    }
     agoo_server.thread_cnt = 0;
     the_rserver.worker_cnt = 1;
     atomic_init(&agoo_server.running, 0);

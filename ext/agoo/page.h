@@ -30,8 +30,8 @@ typedef struct _agooGroup {
     agooDir		dirs;
 } *agooGroup;
 
-extern void		agoo_pages_init();
-extern void		agoo_pages_set_root(const char *root);
+extern int		agoo_pages_init(agooErr err);
+extern int		agoo_pages_set_root(agooErr err, const char *root);
 extern void		agoo_pages_cleanup();
 
 extern agooGroup	group_create(const char *path);

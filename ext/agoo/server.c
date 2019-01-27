@@ -32,8 +32,9 @@ agoo_server_setup(agooErr err) {
     pthread_mutex_init(&agoo_server.up_lock, 0);
     agoo_server.up_list = NULL;
     agoo_server.max_push_pending = 32;
-    agoo_pages_init();
-    if (AGOO_ERR_OK != agoo_queue_multi_init(err, &agoo_server.con_queue, 1024, false, true) ||
+    
+    if (AGOO_ERR_OK != agoo_pages_init(err) ||
+	AGOO_ERR_OK != agoo_queue_multi_init(err, &agoo_server.con_queue, 1024, false, true) ||
 	AGOO_ERR_OK != agoo_queue_multi_init(err, &agoo_server.eval_queue, 1024, true, true)) {
 	return err->code;
     }

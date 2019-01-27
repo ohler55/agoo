@@ -274,26 +274,31 @@ cache_set(const char *key, int klen, agooPage value) {
     return old;
 }
 
-void
-agoo_pages_init() {
+int
+agoo_pages_init(agooErr err) {
     Mime	m;
-    struct _agooErr	err = AGOO_ERR_INIT;
     
     memset(&cache, 0, sizeof(struct _cache));
-    cache.root = AGOO_STRDUP("."); // allowed to fail
-    for (m = mime_map; NULL != m->suffix; m++) {
-	mime_set(&err, m->suffix, m->type);
+    if (NULL == (cache.root = AGOO_STRDUP("."))) {
+	return agoo_err_set(err, AGOO_ERR_ARG, "out of memory allocating root path");
     }
+    for (m = mime_map; NULL != m->suffix; m++) {
+	mime_set(err, m->suffix, m->type);
+    }
+    return err->code;
 }
 
-void
-agoo_pages_set_root(const char *root) {
+int
+agoo_pages_set_root(agooErr err, const char *root) {
     AGOO_FREE(cache.root);
     if (NULL == root) {
 	cache.root = NULL;
     } else {
-	cache.root = AGOO_STRDUP(root); // allowed to fail
+	if (NULL == (cache.root = AGOO_STRDUP(root))) {
+	    return agoo_err_set(err, AGOO_ERR_ARG, "out of memory allocating root path");
+	}
     }
+    return AGOO_ERR_OK;
 }
 
 static void
