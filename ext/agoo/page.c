@@ -870,7 +870,7 @@ agoo_header_rule(agooErr err, const char *path, const char *mime, const char *ke
     HeadRule	hr;
 
     if (0 == strcasecmp("Content-Length", key)) {
-	return agoo_err_set(err, AGOO_ERR_ARG, "Can not mask COntent-Length with a header rule.");
+	return agoo_err_set(err, AGOO_ERR_ARG, "Can not mask Content-Length with a header rule.");
     }
     if (NULL == (hr = (HeadRule)AGOO_CALLOC(1, sizeof(struct _headRule)))) {
 	return agoo_err_set(err, AGOO_ERR_MEMORY, "out of memory adding a header rule");
