@@ -15,12 +15,11 @@
 
 agooBind
 agoo_bind_port(agooErr err, int port) {
-    agooBind	b = (agooBind)AGOO_MALLOC(sizeof(struct _agooBind));
+    agooBind	b = (agooBind)AGOO_CALLOC(1, sizeof(struct _agooBind));
 
     if (NULL != b) {
 	char	id[1024];
 	
-	memset(b, 0, sizeof(struct _agooBind));
 	b->port = port;
 	b->family = AF_INET;
 	snprintf(id, sizeof(id) - 1, "http://:%d", port);
@@ -63,10 +62,8 @@ url_tcp(agooErr err, const char *url, const char *scheme) {
 	}
 	port = atoi(colon + 1);
     }
-    if (NULL != (b = (agooBind)AGOO_MALLOC(sizeof(struct _agooBind)))) {
+    if (NULL != (b = (agooBind)AGOO_CALLOC(1, sizeof(struct _agooBind)))) {
 	char	id[64];
-	
-	memset(b, 0, sizeof(struct _agooBind));
 
 	b->port = port;
 	b->addr4 = addr;
@@ -109,10 +106,8 @@ url_tcp6(agooErr err, const char *url, const char *scheme) {
 	agoo_err_set(err, AGOO_ERR_ARG, "%s bind address is not valid. (%s)", scheme, url);
 	return NULL;
     }
-    if (NULL != (b = (agooBind)AGOO_MALLOC(sizeof(struct _agooBind)))) {
+    if (NULL != (b = (agooBind)AGOO_CALLOC(1, sizeof(struct _agooBind)))) {
 	char	str[INET6_ADDRSTRLEN + 1];
-	
-	memset(b, 0, sizeof(struct _agooBind));
 
 	b->port = port;
 	b->addr6 = addr;
@@ -143,13 +138,12 @@ url_named(agooErr err, const char *url) {
 	agoo_err_set(err, AGOO_ERR_ARG, "Named Unix sockets names must not be empty.");
 	return NULL;
     } else {
-	agooBind	b = (agooBind)AGOO_MALLOC(sizeof(struct _agooBind));
+	agooBind	b = (agooBind)AGOO_CALLOC(1, sizeof(struct _agooBind));
 
 	if (NULL != b) {
 	    const char	*fmt = "unix://%s";
 	    char	id[1024];
 	
-	    memset(b, 0, sizeof(struct _agooBind));
 	    if (NULL == (b->name = AGOO_STRDUP(url))) {
 		agoo_err_set(err, AGOO_ERR_MEMORY, "strdup of bind url failed.");
 		AGOO_FREE(b);

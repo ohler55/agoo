@@ -166,10 +166,9 @@ agoo_upgraded_pending(agooUpgraded up) {
 
 agooUpgraded
 agoo_upgraded_create(agooCon c, void * ctx, void *env) {
-    agooUpgraded	up = (agooUpgraded)AGOO_MALLOC(sizeof(struct _agooUpgraded));
+    agooUpgraded	up = (agooUpgraded)AGOO_CALLOC(1, sizeof(struct _agooUpgraded));
 
     if (NULL != up) {
-	memset(up, 0, sizeof(struct _agooUpgraded));
 	up->con = c;
 	up->ctx = ctx;
 	up->env = env;

@@ -611,11 +611,10 @@ agoo_log_init(agooErr err, const char *app) {
     *agoo_log.day_buf = '\0';
     agoo_log.thread = 0;
 
-    if (NULL == (agoo_log.q = (agooLogEntry)AGOO_MALLOC(sizeof(struct _agooLogEntry) * qsize))) {
+    if (NULL == (agoo_log.q = (agooLogEntry)AGOO_CALLOC(qsize, sizeof(struct _agooLogEntry)))) {
 	return agoo_err_set(err, AGOO_ERR_MEMORY, "Failed to allocate memory for the log queue.");
     }
     agoo_log.end = agoo_log.q + qsize;
-    memset(agoo_log.q, 0, sizeof(struct _agooLogEntry) * qsize);
     atomic_init(&agoo_log.head, agoo_log.q);
     atomic_init(&agoo_log.tail, agoo_log.q + 1);
 

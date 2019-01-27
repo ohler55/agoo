@@ -988,10 +988,9 @@ gql_object_set(agooErr err, gqlValue obj, const char *key, gqlValue item) {
 
 static gqlValue
 value_create(gqlType type) {
-    gqlValue	v = (gqlValue)AGOO_MALLOC(sizeof(struct _gqlValue));
+    gqlValue	v = (gqlValue)AGOO_CALLOC(1, sizeof(struct _gqlValue));
     
     if (NULL != v) {
-	memset(v, 0, sizeof(struct _gqlValue));
 	v->type = type;
     }
     return v;

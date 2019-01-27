@@ -24,6 +24,7 @@ VALUE
 error_stream_new() {
     ErrorStream	es = (ErrorStream)AGOO_MALLOC(sizeof(struct _errorStream));
 
+    es->server = NULL;
     es->text = agoo_text_allocate(1024);
     
     return Data_Wrap_Struct(es_class, NULL, es_free, es);

@@ -73,6 +73,33 @@ agoo_malloc(size_t size, const char *file, int line) {
 }
 
 void*
+agoo_calloc(size_t count, size_t size, const char *file, int line) {
+    void	*ptr;
+
+    size *= count;
+    if (NULL != (ptr = malloc(size + sizeof(mem_pad)))) {
+	Rec	r = (Rec)malloc(sizeof(struct _rec));
+	
+	if (NULL != r) {
+	    memset(ptr, 0, size);
+	    strcpy(((char*)ptr) + size, mem_pad);
+	    r->ptr = ptr;
+	    r->size = size;
+	    r->file = file;
+	    r->line = line;
+	    pthread_mutex_lock(&lock);
+	    r->next = recs;
+	    recs = r;
+	    pthread_mutex_unlock(&lock);
+	} else {
+	    free(ptr);
+	    ptr = NULL;
+	}
+    }
+    return ptr;
+}
+
+void*
 agoo_realloc(void *orig, size_t size, const char *file, int line) {
     void	*ptr = realloc(orig, size + sizeof(mem_pad));
     Rec		r;

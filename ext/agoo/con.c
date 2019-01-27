@@ -58,10 +58,9 @@ agooCon
 agoo_con_create(agooErr err, int sock, uint64_t id, agooBind b) {
     agooCon	c;
 
-    if (NULL == (c = (agooCon)AGOO_MALLOC(sizeof(struct _agooCon)))) {
+    if (NULL == (c = (agooCon)AGOO_CALLOC(1, sizeof(struct _agooCon)))) {
 	agoo_err_set(err, AGOO_ERR_MEMORY, "Failed to allocate memory for a connection.");
     } else {
-	memset(c, 0, sizeof(struct _agooCon));
 	c->sock = sock;
 	c->id = id;
 	c->timeout = dtime() + CON_TIMEOUT;

@@ -36,12 +36,11 @@ agoo_queue_multi_init(agooErr err, agooQueue q, size_t qsize, bool multi_push, b
     if (qsize < 4) {
 	qsize = 4;
     }
-    if (NULL == (q->q = (agooQItem*)AGOO_MALLOC(sizeof(agooQItem) * qsize))) {
+    if (NULL == (q->q = (agooQItem*)AGOO_CALLOC(qsize, sizeof(agooQItem)))) {
 	return agoo_err_set(err, AGOO_ERR_MEMORY, "Failed to allocate memory for queue.");
     }
     q->end = q->q + qsize;
 
-    memset(q->q, 0, sizeof(agooQItem) * qsize);
     atomic_init(&q->head, q->q);
     atomic_init(&q->tail, q->q + 1);
     agoo_atomic_flag_init(&q->push_lock);
