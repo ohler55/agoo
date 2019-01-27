@@ -305,7 +305,7 @@ agoo_server_add_func_hook(agooErr	err,
     agooHook	hook = agoo_hook_func_create(method, pattern, func, queue);
 
     if (NULL == hook) {
-	return agoo_err_set(err, AGOO_ERR_MEMORY, "failed to allocate memory for HTTP server Hook.");
+	return AGOO_ERR_MEM(err, "HTTP Server Hook");
     }
     hook->no_queue = quick;
     for (h = agoo_server.hooks; NULL != h; h = h->next) {

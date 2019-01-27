@@ -59,7 +59,7 @@ link_create(agooErr err, int fd, void *ctx, agooHandler handler) {
     Link	link = (Link)AGOO_MALLOC(sizeof(struct _link));
 
     if (NULL == link) {
-	agoo_err_set(err, AGOO_ERR_MEMORY, "Failed to allocate memory for a connection link.");
+	AGOO_ERR_MEM(err, "Connection Link");
     } else {
 	//DEBUG_ALLOC(mem_???, c);
 	link->next = NULL;
@@ -76,7 +76,7 @@ agoo_ready_create(agooErr err) {
     agooReady	ready = (agooReady)AGOO_MALLOC(sizeof(struct _agooReady));
 
     if (NULL == ready) {
-	agoo_err_set(err, AGOO_ERR_MEMORY, "Failed to allocate memory for a connection manager.");
+	AGOO_ERR_MEM(err, "Connection Manager");
     } else {
 	//DEBUG_ALLOC(mem_???, c);
 	ready->links = NULL;
@@ -157,7 +157,7 @@ agoo_ready_add(agooErr		err,
 	size_t	size = cnt * sizeof(struct pollfd);
 	
 	if (NULL == (ready->pa = (struct pollfd*)AGOO_REALLOC(ready->pa, size))) {
-	    agoo_err_set(err, AGOO_ERR_MEMORY, "Failed to allocate memory for a connection pool.");
+	    AGOO_ERR_MEM(err, "Connection Pool");
 	    agoo_log_cat(&agoo_error_cat, "Out of memory.");
 	    agoo_log_close();
 	    exit(EXIT_FAILURE);

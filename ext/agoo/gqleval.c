@@ -64,7 +64,7 @@ value_resp(agooRes res, gqlValue result, int status, int indent) {
     gqlValue		msg = gql_object_create(&err);
 
     if (NULL == msg) {
-	agoo_err_set(&err, AGOO_ERR_MEMORY, "Out of memory.");
+	AGOO_ERR_MEM(&err, "response");
 	err_resp(res, &err, 500);
 	gql_value_destroy(result);
 	return;

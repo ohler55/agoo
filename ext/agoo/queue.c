@@ -37,7 +37,7 @@ agoo_queue_multi_init(agooErr err, agooQueue q, size_t qsize, bool multi_push, b
 	qsize = 4;
     }
     if (NULL == (q->q = (agooQItem*)AGOO_CALLOC(qsize, sizeof(agooQItem)))) {
-	return agoo_err_set(err, AGOO_ERR_MEMORY, "Failed to allocate memory for queue.");
+	return AGOO_ERR_MEM(err, "Queue");
     }
     q->end = q->q + qsize;
 

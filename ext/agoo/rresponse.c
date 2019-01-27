@@ -28,6 +28,9 @@ VALUE
 response_new() {
     agooResponse	res = (agooResponse)AGOO_MALLOC(sizeof(struct _agooResponse));
 
+    if (NULL == res) {
+	return Qnil;
+    }
     memset(res, 0, sizeof(struct _agooResponse));
     res->code = 200;
     
@@ -46,6 +49,9 @@ to_s(VALUE self) {
     int			len = agoo_response_len(res);
     char		*s = (char*)AGOO_MALLOC(len + 1);
 
+    if (NULL == s) {
+	rb_raise(rb_eNoMemError, "out of memory");
+    }
     agoo_response_fill(res, s);
     
     return rb_str_new(s, len);

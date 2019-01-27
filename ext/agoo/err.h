@@ -8,6 +8,8 @@
 #define AGOO_ERR_START	300
 #define AGOO_ERR_INIT	{ 0, { 0 } }
 
+#define AGOO_ERR_MEM(err, type) agoo_err_memory(err, type, __FILE__, __LINE__)
+
 typedef enum {
     AGOO_ERR_OK	= 0,
     AGOO_ERR_MEMORY	= ENOMEM,
@@ -42,5 +44,7 @@ extern int		agoo_err_set(agooErr err, int code, const char *fmt, ...);
 extern int		agoo_err_no(agooErr err, const char *fmt, ...);
 extern const char*	agoo_err_str(agooErrCode code);
 extern void		agoo_err_clear(agooErr err);
+
+extern int		agoo_err_memory(agooErr err, const char *type, const char *file, int line);
 
 #endif /* AGOO_ERR_H */

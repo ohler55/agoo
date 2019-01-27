@@ -506,7 +506,7 @@ build_type_class_map(agooErr err) {
     gql_type_iterate(ruby_types_cb, &cnt);
 
     if (NULL == (type_class_map = (TypeClass)AGOO_CALLOC(cnt + 1, sizeof(struct _typeClass)))) {
-	return agoo_err_set(err, AGOO_ERR_MEMORY, "out of memory");
+	return AGOO_ERR_MEM(err, "GraphQL Class map");
     }
     cnt = 0;
     gql_type_iterate(ruby_types_cb, &cnt);

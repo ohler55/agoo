@@ -59,7 +59,7 @@ agoo_con_create(agooErr err, int sock, uint64_t id, agooBind b) {
     agooCon	c;
 
     if (NULL == (c = (agooCon)AGOO_CALLOC(1, sizeof(struct _agooCon)))) {
-	agoo_err_set(err, AGOO_ERR_MEMORY, "Failed to allocate memory for a connection.");
+	AGOO_ERR_MEM(err, "Connection");
     } else {
 	c->sock = sock;
 	c->id = id;
@@ -1211,7 +1211,7 @@ agoo_conloop_create(agooErr err, int id) {
      agooConLoop	loop;
 
     if (NULL == (loop = (agooConLoop)AGOO_MALLOC(sizeof(struct _agooConLoop)))) {
-	agoo_err_set(err, AGOO_ERR_MEMORY, "Failed to allocate memory for a connection thread.");
+	AGOO_ERR_MEM(err, "connection thread");
     } else {
 	int	stat;
 	

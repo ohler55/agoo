@@ -215,7 +215,7 @@ mime_set(agooErr err, const char *key, const char *value) {
 	}
     }
     if (NULL == (s = (MimeSlot)AGOO_MALLOC(sizeof(struct _mimeSlot)))) {
-	return agoo_err_set(err, AGOO_ERR_ARG, "out of memory adding %s", key);
+	return AGOO_ERR_MEM(err, "mime key and value");
     }
     s->hash = h;
     s->klen = len;
@@ -226,7 +226,7 @@ mime_set(agooErr err, const char *key, const char *value) {
     }
     if (NULL == (s->value = AGOO_STRDUP(value))) {
 	AGOO_FREE(s);
-	return agoo_err_set(err, AGOO_ERR_ARG, "out of memory adding %s", key);
+	return AGOO_ERR_MEM(err, "mime key and value");
     }
     s->next = *bucket;
     *bucket = s;
@@ -463,7 +463,7 @@ agoo_page_immutable(agooErr err, const char *path, const char *content, int clen
     HeadRule	hr;
     
     if (NULL == p) {
-	agoo_err_set(err, AGOO_ERR_MEMORY, "Failed to allocate memory for page.");
+	AGOO_ERR_MEM(err, "Page");
 	return NULL;     
     }
     if (NULL == path) {
@@ -503,8 +503,8 @@ agoo_page_immutable(agooErr err, const char *path, const char *content, int clen
     // padding. Then add the content length.
     msize = sizeof(page_fmt) + 60 + clen;
     if (NULL == (p->resp = agoo_text_allocate((int)msize))) {
+	AGOO_ERR_MEM(err, "Page content");
 	AGOO_FREE(p);
-	agoo_err_set(err, AGOO_ERR_MEMORY, "Failed to allocate memory for page content.");
 	return NULL;
     }
     if (0 < hlen) {
@@ -738,13 +738,13 @@ agoo_page_get(agooErr err, const char *path, int plen) {
 		*s++ = '/';
 	    }
 	    if ((int)sizeof(full_path) <= plen + (s - full_path)) {
-		agoo_err_set(err, AGOO_ERR_MEMORY, "Failed to allocate memory for page path.");
+		AGOO_ERR_MEM(err, "Page path");
 		return NULL;
 	    }
 	    strncpy(s, path, plen);
 	    s[plen] = '\0';
 	    if (NULL == (page = agoo_page_create(full_path))) {
-		agoo_err_set(err, AGOO_ERR_MEMORY, "Failed to allocate memory for agooPage.");
+		AGOO_ERR_MEM(err, "Page");
 		return NULL;
 	    }
 	    if (!update_contents(page) || NULL == page->resp) {
@@ -815,7 +815,7 @@ group_get(agooErr err, const char *path, int plen) {
 	    agooPage	old;
 
 	    if (NULL == (page = agoo_page_create(path))) {
-		agoo_err_set(err, AGOO_ERR_MEMORY, "Failed to allocate memory for agooPage.");
+		AGOO_ERR_MEM(err, "Page");
 		return NULL;
 	    }
 	    if (!update_contents(page) || NULL == page->resp) {
@@ -855,7 +855,7 @@ group_add(agooErr err, agooGroup g, const char *dir) {
 
     if (NULL != d) {
 	if (NULL == (d->path = AGOO_STRDUP(dir))) {
-	    agoo_err_set(err, AGOO_ERR_MEMORY, "out of memory adding group");
+	    AGOO_ERR_MEM(err, "Group");
 	    return NULL;
 	}
 	d->plen = (int)strlen(dir);
@@ -873,7 +873,7 @@ agoo_header_rule(agooErr err, const char *path, const char *mime, const char *ke
 	return agoo_err_set(err, AGOO_ERR_ARG, "Can not mask Content-Length with a header rule.");
     }
     if (NULL == (hr = (HeadRule)AGOO_CALLOC(1, sizeof(struct _headRule)))) {
-	return agoo_err_set(err, AGOO_ERR_MEMORY, "out of memory adding a header rule");
+	return AGOO_ERR_MEM(err, "Header Rule");
     }
     if (NULL == (hr->path = AGOO_STRDUP(path)) ||
 	NULL == (hr->key = AGOO_STRDUP(key)) ||
@@ -897,5 +897,5 @@ ERROR:
     AGOO_FREE(hr->value);
     AGOO_FREE(hr);
 
-    return agoo_err_set(err, AGOO_ERR_MEMORY, "out of memory adding a header rule");
+    return AGOO_ERR_MEM(err, "Header Rule");
 }

@@ -687,7 +687,7 @@ extract_interfaces(agooErr err, agooDoc doc, gqlTypeLink *interfacesp) {
 	    return err->code;
 	}
 	if (NULL == (link = (gqlTypeLink)AGOO_MALLOC(sizeof(struct _gqlTypeLink)))) {
-	    return agoo_err_set(err, AGOO_ERR_MEMORY, "Failed to allocation memory for a GraphQL interface.");
+	    return AGOO_ERR_MEM(err, "GraphQL Interface");
 	}
 	link->next = NULL;
 	link->type = type;
@@ -841,11 +841,11 @@ sel_arg_create(agooErr err, const char *name, gqlValue value, gqlVar var) {
     gqlSelArg	arg;
 
     if (NULL == (arg = (gqlSelArg)AGOO_MALLOC(sizeof(struct _gqlSelArg)))) {
-	agoo_err_set(err, AGOO_ERR_MEMORY, "Failed to allocation memory for a selection field argument.");
+	AGOO_ERR_MEM(err, "GraphQL Selection Field Argument");
     } else {
 	arg->next = NULL;
 	if (NULL == (arg->name = AGOO_STRDUP(name))) {
-	    agoo_err_set(err, AGOO_ERR_MEMORY, "strdup of field name failed. %s:%d", __FILE__, __LINE__);
+	    AGOO_ERR_MEM(err, "strdup()");
 	    AGOO_FREE(arg);
 	    return NULL;
 	}
@@ -916,11 +916,11 @@ gql_op_var_create(agooErr err, const char *name, gqlType type, gqlValue value) {
     gqlVar	var;
 
     if (NULL == (var = (gqlVar)AGOO_MALLOC(sizeof(struct _gqlVar)))) {
-	agoo_err_set(err, AGOO_ERR_MEMORY, "Failed to allocation memory for a operation variable.");
+	AGOO_ERR_MEM(err, "GraphQL Operations Variable");
     } else {
 	var->next = NULL;
 	if (NULL == (var->name = AGOO_STRDUP(name))) {
-	    agoo_err_set(err, AGOO_ERR_MEMORY, "strdup of variable name failed. %s:%d", __FILE__, __LINE__);
+	    AGOO_ERR_MEM(err, "strdup()");
 	    AGOO_FREE(var);
 	    return NULL;
 	}
@@ -983,14 +983,14 @@ sel_create(agooErr err, const char *alias, const char *name, const char *frag) {
     gqlSel	sel;
 
     if (NULL == (sel = (gqlSel)AGOO_MALLOC(sizeof(struct _gqlSel)))) {
-	agoo_err_set(err, AGOO_ERR_MEMORY, "Failed to allocation memory for a selection set.");
+	AGOO_ERR_MEM(err, "GraphQL Selection Set");
     } else {
 	sel->next = NULL;
 	if (NULL == name) {
 	    sel->name = NULL;
 	} else {
 	    if (NULL == (sel->name = AGOO_STRDUP(name))) {
-		agoo_err_set(err, AGOO_ERR_MEMORY, "strdup of selection name failed. %s:%d", __FILE__, __LINE__);
+		AGOO_ERR_MEM(err, "strdup()");
 		AGOO_FREE(sel);
 		return NULL;
 	    }
@@ -999,7 +999,7 @@ sel_create(agooErr err, const char *alias, const char *name, const char *frag) {
 	    sel->alias = NULL;
 	} else {
 	    if (NULL == (sel->alias = AGOO_STRDUP(alias))) {
-		agoo_err_set(err, AGOO_ERR_MEMORY, "strdup of selection alias failed. %s:%d", __FILE__, __LINE__);
+		AGOO_ERR_MEM(err, "strdup()");
 		AGOO_FREE(sel);
 		return NULL;
 	    }
@@ -1008,7 +1008,7 @@ sel_create(agooErr err, const char *alias, const char *name, const char *frag) {
 	    sel->frag = NULL;
 	} else {
 	    if (NULL == (sel->frag = AGOO_STRDUP(frag))) {
-		agoo_err_set(err, AGOO_ERR_MEMORY, "strdup of selection fragment failed. %s:%d", __FILE__, __LINE__);
+		AGOO_ERR_MEM(err, "strdup()");
 		AGOO_FREE(sel);
 		return NULL;
 	    }

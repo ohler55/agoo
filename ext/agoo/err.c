@@ -77,3 +77,10 @@ agoo_err_str(agooErrCode code) {
     }
     return str;
 }
+
+int
+agoo_err_memory(agooErr err, const char *type, const char *file, int line) {
+    return agoo_err_set(err, AGOO_ERR_MEMORY, "Failed to allocate memory for a %s at %s:%d.", type, file, line);
+}
+
+    

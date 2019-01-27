@@ -25,7 +25,7 @@ agoo_bind_port(agooErr err, int port) {
 	snprintf(id, sizeof(id) - 1, "http://:%d", port);
 	strcpy(b->scheme, "http");
 	if (NULL == (b->id = AGOO_STRDUP(id))) {
-	    agoo_err_set(err, AGOO_ERR_MEMORY, "strdup of bind id failed.");
+	    AGOO_ERR_MEM(err, "strdup()");
 	    AGOO_FREE(b);
 	    return NULL;
 	}
@@ -70,7 +70,7 @@ url_tcp(agooErr err, const char *url, const char *scheme) {
 	b->family = AF_INET;
 	snprintf(id, sizeof(id), "%s://%s:%d", scheme, inet_ntoa(addr), port);
 	if (NULL == (b->id = AGOO_STRDUP(id))) {
-	    agoo_err_set(err, AGOO_ERR_MEMORY, "strdup of bind id failed.");
+	    AGOO_ERR_MEM(err, "strdup()");
 	    AGOO_FREE(b);
 	    return NULL;
 	}
@@ -83,7 +83,7 @@ url_tcp(agooErr err, const char *url, const char *scheme) {
 
 	return b;
     }
-    agoo_err_set(err, AGOO_ERR_MEMORY, "Failed to allocate memory for a Bind.");
+    AGOO_ERR_MEM(err, "Bind");
     
     return b;
 }
@@ -114,7 +114,7 @@ url_tcp6(agooErr err, const char *url, const char *scheme) {
 	b->family = AF_INET6;
 	snprintf(buf, sizeof(buf), "%s://[%s]:%d", scheme, inet_ntop(AF_INET6, &addr, str, INET6_ADDRSTRLEN), port);
 	if (NULL == (b->id = AGOO_STRDUP(buf))) {
-	    agoo_err_set(err, AGOO_ERR_MEMORY, "strdup of bind id failed.");
+	    AGOO_ERR_MEM(err, "strdup()");
 	    AGOO_FREE(b);
 	    return NULL;
 	}	    
@@ -127,7 +127,7 @@ url_tcp6(agooErr err, const char *url, const char *scheme) {
 
 	return b;
     }
-    agoo_err_set(err, AGOO_ERR_MEMORY, "Failed to allocate memory for a Bind.");
+    AGOO_ERR_MEM(err, "Bind");
     
     return b;
 }
@@ -145,13 +145,13 @@ url_named(agooErr err, const char *url) {
 	    char	id[1024];
 	
 	    if (NULL == (b->name = AGOO_STRDUP(url))) {
-		agoo_err_set(err, AGOO_ERR_MEMORY, "strdup of bind url failed.");
+		AGOO_ERR_MEM(err, "strdup()");
 		AGOO_FREE(b);
 		return NULL;
 	    }
 	    snprintf(id, sizeof(id) - 1, fmt, url);
 	    if (NULL == (b->id = AGOO_STRDUP(id))) {
-		agoo_err_set(err, AGOO_ERR_MEMORY, "strdup of bind id failed.");
+		AGOO_ERR_MEM(err, "strdup()");
 		AGOO_FREE(b);
 		return NULL;
 	    }
@@ -163,7 +163,7 @@ url_named(agooErr err, const char *url) {
 	}
 	return b;
     }
-    agoo_err_set(err, AGOO_ERR_MEMORY, "Failed to allocate memory for a Bind.");
+    AGOO_ERR_MEM(err, "Bind");
 
     return NULL;
 }

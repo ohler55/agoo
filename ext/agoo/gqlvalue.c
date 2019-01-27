@@ -824,7 +824,7 @@ gql_string_set(agooErr err, gqlValue value, const char *str, int len) {
 	} else {
 	    value->str.alloced = true;
 	    if (NULL == (value->str.ptr = AGOO_STRNDUP(str, len))) {
-		return agoo_err_set(err, AGOO_ERR_MEMORY, "strndup of length %d failed.", len);
+		return AGOO_ERR_MEM(err, "strndup()");
 	    }
 	}
     }
@@ -847,7 +847,7 @@ gql_token_set(agooErr err, gqlValue value, const char *str, int len) {
 	} else {
 	    value->str.alloced = true;
 	    if (NULL == (value->str.ptr = AGOO_STRNDUP(str, len))) {
-		return agoo_err_set(err, AGOO_ERR_MEMORY, "strndup of length %d failed.", len);
+		return AGOO_ERR_MEM(err, "strndup()");
 	    }
 	}
     }
@@ -912,13 +912,13 @@ gql_link_create(agooErr err, const char *key, gqlValue item) {
     gqlLink	link = (gqlLink)AGOO_MALLOC(sizeof(struct _gqlLink));
 
     if (NULL == link) {
-	agoo_err_set(err, AGOO_ERR_MEMORY, "Failed to allocation memory for a list link.");
+	AGOO_ERR_MEM(err, "GraphQL List Link");
     } else {
 	link->next = NULL;
 	link->key = NULL;
 	if (NULL != key) {
 	    if (NULL == (link->key = AGOO_STRDUP(key))) {
-		agoo_err_set(err, AGOO_ERR_MEMORY, "strdup() failed.");
+		AGOO_ERR_MEM(err, "strdup()");
 		return NULL;
 	    }
 	}
@@ -1027,7 +1027,7 @@ gql_string_create(agooErr err, const char *str, int len) {
 	if ((int)sizeof(v->str.a) <= len) {
 	    v->str.alloced = true;
 	    if (NULL == (v->str.ptr = AGOO_STRNDUP(str, len))) {
-		agoo_err_set(err, AGOO_ERR_MEMORY, "strndup of length %d failed.", len);
+		AGOO_ERR_MEM(err, "strdup()");
 		return NULL;
 	    }
 	} else {
@@ -1053,7 +1053,7 @@ gql_token_create(agooErr err, const char *str, int len, gqlType type) {
 	if ((int)sizeof(v->str.a) <= len) {
 	    v->str.alloced = true;
 	    if (NULL == (v->str.ptr = AGOO_STRNDUP(str, len))) {
-		agoo_err_set(err, AGOO_ERR_MEMORY, "strndup of length %d failed.", len);
+		AGOO_ERR_MEM(err, "strdup()");
 		return NULL;
 	    }
 	} else {
@@ -1076,7 +1076,7 @@ gql_var_create(agooErr err, const char *str, int len) {
 	if ((int)sizeof(v->str.a) <= len) {
 	    v->str.alloced = true;
 	    if (NULL == (v->str.ptr = AGOO_STRNDUP(str, len))) {
-		agoo_err_set(err, AGOO_ERR_MEMORY, "strndup of length %d failed.", len);
+		AGOO_ERR_MEM(err, "strdup()");
 		return NULL;
 	    }
 	} else {
@@ -1546,7 +1546,7 @@ gql_value_dup(agooErr err, gqlValue value) {
     gqlValue	dup = value_create(value->type);
 
     if (NULL == dup) {
-	agoo_err_set(err, AGOO_ERR_MEMORY, "failed to duplicate a value.");
+	AGOO_ERR_MEM(err, "GraphQL Value");
 	return NULL;
     }
     switch (value->type->scalar_kind) {
@@ -1566,7 +1566,7 @@ gql_value_dup(agooErr err, gqlValue value) {
     case GQL_SCALAR_TOKEN:
 	if (value->str.alloced) {
 	    if (NULL == (dup->str.ptr = strdup(value->str.ptr))) {
-		agoo_err_set(err, AGOO_ERR_MEMORY, "strdup of length %d failed.", strlen(value->str.ptr));
+		AGOO_ERR_MEM(err, "strdup()");
 		AGOO_FREE(dup);
 		dup = NULL;
 	    }

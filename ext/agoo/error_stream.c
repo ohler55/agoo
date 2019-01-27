@@ -24,6 +24,11 @@ VALUE
 error_stream_new() {
     ErrorStream	es = (ErrorStream)AGOO_MALLOC(sizeof(struct _errorStream));
 
+    if (NULL == es) {
+	// Error stream is optional. If it is not there is still meets the
+	// specs. Better not to break everything if this fails.
+	return Qnil;
+    }
     es->server = NULL;
     es->text = agoo_text_allocate(1024);
     

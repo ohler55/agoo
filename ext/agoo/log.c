@@ -612,7 +612,7 @@ agoo_log_init(agooErr err, const char *app) {
     agoo_log.thread = 0;
 
     if (NULL == (agoo_log.q = (agooLogEntry)AGOO_CALLOC(qsize, sizeof(struct _agooLogEntry)))) {
-	return agoo_err_set(err, AGOO_ERR_MEMORY, "Failed to allocate memory for the log queue.");
+	return AGOO_ERR_MEM(err, "Log Queue");
     }
     agoo_log.end = agoo_log.q + qsize;
     atomic_init(&agoo_log.head, agoo_log.q);
