@@ -231,6 +231,15 @@ extern gqlArg	gql_field_arg(agooErr 		err,
 			      struct _gqlValue	*def_value,
 			      bool 		required);
 
+extern gqlArg	gql_input_arg(agooErr		err,
+			      gqlType		input,
+			      const char	*name,
+			      gqlType		type,
+			      const char	*desc,
+			      size_t		dlen,
+			      struct _gqlValue	*def_value,
+			      bool		required);
+
 extern gqlType		gql_scalar_create(agooErr err, const char *name, const char *desc, size_t dlen);
 
 extern gqlDir		gql_directive_create(agooErr err, const char *name, const char *desc, size_t dlen);

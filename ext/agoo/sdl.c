@@ -28,7 +28,7 @@ extract_desc(agooErr err, agooDoc doc, const char **descp, size_t *lenp) {
     if ('"' == *doc->cur) {
 	const char	*desc_end = NULL;
 	const char	*desc = doc->cur + 1;
-	
+
     	if (AGOO_ERR_OK != agoo_doc_read_string(err, doc)) {
 	    return err->code;
 	}
@@ -88,7 +88,7 @@ make_scalar(agooErr err, agooDoc doc, const char *desc, int len) {
 	return err->code;
     }
     gql_scalar_create(err, name, desc, len);
-    
+
     return AGOO_ERR_OK;
 }
 
@@ -202,7 +202,7 @@ make_enum(agooErr err, agooDoc doc, const char *desc, size_t dlen) {
     gqlDirUse	uses = NULL;
     gqlEnumVal	ev;
     size_t	len;
-    
+
     if (AGOO_ERR_OK != extract_name(err, doc, enum_str, sizeof(enum_str) - 1, name, sizeof(name))) {
 	return err->code;
     }
@@ -254,7 +254,7 @@ make_union(agooErr err, agooDoc doc, const char *desc, int len) {
     gqlDirUse	uses = NULL;
     gqlType	member;
     bool	required;
-    
+
     if (AGOO_ERR_OK != extract_name(err, doc, union_str, sizeof(union_str) - 1, name, sizeof(name))) {
 	return err->code;
     }
@@ -425,7 +425,7 @@ make_field_arg(agooErr err, agooDoc doc, gqlField field) {
     size_t	dlen;
     bool 	required = false;
     gqlValue	dval = NULL;
-    
+
     if (AGOO_ERR_OK != extract_desc(err, doc, &desc, &dlen)) {
 	return err->code;
     }
@@ -438,7 +438,7 @@ make_field_arg(agooErr err, agooDoc doc, gqlField field) {
 	return agoo_doc_err(doc, err, "Expected :");
     }
     doc->cur++;
-    
+
     if (AGOO_ERR_OK != read_type(err, doc, &type, &required)) {
 	return err->code;
     }
@@ -463,7 +463,7 @@ make_field_arg(agooErr err, agooDoc doc, gqlField field) {
 }
 
 static int
-make_field(agooErr err, agooDoc doc, gqlType type, bool allow_args) {
+make_field(agooErr err, agooDoc doc, gqlType type) {
     char	name[256];
     gqlType	return_type;
     const char	*arg_start = NULL;
@@ -483,9 +483,6 @@ make_field(agooErr err, agooDoc doc, gqlType type, bool allow_args) {
     agoo_doc_skip_white(doc);
     switch (*doc->cur) {
     case '(':
-	if (!allow_args) {
-	    return agoo_doc_err(doc, err, "Input fields can not have arguments.");
-	}
 	doc->cur++;
 	arg_start = doc->cur;
 	if (!agoo_doc_skip_to(doc, ')')) {
@@ -540,11 +537,55 @@ make_field(agooErr err, agooDoc doc, gqlType type, bool allow_args) {
 }
 
 static int
+make_input_arg(agooErr err, agooDoc doc, gqlType type) {
+    char	name[256];
+    gqlType	return_type;
+    gqlArg	arg;
+    gqlDirUse	uses = NULL;
+    gqlValue	dval = NULL;
+    const char	*desc = NULL;
+    size_t	dlen;
+    bool 	required = false;
+
+    if (AGOO_ERR_OK != extract_desc(err, doc, &desc, &dlen)) {
+	return err->code;
+    }
+    if (0 == read_name(err, doc, name, sizeof(name))) {
+	return err->code;
+    }
+    agoo_doc_skip_white(doc);
+    if (':' != *doc->cur) {
+	return agoo_doc_err(doc, err, "Expected :");
+    }
+    doc->cur++;
+    if (AGOO_ERR_OK != read_type(err, doc, &return_type, &required)) {
+	return err->code;
+    }
+    if ('=' == *doc->cur) {
+	doc->cur++;
+	if (NULL == (dval = agoo_doc_read_value(err, doc, return_type))) {
+	    return err->code;
+	}
+    }
+    if (AGOO_ERR_OK != extract_dir_use(err, doc, &uses)) {
+	return err->code;
+    }
+    // TBD zzzzzzzz
+
+    if (NULL == (arg = gql_input_arg(err, type, name, return_type, desc, dlen, dval, required))) {
+	return err->code;
+    }
+    arg->dir = uses;
+
+    return AGOO_ERR_OK;
+}
+
+static int
 make_interface(agooErr err, agooDoc doc, const char *desc, int len) {
     char	name[256];
     gqlType	type;
     gqlDirUse	uses = NULL;
-    
+
     if (AGOO_ERR_OK != extract_name(err, doc, interface_str, sizeof(interface_str) - 1, name, sizeof(name))) {
 	return err->code;
     }
@@ -567,7 +608,7 @@ make_interface(agooErr err, agooDoc doc, const char *desc, int len) {
 	    doc->cur++; // skip }
 	    break;
 	}
-	if (AGOO_ERR_OK != make_field(err, doc, type, true)) {
+	if (AGOO_ERR_OK != make_field(err, doc, type)) {
 	    return err->code;
 	}
 	agoo_doc_skip_white(doc);
@@ -604,7 +645,8 @@ make_input(agooErr err, agooDoc doc, const char *desc, int len) {
 	    doc->cur++; // skip }
 	    break;
 	}
-	if (AGOO_ERR_OK != make_field(err, doc, type, false)) {
+	// TBD zzzzzzzzzz make_arg
+	if (AGOO_ERR_OK != make_input_arg(err, doc, type)) {
 	    return err->code;
 	}
 	agoo_doc_skip_white(doc);
@@ -695,7 +737,7 @@ make_type(agooErr err, agooDoc doc, const char *desc, int len) {
 	    doc->cur++; // skip }
 	    break;
 	}
-	if (AGOO_ERR_OK != make_field(err, doc, type, true)) {
+	if (AGOO_ERR_OK != make_field(err, doc, type)) {
 	    return err->code;
 	}
 	agoo_doc_skip_white(doc);
@@ -708,7 +750,7 @@ sdl_parse(agooErr err, const char *str, int len) {
     struct _agooDoc	doc;
     const char		*desc = NULL;
     size_t		dlen = 0;
-    
+
     agoo_doc_init(&doc, str, len);
 
     while (doc.cur < doc.end) {
@@ -769,7 +811,7 @@ sdl_parse(agooErr err, const char *str, int len) {
 		if ('p' == doc.cur[2]) {
 		    if (AGOO_ERR_OK != make_input(err, &doc, desc, dlen)) {
 			return err->code;
-		    }	
+		    }
 		    desc = NULL;
 		    dlen = 0;
 		    break;
@@ -818,7 +860,7 @@ make_sel_arg(agooErr err, agooDoc doc, gqlDoc gdoc, gqlOp op, gqlSel sel) {
     gqlValue	value = NULL;
     gqlVar	var = NULL;
     gqlSelArg	arg;
-    
+
     agoo_doc_skip_white(doc);
     if (0 == read_name(err, doc, name, sizeof(name))) {
 	return err->code;
@@ -831,7 +873,7 @@ make_sel_arg(agooErr err, agooDoc doc, gqlDoc gdoc, gqlOp op, gqlSel sel) {
     agoo_doc_skip_white(doc);
     if ('$' == *doc->cur && NULL != op) {
 	char	var_name[256];
-	
+
 	doc->cur++;
 	if (0 == read_name(err, doc, var_name, sizeof(var_name))) {
 	    return err->code;
@@ -895,7 +937,7 @@ make_op_var(agooErr err, agooDoc doc, gqlOp op) {
     bool	ignore;
     gqlValue	value = NULL;
     gqlVar	var;
-    
+
     agoo_doc_skip_white(doc);
     if ('$' != *doc->cur) {
 	return agoo_doc_err(doc, err, "Expected $");
@@ -909,7 +951,7 @@ make_op_var(agooErr err, agooDoc doc, gqlOp op) {
 	return agoo_doc_err(doc, err, "Expected :");
     }
     doc->cur++;
-    
+
     if (AGOO_ERR_OK != read_type(err, doc, &type, &ignore)) {
 	return err->code;
     }
@@ -978,7 +1020,7 @@ sel_create(agooErr err, const char *alias, const char *name, const char *frag) {
 	sel->inline_frag = NULL;
     }
     return sel;
-}    
+}
 
 static gqlSel
 make_sel_inline(agooErr err, agooDoc doc, gqlDoc gdoc, gqlOp op) {
@@ -988,7 +1030,7 @@ make_sel_inline(agooErr err, agooDoc doc, gqlDoc gdoc, gqlOp op) {
     agoo_doc_skip_white(doc);
     if ('o' == *doc->cur && 'n' == doc->cur[1]) { // inline fragment
 	char	type_name[256];
-	    
+
 	doc->cur += 2;
 	agoo_doc_skip_white(doc);
 	if (0 == read_name(err, doc, type_name, sizeof(type_name))) {
@@ -1308,7 +1350,7 @@ make_fragment(agooErr err, agooDoc doc, gqlDoc gdoc) {
 static gqlType
 lookup_field_type(gqlType type, const char *field, bool qroot) {
     gqlType	ftype = NULL;
-    
+
     switch (type->kind) {
     case GQL_OBJECT:
     case GQL_INPUT:
@@ -1347,7 +1389,7 @@ lookup_field_type(gqlType type, const char *field, bool qroot) {
 static int
 sel_set_type(agooErr err, gqlType type, gqlSel sels, bool qroot) {
     gqlSel	sel;
-    
+
     for (sel = sels; NULL != sel; sel = sel->next) {
 	if (NULL == sel->name) { // inline or fragment
 	    sel->type = type;
@@ -1382,7 +1424,7 @@ validate_doc(agooErr err, gqlDoc doc) {
     gqlType	type = NULL;
     gqlFrag	frag;
     int		cnt;
-    
+
     if (NULL == (schema = gql_type_get("schema"))) {
 	return agoo_err_set(err, AGOO_ERR_EVAL, "No root (schema) type defined.");
     }
@@ -1400,7 +1442,7 @@ validate_doc(agooErr err, gqlDoc doc) {
 	    }
 	} else {
 	    gqlOp	o2 = op->next;
-	    
+
 	    for (; NULL != o2; o2 = o2->next) {
 		if (NULL == o2->name) {
 		    continue;
