@@ -91,7 +91,7 @@ eval_wrap(agooErr err, gqlDoc doc) {
 	.err = err,
 	.value = NULL,
     };
-    
+
     rb_thread_call_with_gvl(protect_eval, &eval);
 
     return eval.value;
@@ -124,7 +124,7 @@ gval_to_ruby(gqlValue value) {
 	    break;
 	case GQL_SCALAR_TIME: {
 	    time_t	secs = (time_t)(value->time / 1000000000LL);
-	    
+
 	    rval = rb_time_nano_new(secs, (long)(value->time - secs * 1000000000LL));
 	    break;
 	}
@@ -142,7 +142,7 @@ gval_to_ruby(gqlValue value) {
 	}
 	case GQL_SCALAR_LIST: {
 	    gqlLink	link;
-	    
+
 	    rval = rb_ary_new();
 	    for (link = value->members; NULL != link; link = link->next) {
 		rb_ary_push(rval, gval_to_ruby(link->value));
@@ -151,11 +151,11 @@ gval_to_ruby(gqlValue value) {
 	}
 	case GQL_SCALAR_OBJECT: {
 	    gqlLink	link;
-	    
+
 	    rval = rb_hash_new();
 	    for (link = value->members; NULL != link; link = link->next) {
 		rb_hash_aset(rval, rb_str_new_cstr(link->key), gval_to_ruby(link->value));
-		
+
 	    }
 	    break;
 	}
@@ -171,7 +171,7 @@ gval_to_ruby(gqlValue value) {
 static VALUE
 ref_to_string(gqlRef ref) {
     volatile VALUE	value;
-    
+
     if (T_STRING == rb_type((VALUE)ref)) {
 	value = (VALUE)ref;
     } else {
@@ -345,7 +345,7 @@ ref_type(gqlRef ref) {
     if (NULL != type_class_map) {
 	TypeClass	tc;
 	const char	*classname = rb_obj_classname((VALUE)ref);
-	
+
 	for (tc = type_class_map; NULL != tc->type; tc++) {
 	    if (0 == strcmp(classname, tc->classname)) {
 		type = tc->type;
@@ -384,10 +384,10 @@ resolve(agooErr err, gqlDoc doc, gqlRef target, gqlField field, gqlSel sel, gqlV
     if (NULL == sel->args) {
 	child = rb_funcall(obj, rb_intern(sel->name), 0);
     } else {
-	volatile VALUE	rargs = rb_hash_new();	
+	volatile VALUE	rargs = rb_hash_new();
 	gqlSelArg	sa;
 	gqlValue	v;
-	
+
 	for (sa = sel->args; NULL != sa; sa = sa->next) {
 	    if (NULL != sa->var) {
 		v = sa->var->value;
@@ -396,7 +396,7 @@ resolve(agooErr err, gqlDoc doc, gqlRef target, gqlField field, gqlSel sel, gqlV
 	    }
 	    if (NULL != field) {
 		gqlArg	fa;
-		
+
 		for (fa = field->args; NULL != fa; fa = fa->next) {
 		    if (0 == strcmp(sa->name, fa->name)) {
 			if (v->type != fa->type && GQL_SCALAR_VAR != v->type->scalar_kind) {
@@ -419,7 +419,7 @@ resolve(agooErr err, gqlDoc doc, gqlRef target, gqlField field, gqlSel sel, gqlV
 	gqlValue	list;
 	int		cnt;
 	int		i;
-	
+
 	rb_check_type(child, RUBY_T_ARRAY);
 	if (NULL == (list = gql_list_create(err, NULL))) {
 	    return err->code;
@@ -453,7 +453,7 @@ resolve(agooErr err, gqlDoc doc, gqlRef target, gqlField field, gqlSel sel, gqlV
 	}
     } else if (NULL == sel->sels) {
 	gqlValue	cv;
-	
+
 	if (NULL == (cv = coerce(err, (gqlRef)child, sel->type)) ||
 	    AGOO_ERR_OK != gql_object_set(err, result, key, cv)) {
 	    return err->code;
@@ -483,7 +483,7 @@ ruby_types_cb(gqlType type, void *ctx) {
 	    if (NULL != type_class_map) {
 		TypeClass	tc = &type_class_map[*(int*)ctx];
 		gqlLink		arg;
-		
+
 		tc->type = type;
 		for (arg = dir->args; NULL != arg; arg = arg->next) {
 		    if (0 == strcmp("class", arg->key)) {
@@ -499,7 +499,7 @@ ruby_types_cb(gqlType type, void *ctx) {
 static int
 build_type_class_map(agooErr err) {
     int		cnt = 0;
-    
+
     AGOO_FREE(type_class_map);
     type_class_map = NULL;
 
@@ -658,9 +658,9 @@ static VALUE
 graphql_load_file(VALUE self, VALUE path) {
     struct _agooErr	err = AGOO_ERR_INIT;
     FILE		*f;
-    size_t		len;
+    long		len;
     char		*sdl;
-    
+
     if (NULL == gql_root) {
 	rb_raise(rb_eStandardError, "GraphQL root not set. Use Agoo::GraphQL.schema.");
     }
@@ -678,7 +678,7 @@ graphql_load_file(VALUE self, VALUE path) {
     if (0 != fseek(f, 0, SEEK_SET)) {
 	rb_raise(rb_eIOError, "%s", strerror(errno));
     }
-    if (len != fread(sdl, 1, len, f)) {
+    if (len != (long)fread(sdl, 1, len, f)) {
 	rb_raise(rb_eIOError, "%s", strerror(errno));
     } else {
 	sdl[len] = '\0';
@@ -716,7 +716,7 @@ graphql_sdl_dump(VALUE self, VALUE options) {
     VALUE		v;
     bool		with_desc = true;
     bool		all = false;
-    
+
     Check_Type(options, T_HASH);
 
     v = rb_hash_aref(options, ID2SYM(rb_intern("with_descriptions")));
@@ -731,7 +731,7 @@ graphql_sdl_dump(VALUE self, VALUE options) {
 
     dump = rb_str_new(t->text, t->len);
     agoo_text_release(t);
-    
+
     return dump;
 }
 
