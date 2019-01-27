@@ -31,7 +31,7 @@ extern void	agoo_mem_check(void *ptr, const char *file, int line);
 #else
 
 #define AGOO_MALLOC(size) malloc(size)
-#define AGOO_CALLOC(count, size) malloc(size)
+#define AGOO_CALLOC(count, size) calloc(count, size)
 #define AGOO_ALLOC(ptr, size) {}
 #define AGOO_REALLOC(ptr, size) realloc(ptr, size)
 #define AGOO_STRDUP(str) strdup(str)
