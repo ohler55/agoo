@@ -55,7 +55,7 @@ agoo_upgraded_release_con(agooUpgraded up) {
 }
 
 // Called from the con_loop thread, no need to lock, this steals the subject
-// so the pub subject should set to NULL
+// so the pub subject should be set to NULL
 void
 agoo_upgraded_add_subject(agooUpgraded up, agooSubject subject) {
     agooSubject	s;

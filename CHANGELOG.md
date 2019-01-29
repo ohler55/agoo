@@ -1,10 +1,12 @@
 # CHANGELOG
 
-### 2.7.0 - 2019-01-tbd
+### 2.7.0 - 2019-01-29
 
 Static asset header rules functionality added.
 
 - `Agoo::Server.header_rule()` added.
+
+- Assorted code cleanup.
 
 ### 2.6.1 - 2019-01-20
 

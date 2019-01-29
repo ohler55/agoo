@@ -88,6 +88,7 @@ agoo_con_destroy(agooCon c) {
     }
     if (NULL != c->up) {
 	agoo_upgraded_release_con(c->up);
+	
 	c->up = NULL;
     }
     agoo_log_cat(&agoo_con_cat, "Connection %llu closed.", (unsigned long long)c->id);
@@ -954,7 +955,7 @@ process_pub_con(agooPub pub, agooConLoop loop) {
     default:
 	break;
     }
-    agoo_pub_destroy(pub);	
+    agoo_pub_destroy(pub);
 }
 
 short

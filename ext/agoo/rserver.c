@@ -768,7 +768,7 @@ rserver_start(VALUE self) {
 	agooReq	req;
 
 	while (agoo_server.active) {
-	    if (NULL != (req = (agooReq)agoo_queue_pop(&agoo_server.eval_queue, 0.01))) { // TBD 0.1
+	    if (NULL != (req = (agooReq)agoo_queue_pop(&agoo_server.eval_queue, 0.1))) {
 		handle_protected(req, false);
 		agoo_req_destroy(req);
 	    } else {

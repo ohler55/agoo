@@ -90,7 +90,6 @@ sig_handler(int sig) {
     exit(0);
 }
 
-
 /* Document-module: Agoo
  *
  * A High Performance HTTP Server that supports the Ruby rack API. The word
@@ -116,4 +115,9 @@ Init_agoo() {
     signal(SIGINT, sig_handler);
     signal(SIGTERM, sig_handler);
     signal(SIGPIPE, SIG_IGN);
+
+    // This causes sleeps and queue pops to return immediately and is can be
+    // called all the time on mac OS with multiple threads. Something seems to
+    // get stuck.
+    signal(SIGVTALRM, SIG_IGN);
 }
