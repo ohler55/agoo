@@ -126,7 +126,7 @@ agoo_ready_add(agooErr		err,
 	       agooHandler	handler,
 	       void		*ctx) {
     Link	link;
-    
+
     if (NULL == (link = link_create(err, fd, ctx, handler))) {
 	return err->code;
     }
@@ -155,7 +155,7 @@ agoo_ready_add(agooErr		err,
     if (ready->pend - ready->pa <= ready->lcnt) {
 	size_t	cnt = (ready->pend - ready->pa) * 2;
 	size_t	size = cnt * sizeof(struct pollfd);
-	
+
 	if (NULL == (ready->pa = (struct pollfd*)AGOO_REALLOC(ready->pa, size))) {
 	    AGOO_ERR_MEM(err, "Connection Pool");
 	    agoo_log_cat(&agoo_error_cat, "Out of memory.");
@@ -206,7 +206,7 @@ agoo_ready_go(agooErr err, agooReady ready) {
     double	now;
     Link	link;
     Link	next;
-    
+
 #if HAVE_SYS_EPOLL_H
     struct epoll_event	events[EPOLL_SIZE];
     struct epoll_event	*ep;
@@ -271,7 +271,7 @@ agoo_ready_go(agooErr err, agooReady ready) {
 #else
     struct pollfd	*pp;
     int			i;
-    
+
     // Setup the poll events.
     for (link = ready->links, pp = ready->pa; NULL != link; link = link->next, pp++) {
 	pp->fd = link->fd;
@@ -290,6 +290,7 @@ agoo_ready_go(agooErr err, agooReady ready) {
 	case AGOO_READY_NONE:
 	default:
 	    // ignore, either dead or closing
+	    link->pp = NULL;
 	    pp--;
 	    break;
 	}

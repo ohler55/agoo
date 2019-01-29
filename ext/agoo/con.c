@@ -1223,11 +1223,15 @@ agoo_conloop_create(agooErr err, int id) {
 	loop->id = id;
 	loop->res_head = NULL;
 	loop->res_tail = NULL;
+	if (0 != pthread_mutex_init(&loop->lock, 0)) {
+	    AGOO_FREE(loop);
+	    agoo_err_no(err, "Failed to initialize loop mutex.");
+	    return NULL;
+	}
 	if (0 != (stat = pthread_create(&loop->thread, NULL, agoo_con_loop, loop))) {
 	    agoo_err_set(err, stat, "Failed to create connection loop. %s", strerror(stat));
 	    return NULL;
 	}
-	pthread_mutex_init(&loop->lock, 0);
     }
     return loop;
 }
