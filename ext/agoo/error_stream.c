@@ -25,13 +25,13 @@ error_stream_new() {
     ErrorStream	es = (ErrorStream)AGOO_MALLOC(sizeof(struct _errorStream));
 
     if (NULL == es) {
-	// Error stream is optional. If it is not there is still meets the
+	// Error stream is optional. If it is not there it still meets the
 	// specs. Better not to break everything if this fails.
 	return Qnil;
     }
     es->server = NULL;
     es->text = agoo_text_allocate(1024);
-    
+
     return Data_Wrap_Struct(es_class, NULL, es_free, es);
 }
 
@@ -62,7 +62,7 @@ static VALUE
 es_write(VALUE self, VALUE str) {
     ErrorStream	es = (ErrorStream)DATA_PTR(self);
     int		cnt = (int)RSTRING_LEN(str);
-    
+
     es->text = agoo_text_append(es->text, StringValuePtr(str), cnt);
 
     return INT2NUM(cnt);
