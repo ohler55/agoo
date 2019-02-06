@@ -1,5 +1,13 @@
 # CHANGELOG
 
+### 2.8.0 - 2019-02-TBD
+
+Extend GraphQL
+
+- Add support for the Graphql `extend` functionality.
+
+- Add the ID base scalar type.
+
 ### 2.7.0 - 2019-01-29
 
 Static asset header rules functionality added.
