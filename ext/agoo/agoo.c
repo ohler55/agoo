@@ -85,9 +85,9 @@ sig_handler(int sig) {
     agoo_shutdown();
     gql_destroy();
     debug_report();
-    // Use exit instead of rb_exit as rb_exit segfaults most of the time.
+    // Use _exit instead of rb_exit as rb_exit segfaults most of the time.
     //rb_exit(0);
-    exit(0);
+    _exit(0);
 }
 
 /* Document-module: Agoo
