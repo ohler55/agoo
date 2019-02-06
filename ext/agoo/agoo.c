@@ -7,6 +7,7 @@
 
 #include <ruby.h>
 
+#include "atomic.h"
 #include "debug.h"
 #include "error_stream.h"
 #include "graphql.h"
@@ -23,10 +24,17 @@
 
 extern void	graphql_init(VALUE mod);
 
+atomic_int		agoo_stop = AGOO_ATOMIC_INT_INIT(0);
+static atomic_int	shutdown_started = AGOO_ATOMIC_INT_INIT(0);
+
 void
 agoo_shutdown() {
-    rserver_shutdown(Qnil);
-    agoo_log_close();
+    if (0 == atomic_fetch_add(&shutdown_started, 1)) {
+	rserver_shutdown(Qnil);
+	agoo_log_close();
+	gql_destroy();
+	debug_report();
+    }
 }
 
 /* Document-method: shutdown
@@ -38,8 +46,6 @@ agoo_shutdown() {
 static VALUE
 ragoo_shutdown(VALUE self) {
     agoo_shutdown();
-    gql_destroy();
-    debug_report();
 
     return Qnil;
 }
@@ -81,15 +87,7 @@ ragoo_unsubscribe(VALUE self, VALUE subject) {
 
 static void
 sig_handler(int sig) {
-#ifdef MEM_DEBUG
-    rb_gc();
-#endif
-    agoo_shutdown();
-    gql_destroy();
-    debug_report();
-    // Use _exit instead of rb_exit as rb_exit segfaults most of the time.
-    //rb_exit(0);
-    _exit(0);
+    atomic_store(&agoo_stop, 1);
 }
 
 /* Document-module: Agoo

@@ -11,6 +11,7 @@
 #include <ruby/thread.h>
 #include <ruby/encoding.h>
 
+#include "atomic.h"
 #include "bind.h"
 #include "con.h"
 #include "debug.h"
@@ -33,7 +34,8 @@
 #include "upgraded.h"
 #include "websocket.h"
 
-extern void	agoo_shutdown();
+extern void		agoo_shutdown();
+extern atomic_int	agoo_stop;
 
 static VALUE	server_mod = Qundef;
 
@@ -160,7 +162,7 @@ configure(agooErr err, int port, const char *root, VALUE options) {
 	if (Qnil != (v = rb_hash_lookup(options, ID2SYM(rb_intern("bind"))))) {
 	    int	len;
 	    int	i;
-	    
+
 	    switch (rb_type(v)) {
 	    case T_STRING:
 		url_bind(v);
@@ -171,7 +173,7 @@ configure(agooErr err, int port, const char *root, VALUE options) {
 		    url_bind(rb_ary_entry(v, i));
 		}
 		break;
-	    default:	
+	    default:
 		rb_raise(rb_eArgError, "bind option must be a String or Array of Strings.");
 		break;
 	    }
@@ -317,7 +319,7 @@ rescue_error(VALUE x) {
 	int		blen = RARRAY_LEN(bt);
 	int		i;
 	VALUE		rline;
-	
+
 	for (i = 0; i < blen; i++) {
 	    rline = rb_ary_entry(bt, i);
 	}
@@ -357,7 +359,7 @@ header_cb(VALUE key, VALUE value, agooText *tp) {
     const char		*vs = StringValuePtr(value);
     int			vlen = (int)RSTRING_LEN(value);
     struct _agooErr	err = AGOO_ERR_INIT;
-    
+
     if (agoo_server.pedantic) {
 	if (AGOO_ERR_OK != agoo_http_header_ok(&err, ks, klen, vs, vlen)) {
 	    rb_raise(rb_eArgError, "%s", err.msg);
@@ -629,7 +631,7 @@ handle_push_inner(void *x) {
 	break;
     }
     agoo_upgraded_release(req->up);
-    
+
     return Qfalse;
 }
 
@@ -678,8 +680,8 @@ handle_protected(agooReq req, bool gvi) {
 	agoo_queue_wakeup(&agoo_server.con_queue);
 	break;
     default: {
-	char	buf[256];
-	int	cnt = snprintf(buf, sizeof(buf), "HTTP/1.1 500 Internal Error\r\nConnection: Close\r\nContent-Length: 0\r\n\r\n");
+	char		buf[256];
+	int		cnt = snprintf(buf, sizeof(buf), "HTTP/1.1 500 Internal Error\r\nConnection: Close\r\nContent-Length: 0\r\n\r\n");
 	agooText	message = agoo_text_create(buf, cnt);
 
 	req->res->close = true;
@@ -693,12 +695,16 @@ handle_protected(agooReq req, bool gvi) {
 static void*
 process_loop(void *ptr) {
     agooReq	req;
-    
+
     atomic_fetch_add(&agoo_server.running, 1);
     while (agoo_server.active) {
 	if (NULL != (req = (agooReq)agoo_queue_pop(&agoo_server.eval_queue, 0.1))) {
 	    handle_protected(req, true);
 	    agoo_req_destroy(req);
+	}
+	if (atomic_load(&agoo_stop)) {
+	    agoo_shutdown();
+	    break;
 	}
     }
     atomic_fetch_sub(&agoo_server.running, 1);
@@ -727,9 +733,9 @@ rserver_start(VALUE self) {
     struct _agooErr	err = AGOO_ERR_INIT;
     VALUE		agoo = rb_const_get_at(rb_cObject, rb_intern("Agoo"));
     VALUE		v = rb_const_get_at(agoo, rb_intern("VERSION"));
-    
+
     *the_rserver.worker_pids = getpid();
-    
+
     // If workers then set the loop_max based on the expected number of
     // threads per worker.
     if (1 < the_rserver.worker_cnt) {
@@ -774,11 +780,15 @@ rserver_start(VALUE self) {
 	    } else {
 		rb_thread_schedule();
 	    }
-
+	    if (atomic_load(&agoo_stop)) {
+		agoo_shutdown();
+		break;
+	    }
 	}
     } else {
-	the_rserver.eval_threads = (VALUE*)AGOO_MALLOC(sizeof(VALUE) * (agoo_server.thread_cnt + 1));
-
+	if (NULL == (the_rserver.eval_threads = (VALUE*)AGOO_MALLOC(sizeof(VALUE) * (agoo_server.thread_cnt + 1)))) {
+	    rb_raise(rb_eNoMemError, "Failed to allocate memory for the thread pool.");
+	}
 	for (i = agoo_server.thread_cnt, vp = the_rserver.eval_threads; 0 < i; i--, vp++) {
 	    *vp = rb_thread_create(wrap_process_loop, NULL);
 	}
@@ -834,7 +844,7 @@ rserver_shutdown(VALUE self) {
 	    int	status;
 	    int	exit_cnt = 1;
 	    int	j;
-	    
+
 	    for (i = 1; i < the_rserver.worker_cnt; i++) {
 		kill(the_rserver.worker_pids[i], SIGKILL);
 	    }
@@ -912,7 +922,7 @@ handle(VALUE self, VALUE method, VALUE pattern, VALUE handler) {
 	if (Qtrue == rb_funcall(handler, static_id, 0, Qnil)) {
 	    VALUE	res = rb_funcall(handler, call_id, 1, Qnil);
 	    VALUE	bv;
-	    
+
 	    rb_check_type(res, T_ARRAY);
 	    if (3 != RARRAY_LEN(res)) {
 		rb_raise(rb_eArgError, "a rack call() response must be an array of 3 members.");
@@ -973,7 +983,7 @@ handle_not_found(VALUE self, VALUE handler) {
 	rb_raise(rb_eStandardError, "out of memory.");
     }
     rb_gc_register_address((VALUE*)&agoo_server.hook404->handler);
-    
+
     return Qnil;
 }
 
@@ -987,7 +997,7 @@ handle_not_found(VALUE self, VALUE handler) {
 static VALUE
 add_mime(VALUE self, VALUE suffix, VALUE type) {
     struct _agooErr	err = AGOO_ERR_INIT;
-    
+
     if (AGOO_ERR_OK != mime_set(&err, StringValuePtr(suffix), StringValuePtr(type))) {
 	rb_raise(rb_eArgError, "%s", err.msg);
     }
@@ -1014,7 +1024,7 @@ path_group(VALUE self, VALUE path, VALUE dirs) {
 	int	i;
 	int	dcnt = (int)RARRAY_LEN(dirs);
 	VALUE	entry;
-	
+
 	for (i = dcnt - 1; 0 <= i; i--) {
 	    entry = rb_ary_entry(dirs, i);
 	    if (T_STRING != rb_type(entry)) {
@@ -1047,7 +1057,7 @@ path_group(VALUE self, VALUE path, VALUE dirs) {
 static VALUE
 header_rule(VALUE self, VALUE path, VALUE mime, VALUE key, VALUE value) {
     struct _agooErr	err = AGOO_ERR_INIT;
-    
+
     rb_check_type(path, T_STRING);
     rb_check_type(mime, T_STRING);
     rb_check_type(key, T_STRING);
@@ -1086,7 +1096,7 @@ server_init(VALUE mod) {
     on_message_id = rb_intern("on_message");
     on_request_id = rb_intern("on_request");
     to_i_id = rb_intern("to_i");
-    
+
     connect_sym = ID2SYM(rb_intern("CONNECT"));		rb_gc_register_address(&connect_sym);
     delete_sym = ID2SYM(rb_intern("DELETE"));		rb_gc_register_address(&delete_sym);
     get_sym = ID2SYM(rb_intern("GET"));			rb_gc_register_address(&get_sym);
