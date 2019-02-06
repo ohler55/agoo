@@ -116,8 +116,8 @@ Init_agoo() {
     signal(SIGTERM, sig_handler);
     signal(SIGPIPE, SIG_IGN);
 
-    // This causes sleeps and queue pops to return immediately and is can be
-    // called all the time on mac OS with multiple threads. Something seems to
-    // get stuck.
+    // This causes sleeps and queue pops to return immediately and it can be
+    // called very frequently on mac OS with multiple threads. Something seems
+    // to get stuck.
     signal(SIGVTALRM, SIG_IGN);
 }
