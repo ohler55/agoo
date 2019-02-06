@@ -58,6 +58,7 @@ extern void	gql_link_destroy(gqlLink link);
 extern gqlValue	gql_int_create(agooErr err, int32_t i);
 extern gqlValue	gql_i64_create(agooErr err, int64_t i);
 extern gqlValue	gql_string_create(agooErr err, const char *str, int len);
+extern gqlValue	gql_id_create(agooErr err, const char *str, int len);
 extern gqlValue	gql_token_create(agooErr err, const char *str, int len, struct _gqlType *type);
 extern gqlValue	gql_var_create(agooErr err, const char *str, int len);
 extern gqlValue	gql_bool_create(agooErr err, bool b);
@@ -77,6 +78,7 @@ extern int	gql_object_set(agooErr err, gqlValue obj, const char *key, gqlValue i
 extern void	gql_int_set(gqlValue value, int32_t i);
 extern void	gql_i64_set(gqlValue value, int64_t i);
 extern int	gql_string_set(agooErr err, gqlValue value, const char *str, int len);
+extern int	gql_id_set(agooErr err, gqlValue value, const char *str, int len);
 extern int	gql_token_set(agooErr err, gqlValue value, const char *str, int len);
 extern void	gql_bool_set(gqlValue value, bool b);
 extern void	gql_float_set(gqlValue value, double f);
@@ -105,6 +107,7 @@ extern struct _gqlType	gql_time_type;
 extern struct _gqlType	gql_uuid_type;
 extern struct _gqlType	gql_string_type;
 extern struct _gqlType	gql_token_type;   // used for enum values
+extern struct _gqlType	gql_id_type;
 extern struct _gqlType	gql_var_type;     // used for variable keys
 
 #endif // AGOO_GQLVALUE_H

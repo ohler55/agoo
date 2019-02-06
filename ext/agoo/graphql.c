@@ -218,6 +218,7 @@ type_destroy(gqlType type) {
 	&gql_uuid_type == type ||
 	&gql_token_type == type ||
 	&gql_var_type == type ||
+	&gql_id_type == type ||
 	&gql_string_type == type) {
 
 	return;

@@ -34,7 +34,7 @@ static agooText
 int_to_text(agooText text, gqlValue value, int indent, int depth) {
     char	num[32];
     int		cnt;
-    
+
     cnt = snprintf(num, sizeof(num), "%lld", (long long)value->i);
 
     return agoo_text_append(text, num, cnt);
@@ -56,7 +56,7 @@ static agooText
 i64_to_text(agooText text, gqlValue value, int indent, int depth) {
     char	num[32];
     int		cnt;
-    
+
     cnt = snprintf(num, sizeof(num), "%lld", (long long)value->i64);
 
     return agoo_text_append(text, num, cnt);
@@ -132,6 +132,18 @@ struct _gqlType	gql_token_type = {
     .to_sdl = token_to_text,
 };
 
+// ID type
+struct _gqlType	gql_id_type = {
+    .name = "ID",
+    .desc = "ID scalar.",
+    .kind = GQL_SCALAR,
+    .scalar_kind = GQL_SCALAR_ID,
+    .core = true,
+    .destroy = string_destroy,
+    .to_json = string_to_text,
+    .to_sdl = string_to_text,
+};
+
 // Variable type ($var)
 static agooText
 var_to_text(agooText text, gqlValue value, int indent, int depth) {
@@ -185,7 +197,7 @@ static agooText
 float_to_text(agooText text, gqlValue value, int indent, int depth) {
     char	num[32];
     int		cnt;
-    
+
     cnt = snprintf(num, sizeof(num), "%g", value->f);
 
     return agoo_text_append(text, num, cnt);
@@ -235,7 +247,7 @@ read_zone(const char *s, int *vp) {
 	return NULL;
     }
     *vp = hr * 60 + min;
-    
+
     return s;
 }
 
@@ -248,7 +260,7 @@ time_parse(agooErr err, const char *str, int len) {
     uint64_t	nsecs = 0;
     int		i = 9;
     int64_t	secs;
-    
+
     if (0 > len) {
 	len = (int)strlen(str);
     }
@@ -309,7 +321,7 @@ time_parse(agooErr err, const char *str, int len) {
 	// fall through
     case '+': {
 	int	v = 0;
-	
+
 	if (NULL == (s = read_zone(s, &v))) {
 	    agoo_err_set(err, AGOO_ERR_PARSE, "Invalid time format.");
 	    return 0;
@@ -397,7 +409,7 @@ time_parse(agooErr err, const char *str, int len) {
 	if (end <= s) {
 	    agoo_err_set(err, AGOO_ERR_PARSE, "Invalid time format.");
 	    return 0;
-	}	
+	}
 	if ('0' <= *s && *s <= '9') {
 	    nsecs = nsecs * 10 + *s - '0';
 	} else {
@@ -463,7 +475,7 @@ time_to_text(agooText text, gqlValue value, int indent, int depth) {
     }
     agoo_sectime(t, &at);
     cnt = sprintf(str, "\"%04d-%02d-%02dT%02d:%02d:%02d.%09ldZ\"", at.year, at.mon, at.day, at.hour, at.min, at.sec, (long)nsecs);
-    
+
     return agoo_text_append(text, str, cnt);
 }
 
@@ -482,7 +494,7 @@ struct _gqlType	gql_time_type = {
 static int
 hexVal(int c) {
     int	h = -1;
-    
+
     if ('0' <= c && c <= '9') {
 	h = c - '0';
     } else if ('a' <= c && c <= 'f') {
@@ -500,7 +512,7 @@ parse_uuid(agooErr err, const char *str, int len, uint64_t *hip, uint64_t *lop) 
     uint64_t	lo = 0;
     int		i;
     int		n;
-    
+
     if (0 >= len) {
 	len = (int)strlen(str);
     }
@@ -679,7 +691,7 @@ gql_object_to_json(agooText text, gqlValue value, int indent, int depth) {
     int		i2 = i + indent;
     int		d2 = depth + 1;
     gqlLink	link;
-    
+
     if (0 < indent) {
 	i++; // for \n
 	i2++;
@@ -719,7 +731,7 @@ gql_object_to_sdl(agooText text, gqlValue value, int indent, int depth) {
     int		i2 = i + indent;
     int		d2 = depth + 1;
     gqlLink	link;
-    
+
     if (0 < indent) {
 	i++; // for \n
 	i2++;
@@ -789,6 +801,7 @@ gql_value_init(agooErr err) {
 	AGOO_ERR_OK != gql_type_set(err, &gql_float_type) ||
 	AGOO_ERR_OK != gql_type_set(err, &gql_time_type) ||
 	AGOO_ERR_OK != gql_type_set(err, &gql_uuid_type) ||
+	AGOO_ERR_OK != gql_type_set(err, &gql_id_type) ||
 	AGOO_ERR_OK != gql_type_set(err, &gql_string_type)) {
 	return err->code;
     }
@@ -808,9 +821,8 @@ gql_i64_set(gqlValue value, int64_t i) {
     value->i64 = i;
 }
 
-int
-gql_string_set(agooErr err, gqlValue value, const char *str, int len) {
-    value->type = &gql_string_type;
+static int
+string_set(agooErr err, gqlValue value, const char *str, int len) {
     if (NULL == str) {
 	value->str.alloced = true;
 	value->str.ptr = NULL;
@@ -832,26 +844,24 @@ gql_string_set(agooErr err, gqlValue value, const char *str, int len) {
 }
 
 int
+gql_string_set(agooErr err, gqlValue value, const char *str, int len) {
+    value->type = &gql_string_type;
+
+    return string_set(err, value, str, len);
+}
+
+int
 gql_token_set(agooErr err, gqlValue value, const char *str, int len) {
     value->type = &gql_token_type;
-    if (NULL == str) {
-	value->str.alloced = true;
-	value->str.ptr = NULL;
-    } else {
-	if (0 >= len) {
-	    len = (int)strlen(str);
-	}
-	if (len < (int)sizeof(value->str.a)) {
-	    strncpy(value->str.a, str, len);
-	    value->str.alloced = false;
-	} else {
-	    value->str.alloced = true;
-	    if (NULL == (value->str.ptr = AGOO_STRNDUP(str, len))) {
-		return AGOO_ERR_MEM(err, "strndup()");
-	    }
-	}
-    }
-    return AGOO_ERR_OK;
+
+    return string_set(err, value, str, len);
+}
+
+int
+gql_id_set(agooErr err, gqlValue value, const char *str, int len) {
+    value->type = &gql_id_type;
+
+    return string_set(err, value, str, len);
 }
 
 void
@@ -989,7 +999,7 @@ gql_object_set(agooErr err, gqlValue obj, const char *key, gqlValue item) {
 static gqlValue
 value_create(gqlType type) {
     gqlValue	v = (gqlValue)AGOO_CALLOC(1, sizeof(struct _gqlValue));
-    
+
     if (NULL != v) {
 	v->type = type;
     }
@@ -999,7 +1009,7 @@ value_create(gqlType type) {
 gqlValue
 gql_int_create(agooErr err, int32_t i) {
     gqlValue	v = value_create(&gql_int_type);
-    
+
     if (NULL != v) {
 	v->i = i;
     }
@@ -1009,7 +1019,7 @@ gql_int_create(agooErr err, int32_t i) {
 gqlValue
 gql_i64_create(agooErr err, int64_t i) {
     gqlValue	v = value_create(&gql_i64_type);
-    
+
     if (NULL != v) {
 	v->i64 = i;
     }
@@ -1019,7 +1029,7 @@ gql_i64_create(agooErr err, int64_t i) {
 gqlValue
 gql_string_create(agooErr err, const char *str, int len) {
     gqlValue	v;
-    
+
     if (0 >= len) {
 	len = (int)strlen(str);
     }
@@ -1042,7 +1052,7 @@ gql_string_create(agooErr err, const char *str, int len) {
 gqlValue
 gql_token_create(agooErr err, const char *str, int len, gqlType type) {
     gqlValue	v;
-    
+
     if (0 >= len) {
 	len = (int)strlen(str);
     }
@@ -1066,9 +1076,32 @@ gql_token_create(agooErr err, const char *str, int len, gqlType type) {
 }
 
 gqlValue
+gql_id_create(agooErr err, const char *str, int len) {
+    gqlValue	v;
+
+    if (0 >= len) {
+	len = (int)strlen(str);
+    }
+    if (NULL != (v = value_create(&gql_id_type))) {
+	if ((int)sizeof(v->str.a) <= len) {
+	    v->str.alloced = true;
+	    if (NULL == (v->str.ptr = AGOO_STRNDUP(str, len))) {
+		AGOO_ERR_MEM(err, "strdup()");
+		return NULL;
+	    }
+	} else {
+	    v->str.alloced = false;
+	    strncpy(v->str.a, str, len);
+	    v->str.a[len] = '\0';
+	}
+    }
+    return v;
+}
+
+gqlValue
 gql_var_create(agooErr err, const char *str, int len) {
     gqlValue	v;
-    
+
     if (0 >= len) {
 	len = (int)strlen(str);
     }
@@ -1091,7 +1124,7 @@ gql_var_create(agooErr err, const char *str, int len) {
 gqlValue
 gql_bool_create(agooErr err, bool b) {
     gqlValue	v = value_create(&gql_bool_type);
-    
+
     if (NULL != v) {
 	v->b = b;
     }
@@ -1101,7 +1134,7 @@ gql_bool_create(agooErr err, bool b) {
 gqlValue
 gql_float_create(agooErr err, double f) {
     gqlValue	v = value_create(&gql_float_type);
-    
+
     if (NULL != v) {
 	v->f = f;
     }
@@ -1111,7 +1144,7 @@ gql_float_create(agooErr err, double f) {
 gqlValue
 gql_time_create(agooErr err, int64_t t) {
     gqlValue	v = value_create(&gql_time_type);
-    
+
     if (NULL != v) {
 	v->time = t;
     }
@@ -1121,7 +1154,7 @@ gql_time_create(agooErr err, int64_t t) {
 gqlValue
 gql_time_str_create(agooErr err, const char *str, int len) {
     gqlValue	v = value_create(&gql_time_type);
-    
+
     if (NULL != v) {
 	if (0 >= len) {
 	    len = (int)strlen(str);
@@ -1134,7 +1167,7 @@ gql_time_str_create(agooErr err, const char *str, int len) {
 gqlValue
 gql_uuid_create(agooErr err, uint64_t hi, uint64_t lo) {
     gqlValue	v = value_create(&gql_uuid_type);
-    
+
     if (NULL != v) {
 	v->uuid.hi = hi;
 	v->uuid.lo = lo;
@@ -1162,7 +1195,7 @@ gql_uuid_str_create(agooErr err, const char *str, int len) {
 gqlValue
 gql_null_create(agooErr err) {
     gqlValue	v = value_create(&gql_null_type);
-    
+
     return v;
 }
 
@@ -1225,7 +1258,7 @@ gql_string_get(gqlValue value) {
     const char	*s = NULL;
 
     if (NULL != value) {
-	if (&gql_string_type == value->type || &gql_token_type == value->type || &gql_var_type == value->type ||
+	if (&gql_string_type == value->type || &gql_token_type == value->type || &gql_var_type == value->type || &gql_id_type == value->type ||
 	    GQL_ENUM == value->type->kind) {
 	    if (value->str.alloced) {
 		s = value->str.ptr;
@@ -1252,7 +1285,7 @@ convert_to_bool(agooErr err, gqlValue value) {
     case GQL_SCALAR_STRING:
     case GQL_SCALAR_TOKEN: {
 	const char	*s = gql_string_get(value);
-	
+
 	value->type = &gql_bool_type;
 	if (0 == strcasecmp("true", s)) {
 	    value->b = true;
@@ -1392,7 +1425,7 @@ static int
 convert_to_string(agooErr err, gqlValue value) {
     char	buf[64];
     int		cnt;
-    
+
     switch (value->type->scalar_kind) {
     case GQL_SCALAR_BOOL:
 	if (value->b) {
@@ -1414,6 +1447,9 @@ convert_to_string(agooErr err, gqlValue value) {
 	gql_string_set(err, value, buf, cnt);
 	break;
     case GQL_SCALAR_TOKEN:
+	value->type = &gql_string_type;
+	break;
+    case GQL_SCALAR_ID:
 	value->type = &gql_string_type;
 	break;
     case GQL_SCALAR_TIME: {
@@ -1450,10 +1486,25 @@ static int
 convert_to_token(agooErr err, gqlValue value) {
     switch (value->type->scalar_kind) {
     case GQL_SCALAR_STRING:
+    case GQL_SCALAR_ID:
 	value->type = &gql_token_type;
 	break;
     default:
 	agoo_err_set(err, AGOO_ERR_PARSE, "Can not coerce a %s into a token value.", value->type->name);
+	break;
+    }
+    return err->code;
+}
+
+static int
+convert_to_id(agooErr err, gqlValue value) {
+    switch (value->type->scalar_kind) {
+    case GQL_SCALAR_STRING:
+    case GQL_SCALAR_TOKEN:
+	value->type = &gql_id_type;
+	break;
+    default:
+	agoo_err_set(err, AGOO_ERR_PARSE, "Can not coerce a %s into a ID value.", value->type->name);
 	break;
     }
     return err->code;
@@ -1489,7 +1540,7 @@ convert_to_uuid(agooErr err, gqlValue value) {
     case GQL_SCALAR_STRING: {
 	const char	*s = gql_string_get(value);
 	bool		alloced = value->str.alloced;
-	
+
 	if (AGOO_ERR_OK == gql_uuid_str_set(err, value, s, 0)) {
 	    if (alloced) {
 		AGOO_FREE((char*)s);
@@ -1507,7 +1558,7 @@ convert_to_uuid(agooErr err, gqlValue value) {
 int
 gql_value_convert(agooErr err, gqlValue value, struct _gqlType *type) {
     int	code = AGOO_ERR_OK;
-    
+
     if (type != value->type) {
 	switch (type->scalar_kind) {
 	case GQL_SCALAR_BOOL:
@@ -1527,6 +1578,9 @@ gql_value_convert(agooErr err, gqlValue value, struct _gqlType *type) {
 	    break;
 	case GQL_SCALAR_TOKEN:
 	    code = convert_to_token(err, value);
+	    break;
+	case GQL_SCALAR_ID:
+	    code = convert_to_id(err, value);
 	    break;
 	case GQL_SCALAR_TIME:
 	    code = convert_to_time(err, value);
@@ -1564,6 +1618,7 @@ gql_value_dup(agooErr err, gqlValue value) {
 	break;
     case GQL_SCALAR_STRING:
     case GQL_SCALAR_TOKEN:
+    case GQL_SCALAR_ID:
 	if (value->str.alloced) {
 	    if (NULL == (dup->str.ptr = strdup(value->str.ptr))) {
 		AGOO_ERR_MEM(err, "strdup()");
@@ -1586,4 +1641,3 @@ gql_value_dup(agooErr err, gqlValue value) {
     }
     return dup;
 }
-

@@ -18,7 +18,7 @@ class Artist
   attr_reader :songs
   attr_reader :origin
   attr_reader :likes
-  
+
   def initialize(name, origin)
     @name = name
     @songs = []
@@ -65,7 +65,7 @@ class Song
   attr_reader :duration # integer
   attr_reader :release  # time
   attr_reader :genre    # string
-  
+
   def initialize(name, artist, duration, release)
     @name = name
     @artist = artist
@@ -139,7 +139,7 @@ class Schema
   attr_reader :query
   attr_reader :mutation
   attr_reader :subscription
- 
+
   def initialize()
     # Set up some data for testing.
     artist = Artist.new('Fazerdaze', ['Morningside', 'Auckland', 'New Zealand'])
@@ -156,7 +156,7 @@ end
 
 class GraphQLTest < Minitest::Test
   @@server_started = false
-  
+
   SCHEMA_EXPECT = %^type schema @ruby(class: "Schema") {
   query: Query
   mutation: Mutation
@@ -222,7 +222,7 @@ directive @ruby(class: String!) on SCHEMA | OBJECT
 
     @@server_started = true
   end
-  
+
   def setup
     if @@server_started == false
       start_server
@@ -239,7 +239,7 @@ directive @ruby(class: String!) on SCHEMA | OBJECT
   # TBD introspection
 
   ##################################
-  
+
   def test_load
     content = Agoo::GraphQL.sdl_dump(with_descriptions: false, all: false)
     content.force_encoding('UTF-8')
@@ -278,7 +278,7 @@ directive @ruby(class: String!) on SCHEMA | OBJECT
     assert_equal('application/json', res['Content-Type'])
     assert_equal(expect, content)
   end
-  
+
   def test_variable_query
     uri = URI('http://localhost:6472/graphql?query={artist(name:"Fazerdaze"){name}}&indent=2')
     expect = %^{
@@ -290,7 +290,7 @@ directive @ruby(class: String!) on SCHEMA | OBJECT
 }^
     req_test(uri, expect)
   end
-  
+
   def test_alias_query
     uri = URI('http://localhost:6472/graphql?query=query withVar($name:String="Fazerdaze"){artist(name:$name){name}}&indent=2')
     expect = %^{
@@ -302,7 +302,7 @@ directive @ruby(class: String!) on SCHEMA | OBJECT
 }^
     req_test(uri, expect)
   end
-  
+
   def test_parse_error
     uri = URI('http://localhost:6472/graphql?query=nonsense')
     expect = %^{
@@ -316,7 +316,7 @@ directive @ruby(class: String!) on SCHEMA | OBJECT
 ^
     req_test(uri, expect, 'errors.0.timestamp')
   end
-  
+
   def test_json_vars_query
     #uri = URI('http://localhost:6472/graphql?query={artist(name:$name){name}}&indent=2&variables={"name":"Fazerdaze"}')
     uri = URI('http://localhost:6472/graphql?query={artist(name:"Fazerdaze"){name}}&indent=2&variables={"name":"Fazerdaze"}')
@@ -329,7 +329,7 @@ directive @ruby(class: String!) on SCHEMA | OBJECT
 }^
     req_test(uri, expect)
   end
-  
+
   def test_list_query
     uri = URI('http://localhost:6472/graphql?query=query withVar($name:String="Fazerdaze"){artist(name:$name){name,songs{name}}}&indent=2')
     expect = %^{
@@ -656,7 +656,7 @@ query skippy($boo: Boolean = true){
 }^
     req_test(uri, expect)
   end
-  
+
   def test_intro_of_type
     uri = URI('http://localhost:6472/graphql?query={__type(name:"[__Type!]"){name,ofType{name}}}&indent=2')
     expect = %^{
@@ -793,7 +793,7 @@ query skippy($boo: Boolean = true){
 }^
     req_test(uri, expect)
   end
-  
+
   def test_intro_schema_types
     uri = URI('http://localhost:6472/graphql?query={__schema{types{name}}}&indent=2')
     expect = %^{
@@ -843,6 +843,9 @@ query skippy($boo: Boolean = true){
           "name":"Song"
         },
         {
+          "name":"ID"
+        },
+        {
           "name":"Artist"
         },
         {
@@ -886,7 +889,7 @@ query skippy($boo: Boolean = true){
 }^
     req_test(uri, expect)
   end
-  
+
   def test_intro_schema_directives
     uri = URI('http://localhost:6472/graphql?query={__schema{directives{name,locations,args{name}}}}&indent=2')
     expect = %^{
@@ -949,7 +952,7 @@ query skippy($boo: Boolean = true){
 }^
     req_test(uri, expect)
   end
-  
+
   def test_mutation
     uri = URI('http://localhost:6472/graphql?indent=2')
     body = %^
@@ -988,7 +991,7 @@ mutation {
       end
     end
   end
-  
+
   def req_test(uri, expect, ignore=nil)
     req = Net::HTTP::Get.new(uri)
     res = Net::HTTP.start(uri.hostname, uri.port) { |h|

@@ -120,6 +120,7 @@ gval_to_ruby(gqlValue value) {
 	    break;
 	case GQL_SCALAR_STRING:
 	case GQL_SCALAR_TOKEN:
+	case GQL_SCALAR_ID:
 	    rval = rb_str_new_cstr(gql_string_get(value));
 	    break;
 	case GQL_SCALAR_TIME: {
@@ -290,6 +291,7 @@ coerce(agooErr err, gqlRef ref, gqlType type) {
 	    break;
 	case GQL_SCALAR_STRING:
 	case GQL_SCALAR_TOKEN:
+	case GQL_SCALAR_ID:
 	    v = ref_to_string(ref);
 	    value = gql_string_create(err, rb_string_value_ptr(&v), RSTRING_LEN(v));
 	    break;
