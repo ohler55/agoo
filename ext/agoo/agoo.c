@@ -1,7 +1,9 @@
 // Copyright (c) 2018, Peter Ohler, All rights reserved.
 
+#include <errno.h>
 #include <signal.h>
 #include <stdio.h>
+#include <string.h>
 
 #include <ruby.h>
 
@@ -112,12 +114,15 @@ Init_agoo() {
     rb_define_module_function(mod, "publish", ragoo_publish, 2);
     rb_define_module_function(mod, "unsubscribe", ragoo_unsubscribe, 1);
 
-    signal(SIGINT, sig_handler);
-    signal(SIGTERM, sig_handler);
-    signal(SIGPIPE, SIG_IGN);
+    if (SIG_ERR == signal(SIGINT, sig_handler) ||
+	SIG_ERR == signal(SIGTERM, sig_handler) ||
+	SIG_ERR == signal(SIGPIPE, SIG_IGN) ||
 
-    // This causes sleeps and queue pops to return immediately and it can be
-    // called very frequently on mac OS with multiple threads. Something seems
-    // to get stuck.
-    signal(SIGVTALRM, SIG_IGN);
+	// This causes sleeps and queue pops to return immediately and it can be
+	// called very frequently on mac OS with multiple threads. Something seems
+	// to get stuck.
+	SIG_ERR == signal(SIGVTALRM, SIG_IGN)) {
+
+	rb_raise(rb_eStandardError, "%s", strerror(errno));
+    }
 }
