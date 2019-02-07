@@ -35,7 +35,7 @@
 #include "websocket.h"
 
 extern void		agoo_shutdown();
-extern atomic_int	agoo_stop;
+extern sig_atomic_t	agoo_stop;
 
 static VALUE	server_mod = Qundef;
 
@@ -702,7 +702,7 @@ process_loop(void *ptr) {
 	    handle_protected(req, true);
 	    agoo_req_destroy(req);
 	}
-	if (atomic_load(&agoo_stop)) {
+	if (agoo_stop) {
 	    agoo_shutdown();
 	    break;
 	}
@@ -780,7 +780,7 @@ rserver_start(VALUE self) {
 	    } else {
 		rb_thread_schedule();
 	    }
-	    if (atomic_load(&agoo_stop)) {
+	    if (agoo_stop) {
 		agoo_shutdown();
 		break;
 	    }

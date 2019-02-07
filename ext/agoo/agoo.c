@@ -24,7 +24,8 @@
 
 extern void	graphql_init(VALUE mod);
 
-atomic_int		agoo_stop = AGOO_ATOMIC_INT_INIT(0);
+sig_atomic_t		agoo_stop = 0;
+
 static atomic_int	shutdown_started = AGOO_ATOMIC_INT_INIT(0);
 
 void
@@ -87,7 +88,7 @@ ragoo_unsubscribe(VALUE self, VALUE subject) {
 
 static void
 sig_handler(int sig) {
-    atomic_store(&agoo_stop, 1);
+    agoo_stop = 1;
 }
 
 /* Document-module: Agoo
