@@ -33,7 +33,7 @@ response_new() {
     }
     memset(res, 0, sizeof(struct _agooResponse));
     res->code = 200;
-    
+
     return Data_Wrap_Struct(res_class, NULL, response_free, res);
 }
 
@@ -53,7 +53,7 @@ to_s(VALUE self) {
 	rb_raise(rb_eNoMemError, "out of memory");
     }
     agoo_response_fill(res, s);
-    
+
     return rb_str_new(s, len);
 }
 
@@ -150,7 +150,7 @@ head_get(VALUE self, VALUE key) {
     agooHeader		h;
     const char		*ks = StringValuePtr(key);
     int			klen = (int)RSTRING_LEN(key);
-    
+
     for (h = res->headers; NULL != h; h = h->next) {
 	if (0 == strncasecmp(h->text, ks, klen) && klen + 1 < h->len && ':' == h->text[klen]) {
 	    return rb_str_new(h->text + klen + 2, h->len - klen - 4);
@@ -227,9 +227,10 @@ response_text(VALUE self) {
     int			len = agoo_response_len(res);
     agooText		t = agoo_text_allocate(len);
 
-    agoo_response_fill(res, t->text);
-    t->len = len;
-
+    if (NULL != t) {
+	agoo_response_fill(res, t->text);
+	t->len = len;
+    }
     return t;
 }
 
