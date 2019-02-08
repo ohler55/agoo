@@ -8,6 +8,7 @@
 #include "graphql.h"
 #include "gqlintro.h"
 #include "gqlvalue.h"
+#include "log.h"
 #include "req.h"
 #include "res.h"
 
@@ -1127,7 +1128,6 @@ gql_type_sdl(agooText text, gqlType type, bool with_desc) {
 	text = agoo_text_append(text, " {\n", 3);
 	for (a = type->args; NULL != a; a = a->next) {
 	    text = arg_sdl(text, a, with_desc, false, NULL == a->next);
-	    // TBD zzzzzz
 	}
 	text = agoo_text_append(text, "}\n", 2);
 	break;
@@ -1618,7 +1618,9 @@ gql_dump_hook(agooReq req) {
     }
     text = gql_schema_sdl(text, with_desc, all);
     cnt = snprintf(buf, sizeof(buf), "HTTP/1.1 200 Okay\r\nContent-Type: application/graphql\r\nContent-Length: %ld\r\n\r\n", text->len);
-    text = agoo_text_prepend(text, buf, cnt);
+    if (NULL == (text = agoo_text_prepend(text, buf, cnt))) {
+	agoo_log_cat(&agoo_error_cat, "Failed to allocate memory for a GraphQL dump.");
+    }
     agoo_res_set_message(req->res, text);
 }
 

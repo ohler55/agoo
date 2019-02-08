@@ -728,8 +728,9 @@ graphql_sdl_dump(VALUE self, VALUE options) {
     if (Qnil != v) {
 	all = (Qtrue == v);
     }
-    t = gql_schema_sdl(t, with_desc, all);
-
+    if (NULL == (t = gql_schema_sdl(t, with_desc, all))) {
+	rb_raise(rb_eNoMemError, "Failed to allocate memory for a schema dump.");
+    }
     dump = rb_str_new(t->text, t->len);
     agoo_text_release(t);
 

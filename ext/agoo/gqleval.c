@@ -79,7 +79,9 @@ value_resp(agooRes res, gqlValue result, int status, int indent) {
 
     cnt = snprintf(buf, sizeof(buf), "HTTP/1.1 %d %s\r\nContent-Type: application/json\r\nContent-Length: %ld\r\n\r\n",
 		   status, agoo_http_code_message(status), text->len);
-    text = agoo_text_prepend(text, buf, cnt);
+    if (NULL == (text = agoo_text_prepend(text, buf, cnt))) {
+	agoo_log_cat(&agoo_error_cat, "Failed to allocate memory for a response.");
+    }
     agoo_res_set_message(res, text);
 }
 
@@ -176,7 +178,7 @@ frag_include(gqlDoc doc, gqlFrag frag, gqlRef ref) {
 int
 gql_set_typename(agooErr err, gqlType type, const char *key, gqlValue result) {
     gqlValue	child;
-    
+
     if (NULL == type) {
 	return agoo_err_set(err, AGOO_ERR_EVAL, "Internal error, failed to determine the __typename.");
     }
@@ -193,7 +195,7 @@ gql_eval_sels(agooErr err, gqlDoc doc, gqlRef ref, gqlField field, gqlSel sels, 
     gqlField	sf = NULL;
 
     // TBD if depth over max then return an error
-    
+
     for (sel = sels; NULL != sel; sel = sel->next) {
 	if (NULL != field) {
 	    if (NULL == sel->name) {
@@ -290,7 +292,7 @@ parse_query_vars(agooErr err, const char *var_json, int vlen) {
     gqlValue	vlist = NULL;
     gqlLink	link;
     gqlVar	vars = NULL;
-    
+
     vlen = agoo_req_query_decode((char*)var_json, vlen);
     if (NULL == (vlist = gql_json_parse(err, var_json, vlen))) {
 	goto DONE;
@@ -420,7 +422,7 @@ eval_post(agooErr err, agooReq req) {
 	}
     } else if (0 == strncmp(json_content_type, s, sizeof(json_content_type) - 1)) {
 	gqlLink	m;
-	
+
 	if (NULL != (j = gql_json_parse(err, req->body.start, req->body.len))) {
 	    if (GQL_SCALAR_OBJECT != j->type->scalar_kind) {
 		agoo_err_set(err, AGOO_ERR_TYPE, "JSON request must be an object");
@@ -507,7 +509,7 @@ gql_eval_post_hook(agooReq req) {
 gqlValue
 gql_get_arg_value(gqlKeyVal args, const char *key) {
     gqlValue	value = NULL;
-    
+
     if (NULL != args) {
 	for (; NULL != args->key; args++) {
 	    if (0 == strcmp(key, args->key)) {

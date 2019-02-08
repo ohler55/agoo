@@ -17,7 +17,7 @@ rack_logger_new() {
 static void
 log_message(agooLogCat cat, VALUE message) {
     volatile VALUE	rs = rb_funcall(message, rb_intern("to_s"), 0);
-    
+
     rb_check_type(rs, T_STRING);
     if (!agoo_server.active) {
 	return;
@@ -30,6 +30,9 @@ log_message(agooLogCat cat, VALUE message) {
 	    rs = rb_funcall(x, rb_intern("to_s"), 0);
 	    text = agoo_text_append(text, ": ", 2);
 	    text = agoo_text_append(text, StringValuePtr(rs), (int)RSTRING_LEN(rs));
+	}
+	if (NULL == text) {
+	    rb_raise(rb_eNoMemError, "Failed to allocate memory for a log message.");
 	}
 	agoo_log_cat(cat, "%s", text->text);
 	agoo_text_release(text);

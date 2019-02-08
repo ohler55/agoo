@@ -47,7 +47,9 @@ es_puts(VALUE self, VALUE str) {
 
     es->text = agoo_text_append(es->text, StringValuePtr(str), (int)RSTRING_LEN(str));
     es->text = agoo_text_append(es->text, "\n", 1);
-
+    if (NULL == es->text) {
+	rb_raise(rb_eNoMemError, "Failed to allocate memory for the error stream puts.");
+    }
     return Qnil;
 }
 
@@ -62,8 +64,9 @@ es_write(VALUE self, VALUE str) {
     ErrorStream	es = (ErrorStream)DATA_PTR(self);
     int		cnt = (int)RSTRING_LEN(str);
 
-    es->text = agoo_text_append(es->text, StringValuePtr(str), cnt);
-
+    if (NULL == (es->text = agoo_text_append(es->text, StringValuePtr(str), cnt))) {
+	rb_raise(rb_eNoMemError, "Failed to allocate memory for the error stream puts.");
+    }
     return INT2NUM(cnt);
 }
 

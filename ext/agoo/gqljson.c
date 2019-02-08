@@ -38,7 +38,7 @@ parse_num(agooErr err, agooDoc doc) {
     bool	neg = false;
     char	c;
     const char	*start = doc->cur;
-    
+
     c = *doc->cur;
     if ('-' == c) {
 	doc->cur++;
@@ -162,34 +162,37 @@ read_hex(agooErr err, agooDoc doc) {
 static agooText
 unicode_to_chars(agooErr err, agooText t, uint32_t code, agooDoc doc) {
     if (0x0000007F >= code) {
-	agoo_text_append_char(t, (char)code);
+	t = agoo_text_append_char(t, (char)code);
     } else if (0x000007FF >= code) {
-	agoo_text_append_char(t, 0xC0 | (code >> 6));
-	agoo_text_append_char(t, 0x80 | (0x3F & code));
+	t = agoo_text_append_char(t, 0xC0 | (code >> 6));
+	t = agoo_text_append_char(t, 0x80 | (0x3F & code));
     } else if (0x0000FFFF >= code) {
-	agoo_text_append_char(t, 0xE0 | (code >> 12));
-	agoo_text_append_char(t, 0x80 | ((code >> 6) & 0x3F));
-	agoo_text_append_char(t, 0x80 | (0x3F & code));
+	t = agoo_text_append_char(t, 0xE0 | (code >> 12));
+	t = agoo_text_append_char(t, 0x80 | ((code >> 6) & 0x3F));
+	t = agoo_text_append_char(t, 0x80 | (0x3F & code));
     } else if (0x001FFFFF >= code) {
-	agoo_text_append_char(t, 0xF0 | (code >> 18));
-	agoo_text_append_char(t, 0x80 | ((code >> 12) & 0x3F));
-	agoo_text_append_char(t, 0x80 | ((code >> 6) & 0x3F));
-	agoo_text_append_char(t, 0x80 | (0x3F & code));
+	t = agoo_text_append_char(t, 0xF0 | (code >> 18));
+	t = agoo_text_append_char(t, 0x80 | ((code >> 12) & 0x3F));
+	t = agoo_text_append_char(t, 0x80 | ((code >> 6) & 0x3F));
+	t = agoo_text_append_char(t, 0x80 | (0x3F & code));
     } else if (0x03FFFFFF >= code) {
-	agoo_text_append_char(t, 0xF8 | (code >> 24));
-	agoo_text_append_char(t, 0x80 | ((code >> 18) & 0x3F));
-	agoo_text_append_char(t, 0x80 | ((code >> 12) & 0x3F));
-	agoo_text_append_char(t, 0x80 | ((code >> 6) & 0x3F));
-	agoo_text_append_char(t, 0x80 | (0x3F & code));
+	t = agoo_text_append_char(t, 0xF8 | (code >> 24));
+	t = agoo_text_append_char(t, 0x80 | ((code >> 18) & 0x3F));
+	t = agoo_text_append_char(t, 0x80 | ((code >> 12) & 0x3F));
+	t = agoo_text_append_char(t, 0x80 | ((code >> 6) & 0x3F));
+	t = agoo_text_append_char(t, 0x80 | (0x3F & code));
     } else if (0x7FFFFFFF >= code) {
-	agoo_text_append_char(t, 0xFC | (code >> 30));
-	agoo_text_append_char(t, 0x80 | ((code >> 24) & 0x3F));
-	agoo_text_append_char(t, 0x80 | ((code >> 18) & 0x3F));
-	agoo_text_append_char(t, 0x80 | ((code >> 12) & 0x3F));
-	agoo_text_append_char(t, 0x80 | ((code >> 6) & 0x3F));
-	agoo_text_append_char(t, 0x80 | (0x3F & code));
+	t = agoo_text_append_char(t, 0xFC | (code >> 30));
+	t = agoo_text_append_char(t, 0x80 | ((code >> 24) & 0x3F));
+	t = agoo_text_append_char(t, 0x80 | ((code >> 18) & 0x3F));
+	t = agoo_text_append_char(t, 0x80 | ((code >> 12) & 0x3F));
+	t = agoo_text_append_char(t, 0x80 | ((code >> 6) & 0x3F));
+	t = agoo_text_append_char(t, 0x80 | (0x3F & code));
     } else {
 	agoo_doc_err(doc, err, "invalid unicode character");
+    }
+    if (NULL == t) {
+	AGOO_ERR_MEM(err, "text");
     }
     return t;
 }
@@ -236,7 +239,7 @@ parse_escaped(agooErr err, agooDoc doc) {
 		    c2 = (c2 - 0x0000DC00) & 0x000003FF;
 		    code = ((c1 << 10) | c2) + 0x00010000;
 		}
-		unicode_to_chars(err, t, code, doc);
+		t = unicode_to_chars(err, t, code, doc);
 		if (AGOO_ERR_OK != err->code) {
 		    goto DONE;
 		}
@@ -248,15 +251,16 @@ parse_escaped(agooErr err, agooDoc doc) {
 		agoo_text_release(t);
 		return NULL;
 	    }
-	} else {
-	    t = agoo_text_append(t, doc->cur, 1);
+	} else if (NULL == (t = agoo_text_append(t, doc->cur, 1))) {
+	    AGOO_ERR_MEM(err, "text");
+	    return NULL;
 	}
     }
     value = gql_string_create(err, t->text, t->len);
     doc->cur++; // past trailing "
 DONE:
     agoo_text_release(t);
-    
+
     return value;
 }
 
@@ -277,7 +281,7 @@ parse_string(agooErr err, agooDoc doc) {
 	}
     }
     doc->cur++;
-    
+
     return gql_string_create(err, start, (int)(doc->cur - start - 1));
 }
 
@@ -288,14 +292,14 @@ return_parse_err(agooErr err, agooDoc doc, const char *msg, gqlValue value) {
 
     return NULL;
 }
-    
+
 static gqlValue
 parse_object(agooErr err, agooDoc doc) {
     char	key[256];
     gqlValue	value = gql_object_create(err);
     gqlValue	member;
     const char	*start;
-    
+
     if (NULL == value) {
 	return NULL;
     }
@@ -353,7 +357,7 @@ static gqlValue
 parse_array(agooErr err, agooDoc doc) {
     gqlValue	value = gql_list_create(err, NULL);
     gqlValue	member;
-    
+
     if (NULL == value) {
 	return NULL;
     }
@@ -390,7 +394,7 @@ parse_array(agooErr err, agooDoc doc) {
 static gqlValue
 parse_value(agooErr err, agooDoc doc) {
     gqlValue	value = NULL;
-    
+
     agoo_doc_skip_jwhite(doc);
     switch (*doc->cur) {
     case '{':
@@ -453,7 +457,7 @@ parse_value(agooErr err, agooDoc doc) {
 gqlValue
 gql_json_parse(agooErr err, const char *json, size_t len) {
     struct _agooDoc	doc;
-    
+
     agoo_doc_init(&doc, json, len);
 
     return parse_value(err, &doc);

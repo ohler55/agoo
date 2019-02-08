@@ -59,14 +59,16 @@ agoo_text_create(const char *str, int len) {
 
 agooText
 agoo_text_dup(agooText t0) {
-    agooText	t = (agooText)AGOO_MALLOC(sizeof(struct _agooText) - AGOO_TEXT_MIN_SIZE + t0->alen + 1);
+    agooText	t = NULL;
 
-    if (NULL != t) {
-	t->len = t0->len;
-	t->alen = t0->alen;
-	t->bin = false;
-	atomic_init(&t->ref_cnt, 0);
-	memcpy(t->text, t0->text, t0->len + 1);
+    if (NULL != t0) {
+	if (NULL != (t = (agooText)AGOO_MALLOC(sizeof(struct _agooText) - AGOO_TEXT_MIN_SIZE + t0->alen + 1))) {
+	    t->len = t0->len;
+	    t->alen = t0->alen;
+	    t->bin = false;
+	    atomic_init(&t->ref_cnt, 0);
+	    memcpy(t->text, t0->text, t0->len + 1);
+	}
     }
     return t;
 }
@@ -99,6 +101,9 @@ agoo_text_release(agooText t) {
 
 agooText
 agoo_text_append(agooText t, const char *s, int len) {
+    if (NULL == t) {
+	return NULL;
+    }
     if (0 >= len) {
 	len = (int)strlen(s);
     }
@@ -120,6 +125,9 @@ agoo_text_append(agooText t, const char *s, int len) {
 
 agooText
 agoo_text_append_char(agooText t, const char c) {
+    if (NULL == t) {
+	return NULL;
+    }
     if (t->alen <= t->len + 1) {
 	long	new_len = t->alen + 1 + t->alen / 2;
 	size_t	size = sizeof(struct _agooText) - AGOO_TEXT_MIN_SIZE + new_len + 1;
@@ -138,6 +146,9 @@ agoo_text_append_char(agooText t, const char c) {
 
 agooText
 agoo_text_prepend(agooText t, const char *s, int len) {
+    if (NULL == t) {
+	return NULL;
+    }
     if (0 >= len) {
 	len = (int)strlen(s);
     }
@@ -160,7 +171,10 @@ agoo_text_prepend(agooText t, const char *s, int len) {
 agooText
 agoo_text_append_json(agooText t, const char *s, int len) {
     size_t	jlen;
-    
+
+    if (NULL == t) {
+	return NULL;
+    }
     if (0 >= len) {
 	len = (int)strlen(s);
     }

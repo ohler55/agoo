@@ -438,7 +438,7 @@ handle_rack_inner(void *x) {
 	rb_raise(rb_eArgError, "invalid rack call() response body does not respond to each.");
     }
     if (NULL == (t = agoo_text_allocate(1024))) {
-	rb_raise(rb_eArgError, "failed to allocate response.");
+	rb_raise(rb_eNoMemError, "Failed to allocate memory for a response.");
     }
     if (T_ARRAY == rb_type(bv)) {
 	int	i;
@@ -941,6 +941,9 @@ handle(VALUE self, VALUE method, VALUE pattern, VALUE handler) {
 		for (i = 0; i < bcnt; i++) {
 		    v = rb_ary_entry(bv, i);
 		    t = agoo_text_append(t, StringValuePtr(v), (int)RSTRING_LEN(v));
+		}
+		if (NULL == t) {
+		    rb_raise(rb_eNoMemError, "Failed to allocate memory for a response.");
 		}
 		if (NULL == agoo_page_immutable(&err, pat, t->text, t->len)) {
 		    rb_raise(rb_eArgError, "%s", err.msg);
