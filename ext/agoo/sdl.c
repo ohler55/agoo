@@ -9,14 +9,16 @@
 #include "graphql.h"
 #include "sdl.h"
 
-static const char	query_str[] = "query";
-static const char	union_str[] = "union";
 static const char	enum_str[] = "enum";
-static const char	mutation_str[] = "mutation";
-static const char	subscription_str[] = "subscription";
-static const char	interface_str[] = "interface";
+static const char	extend_str[] = "extend";
 static const char	input_str[] = "input";
+static const char	interface_str[] = "interface";
+static const char	mutation_str[] = "mutation";
+static const char	query_str[] = "query";
+static const char	schema_str[] = "schema";
+static const char	subscription_str[] = "subscription";
 static const char	type_str[] = "type";
+static const char	union_str[] = "union";
 
 static int	make_sel(agooErr err, agooDoc doc, gqlDoc gdoc, gqlOp op, gqlSel *parentp);
 
@@ -76,56 +78,6 @@ extract_name(agooErr err, agooDoc doc, const char *key, int klen, char *name, si
     }
     if (0 == read_name(err, doc, name, max)) {
 	return err->code;
-    }
-    return AGOO_ERR_OK;
-}
-
-static int
-make_scalar(agooErr err, agooDoc doc, const char *desc, int len) {
-    char	name[256];
-
-    if (AGOO_ERR_OK != extract_name(err, doc, "scalar", 6, name, sizeof(name))) {
-	return err->code;
-    }
-    gql_scalar_create(err, name, desc, len);
-
-    return AGOO_ERR_OK;
-}
-
-static int
-read_type(agooErr err, agooDoc doc, gqlType *typep, bool *required) {
-    agoo_doc_skip_white(doc);
-    if ('[' == *doc->cur) {
-	gqlType	base;
-	bool	not_empty = false;
-
-	doc->cur++;
-	if (AGOO_ERR_OK != read_type(err, doc, &base, &not_empty)) {
-	    return err->code;
-	}
-	agoo_doc_skip_white(doc);
-	if (']' != *doc->cur) {
-	    return agoo_doc_err(doc, err, "List type not terminated with a ]");
-	}
-	doc->cur++;
-	if (NULL == (*typep = gql_assure_list(err, base, not_empty))) {
-	    return err->code;
-	}
-    } else {
-	char	name[256];
-
-	if (0 == read_name(err, doc, name, sizeof(name))) {
-	    return err->code;
-	}
-	if (NULL == (*typep = gql_assure_type(err, name))) {
-	    return err->code;
-	}
-    }
-    *required = false;
-    agoo_doc_skip_white(doc);
-    if ('!' == *doc->cur) {
-	*required = true;
-	doc->cur++;
     }
     return AGOO_ERR_OK;
 }
@@ -195,7 +147,66 @@ extract_dir_use(agooErr err, agooDoc doc, gqlDirUse *uses) {
 }
 
 static int
-make_enum(agooErr err, agooDoc doc, const char *desc, size_t dlen) {
+make_scalar(agooErr err, agooDoc doc, const char *desc, int len, bool x) {
+    char	name[256];
+    gqlType	type;
+
+    if (AGOO_ERR_OK != extract_name(err, doc, "scalar", 6, name, sizeof(name))) {
+	return err->code;
+    }
+    if (x) {
+	if (NULL == (type = gql_type_get(name))) {
+	    return agoo_doc_err(doc, err, "%s not defined. Can not be extended.", name);
+	}
+    } else if (NULL == (type = gql_scalar_create(err, name, desc, len))) {
+	return err->code;
+    }
+    if (AGOO_ERR_OK != extract_dir_use(err, doc, &type->dir)) {
+	return err->code;
+    }
+    return AGOO_ERR_OK;
+}
+
+static int
+read_type(agooErr err, agooDoc doc, gqlType *typep, bool *required) {
+    agoo_doc_skip_white(doc);
+    if ('[' == *doc->cur) {
+	gqlType	base;
+	bool	not_empty = false;
+
+	doc->cur++;
+	if (AGOO_ERR_OK != read_type(err, doc, &base, &not_empty)) {
+	    return err->code;
+	}
+	agoo_doc_skip_white(doc);
+	if (']' != *doc->cur) {
+	    return agoo_doc_err(doc, err, "List type not terminated with a ]");
+	}
+	doc->cur++;
+	if (NULL == (*typep = gql_assure_list(err, base, not_empty))) {
+	    return err->code;
+	}
+    } else {
+	char	name[256];
+
+	if (0 == read_name(err, doc, name, sizeof(name))) {
+	    return err->code;
+	}
+	if (NULL == (*typep = gql_assure_type(err, name))) {
+	    return err->code;
+	}
+    }
+    *required = false;
+    agoo_doc_skip_white(doc);
+    if ('!' == *doc->cur) {
+	*required = true;
+	doc->cur++;
+    }
+    return AGOO_ERR_OK;
+}
+
+static int
+make_enum(agooErr err, agooDoc doc, const char *desc, size_t dlen, bool x) {
     char	name[256];
     const char	*start;
     gqlType	type;
@@ -214,8 +225,11 @@ make_enum(agooErr err, agooDoc doc, const char *desc, size_t dlen) {
 	return agoo_doc_err(doc, err, "Expected '{'");
     }
     doc->cur++;
-
-    if (NULL == (type = gql_enum_create(err, name, desc, dlen))) {
+    if (x) {
+	if (NULL == (type = gql_type_get(name))) {
+	    return agoo_doc_err(doc, err, "%s not defined. Can not be extended.", name);
+	}
+    } else if (NULL == (type = gql_enum_create(err, name, desc, dlen))) {
 	return err->code;
     }
     type->dir = uses;
@@ -224,60 +238,69 @@ make_enum(agooErr err, agooDoc doc, const char *desc, size_t dlen) {
 	uses = NULL;
 
 	if (AGOO_ERR_OK != extract_desc(err, doc, &desc, &dlen)) {
-	    return err->code;
+	    goto ERROR;
 	}
 	start = doc->cur;
 	agoo_doc_read_token(doc);
 	len = doc->cur - start;
 	if (AGOO_ERR_OK != extract_dir_use(err, doc, &uses)) {
-	    return err->code;
+	    goto ERROR;
 	}
 	if (doc->cur == start) {
 	    if ('}' == *doc->cur) {
 		doc->cur++;
 		break;
 	    }
-	    return agoo_doc_err(doc, err, "Invalid Enum value");
+	    agoo_doc_err(doc, err, "Invalid Enum value");
+	    goto ERROR;
 	}
 	if (NULL == (ev = gql_enum_append(err, type, start, len, desc, dlen))) {
-	    return err->code;
+	    goto ERROR;
 	}
 	ev->dir = uses;
     }
     return AGOO_ERR_OK;
+ERROR:
+    if (!x) {
+	gql_type_destroy(type);
+    }
+    return err->code;
 }
 
 static int
-make_union(agooErr err, agooDoc doc, const char *desc, int len) {
+make_union(agooErr err, agooDoc doc, const char *desc, int len, bool x) {
     char	name[256];
     gqlType	type;
-    gqlDirUse	uses = NULL;
     gqlType	member;
     bool	required;
 
     if (AGOO_ERR_OK != extract_name(err, doc, union_str, sizeof(union_str) - 1, name, sizeof(name))) {
 	return err->code;
     }
-    if (AGOO_ERR_OK != extract_dir_use(err, doc, &uses)) {
+    if (x) {
+	if (NULL == (type = gql_type_get(name))) {
+	    return agoo_doc_err(doc, err, "%s not defined. Can not be extended.", name);
+	}
+    } else if (NULL == (type = gql_union_create(err, name, desc, len))) {
 	return err->code;
+    }
+    if (AGOO_ERR_OK != extract_dir_use(err, doc, &type->dir)) {
+	goto ERROR;
     }
     agoo_doc_skip_white(doc);
     if ('=' != *doc->cur) {
-	return agoo_doc_err(doc, err, "Expected '='");
+	agoo_doc_err(doc, err, "Expected '='");
+	goto ERROR;
     }
     doc->cur++;
     agoo_doc_skip_white(doc);
 
-    if (NULL == (type = gql_union_create(err, name, desc, len))) {
-	return err->code;
-    }
-    type->dir = uses;
     while (doc->cur < doc->end) {
 	if (AGOO_ERR_OK != read_type(err, doc, &member, &required)) {
-	    return err->code;
+	    goto ERROR;
 	}
  	if (AGOO_ERR_OK != gql_union_add(err, type, member)) {
-	    return err->code;
+	    goto ERROR;
 	}
 	agoo_doc_skip_white(doc);
 	if ('|' != *doc->cur) {
@@ -286,6 +309,11 @@ make_union(agooErr err, agooDoc doc, const char *desc, int len) {
 	doc->cur++; // skip |
     }
     return AGOO_ERR_OK;
+ERROR:
+    if (!x) {
+	gql_type_destroy(type);
+    }
+    return err->code;
 }
 
 static int
@@ -570,8 +598,6 @@ make_input_arg(agooErr err, agooDoc doc, gqlType type) {
     if (AGOO_ERR_OK != extract_dir_use(err, doc, &uses)) {
 	return err->code;
     }
-    // TBD zzzzzzzz
-
     if (NULL == (arg = gql_input_arg(err, type, name, return_type, desc, dlen, dval, required))) {
 	return err->code;
     }
@@ -581,77 +607,90 @@ make_input_arg(agooErr err, agooDoc doc, gqlType type) {
 }
 
 static int
-make_interface(agooErr err, agooDoc doc, const char *desc, int len) {
+make_interface(agooErr err, agooDoc doc, const char *desc, int len, bool x) {
     char	name[256];
     gqlType	type;
-    gqlDirUse	uses = NULL;
 
     if (AGOO_ERR_OK != extract_name(err, doc, interface_str, sizeof(interface_str) - 1, name, sizeof(name))) {
 	return err->code;
     }
-    if (AGOO_ERR_OK != extract_dir_use(err, doc, &uses)) {
+    if (x) {
+	if (NULL == (type = gql_type_get(name))) {
+	    return agoo_doc_err(doc, err, "%s not defined. Can not be extended.", name);
+	}
+    } else if (NULL == (type = gql_interface_create(err, name, desc, len))) {
 	return err->code;
+    }
+    if (AGOO_ERR_OK != extract_dir_use(err, doc, &type->dir)) {
+	goto ERROR;
     }
     agoo_doc_skip_white(doc);
     if ('{' != *doc->cur) {
-	return agoo_doc_err(doc, err, "Expected '{'");
+	goto ERROR;
     }
     doc->cur++;
     agoo_doc_skip_white(doc);
 
-    if (NULL == (type = gql_interface_create(err, name, desc, len))) {
-	return err->code;
-    }
-    type->dir = uses;
     while (doc->cur < doc->end) {
 	if ('}' == *doc->cur) {
 	    doc->cur++; // skip }
 	    break;
 	}
 	if (AGOO_ERR_OK != make_field(err, doc, type)) {
-	    return err->code;
+	    goto ERROR;
 	}
 	agoo_doc_skip_white(doc);
     }
     return AGOO_ERR_OK;
+ERROR:
+    if (!x) {
+	gql_type_destroy(type);
+    }
+    return err->code;
 }
 
 static int
-make_input(agooErr err, agooDoc doc, const char *desc, int len) {
+make_input(agooErr err, agooDoc doc, const char *desc, int len, bool x) {
     char	name[256];
     gqlType	type;
-    gqlDirUse	uses = NULL;
 
     if (AGOO_ERR_OK != extract_name(err, doc, input_str, sizeof(input_str) - 1, name, sizeof(name))) {
 	return err->code;
     }
-    if (AGOO_ERR_OK != extract_dir_use(err, doc, &uses)) {
+    if (x) {
+	if (NULL == (type = gql_type_get(name))) {
+	    return agoo_doc_err(doc, err, "%s not defined. Can not be extended.", name);
+	}
+    } else if (NULL == (type = gql_input_create(err, name, desc, len))) {
 	return err->code;
+    }
+    if (AGOO_ERR_OK != extract_dir_use(err, doc, &type->dir)) {
+	goto ERROR;
     }
     agoo_doc_skip_white(doc);
     if ('{' != *doc->cur) {
-	return agoo_doc_err(doc, err, "Expected '{'");
+	agoo_doc_err(doc, err, "Expected '{'");
+	goto ERROR;
     }
     doc->cur++;
     agoo_doc_skip_white(doc);
-
-    if (NULL == (type = gql_input_create(err, name, desc, len))) {
-	return err->code;
-    }
-    type->dir = uses;
 
     while (doc->cur < doc->end) {
 	if ('}' == *doc->cur) {
 	    doc->cur++; // skip }
 	    break;
 	}
-	// TBD zzzzzzzzzz make_arg
 	if (AGOO_ERR_OK != make_input_arg(err, doc, type)) {
-	    return err->code;
+	    goto ERROR;
 	}
 	agoo_doc_skip_white(doc);
     }
     return AGOO_ERR_OK;
+ERROR:
+    if (!x) {
+	gql_type_destroy(type);
+    }
+    return err->code;
 }
 
 static int
@@ -705,33 +744,82 @@ extract_interfaces(agooErr err, agooDoc doc, gqlTypeLink *interfacesp) {
 }
 
 static int
-make_type(agooErr err, agooDoc doc, const char *desc, int len) {
+make_type(agooErr err, agooDoc doc, const char *desc, int len, bool x) {
     char	name[256];
     gqlType	type;
-    gqlDirUse	uses = NULL;
-    gqlTypeLink	interfaces = NULL;
 
     if (AGOO_ERR_OK != extract_name(err, doc, type_str, sizeof(type_str) - 1, name, sizeof(name))) {
 	return err->code;
     }
-    if (AGOO_ERR_OK != extract_interfaces(err, doc, &interfaces)) {
+    if (x) {
+	if (NULL == (type = gql_type_get(name))) {
+	    return agoo_doc_err(doc, err, "%s not defined. Can not be extended.", name);
+	}
+    } else if (NULL == (type = gql_type_create(err, name, desc, len, NULL))) {
 	return err->code;
     }
-    if (AGOO_ERR_OK != extract_dir_use(err, doc, &uses)) {
-	return err->code;
+    if (AGOO_ERR_OK != extract_interfaces(err, doc, &type->interfaces)) {
+	goto ERROR;
+    }
+    if (AGOO_ERR_OK != extract_dir_use(err, doc, &type->dir)) {
+	goto ERROR;
     }
     agoo_doc_skip_white(doc);
     if ('{' != *doc->cur) {
-	return agoo_doc_err(doc, err, "Expected '{'");
+	agoo_doc_err(doc, err, "Expected '{'");
+	goto ERROR;
     }
     doc->cur++;
     agoo_doc_skip_white(doc);
 
-    if (NULL == (type = gql_type_create(err, name, desc, len, interfaces))) {
+    while (doc->cur < doc->end) {
+	if ('}' == *doc->cur) {
+	    doc->cur++; // skip }
+	    break;
+	}
+	if (AGOO_ERR_OK != make_field(err, doc, type)) {
+	    goto ERROR;
+	}
+	agoo_doc_skip_white(doc);
+    }
+    return AGOO_ERR_OK;
+ERROR:
+    if (!x) {
+	gql_type_destroy(type);
+    }
+    return err->code;
+}
+
+static int
+make_schema(agooErr err, agooDoc doc, const char *desc, int len, bool x) {
+    gqlType	type;
+
+    if (0 != strncmp(doc->cur, schema_str, sizeof(schema_str) - 1)) {
+	return agoo_doc_err(doc, err, "Expected schema key word");
+    }
+    doc->cur += sizeof(schema_str) - 1;
+    if (0 == agoo_doc_skip_white(doc)) {
+	return agoo_doc_err(doc, err, "Expected schema key word");
+    }
+    if (x) {
+	if (NULL == (type = gql_type_get("schema"))) {
+	    return agoo_doc_err(doc, err, "schema not defined. Can not be extended.");
+	}
+    } else if (NULL == (type = gql_schema_create(err, desc, len))) {
 	return err->code;
     }
-    type->dir = uses;
-
+    if (AGOO_ERR_OK != extract_dir_use(err, doc, &type->dir)) {
+	return err->code;
+    }
+    agoo_doc_skip_white(doc);
+    if ('{' != *doc->cur) {
+	if (!x) {
+	    gql_type_destroy(type);
+	}
+	return agoo_doc_err(doc, err, "Expected '{'");
+    }
+    doc->cur++;
+    agoo_doc_skip_white(doc);
     while (doc->cur < doc->end) {
 	if ('}' == *doc->cur) {
 	    doc->cur++; // skip }
@@ -745,11 +833,24 @@ make_type(agooErr err, agooDoc doc, const char *desc, int len) {
     return AGOO_ERR_OK;
 }
 
+static int
+extend(agooErr err, agooDoc doc) {
+    if (0 != strncmp(doc->cur, extend_str, sizeof(extend_str) - 1)) {
+	return agoo_doc_err(doc, err, "Expected extend key word");
+    }
+    doc->cur += sizeof(extend_str) - 1;
+    if (0 == agoo_doc_skip_white(doc)) {
+	return agoo_doc_err(doc, err, "Expected extend key word");
+    }
+    return AGOO_ERR_OK;
+}
+
 int
 sdl_parse(agooErr err, const char *str, int len) {
     struct _agooDoc	doc;
     const char		*desc = NULL;
     size_t		dlen = 0;
+    bool		extend_next = false;
 
     agoo_doc_init(&doc, str, len);
 
@@ -761,32 +862,43 @@ sdl_parse(agooErr err, const char *str, int len) {
 		return err->code;
 	    }
 	    break;
-	case 's': // scalar
-	    if (AGOO_ERR_OK != make_scalar(err, &doc, desc, dlen)) {
-		return err->code;
+	case 's': // schema or scalar
+	    if (6 < (doc.end - doc.cur) && 'c' == doc.cur[1]) {
+		if ('a' == doc.cur[2]) {
+		    if (AGOO_ERR_OK != make_scalar(err, &doc, desc, dlen, extend_next)) {
+			return err->code;
+		    }
+		    break;
+		}
+		if (AGOO_ERR_OK != make_schema(err, &doc, desc, dlen, extend_next)) {
+		    return err->code;
+		}
 	    }
 	    desc = NULL;
 	    dlen = 0;
-	    break;
-	case 'e': // enum, and extend interface or type
+	    return agoo_doc_err(&doc, err, "Unknown directive");
+	case 'e': // enum or extend
 	    if (4 < (doc.end - doc.cur)) {
 		if ('n' == doc.cur[1]) {
-		    if (AGOO_ERR_OK != make_enum(err, &doc, desc, dlen)) {
+		    if (AGOO_ERR_OK != make_enum(err, &doc, desc, dlen, extend_next)) {
 			return err->code;
 		    }
 		    desc = NULL;
 		    dlen = 0;
 		    break;
 		} else {
-		    // TBD extend
+		    if (AGOO_ERR_OK != extend(err, &doc)) {
+			return err->code;
+		    }
 		    desc = NULL;
 		    dlen = 0;
+		    extend_next = true;
 		    break;
 		}
 	    }
 	    return agoo_doc_err(&doc, err, "Unknown directive");
 	case 'u': // union
-	    if (AGOO_ERR_OK != make_union(err, &doc, desc, dlen)) {
+	    if (AGOO_ERR_OK != make_union(err, &doc, desc, dlen, extend_next)) {
 		return err->code;
 	    }
 	    desc = NULL;
@@ -800,7 +912,7 @@ sdl_parse(agooErr err, const char *str, int len) {
 	    dlen = 0;
 	    break;
 	case 't': // type
-	    if (AGOO_ERR_OK != make_type(err, &doc, desc, dlen)) {
+	    if (AGOO_ERR_OK != make_type(err, &doc, desc, dlen, extend_next)) {
 		return err->code;
 	    }
 	    desc = NULL;
@@ -809,14 +921,14 @@ sdl_parse(agooErr err, const char *str, int len) {
 	case 'i': // interface, input
 	    if (5 < (doc.end - doc.cur) && 'n' == doc.cur[1]) {
 		if ('p' == doc.cur[2]) {
-		    if (AGOO_ERR_OK != make_input(err, &doc, desc, dlen)) {
+		    if (AGOO_ERR_OK != make_input(err, &doc, desc, dlen, extend_next)) {
 			return err->code;
 		    }
 		    desc = NULL;
 		    dlen = 0;
 		    break;
 		} else {
-		    if (AGOO_ERR_OK != make_interface(err, &doc, desc, dlen)) {
+		    if (AGOO_ERR_OK != make_interface(err, &doc, desc, dlen, extend_next)) {
 			return err->code;
 		    }
 		    desc = NULL;
@@ -1352,6 +1464,7 @@ lookup_field_type(gqlType type, const char *field, bool qroot) {
     gqlType	ftype = NULL;
 
     switch (type->kind) {
+    case GQL_SCHEMA:
     case GQL_OBJECT:
     case GQL_INPUT:
     case GQL_INTERFACE: {
@@ -1425,7 +1538,7 @@ validate_doc(agooErr err, gqlDoc doc) {
     gqlFrag	frag;
     int		cnt;
 
-    if (NULL == (schema = gql_type_get("schema"))) {
+    if (NULL == (schema = gql_root_type())) {
 	return agoo_err_set(err, AGOO_ERR_EVAL, "No root (schema) type defined.");
     }
     for (frag = doc->frags; NULL != frag; frag = frag->next) {

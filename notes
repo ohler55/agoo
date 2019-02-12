@@ -4,10 +4,8 @@ todo
 -----------
 
 - graphql
- - introspection
- - mutation
  - validation
- 
+
  - subscription
 
 
@@ -35,7 +33,7 @@ use nice -n19 perfer when on same machine
 
 - server log hook
  - log callback grabs gvl
- 
+
 - remote cluster
  - worker server
   - connect, maybe with some kind of security
@@ -47,5 +45,3 @@ use nice -n19 perfer when on same machine
     - maybe based on how many outstanding to that worker and most recent latency
      - multiple and pick lowest
     - packet is con id + len + request
-
- 

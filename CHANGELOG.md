@@ -8,6 +8,8 @@ Extend GraphQL
 
 - Add the ID base scalar type.
 
+- Use `schema` SDL element instead of `type schema`.
+
 ### 2.7.0 - 2019-01-29
 
 Static asset header rules functionality added.

@@ -784,7 +784,6 @@ gql_value_destroy(gqlValue value) {
 		value->type->destroy(value);
 	    }
 	} else if (GQL_ENUM == value->type->kind) {
-	    // TBD destroy string
 	    string_destroy(value);
 	} else {
 	    return;

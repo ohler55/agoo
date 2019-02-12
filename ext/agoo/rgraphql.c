@@ -31,7 +31,7 @@ static VALUE		vroot = Qnil;
 static TypeClass	type_class_map = NULL;
 
 static int
-make_ruby_use(agooErr err, VALUE root, const char *method, const char *type_name) {
+make_ruby_use(agooErr err, VALUE root, const char *method, const char *type_name, bool fresh, gqlType schema_type, const char *desc) {
     gqlType		type;
     gqlDirUse		use;
     volatile VALUE	v;
@@ -44,14 +44,18 @@ make_ruby_use(agooErr err, VALUE root, const char *method, const char *type_name
     if (NULL == (type = gql_type_get(type_name))) {
 	return agoo_err_set(err, AGOO_ERR_ARG, "Failed to find the '%s' type.", type_name);
     }
-    if (NULL == (use = gql_dir_use_create(err, "ruby"))) {
-	return err->code;
+    if (fresh) {
+	if (NULL == gql_type_field(err, schema_type, method, type, NULL, desc, 0, false)) {
+	    return err->code;
+	}
     }
-    if (AGOO_ERR_OK != gql_dir_use_arg(err, use, "class", gql_string_create(err, rb_obj_classname(v), 0))) {
-	return err->code;
+    if (!gql_type_has_directive_use(type, "ruby")) {
+	if (NULL == (use = gql_dir_use_create(err, "ruby")) ||
+	    AGOO_ERR_OK != gql_dir_use_arg(err, use, "class", gql_string_create(err, rb_obj_classname(v), 0)) ||
+	    AGOO_ERR_OK != gql_type_directive_use(err, type, use)) {
+	    return err->code;
+	}
     }
-    gql_type_directive_use(type, use);
-
     return AGOO_ERR_OK;
 }
 
@@ -561,29 +565,30 @@ rescue_yield(VALUE x) {
 static VALUE
 graphql_schema(VALUE self, VALUE root) {
     struct _agooErr	err = AGOO_ERR_INIT;
-    gqlType		type;
     gqlDir		dir;
     gqlDirUse		use;
+    gqlType		schema_type;
+    bool		fresh = false;
 
     if (!rb_block_given_p()) {
 	rb_raise(rb_eStandardError, "A block is required.");
     }
     if (AGOO_ERR_OK != gql_init(&err)) {
 	printf("*-*-* %s\n", err.msg);
-	exit(0);
+	exit(1);
     }
     if (NULL == (dir = gql_directive_create(&err, "ruby", "Associates a Ruby class with a GraphQL type.", 0))) {
 	printf("*-*-* %s\n", err.msg);
-	exit(0);
+	exit(2);
     }
     if (NULL == gql_dir_arg(&err, dir, "class", &gql_string_type, NULL, 0, NULL, true)) {
 	printf("*-*-* %s\n", err.msg);
-	exit(0);
+	exit(3);
     }
     if (AGOO_ERR_OK != gql_directive_on(&err, dir, "SCHEMA", 6) ||
 	AGOO_ERR_OK != gql_directive_on(&err, dir, "OBJECT", 6)) {
 	printf("*-*-* %s\n", err.msg);
-	exit(0);
+	exit(4);
     }
     gql_root = (gqlRef)root;
     vroot = root;
@@ -596,33 +601,36 @@ graphql_schema(VALUE self, VALUE root) {
 
     if (NULL == (use = gql_dir_use_create(&err, "ruby"))) {
 	printf("*-*-* %s\n", err.msg);
-	exit(0);
+	exit(5);
     }
     if (AGOO_ERR_OK != gql_dir_use_arg(&err, use, "class", gql_string_create(&err, rb_obj_classname(root), 0))) {
 	printf("*-*-* %s\n", err.msg);
-	exit(0);
-    }
-    if (NULL == (type = gql_type_get("schema"))) {
-	printf("*-*-* Error: Failed to find the 'schema' type.");
-	exit(0);
-    }
-    gql_type_directive_use(type, use);
-
-    if (AGOO_ERR_OK != make_ruby_use(&err, root, "query", "Query") ||
-	AGOO_ERR_OK != make_ruby_use(&err, root, "mutation", "Mutation") ||
-	AGOO_ERR_OK != make_ruby_use(&err, root, "subscription", "Subscription")) {
-	printf("*-*-* %s\n", err.msg);
-	exit(0);
+	exit(6);
     }
     rb_rescue2(rescue_yield, Qnil, rescue_yield_error, (VALUE)&err, rb_eException, 0);
     if (AGOO_ERR_OK != err.code) {
 	printf("*-*-* %s\n", err.msg);
-	exit(0);
+	exit(7);
+    }
+    if (NULL == (schema_type = gql_type_get("schema"))) {
+	if (NULL == (schema_type = gql_schema_create(&err, "The GraphQL root Object.", 0))) {
+	    printf("*-*-* %s\n", err.msg);
+	    exit(8);
+	}
+	fresh = true;
+    }
+
+    if (AGOO_ERR_OK != gql_type_directive_use(&err, schema_type, use) ||
+	AGOO_ERR_OK != make_ruby_use(&err, root, "query", "Query", fresh, schema_type, "Root level query.") ||
+	AGOO_ERR_OK != make_ruby_use(&err, root, "mutation", "Mutation", fresh, schema_type, "Root level mutation.") ||
+	AGOO_ERR_OK != make_ruby_use(&err, root, "subscription", "Subscription", fresh, schema_type, "Root level subscription.")) {
+	printf("*-*-* %s\n", err.msg);
+	exit(9);
     }
     if (AGOO_ERR_OK != gql_validate(&err) ||
 	AGOO_ERR_OK != build_type_class_map(&err)) {
 	printf("*-*-* %s\n", err.msg);
-	exit(0);
+	exit(10);
     }
     return Qnil;
 }

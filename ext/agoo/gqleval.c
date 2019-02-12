@@ -20,6 +20,7 @@
 #define MAX_RESOLVE_ARGS	16
 
 gqlRef		gql_root = NULL;
+gqlType		_gql_root_type = NULL;
 gqlResolveFunc	gql_resolve_func = NULL;
 gqlTypeFunc	gql_type_func = NULL;
 gqlRef		(*gql_root_op)(const char *op) = NULL;
@@ -30,6 +31,7 @@ static const char	json_content_type[] = "application/json";
 static const char	operation_name_str[] = "operationName";
 static const char	query_str[] = "query";
 static const char	variables_str[] = "variables";
+
 
 gqlValue	(*gql_doc_eval_func)(agooErr err, gqlDoc doc) = NULL;
 
@@ -233,6 +235,14 @@ gql_eval_sels(agooErr err, gqlDoc doc, gqlRef ref, gqlField field, gqlSel sels, 
     return AGOO_ERR_OK;
 }
 
+gqlType
+gql_root_type() {
+    if (NULL == _gql_root_type && NULL != gql_type_func) {
+	_gql_root_type = gql_type_func(gql_root);
+    }
+    return _gql_root_type;
+}
+
 gqlValue
 gql_doc_eval(agooErr err, gqlDoc doc) {
     gqlValue	result;
@@ -243,7 +253,6 @@ gql_doc_eval(agooErr err, gqlDoc doc) {
     }
     if (NULL != (result = gql_object_create(err))) {
 	const char	*key;
-	gqlType		type;
 	gqlField	field = NULL;
 	struct _gqlSel	sel;
 
@@ -267,8 +276,11 @@ gql_doc_eval(agooErr err, gqlDoc doc) {
 	    return NULL;
 	    break;
 	}
-	if (NULL != (type = gql_type_get("schema"))) {
-	    field = gql_type_get_field(type, key);
+	if (NULL == _gql_root_type && NULL != gql_type_func) {
+	    _gql_root_type = gql_type_func(gql_root);
+	}
+	if (NULL != _gql_root_type) {
+	    field = gql_type_get_field(_gql_root_type, key);
 	}
 	if (NULL == field) {
 	    agoo_err_set(err, AGOO_ERR_EVAL, "GraphQL not initialized.");
@@ -276,7 +288,7 @@ gql_doc_eval(agooErr err, gqlDoc doc) {
 	    return NULL;
 	}
 	sel.name = key;
-	sel.type = type;
+	sel.type = _gql_root_type;
 	sel.dir = doc->op->dir;
 	sel.sels = doc->op->sels;
 	if (AGOO_ERR_OK != doc->funcs.resolve(err, doc, gql_root, field, &sel, result, 0)) {
@@ -498,7 +510,6 @@ gql_eval_post_hook(agooReq req) {
     if (NULL != (s = agoo_req_query_value(req, indent_str, sizeof(indent_str) - 1, &len))) {
 	indent = (int)strtol(s, NULL, 10);
     }
-
     if (NULL == (result = eval_post(&err, req))) {
 	err_resp(req->res, &err, 400);
     } else {

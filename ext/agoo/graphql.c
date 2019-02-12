@@ -47,7 +47,7 @@ static const char	spaces[16] = "                ";
 
 gqlDir	gql_directives = NULL;
 
-static gqlType	schema_type = NULL;
+//static gqlType	schema_type = NULL;
 static bool	inited = false;
 
 static void	gql_frag_destroy(gqlFrag frag);
@@ -76,13 +76,16 @@ static const char*
 kind_string(gqlKind kind) {
     switch (kind) {
     case GQL_UNDEF:	return "undefined";
+    case GQL_SCHEMA:	return "schema";
     case GQL_OBJECT:	return "object";
+    case GQL_FRAG:	return "fragment";
     case GQL_INPUT:	return "input";
     case GQL_UNION:	return "union";
     case GQL_INTERFACE:	return "interface";
     case GQL_ENUM:	return "enum";
     case GQL_SCALAR:	return "scalar";
     case GQL_LIST:	return "list";
+    case GQL_NON_NULL:	return "non-null";
     default:		break;
     }
     return "unknown";
@@ -159,6 +162,7 @@ type_clean(gqlType type) {
     type->dir = NULL;
 
     switch (type->kind) {
+    case GQL_SCHEMA:
     case GQL_OBJECT:
     case GQL_INTERFACE: {
 	gqlField	f;
@@ -350,62 +354,6 @@ type_remove(gqlType type) {
     }
 }
 
-int
-gql_init(agooErr err) {
-    gqlType	query_type;
-    gqlType	mutation_type;
-    gqlType	subscription_type;
-
-    if (inited) {
-	return AGOO_ERR_OK;
-    }
-    memset(buckets, 0, sizeof(buckets));
-    if (AGOO_ERR_OK != gql_value_init(err) ||
-	AGOO_ERR_OK != gql_intro_init(err)) {
-
-	return err->code;
-    }
-    if (NULL == (query_type = gql_type_create(err, "Query", "The GraphQL root Query.", 0, NULL)) ||
-	NULL == (mutation_type = gql_type_create(err, "Mutation", "The GraphQL root Mutation.", 0, NULL)) ||
-	NULL == (subscription_type = gql_type_create(err, "Subscription", "The GraphQL root Subscription.", 0, NULL)) ||
-	NULL == (schema_type = gql_type_create(err, "schema", "The GraphQL root Object.", 0, NULL)) ||
-
-	NULL == gql_type_field(err, schema_type, "query", query_type, NULL, "Root level query.", 0, false) ||
-	NULL == gql_type_field(err, schema_type, "mutation", mutation_type, NULL, "Root level mutation.", 0, false) ||
-	NULL == gql_type_field(err, schema_type, "subscription", subscription_type, NULL, "Root level subscription.", 0, false)) {
-
-	return err->code;
-    }
-    inited = true;
-
-    return AGOO_ERR_OK;
-}
-
-void
-gql_destroy() {
-    Slot	*sp = buckets;
-    Slot	s;
-    Slot	n;
-    int		i;
-    gqlDir	dir;
-
-    for (i = BUCKET_SIZE; 0 < i; i--, sp++) {
-	s = *sp;
-
-	*sp = NULL;
-	for (; NULL != s; s = n) {
-	    n = s->next;
-	    type_destroy(s->type);
-	    AGOO_FREE(s);
-	}
-    }
-    while (NULL != (dir = gql_directives)) {
-	gql_directives = dir->next;
-	dir_destroy(dir);
-    }
-    inited = false;
-}
-
 static gqlType
 type_create(agooErr err, gqlKind kind, const char *name, const char *desc, size_t dlen) {
     gqlType	type = gql_type_get(name);
@@ -440,10 +388,11 @@ type_create(agooErr err, gqlKind kind, const char *name, const char *desc, size_
 	}
 	type->kind = kind;
     } else if (type->core) {
-	agoo_err_set(err, AGOO_ERR_LOCK, "%d can not be modified.", name);
+	agoo_err_set(err, AGOO_ERR_LOCK, "%s can not be modified.", name);
 	return NULL;
     } else if (kind == type->kind) { // looks like it is being modified so remove all the old stuff
-	type_clean(type);
+	agoo_err_set(err, AGOO_ERR_LOCK, "%s already exists.", name);
+	return NULL;
     } else {
 	agoo_err_set(err, AGOO_ERR_LOCK, "%d already exists as a %s.", name, kind_string(type->kind));
 	return NULL;
@@ -451,15 +400,61 @@ type_create(agooErr err, gqlKind kind, const char *name, const char *desc, size_
     return type;
 }
 
+gqlType
+gql_schema_create(agooErr err, const char *desc, size_t dlen) {
+    gqlType	type = type_create(err, GQL_SCHEMA, "schema", desc, dlen);
+
+    if (NULL != type) {
+	type->fields = NULL;
+	type->interfaces = NULL;
+    }
+    return type;
+}
+
+int
+gql_init(agooErr err) {
+    if (inited) {
+	return AGOO_ERR_OK;
+    }
+    memset(buckets, 0, sizeof(buckets));
+    if (AGOO_ERR_OK != gql_value_init(err) ||
+	AGOO_ERR_OK != gql_intro_init(err)) {
+
+	return err->code;
+    }
+    inited = true;
+
+    return AGOO_ERR_OK;
+}
+
+void
+gql_destroy() {
+    Slot	*sp = buckets;
+    Slot	s;
+    Slot	n;
+    int		i;
+    gqlDir	dir;
+
+    for (i = BUCKET_SIZE; 0 < i; i--, sp++) {
+	s = *sp;
+
+	*sp = NULL;
+	for (; NULL != s; s = n) {
+	    n = s->next;
+	    type_destroy(s->type);
+	    AGOO_FREE(s);
+	}
+    }
+    while (NULL != (dir = gql_directives)) {
+	gql_directives = dir->next;
+	dir_destroy(dir);
+    }
+    inited = false;
+}
+
 static gqlType
 type_undef_create(agooErr err, const char *name) {
     return type_create(err, GQL_UNDEF, name, NULL, 0);
-}
-
-agooText
-gql_object_to_graphql(agooText text, gqlValue value, int indent, int depth) {
-    // TBD
-    return text;
 }
 
 gqlType
@@ -681,9 +676,16 @@ gql_enum_create(agooErr err, const char *name, const char *desc, size_t dlen) {
 
 gqlEnumVal
 gql_enum_append(agooErr err, gqlType type, const char *value, size_t len, const char *desc, size_t dlen) {
-    gqlEnumVal	ev = (gqlEnumVal)AGOO_MALLOC(sizeof(struct _gqlEnumVal));
+    gqlEnumVal	last = type->choices;
+    gqlEnumVal	ev;
 
-    if (NULL == ev) {
+    for (; NULL != last; last = last->next) {
+	if (0 == strcmp(value, last->value)) {
+	    agoo_err_set(err, AGOO_ERR_TOO_MANY, "Enum %s already has a choice of %s.", type->name, value);
+	    return NULL;
+	}
+    }
+    if (NULL == (ev = (gqlEnumVal)AGOO_MALLOC(sizeof(struct _gqlEnumVal)))) {
 	AGOO_ERR_MEM(err, "GraphQL Enum Value");
 	return NULL;
     }
@@ -704,9 +706,7 @@ gql_enum_append(agooErr err, gqlType type, const char *value, size_t len, const 
 	ev->next = type->choices;
 	type->choices = ev;
     } else {
-	gqlEnumVal	last = type->choices;
-
-	for (; NULL != last->next; last = last->next) {
+	for (last = type->choices; NULL != last->next; last = last->next) {
 	}
 	ev->next = NULL;
 	last->next = ev;
@@ -1040,6 +1040,18 @@ gql_type_sdl(agooText text, gqlType type, bool with_desc) {
 	desc_sdl(text, type->desc, 0);
     }
     switch (type->kind) {
+    case GQL_SCHEMA: {
+	gqlField	f;
+
+	text = agoo_text_append(text, "schema", 6);
+	text = append_dir_use(text, type->dir);
+	text = agoo_text_append(text, " {\n", 3);
+	for (f = type->fields; NULL != f; f = f->next) {
+	    text = field_sdl(text, f, with_desc);
+	}
+	text = agoo_text_append(text, "}\n", 2);
+	break;
+    }
     case GQL_OBJECT:
     case GQL_FRAG: {
 	gqlField	f;
@@ -1172,12 +1184,6 @@ type_cmp(const void *v0, const void *v1) {
     gqlType	t1 = *(gqlType*)v1;
 
     if (t0->kind == t1->kind) {
-	if (0 == strcmp("schema", t0->name)) {
-	    return -1;
-	}
-	if (0 == strcmp("schema", t1->name)) {
-	    return 1;
-	}
 	return strcmp(t0->name, t1->name);
     }
     return t0->kind - t1->kind;
@@ -1269,17 +1275,35 @@ gql_dir_use_arg(agooErr err, gqlDirUse use, const char *key, gqlValue value) {
     return AGOO_ERR_OK;
 }
 
-void
-gql_type_directive_use(gqlType type, gqlDirUse use) {
+int
+gql_type_directive_use(agooErr err, gqlType type, gqlDirUse use) {
     if (NULL == type->dir) {
 	type->dir = use;
+    } else if (0 == strcmp(use->dir->name, type->dir->dir->name)) {
+	return agoo_err_set(err, AGOO_ERR_TOO_MANY, "Directive %s on type %s is a duplicate.", use->dir->name, type->name);
     } else {
 	gqlDirUse	u = type->dir;
 
 	for (; NULL != u->next; u = u->next) {
+	    if (0 == strcmp(use->dir->name, u->dir->name)) {
+		return agoo_err_set(err, AGOO_ERR_TOO_MANY, "Directive %s on type %s is a duplicate.", use->dir->name, type->name);
+	    }
 	}
 	u->next = use;
     }
+    return AGOO_ERR_OK;
+}
+
+bool
+gql_type_has_directive_use(gqlType type, const char *dir) {
+    gqlDirUse	u = type->dir;
+
+    for (; NULL != u; u = u->next) {
+	if (0 == strcmp(dir, u->dir->name)) {
+	    return true;
+	}
+    }
+    return false;
 }
 
 gqlFrag
@@ -1632,6 +1656,7 @@ gql_type_get_field(gqlType type, const char *field) {
 	return NULL;
     }
     switch (type->kind) {
+    case GQL_SCHEMA:
     case GQL_OBJECT:
     case GQL_INTERFACE:
 	for (f = type->fields; NULL != f; f = f->next) {

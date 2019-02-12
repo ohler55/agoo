@@ -14,15 +14,16 @@
 
 typedef enum {
     GQL_UNDEF		= (int8_t)0, // not defined yet
-    GQL_OBJECT		= (int8_t)1,
-    GQL_FRAG		= (int8_t)2,
-    GQL_INPUT		= (int8_t)3,
-    GQL_UNION		= (int8_t)4,
-    GQL_INTERFACE	= (int8_t)5,
-    GQL_ENUM		= (int8_t)6,
-    GQL_SCALAR		= (int8_t)7,
-    GQL_LIST		= (int8_t)8,
-    GQL_NON_NULL	= (int8_t)9,
+    GQL_SCHEMA		= (int8_t)1,
+    GQL_OBJECT		= (int8_t)2,
+    GQL_FRAG		= (int8_t)3,
+    GQL_INPUT		= (int8_t)4,
+    GQL_UNION		= (int8_t)5,
+    GQL_INTERFACE	= (int8_t)6,
+    GQL_ENUM		= (int8_t)7,
+    GQL_SCALAR		= (int8_t)8,
+    GQL_LIST		= (int8_t)9,
+    GQL_NON_NULL	= (int8_t)10,
 } gqlKind;
 
 typedef enum {
@@ -126,7 +127,7 @@ typedef struct _gqlType {
     gqlScalarKind	scalar_kind;
     bool		core;
     union {
-	struct { // Objects and interfaces
+	struct { // Schema (just fields), Objects and Interfaces
 	    gqlField		fields;
 	    gqlTypeLink		interfaces;	// Types
 	};
@@ -207,9 +208,11 @@ typedef struct _gqlDoc {
 extern int	gql_init(agooErr err);
 extern void	gql_destroy(); // clear out all
 
+extern gqlType	gql_schema_create(agooErr err, const char *desc, size_t dlen);
 extern gqlType	gql_type_create(agooErr err, const char *name, const char *desc, size_t dlen, gqlTypeLink interfaces);
 extern gqlType	gql_assure_type(agooErr err, const char *name);
-extern void	gql_type_directive_use(gqlType type, gqlDirUse use);
+extern int	gql_type_directive_use(agooErr err, gqlType type, gqlDirUse use);
+extern bool	gql_type_has_directive_use(gqlType type, const char *dir);
 
 extern gqlType	gql_input_create(agooErr err, const char *name, const char *desc, size_t dlen);
 extern gqlType	gql_interface_create(agooErr err, const char *name, const char *desc, size_t dlen);

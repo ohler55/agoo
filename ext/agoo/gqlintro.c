@@ -24,14 +24,14 @@ create_schema_type(agooErr err) {
     gqlType	type_list;
     gqlType	dir_type;
     gqlType	dir_list;
-    
+
     if (NULL == (type = gql_type_create(err, "__Schema", NULL, 0, NULL)) ||
 
 	NULL == (type_type = gql_assure_type(err, "__Type")) ||
 	NULL == (type_list = gql_assure_list(err, type_type, true)) ||
 	NULL == (dir_type = gql_assure_type(err, "__Directive")) ||
 	NULL == (dir_list = gql_assure_list(err, dir_type, true)) ||
-	
+
 	NULL == gql_type_field(err, type, "types", type_list, NULL, NULL, 0, true) ||
 	NULL == gql_type_field(err, type, "queryType", type_type, NULL, NULL, 0, true) ||
 	NULL == gql_type_field(err, type, "mutationType", type_type, NULL, NULL, 0, false) ||
@@ -41,7 +41,7 @@ create_schema_type(agooErr err) {
 	return err->code;
     }
     type->core = true;
-    
+
     return AGOO_ERR_OK;
 }
 
@@ -70,7 +70,7 @@ create_type_type(agooErr err) {
     gqlType	enum_list;
     gqlType	input_type;
     gqlType	input_list;
-    
+
     if (NULL == (type = gql_type_create(err, "__Type", NULL, 0, NULL)) ||
 
 	NULL == (type_list = gql_assure_list(err, type, true)) ||
@@ -97,7 +97,7 @@ create_type_type(agooErr err) {
     type->core = true;
 
     if (NULL == (dv = gql_bool_create(err, false)) ||
-	
+
 	NULL == gql_field_arg(err, fields, "includeDeprecated", &gql_bool_type, NULL, 0, dv, false) ||
 	NULL == (dv = gql_bool_create(err, false)) ||
 	NULL == gql_field_arg(err, enum_values, "includeDeprecated", &gql_bool_type, NULL, 0, dv, false)) {
@@ -150,7 +150,7 @@ create_field_type(agooErr err) {
     gqlType	type_type;
     gqlType	input_type;
     gqlType	input_list;
-    
+
     if (NULL == (type = gql_type_create(err, "__Field", NULL, 0, NULL)) ||
 
 	NULL == (type_type = gql_assure_type(err, "__Type")) ||
@@ -167,7 +167,7 @@ create_field_type(agooErr err) {
 	return err->code;
     }
     type->core = true;
-    
+
     return AGOO_ERR_OK;
 }
 
@@ -194,7 +194,7 @@ create_input_type(agooErr err) {
 	return err->code;
     }
     type->core = true;
-    
+
     return AGOO_ERR_OK;
 }
 
@@ -217,7 +217,7 @@ create_enum_type(agooErr err) {
 	return err->code;
     }
     type->core = true;
-    
+
     return AGOO_ERR_OK;
 }
 
@@ -234,7 +234,7 @@ create_directive_type(agooErr err) {
     gqlType	input_list;
     gqlType	loc_type;
     gqlType	loc_list;
- 
+
     if (NULL == (type = gql_type_create(err, "__Directive", NULL, 0, NULL)) ||
 
 	NULL == (input_type = gql_assure_type(err, "__InputValue")) ||
@@ -250,7 +250,7 @@ create_directive_type(agooErr err) {
 	return err->code;
     }
     type->core = true;
-    
+
     return AGOO_ERR_OK;
 }
 
@@ -374,7 +374,7 @@ extract_arg(agooErr err, gqlField field, gqlSel sel, const char *key) {
     if (NULL != sel->args) {
 	gqlSelArg	sa;
 	gqlValue	v = NULL;
-	
+
 	for (sa = sel->args; NULL != sa; sa = sa->next) {
 	    if (0 != strcmp(sa->name, key)) {
 		continue;
@@ -386,7 +386,7 @@ extract_arg(agooErr err, gqlField field, gqlSel sel, const char *key) {
 	    }
 	    if (NULL != field) {
 		gqlArg	fa;
-		
+
 		for (fa = field->args; NULL != fa; fa = fa->next) {
 		    if (0 == strcmp(sa->name, fa->name)) {
 			if (v->type != fa->type && GQL_SCALAR_VAR != v->type->scalar_kind) {
@@ -417,7 +417,7 @@ is_deprecated(gqlDirUse use) {
 static const char*
 deprecation_reason(gqlDirUse use) {
     const char	*reason = NULL;
-    
+
     for (; NULL != use; use = use->next) {
 	if (0 == strcmp("deprecated", use->dir->name)) {
 	    gqlLink	a;
@@ -470,7 +470,7 @@ input_value_type(agooErr err, gqlDoc doc, gqlCobj obj, gqlField field, gqlSel se
     const char		*key = sel->name;
     struct _gqlCobj	child = { .clas = &type_class };
     gqlValue		co;
-    
+
     if (NULL != sel->alias) {
 	key = sel->alias;
     }
@@ -492,7 +492,7 @@ input_value_default_value(agooErr err, gqlDoc doc, gqlCobj obj, gqlField field, 
     gqlArg	a = (gqlArg)obj->ptr;
     const char	*key = sel->name;
     gqlValue	dv = a->default_value;
-    
+
     if (NULL != sel->alias) {
 	key = sel->alias;
     }
@@ -593,7 +593,7 @@ field_type(agooErr err, gqlDoc doc, gqlCobj obj, gqlField field, gqlSel sel, gql
     const char		*key = sel->name;
     struct _gqlCobj	child = { .clas = &type_class };
     gqlValue		co;
-    
+
     if (NULL != sel->alias) {
 	key = sel->alias;
     }
@@ -688,7 +688,7 @@ enum_value_description(agooErr err, gqlDoc doc, gqlCobj obj, gqlField field, gql
 static int
 enum_value_is_deprecated(agooErr err, gqlDoc doc, gqlCobj obj, gqlField field, gqlSel sel, gqlValue result, int depth) {
     const char	*key = sel->name;
-    
+
     if (NULL != sel->alias) {
 	key = sel->alias;
     }
@@ -763,7 +763,7 @@ directive_locations(agooErr err, gqlDoc doc, gqlCobj obj, gqlField field, gqlSel
     gqlStrLink		locs = d->locs;
     gqlValue		list = gql_list_create(err, NULL);
     gqlValue		c;
-    
+
     if (NULL != sel->alias) {
 	key = sel->alias;
     }
@@ -833,7 +833,7 @@ static int
 type_kind(agooErr err, gqlDoc doc, gqlCobj obj, gqlField field, gqlSel sel, gqlValue result, int depth) {
     const char	*kind = NULL;
     const char	*key = sel->name;
-    
+
     switch (((gqlType)obj->ptr)->kind) {
     case GQL_OBJECT:	kind = "OBJECT";	break;
     case GQL_INPUT:	kind = "INPUT_OBJECT";	break;
@@ -868,7 +868,7 @@ type_description(agooErr err, gqlDoc doc, gqlCobj obj, gqlField field, gqlSel se
     gqlType	type = (gqlType)obj->ptr;
     const char	*key = sel->name;
     gqlValue	desc;
-    
+
     if (NULL != sel->alias) {
 	key = sel->alias;
     }
@@ -895,7 +895,7 @@ type_fields(agooErr err, gqlDoc doc, gqlCobj obj, gqlField field, gqlSel sel, gq
     gqlValue		a = extract_arg(err, field, sel, "includeDeprecated");
     bool		inc_dep = false;
 
-    if (GQL_OBJECT != type->kind && GQL_INTERFACE != type->kind) {
+    if (GQL_OBJECT != type->kind && GQL_SCHEMA != type->kind && GQL_INTERFACE != type->kind) {
 	if (NULL == (co = gql_null_create(err)) ||
 	    AGOO_ERR_OK != gql_list_append(err, list, co)) {
 	    return err->code;
@@ -1006,7 +1006,7 @@ possible_cb(gqlType type, void *ctx) {
     }
     if (GQL_LIST != type->kind && has_interface(type, pc->interface)) {
 	gqlValue	co;
-	
+
 	if (NULL == (co = gql_object_create(pc->err)) ||
 	    AGOO_ERR_OK != gql_list_append(pc->err, pc->list, co)) {
 	    return;
@@ -1049,7 +1049,7 @@ type_possible_types(agooErr err, gqlDoc doc, gqlCobj obj, gqlField field, gqlSel
 	    .child = &child,
 	    .cf = &cf,
 	};
-	    
+
 	gql_type_iterate(possible_cb, &pc);
 	break;
     }
@@ -1175,7 +1175,7 @@ type_of_type(agooErr err, gqlDoc doc, gqlCobj obj, gqlField field, gqlSel sel, g
     const char		*key = sel->name;
     struct _gqlCobj	child = { .clas = &type_class };
     gqlValue		co;
-    
+
     if (NULL != sel->alias) {
 	key = sel->alias;
     }
@@ -1363,7 +1363,7 @@ root_schema(agooErr err, gqlDoc doc, gqlCobj obj, gqlField field, gqlSel sel, gq
     struct _gqlCobj	child = { .clas = &schema_class, .ptr = NULL };
     gqlValue		co;
     const char		*key = sel->name;
-    
+
     if (NULL != sel->alias) {
 	key = sel->alias;
     }
@@ -1445,7 +1445,7 @@ int
 gql_intro_eval(agooErr err, gqlDoc doc, gqlSel sel, gqlValue result, int depth) {
     struct _gqlField	field;
     struct _gqlCobj	obj;
-    
+
     if (0 == strcmp("__type", sel->name)) {
 	if (1 < depth) {
 	    return agoo_err_set(err, AGOO_ERR_EVAL, "__type can only be called from a query root.");
@@ -1470,4 +1470,3 @@ gql_intro_eval(agooErr err, gqlDoc doc, gqlSel sel, gqlValue result, int depth) 
 
     return resolve(err, doc, &obj, &field, sel, result, depth);
 }
-

@@ -359,7 +359,6 @@ rack_run_once(VALUE self) {
     return Qfalse;
 }
 
-// TBD req.c
 static void
 add_header_value(VALUE hh, const char *key, int klen, const char *val, int vlen) {
     if (sizeof(content_type) - 1 == klen && 0 == strncasecmp(key, content_type, sizeof(content_type) - 1)) {
@@ -370,7 +369,7 @@ add_header_value(VALUE hh, const char *key, int klen, const char *val, int vlen)
 	char		hkey[1024];
 	char		*k = hkey;
 	volatile VALUE	sval = rb_str_new(val, vlen);
-	
+
 	strcpy(hkey, "HTTP_");
 	k = hkey + 5;
 	if ((int)(sizeof(hkey) - 5) <= klen) {
@@ -378,7 +377,7 @@ add_header_value(VALUE hh, const char *key, int klen, const char *val, int vlen)
 	}
 	strncpy(k, key, klen);
 	hkey[klen + 5] = '\0';
-    
+
 	//rb_hash_aset(hh, rb_str_new(hkey, klen + 5), sval);
 	// Contrary to the Rack spec, Rails expects all upper case keys so add those as well.
 	for (k = hkey + 5; '\0' != *k; k++) {
@@ -392,7 +391,6 @@ add_header_value(VALUE hh, const char *key, int klen, const char *val, int vlen)
     }
 }
 
-// TBD req.c
 static void
 fill_headers(agooReq r, VALUE hash) {
     char	*h = r->header.start;
@@ -408,7 +406,7 @@ fill_headers(agooReq r, VALUE hash) {
     if (NULL == r) {
 	rb_raise(rb_eArgError, "Request is no longer valid.");
     }
-    
+
     for (; h < end; h++) {
 	switch (*h) {
 	case ':':
@@ -533,7 +531,7 @@ VALUE
 request_env(agooReq req, VALUE self) {
     if (Qnil == (VALUE)req->env) {
 	volatile VALUE	env = rb_hash_new();
-    
+
 	// As described by
 	// http://www.rubydoc.info/github/rack/rack/master/file/SPEC and
 	// https://github.com/rack/rack/blob/master/SPEC.
@@ -625,7 +623,7 @@ call(VALUE self) {
 
     io = rb_class_new_instance(1, args, rb_cIO);
     rb_hash_aset((VALUE)r->env, rack_hijack_io_val, io);
-    
+
     return io;
 }
 
@@ -669,12 +667,12 @@ request_init(VALUE mod) {
     rb_define_method(req_class, "call", call, 0);
 
     new_id = rb_intern("new");
-    
+
     rack_version_val_val = rb_ary_new();
     rb_ary_push(rack_version_val_val, INT2NUM(1));
     rb_ary_push(rack_version_val_val, INT2NUM(3));
     rb_gc_register_address(&rack_version_val_val);
-    
+
     stringio_class = rb_const_get(rb_cObject, rb_intern("StringIO"));
 
     connect_val = rb_str_new_cstr("CONNECT");			rb_gc_register_address(&connect_val);

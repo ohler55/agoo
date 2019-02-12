@@ -99,13 +99,22 @@ type Song @ruby(class: "Song") {
   artist: Artist
   duration: Int
   genre: Genre
-  release: Time
 }
 
 enum Genre {
   POP
   ROCK
   INDIE
+}
+^
+
+$extend_sdl = %^
+extend enum Genre {
+  JAZZ
+}
+
+type Song {
+  release: Time
 }
 ^
 
@@ -157,10 +166,9 @@ end
 class GraphQLTest < Minitest::Test
   @@server_started = false
 
-  SCHEMA_EXPECT = %^type schema @ruby(class: "Schema") {
+  SCHEMA_EXPECT = %^schema @ruby(class: "Schema") {
   query: Query
   mutation: Mutation
-  subscription: Subscription
 }
 
 type Artist @ruby(class: "Artist") {
@@ -172,7 +180,7 @@ type Artist @ruby(class: "Artist") {
   likes: Int
 }
 
-type Mutation {
+type Mutation @ruby(class: "Mutation") {
   like(artist: String!): Artist
 }
 
@@ -188,13 +196,11 @@ type Song @ruby(class: "Song") {
   release: Time
 }
 
-type Subscription {
-}
-
 enum Genre {
   POP
   ROCK
   INDIE
+  JAZZ
 }
 
 directive @ruby(class: String!) on SCHEMA | OBJECT
@@ -218,8 +224,8 @@ directive @ruby(class: String!) on SCHEMA | OBJECT
 
     Agoo::GraphQL.schema(Schema.new) {
       Agoo::GraphQL.load($songs_sdl)
+      Agoo::GraphQL.load($extend_sdl)
     }
-
     @@server_started = true
   end
 
@@ -805,9 +811,6 @@ query skippy($boo: Boolean = true){
         },
         {
           "name":"Int"
-        },
-        {
-          "name":"Subscription"
         },
         {
           "name":"I64"
