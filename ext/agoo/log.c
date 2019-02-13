@@ -62,7 +62,9 @@ struct _agooLogCat	agoo_push_cat;
 agooColor
 find_color(const char *name) {
     if (NULL != name) {
-	for (agooColor c = colors; NULL != c->name; c++) {
+	agooColor	c;
+
+	for (c = colors; NULL != c->name; c++) {
 	    if (0 == strcasecmp(c->name, name)) {
 		return c;
 	    }
@@ -98,7 +100,7 @@ agoo_log_listen() {
 	}
     }
     atomic_store(&agoo_log.wait_state, WAITING);
-    
+
     return agoo_log.rsock;
 }
 
@@ -116,6 +118,7 @@ static agooLogEntry
 agoo_log_queue_pop(double timeout) {
     agooLogEntry	e = atomic_load(&agoo_log.head);
     agooLogEntry	next;
+    int			cnt;
 
     if (e->ready) {
 	return e;
@@ -125,7 +128,7 @@ agoo_log_queue_pop(double timeout) {
 	next = agoo_log.q;
     }
     // If the next is the tail then wait for something to be appended.
-    for (int cnt = (int)(timeout / (double)WAIT_MSECS * 1000.0); atomic_load(&agoo_log.tail) == next; cnt--) {
+    for (cnt = (int)(timeout / (double)WAIT_MSECS * 1000.0); atomic_load(&agoo_log.tail) == next; cnt--) {
 	struct pollfd	pa;
 
 	if (cnt <= 0) {
@@ -176,7 +179,7 @@ classic_write(agooLogEntry e, FILE *file) {
     long long	frac = (long long)e->when % 1000000000LL;
     char	levelc = level_chars[e->cat->level];
     int		cnt = 0;
-    
+
     t += agoo_log.zone;
     if (agoo_log.day_start <= t && t < agoo_log.day_end) {
 	t -= agoo_log.day_start;
@@ -271,6 +274,7 @@ void
 agoo_log_rotate() {
     char	from[1060];
     char	to[1060];
+    int		seq;
 
     if (NULL != agoo_log.file) {
 	fclose(agoo_log.file);
@@ -280,7 +284,7 @@ agoo_log_rotate() {
 	char	name[32];
 
 	sprintf(name, "%s_%d.log", agoo_log.app, getpid());
-	for (int seq = agoo_log.max_files; 0 < seq; seq--) {
+	for (seq = agoo_log.max_files; 0 < seq; seq--) {
 	    snprintf(to, sizeof(to) - 1, "%s/%s_%d.log.%d", agoo_log.dir, agoo_log.app, getpid(), seq + 1);
 	    snprintf(from, sizeof(from) - 1, "%s/%s_%d.log.%d", agoo_log.dir, agoo_log.app, getpid(), seq);
 	    rename(from, to);
@@ -288,7 +292,7 @@ agoo_log_rotate() {
 	snprintf(to, sizeof(to) - 1, "%s/%s_%d.log.%d", agoo_log.dir, agoo_log.app, getpid(), 1);
 	snprintf(from, sizeof(from) - 1, "%s/%s", agoo_log.dir, name);
     } else {
-	for (int seq = agoo_log.max_files; 0 < seq; seq--) {
+	for (seq = agoo_log.max_files; 0 < seq; seq--) {
 	    snprintf(to, sizeof(to) - 1, "%s/%s.log.%d", agoo_log.dir, agoo_log.app, seq + 1);
 	    snprintf(from, sizeof(from) - 1, "%s/%s.log.%d", agoo_log.dir, agoo_log.app, seq);
 	    rename(from, to);
@@ -338,7 +342,7 @@ loop(void *ctx) {
 bool
 agoo_log_flush(double timeout) {
     timeout += dtime();
-    
+
     while (!agoo_log.done && !agoo_log_queue_empty()) {
 	if (timeout < dtime()) {
 	    return false;
@@ -405,7 +409,7 @@ agoo_log_close() {
 void
 agoo_log_cat_reg(agooLogCat cat, const char *label, agooLogLevel level, const char *color, bool on) {
     agooLogCat	xcat = agoo_log_cat_find(label);
-    
+
     if (NULL != xcat) {
 	cat = xcat;
     }
@@ -448,7 +452,7 @@ agoo_log_cat_find(const char *label) {
 int64_t
 agoo_now_nano() {
     struct timespec	ts;
-	    
+
     clock_gettime(CLOCK_REALTIME, &ts);
 
     return (int64_t)ts.tv_sec * 1000000000LL + (int64_t)ts.tv_nsec;
@@ -502,13 +506,13 @@ agoo_log_catv(agooLogCat cat, const char *tid, const char *fmt, va_list ap) {
     if (cat->on && !agoo_log.done) {
 	agooLogEntry	e;
 	agooLogEntry	tail;
-	
+
 	while (atomic_flag_test_and_set(&agoo_log.push_lock)) {
 	    dsleep(RETRY_SECS);
 	}
 	if (0 == agoo_log.thread) {
 	    struct _agooLogEntry	entry;
-	    
+
 	    set_entry(&entry, cat, tid, fmt, ap);
 	    if (agoo_log.classic) {
 		classic_write(&entry, stdout);
@@ -560,7 +564,7 @@ agoo_log_tid_cat(agooLogCat cat, const char *tid, const char *fmt, ...) {
 int
 agoo_log_start(agooErr err, bool with_pid) {
     int	stat;
-    
+
     if (0 != agoo_log.thread) {
 	// Already started.
 	return AGOO_ERR_OK;
