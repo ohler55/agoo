@@ -802,7 +802,7 @@ make_schema(agooErr err, agooDoc doc, const char *desc, int len, bool x) {
 	return agoo_doc_err(doc, err, "Expected schema key word");
     }
     if (x) {
-	if (NULL == (type = gql_type_get("schema"))) {
+	if (NULL == (type = gql_type_get(schema_str))) {
 	    return agoo_doc_err(doc, err, "schema not defined. Can not be extended.");
 	}
     } else if (NULL == (type = gql_schema_create(err, desc, len))) {
@@ -868,14 +868,18 @@ sdl_parse(agooErr err, const char *str, int len) {
 		    if (AGOO_ERR_OK != make_scalar(err, &doc, desc, dlen, extend_next)) {
 			return err->code;
 		    }
+		    desc = NULL;
+		    dlen = 0;
+		    break;
+		} else {
+		    if (AGOO_ERR_OK != make_schema(err, &doc, desc, dlen, extend_next)) {
+			return err->code;
+		    }
+		    desc = NULL;
+		    dlen = 0;
 		    break;
 		}
-		if (AGOO_ERR_OK != make_schema(err, &doc, desc, dlen, extend_next)) {
-		    return err->code;
-		}
 	    }
-	    desc = NULL;
-	    dlen = 0;
 	    return agoo_doc_err(&doc, err, "Unknown directive");
 	case 'e': // enum or extend
 	    if (4 < (doc.end - doc.cur)) {

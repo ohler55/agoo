@@ -6,6 +6,11 @@
 #include "gqleval.h"
 
 struct _gqlCobj;
+struct _gqlDoc;
+struct _gqlField;
+struct _gqlSel;
+struct _gqlType;
+struct _gqlValue;
 
 typedef struct _gqlCmethod {
     const char		*key;
@@ -21,5 +26,14 @@ typedef struct _gqlCobj {
     gqlCclass		clas;
     void		*ptr;
 } *gqlCobj;
+
+extern struct _gqlType*	gql_cobj_ref_type(gqlRef ref);
+extern int		gql_cobj_resolve(agooErr		err,
+					 struct _gqlDoc		*doc,
+					 gqlRef			target,
+					 struct _gqlField	*field,
+					 struct _gqlSel		*sel,
+					 struct _gqlValue	*result,
+					 int			depth);
 
 #endif // AGOO_GQLCOBJ_H

@@ -1418,29 +1418,6 @@ static struct _gqlCclass	root_class = {
     .methods = root_methods,
 };
 
-static gqlType
-ref_type(gqlRef ref) {
-    gqlCobj	obj = (gqlCobj)ref;
-
-    if (NULL != obj && NULL != obj->clas) {
-	return gql_type_get(obj->clas->name);
-    }
-    return NULL;
-}
-
-static int
-resolve(agooErr err, gqlDoc doc, gqlRef target, gqlField field, gqlSel sel, gqlValue result, int depth) {
-    gqlCobj	obj = (gqlCobj)target;
-    gqlCmethod	method;
-
-    for (method = obj->clas->methods; NULL != method->key; method++) {
-	if (0 == strcmp(method->key, sel->name)) {
-	    return method->func(err, doc, obj, field, sel, result, depth);
-	}
-    }
-    return agoo_err_set(err, AGOO_ERR_EVAL, "%s is not a field on %s.", sel->name, obj->clas->name);
-}
-
 int
 gql_intro_eval(agooErr err, gqlDoc doc, gqlSel sel, gqlValue result, int depth) {
     struct _gqlField	field;
@@ -1465,8 +1442,8 @@ gql_intro_eval(agooErr err, gqlDoc doc, gqlSel sel, gqlValue result, int depth) 
     field.name = sel->name;
     field.type = sel->type;
 
-    doc->funcs.resolve = resolve;
-    doc->funcs.type = ref_type;
+    doc->funcs.resolve = gql_cobj_resolve;
+    doc->funcs.type = gql_cobj_ref_type;
 
-    return resolve(err, doc, &obj, &field, sel, result, depth);
+    return gql_cobj_resolve(err, doc, &obj, &field, sel, result, depth);
 }
