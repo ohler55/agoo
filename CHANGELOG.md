@@ -1,6 +1,6 @@
 # CHANGELOG
 
-### 2.8.0 - 2019-02-TBD
+### 2.8.0 - 2019-02-19
 
 Extend GraphQL
 
