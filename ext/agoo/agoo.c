@@ -35,6 +35,7 @@ agoo_shutdown() {
 	agoo_log_close();
 	gql_destroy();
 	debug_report();
+	exit(0);
     }
 }
 

@@ -88,7 +88,7 @@ agoo_con_destroy(agooCon c) {
     }
     if (NULL != c->up) {
 	agoo_upgraded_release_con(c->up);
-	
+
 	c->up = NULL;
     }
     agoo_log_cat(&agoo_con_cat, "Connection %llu closed.", (unsigned long long)c->id);
@@ -108,7 +108,7 @@ agoo_con_header_value(const char *header, int hlen, const char *key, int *vlen) 
     const char	*hend = header + hlen;
     const char	*value;
     int		klen = (int)strlen(key);
-    
+
     while (h < hend) {
 	if (0 == strncmp(key, h, klen) && ':' == h[klen]) {
 	    h += klen + 1;
@@ -118,7 +118,7 @@ agoo_con_header_value(const char *header, int hlen, const char *key, int *vlen) 
 	    for (; '\r' != *h && '\0' != *h; h++) {
 	    }
 	    *vlen = (int)(h - value);
- 
+
 	    return value;
 	}
 	for (; h < hend; h++) {
@@ -135,7 +135,7 @@ static HeadReturn
 bad_request(agooCon c, int status, int line) {
     agooRes	res;
     const char *msg = agoo_http_code_message(status);
-    
+
     if (NULL == (res = agoo_res_create(c))) {
 	agoo_log_cat(&agoo_error_cat, "memory allocation of response failed on connection %llu @ %d.",
 		     (unsigned long long)c->id, line);
@@ -144,7 +144,7 @@ bad_request(agooCon c, int status, int line) {
 	int		cnt = snprintf(buf, sizeof(buf),
 				       "HTTP/1.1 %d %s\r\nConnection: Close\r\nContent-Length: 0\r\n\r\n", status, msg);
 	agooText	message = agoo_text_create(buf, cnt);
-	
+
 	if (NULL == c->res_tail) {
 	    c->res_head = res;
 	} else {
@@ -161,7 +161,7 @@ static bool
 should_close(const char *header, int hlen) {
     const char	*v;
     int		vlen = 0;
-    
+
     if (NULL != (v = agoo_con_header_value(header, hlen, "Connection", &vlen))) {
 	return (5 == vlen && 0 == strncasecmp("Close", v, 5));
     }
@@ -172,7 +172,7 @@ static bool
 page_response(agooCon c, agooPage p, char *hend) {
     agooRes 	res;
     char	*b;
-    
+
     if (NULL == (res = agoo_res_create(c))) {
 	return true;
     }
@@ -253,7 +253,7 @@ agoo_con_header_read(agooCon c, size_t *mlenp) {
 	const char	*v;
 	int		vlen = 0;
 	char		*vend;
-	
+
 	if (3 == b - c->buf && 0 == strncmp("PUT", c->buf, 3)) {
 	    method = AGOO_PUT;
 	} else if (4 == b - c->buf && 0 == strncmp("POST", c->buf, 4)) {
@@ -345,7 +345,7 @@ agoo_con_header_read(agooCon c, size_t *mlenp) {
 		    return bad_request(c, 500, __LINE__);
 		}
 		return HEAD_HANDLED;
-	    }	    
+	    }
 	    if (NULL == agoo_server.hook404) {
 		return bad_request(c, 404, __LINE__);
 	    }
@@ -445,7 +445,7 @@ agoo_con_http_read(agooCon c) {
 
 	    switch (agoo_con_header_read(c, &mlen)) {
 	    case HEAD_AGAIN:
-		// Try again the next time. Didn't read enough.. 
+		// Try again the next time. Didn't read enough..
 		return false;
 	    case HEAD_OK:
 		// req was created
@@ -528,7 +528,7 @@ con_ws_read(agooCon c) {
     ssize_t	cnt;
     uint8_t	*b;
     uint8_t	op;
-    long	mlen;	
+    long	mlen;
 
     if (NULL != c->req) {
 	cnt = recv(c->sock, c->req->msg + c->bcnt, c->req->mlen - c->bcnt, 0);
@@ -667,7 +667,7 @@ agoo_con_http_write(agooCon c) {
     if (c->wcnt == message->len) { // finished
 	agooRes	res = c->res_head;
 	bool	done = res->close;
-	
+
 	c->res_head = res->next;
 	if (res == c->res_tail) {
 	    c->res_tail = NULL;
@@ -700,11 +700,11 @@ con_ws_write(agooCon c) {
 		}
 		len = snprintf(msg, sizeof(msg) - 1, "Socket error @ %llu.", (unsigned long long)c->id);
 		push_error(c->up, msg, len);
-		
+
 		agoo_log_cat(&agoo_error_cat, "Socket error @ %llu.", (unsigned long long)c->id);
 		agoo_ws_req_close(c);
 		agoo_res_destroy(res);
-	
+
 		return false;
 	    }
 	} else if (res->pong) {
@@ -720,7 +720,7 @@ con_ws_write(agooCon c) {
 		agoo_log_cat(&agoo_error_cat, "Socket error @ %llu.", (unsigned long long)c->id);
 		agoo_ws_req_close(c);
 		agoo_res_destroy(res);
-	
+
 		return false;
 	    }
 	} else {
@@ -742,7 +742,7 @@ con_ws_write(agooCon c) {
     c->timeout = dtime() + CON_TIMEOUT;
     if (0 == c->wcnt) {
 	agooText	t;
-	
+
 	if (agoo_push_cat.on) {
 	    if (message->bin) {
 		agoo_log_cat(&agoo_push_cat, "%llu binary", (unsigned long long)c->id);
@@ -767,14 +767,14 @@ con_ws_write(agooCon c) {
 	push_error(c->up, msg, len);
 	agoo_log_cat(&agoo_error_cat, "Socket error @ %llu.", (unsigned long long)c->id);
 	agoo_ws_req_close(c);
-	
+
 	return false;
     }
     c->wcnt += cnt;
     if (c->wcnt == message->len) { // finished
 	agooRes	res = c->res_head;
 	bool	done = res->close;
-	
+
 	c->res_head = res->next;
 	if (res == c->res_tail) {
 	    c->res_tail = NULL;
@@ -801,7 +801,7 @@ con_sse_write(agooCon c) {
     c->timeout = dtime() + CON_TIMEOUT *2;
     if (0 == c->wcnt) {
 	agooText	t;
-	
+
 	if (agoo_push_cat.on) {
 	    agoo_log_cat(&agoo_push_cat, "%llu: %s %p", (unsigned long long)c->id, message->text, (void*)res);
 	}
@@ -821,14 +821,14 @@ con_sse_write(agooCon c) {
 	len = snprintf(msg, sizeof(msg) - 1, "Socket error @ %llu.", (unsigned long long)c->id);
 	push_error(c->up, msg, len);
 	agoo_log_cat(&agoo_error_cat, "Socket error @ %llu.", (unsigned long long)c->id);
-	
+
 	return false;
     }
     c->wcnt += cnt;
     if (c->wcnt == message->len) { // finished
 	agooRes	res = c->res_head;
 	bool	done = res->close;
-	
+
 	c->res_head = res->next;
 	if (res == c->res_tail) {
 	    c->res_tail = NULL;
@@ -885,12 +885,12 @@ process_pub_con(agooPub pub, agooConLoop loop) {
 
     if (NULL != up && NULL != up->con && up->con->loop == loop) {
 	int	pending;
-	
+
 	// TBD Change pending to be based on length of con queue
 	if (1 == (pending = atomic_fetch_sub(&up->pending, 1))) {
 	    if (NULL != up && agoo_server.ctx_nil_value != up->ctx && up->on_empty) {
 		agooReq	req = agoo_req_create(0);
-	    
+
 		req->up = up;
 		req->method = AGOO_ON_EMPTY;
 		req->hook = agoo_hook_create(AGOO_NONE, NULL, up->ctx, PUSH_HOOK, &agoo_server.eval_queue);
@@ -961,7 +961,7 @@ process_pub_con(agooPub pub, agooConLoop loop) {
 short
 agoo_con_http_events(agooCon c) {
     short	events = 0;
-    
+
     if (NULL != c->res_head && NULL != agoo_res_message(c->res_head)) {
 	events = POLLIN | POLLOUT;
     } else if (!c->closing) {
@@ -1029,7 +1029,7 @@ con_ready_check(void *ctx, double now) {
     agooCon	c = (agooCon)ctx;
 
     if (c->dead || 0 == c->sock) {
-	if (remove_dead_res(c)) {	
+	if (remove_dead_res(c)) {
 	    return false;
 	}
     } else if (0.0 == c->timeout || now < c->timeout) {
@@ -1106,7 +1106,7 @@ static struct _agooHandler	con_handler = {
     .read = con_ready_read,
     .write = con_ready_write,
     .error = NULL,
-    .destroy = con_ready_destroy, 
+    .destroy = con_ready_destroy,
 };
 
 static agooReadyIO
@@ -1119,7 +1119,7 @@ con_queue_ready_read(agooReady ready, void *ctx) {
     agooConLoop		loop = (agooConLoop)ctx;
     struct _agooErr	err = AGOO_ERR_INIT;
     agooCon		c;
-    
+
     agoo_queue_release(&agoo_server.con_queue);
     while (NULL != (c = (agooCon)agoo_queue_pop(&agoo_server.con_queue, 0.0))) {
 	c->loop = loop;
@@ -1136,8 +1136,8 @@ static struct _agooHandler	con_queue_handler = {
     .check = NULL,
     .read = con_queue_ready_read,
     .write = NULL,
-    .error = NULL, 
-    .destroy = NULL, 
+    .error = NULL,
+    .destroy = NULL,
 };
 
 static bool
@@ -1157,8 +1157,8 @@ static struct _agooHandler	pub_queue_handler = {
     .check = NULL,
     .read = pub_queue_ready_read,
     .write = NULL,
-    .error = NULL, 
-    .destroy = NULL, 
+    .error = NULL,
+    .destroy = NULL,
 };
 
 void*
@@ -1170,7 +1170,7 @@ agoo_con_loop(void *x) {
     agooCon		c;
     int			con_queue_fd = agoo_queue_listen(&agoo_server.con_queue);
     int			pub_queue_fd = agoo_queue_listen(&loop->pub_queue);
-    
+
     if (NULL == ready) {
 	agoo_log_cat(&agoo_error_cat, "Failed to create connection manager. %s", err.msg);
 	exit(EXIT_FAILURE);
@@ -1184,7 +1184,7 @@ agoo_con_loop(void *x) {
 	return NULL;
     }
     atomic_fetch_add(&agoo_server.running, 1);
-    
+
     while (agoo_server.active) {
 	while (NULL != (c = (agooCon)agoo_queue_pop(&agoo_server.con_queue, 0.0))) {
 	    c->loop = loop;
@@ -1215,7 +1215,7 @@ agoo_conloop_create(agooErr err, int id) {
 	AGOO_ERR_MEM(err, "connection thread");
     } else {
 	int	stat;
-	
+
 	loop->next = NULL;
 	if (AGOO_ERR_OK != agoo_queue_multi_init(err, &loop->pub_queue, 256, true, false)) {
 	    AGOO_FREE(loop);
@@ -1240,7 +1240,7 @@ agoo_conloop_create(agooErr err, int id) {
 void
 agoo_conloop_destroy(agooConLoop loop) {
     agooRes	res;
-    
+
     agoo_queue_cleanup(&loop->pub_queue);
     while (NULL != (res = loop->res_head)) {
 	loop->res_head = res->next;
