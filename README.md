@@ -90,12 +90,13 @@ Agoo is not available on Windows.
 
 - Agoo has a new GraphQL module with a simple, easy to use
   API. Checkout the [hello](example/graphql/hello.rb) or
-  [song](example/graphql/song.rb) examples.
+  [song](example/graphql/song.rb) examples. [An Instrumental Intro to GraphQL with Ruby
+  (https://blog.appsignal.com/2019/01/29/graphql.html) is a walk through.
 
 - Agoo takes first place as the highest throughput on [web-frameworks
   benchmarks](https://github.com/the-benchmarker/web-frameworks). Latency was
-  not at the top but release 2.5.2 improves that. Look for an Agoo-C benchmark
-  in the future.
+  not at the top but release 2.5.2 improves that. The Agoo-C benchmarks it at
+  the top. The fastest web server across all languages.
 
 - Clustered Agoo is ready. For slower application and a machine with multiple
   cores a significant improvement is performance is realized. The application
