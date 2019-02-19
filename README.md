@@ -90,8 +90,9 @@ Agoo is not available on Windows.
 
 - Agoo has a new GraphQL module with a simple, easy to use
   API. Checkout the [hello](example/graphql/hello.rb) or
-  [song](example/graphql/song.rb) examples. [An Instrumental Intro to GraphQL with Ruby
-  (https://blog.appsignal.com/2019/01/29/graphql.html) is a walk through.
+  [song](example/graphql/song.rb) examples.
+  [An Instrumental Intro to GraphQL with Ruby](https://blog.appsignal.com/2019/01/29/graphql.html)
+  is a walk through.
 
 - Agoo takes first place as the highest throughput on [web-frameworks
   benchmarks](https://github.com/the-benchmarker/web-frameworks). Latency was
