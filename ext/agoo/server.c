@@ -27,12 +27,12 @@ struct _agooServer	agoo_server = {false};
 int
 agoo_server_setup(agooErr err) {
     long	i;
-    
+
     memset(&agoo_server, 0, sizeof(struct _agooServer));
     pthread_mutex_init(&agoo_server.up_lock, 0);
     agoo_server.up_list = NULL;
     agoo_server.max_push_pending = 32;
-    
+
     if (AGOO_ERR_OK != agoo_pages_init(err) ||
 	AGOO_ERR_OK != agoo_queue_multi_init(err, &agoo_server.con_queue, 1024, false, true) ||
 	AGOO_ERR_OK != agoo_queue_multi_init(err, &agoo_server.eval_queue, 1024, true, true)) {
@@ -150,7 +150,7 @@ agoo_server_start(agooErr err, const char *app_name, const char *version) {
     double	giveup;
     int		xcnt = 0;
     int		stat;
-    
+
     if (0 != (stat = pthread_create(&agoo_server.listen_thread, NULL, listen_loop, NULL))) {
 	return agoo_err_set(err, stat, "Failed to create server listener thread. %s", strerror(stat));
     }
@@ -177,7 +177,7 @@ agoo_server_start(agooErr err, const char *app_name, const char *version) {
     }
     if (agoo_info_cat.on) {
 	agooBind	b;
-	
+
 	for (b = agoo_server.binds; NULL != b; b = b->next) {
 	    agoo_log_cat(&agoo_info_cat, "%s %s with pid %d is listening on %s.", app_name, version, getpid(), b->id);
 	}
@@ -208,7 +208,7 @@ agoo_server_shutdown(const char *app_name, void (*stop)()) {
 	agoo_server.inited = false;
 	if (agoo_server.active) {
 	    double	giveup = dtime() + 1.0;
-	    
+
 	    agoo_server.active = false;
 	    pthread_detach(agoo_server.listen_thread);
 	    for (loop = agoo_server.con_loops; NULL != loop; loop = loop->next) {

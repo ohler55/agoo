@@ -427,6 +427,7 @@ gql_init(agooErr err) {
     return AGOO_ERR_OK;
 }
 
+extern gqlType	_gql_root_type;
 void
 gql_destroy() {
     Slot	*sp = buckets;
@@ -449,6 +450,7 @@ gql_destroy() {
 	gql_directives = dir->next;
 	dir_destroy(dir);
     }
+    _gql_root_type = NULL;
     inited = false;
 }
 
