@@ -108,6 +108,7 @@ agooQItem
 agoo_queue_pop(agooQueue q, double timeout) {
     agooQItem	item;
     agooQItem	*next;
+    int cnt;
     
     if (q->multi_pop) {
 	while (atomic_flag_test_and_set(&q->pop_lock)) {
@@ -129,7 +130,7 @@ agoo_queue_pop(agooQueue q, double timeout) {
 	next = q->q;
     }
     // If the next is the tail then wait for something to be appended.
-    for (int cnt = (int)(timeout / (double)WAIT_MSECS * 1000.0); atomic_load(&q->tail) == next; cnt--) {
+    for (cnt = (int)(timeout / (double)WAIT_MSECS * 1000.0); atomic_load(&q->tail) == next; cnt--) {
 	struct pollfd	pa;
 
 	if (cnt <= 0) {
