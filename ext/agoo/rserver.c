@@ -919,7 +919,7 @@ handle(VALUE self, VALUE method, VALUE pattern, VALUE handler) {
 	handler = resolve_classpath(StringValuePtr(handler), RSTRING_LEN(handler));
     }
     if (rb_respond_to(handler, static_id)) {
-	if (Qtrue == rb_funcall(handler, static_id, 0, Qnil)) {
+	if (Qtrue == rb_funcall(handler, static_id, 0)) {
 	    VALUE	res = rb_funcall(handler, call_id, 1, Qnil);
 	    VALUE	bv;
 
