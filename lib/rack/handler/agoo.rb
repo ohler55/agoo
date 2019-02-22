@@ -13,7 +13,7 @@ module Rack
       # Run the server. Options are the same as for Agoo::Server plus a :port,
       # :root, :rmux, and :wc option.
       def self.run(handler, options={})
-	port = 9292
+	port = 0
 	root = './public'
         root_set = false
 	worker_count = 1;
@@ -85,7 +85,8 @@ module Rack
 	  elsif :help == k || :h == k
 	    puts %|
 Agoo is a Ruby web server that supports Rack. The follwing options are available
-using the -O NAME[=VALUE] option of rackup.
+using the -O NAME[=VALUE] option of rackup. Note that if binds are provided the
+-p PORT option will be ignored but -Op=PORT can be used.
 
   -O h, help                 Show this display.
   -O s, silent               Silent.
@@ -121,7 +122,12 @@ using the -O NAME[=VALUE] option of rackup.
 	}
 	options[:thread_count] = 0
 	options[:worker_count] = worker_count
-	options[:bind] = binds
+	if binds.nil?
+	  options[:Port] = port unless port == 0
+	else
+	  options[:bind] = binds
+	  options[:Port] = port
+	end
 	options[:graphql] = graphql unless graphql.nil?
 
 	::Agoo::Log.configure(dir: log_dir,
@@ -137,7 +143,6 @@ using the -O NAME[=VALUE] option of rackup.
 				eval: 2 <= verbose,
 				push: 2 <= verbose,
 			      })
-
 	::Agoo::Server.init(port, root, options)
 	path_map.each { |path,h|
 	  ::Agoo::Server.handle(nil, path, h)
