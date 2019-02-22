@@ -20,6 +20,13 @@ module Rack
 	default_handler = nil
 	not_found_handler = nil
 	path_map = {}
+	verbose = 1
+	log_dir = nil
+	classic = true
+	console = true
+	colorize = true
+	binds = nil
+	graphql = nil
         options[:root_first] = true # the default for rack
 
 	default_handler = handler unless handler.nil?
@@ -27,11 +34,11 @@ module Rack
 	  if :port == k || :p == k
 	    port = v.to_i
 	    options.delete(k)
-	  elsif :root == k
+	  elsif :root == k || :dir == k || :d == k
 	    root = v
             root_set = true
 	    options.delete(k)
-	  elsif :wc == k
+	  elsif :wc == k || :workers == k
 	    worker_count = v.to_i
 	    options.delete(k)
 	  elsif :rmux == k || :root_first == k || :f == k
@@ -39,24 +46,42 @@ module Rack
 	  elsif k.nil?
 	    not_found_handler = v
 	    options.delete(k)
-	  elsif :graphql == k
-	    # leave as is
-	  elsif :bind == k
-	    # TBD
+	  elsif :graphql == k || :g == k
+	    graphql = v
+	    options.delete(k)
+	  elsif :s == k || :silent == k
+	    verbose = 0
+	    options.delete(k)
+	  elsif :v == k || :verbose == k
+	    verbose = 2
+	    options.delete(k)
+	  elsif :debug == k
+	    verbose = 3
+	    options.delete(k)
+	  elsif :b == k || :bind == k
+	    binds = v.split(',')
+	    options.delete(k)
 	  elsif :log_dir == k
-	    # TBD
+	    log_dir = v
+	    options.delete(k)
 	  elsif :log_classic == k
-	    # TBD
+	    classic = true
+	    options.delete(k)
 	  elsif :no_log_classic == k
-	    # TBD
+	    classic = false
+	    options.delete(k)
 	  elsif :log_console == k
-	    # TBD
+	    console = true
+	    options.delete(k)
 	  elsif :no_log_console == k
-	    # TBD
+	    console = false
+	    options.delete(k)
 	  elsif :log_colorize == k
-	    # TBD
+	    colorize = true
+	    options.delete(k)
 	  elsif :no_log_colorize == k
-	    # TBD
+	    colorize = false
+	    options.delete(k)
 	  elsif :help == k || :h == k
 	    puts %|
 Agoo is a Ruby web server that supports Rack. The follwing options are available
@@ -64,17 +89,18 @@ using the -O NAME[=VALUE] option of rackup.
 
   -O h, help                 Show this display.
   -O s, silent               Silent.
-  -O v, verbose              Increase verbosity.
+  -O v, verbose              Verbose.
+  -O debug                   Very verbose.
   -O f, rmux, root_first     Check the root directory before the handle paths.
   -O p, port=PORT            Port to listen on.
-  -O b, bind=URL             URL to receive connections on. Examples:
+  -O b, bind=URL             URLs to receive connections on, comma separated.
+                             Examples:
                                "http ://127.0.0.1:6464"
                                "unix:///tmp/agoo.socket"
                                "http ://[::1]:6464
                                "http ://:6464"
   -O d, dir, root=DIR        Directory to serve static assets from.
   -O g, graphql=PATH         URL path for GraphQL requests.
-  -O r, require=FILE         Ruby require.
   -O t, threads=COUNT        Number of threads to use.
   -O w, workers=COUNT        Number of workers to use.
      -O log_dir=DIR          Log file directory.
@@ -82,6 +108,7 @@ using the -O NAME[=VALUE] option of rackup.
      -O [no_]log_console     Display log entries on the console.
      -O [no_]log_colorize    Display log entries in color.
   -O /path=MyHandler path and class name to handle requests on that path
+
 |
 	    exit(true)
 	  else
@@ -94,14 +121,33 @@ using the -O NAME[=VALUE] option of rackup.
 	}
 	options[:thread_count] = 0
 	options[:worker_count] = worker_count
+	options[:bind] = binds
+	options[:graphql] = graphql unless graphql.nil?
+
+	::Agoo::Log.configure(dir: log_dir,
+			      console: console,
+			      classic: classic,
+			      colorize: colorize,
+			      states: {
+				INFO: 1 <= verbose,
+				DEBUG: 3 <= verbose,
+				connect: 2 <= verbose,
+				request: 2 <= verbose,
+				response: 2 <= verbose,
+				eval: 2 <= verbose,
+				push: 2 <= verbose,
+			      })
+
 	::Agoo::Server.init(port, root, options)
 	path_map.each { |path,h|
 	  ::Agoo::Server.handle(nil, path, h)
 	}
         begin
           # If Rails is loaded this should work else just ignore.
-          ::Agoo::Server.path_group('/assets', Rails.configuration.assets.paths)
-          root = Rails.public_path unless root_set
+	  if const_defined?(:Rails)
+            ::Agoo::Server.path_group('/assets', ::Rails.configuration.assets.paths)
+            root = Rails.public_path unless root_set
+	  end
         rescue Exception
         end
 	unless default_handler.nil?
