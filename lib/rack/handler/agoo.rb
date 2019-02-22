@@ -12,12 +12,6 @@ module Rack
 
       # Run the server. Options are the same as for Agoo::Server plus a :port,
       # :root, :rmux, and :wc option.
-      #
-      #   - *:port [_Integer_] port to listen on
-      #   - *:root [_String_] root or public directory for static assets
-      #   - *:root_first [_true_|_false_] if true look in the root directory first before calling Ruby hooks
-      #   - *:wc* [_Integer_] number of workers to fork. Defaults to one which is not to fork.
-      #   - */path=MyHandler* path and class name to handle requests on that path
       def self.run(handler, options={})
 	port = 9292
 	root = './public'
@@ -47,6 +41,49 @@ module Rack
 	    options.delete(k)
 	  elsif :graphql == k
 	    # leave as is
+	  elsif :bind == k
+	    # TBD
+	  elsif :log_dir == k
+	    # TBD
+	  elsif :log_classic == k
+	    # TBD
+	  elsif :no_log_classic == k
+	    # TBD
+	  elsif :log_console == k
+	    # TBD
+	  elsif :no_log_console == k
+	    # TBD
+	  elsif :log_colorize == k
+	    # TBD
+	  elsif :no_log_colorize == k
+	    # TBD
+	  elsif :help == k || :h == k
+	    puts %|
+Agoo is a Ruby web server that supports Rack. The follwing options are available
+using the -O NAME[=VALUE] option of rackup.
+
+  -O h, help                 Show this display.
+  -O s, silent               Silent.
+  -O v, verbose              Increase verbosity.
+  -O f, rmux, root_first     Check the root directory before the handle paths.
+  -O p, port=PORT            Port to listen on.
+  -O b, bind=URL             URL to receive connections on. Examples:
+                               "http ://127.0.0.1:6464"
+                               "unix:///tmp/agoo.socket"
+                               "http ://[::1]:6464
+                               "http ://:6464"
+  -O d, dir, root=DIR        Directory to serve static assets from.
+  -O g, graphql=PATH         URL path for GraphQL requests.
+  -O r, require=FILE         Ruby require.
+  -O t, threads=COUNT        Number of threads to use.
+  -O w, workers=COUNT        Number of workers to use.
+     -O log_dir=DIR          Log file directory.
+     -O [no_]log_classic     Classic log entries instead of JSON.
+     -O [no_]log_console     Display log entries on the console.
+     -O [no_]log_colorize    Display log entries in color.
+  -O /path=MyHandler path and class name to handle requests on that path
+|
+	    exit(true)
 	  else
             k = k.to_s
             if k.start_with?('/')
@@ -59,7 +96,7 @@ module Rack
 	options[:worker_count] = worker_count
 	::Agoo::Server.init(port, root, options)
 	path_map.each { |path,h|
-			::Agoo::Server.handle(nil, path, h)
+	  ::Agoo::Server.handle(nil, path, h)
 	}
         begin
           # If Rails is loaded this should work else just ignore.

@@ -88,6 +88,7 @@ url_bind(VALUE rurl) {
     struct _agooErr	err = AGOO_ERR_INIT;
     agooBind		b = agoo_bind_url(&err, StringValuePtr(rurl));
 
+    printf("*** bind to %s\n", StringValuePtr(rurl));
     if (AGOO_ERR_OK != err.code) {
 	rb_raise(rb_eArgError, "%s", err.msg);
     }
@@ -107,9 +108,11 @@ configure(agooErr err, int port, const char *root, VALUE options) {
     agoo_server.root_first = false;
     agoo_server.binds = NULL;
 
+    printf("*** config\n");
     if (Qnil != options) {
 	VALUE	v;
 
+	printf("*** config qith options\n");
 	if (Qnil != (v = rb_hash_lookup(options, ID2SYM(rb_intern("thread_count"))))) {
 	    int	tc = FIX2INT(v);
 
@@ -163,6 +166,7 @@ configure(agooErr err, int port, const char *root, VALUE options) {
 	    int	len;
 	    int	i;
 
+	    printf("*** bind\n");
 	    switch (rb_type(v)) {
 	    case T_STRING:
 		url_bind(v);
