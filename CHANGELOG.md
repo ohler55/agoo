@@ -1,5 +1,15 @@
 # CHANGELOG
 
+### 2.8.1 - 2019-02-TBD
+
+Add missing options.
+
+- Add missing options to `bin/agoo`.
+
+- Add missing options to `rack::Handler::Agoo`.
+
+- `bin/agoo` now picks up `config.ru` or `config.rb` if no other files are specified.
+
 ### 2.8.0 - 2019-02-19
 
 Extend GraphQL
