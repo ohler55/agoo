@@ -18,7 +18,7 @@ require 'agoo'
 # Prepare the +usage+ string.
 # Basically a banner text and description passed on +OptionParser+.
 usage = %{
-Usage: agoo [options] [<handler_class>@<path>]...
+Usage: agoo [options] [<handler_class>@<path>]... [<file>.ru | <file>.rb]
 
 version #{Agoo::VERSION}
 
@@ -27,8 +27,12 @@ this application. The handler/class arguments must have the form of
 <path>@<class> where the class is a Ruby class and the path is the URL path
 that will be directed to the class or an instance of the class provided. If
 the class implements a call() or on_request() method it will be used directly
-otherwise an instance of the class will be created. The new method mut take no
+otherwise an instance of the class will be created. The new method must take no
 arguments and have either a call() method or a on_request() method.
+
+Files with a .rb or .ru can also be listed. If no files or path-class pairs are
+listed then Agoo will look for either a config.ru or a config.rb file to load.
+In that case a kernel level run method is defined to start the server.
 
 Example:
 
@@ -96,18 +100,23 @@ Agoo::Server.init(@port,
 puts "Agoo #{Agoo::VERSION} is listening on port #{@port}. Path mappings are:" if 1 <= @verbose
 
 handler_paths.each { |hp|
-  path, classname = hp.split('@')
-  if classname.nil? || path.nil? || classname.empty? || path.empty?
-    raise "Invalid handler/path specification. Both a class and path must be present."
-  end
-  c = Object.const_get(classname)
-  if c.respond_to?(:call) || c.respond_to?(:on_request)
-    Agoo::Server.handle(nil, path, c)
+  if hp.include?('@')
+    path, classname = hp.split('@')
+    if classname.nil? || path.nil? || classname.empty? || path.empty?
+      raise "Invalid handler/path specification. Both a class and path must be present."
+    end
+    c = Object.const_get(classname)
+    if c.respond_to?(:call) || c.respond_to?(:on_request)
+      Agoo::Server.handle(nil, path, c)
+    else
+      Agoo::Server.handle(nil, path, c.new)
+    end
+    if 1 <= @verbose
+      puts "  #{path} => #{classname}"
+    end
   else
-    Agoo::Server.handle(nil, path, c.new)
-  end
-  if 1 <= @verbose
-    puts "  #{path} => #{classname}"
+    # TBD handle loading .ru and .rb files
+
   end
 }
 
