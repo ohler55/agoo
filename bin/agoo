@@ -41,7 +41,7 @@ Example:
 }
 
 @verbose = 1
-@port = 6464
+@port = 0
 @binds = []
 @root = '.'
 @log_dir = nil
@@ -65,42 +65,60 @@ Example:
 @opts.on('-r', '--require FILE', String, 'Ruby require.')                            { |r| require r }
 @opts.on('-t', '--threads COUNT', Integer, 'Number of threads to use.')              { |t| @threads = t }
 @opts.on('-w', '--workers COUNT', Integer, 'Number of workers to use.')              { |w| @workers = w }
-@opts.on('--log.dir DIR', String, 'Log file directory.')                             { |d| @log_dir = d }
-@opts.on('--[no-]log.classic', 'Classic log entries instead of JSON.')               { |b| @classic = b }
-@opts.on('--[no-]log.console', 'Display log entries on the console.')                { |b| @console = b }
-@opts.on('--[no-]log.colorize', 'Display log entries in color.')                     { |b| @colorize = b }
+@opts.on('--log-dir DIR', String, 'Log file directory.')                             { |d| @log_dir = d }
+@opts.on('--[no-]log-classic', 'Classic log entries instead of JSON.')               { |b| @classic = b }
+@opts.on('--[no-]log-console', 'Display log entries on the console.')                { |b| @console = b }
+@opts.on('--[no-]log-colorize', 'Display log entries in color.')                     { |b| @colorize = b }
 
 handler_paths = @opts.parse(ARGV)
 
 @threads = 0 if @threads < 0
 @workers = 1 if @workers < 1
+@ran = false
+@run_file = nil
 
-Agoo::Log.configure(dir: @log_dir,
-		    console: @console,
-		    classic: @classic,
-		    colorize: @colorize,
-		    states: {
-		      INFO: 1 <= @verbose,
-		      DEBUG: 3 <= @verbose,
-		      connect: 2 <= @verbose,
-		      request: 2 <= @verbose,
-		      response: 2 <= @verbose,
-		      eval: 2 <= @verbose,
-		      push: 2 <= @verbose,
-		    })
+if handler_paths.empty?
+  if File.exist?('config.ru')
+    @run_file = 'config.ru'
+  elsif File.exist?('config.rb')
+    @run_file = 'config.rb'
+  end
+else
+  handler_paths.each { |hp|
+    unless hp.include?('@')
+      @run_file = hp
+      break
+    end
+  }
+end
 
-Agoo::Server.init(@port,
-		  @root,
-		  bind: @binds,
-		  thread_count: @threads,
-		  worker_count: @workers,
-		  root_first: @first,
-		  graphql: @graphql)
+if @run_file.nil?
+  @port = 6464 if 0 == @port
+  Agoo::Log.configure(dir: @log_dir,
+		      console: @console,
+		      classic: @classic,
+		      colorize: @colorize,
+		      states: {
+			INFO: 1 <= @verbose,
+			DEBUG: 3 <= @verbose,
+			connect: 2 <= @verbose,
+			request: 2 <= @verbose,
+			response: 2 <= @verbose,
+			eval: 2 <= @verbose,
+			push: 2 <= @verbose,
+		      })
 
-puts "Agoo #{Agoo::VERSION} is listening on port #{@port}. Path mappings are:" if 1 <= @verbose
+  Agoo::Server.init(@port,
+		    @root,
+		    bind: @binds,
+		    thread_count: @threads,
+		    worker_count: @workers,
+		    root_first: @first,
+		    graphql: @graphql)
 
-handler_paths.each { |hp|
-  if hp.include?('@')
+  puts "Agoo #{Agoo::VERSION} is listening on port #{@port}. Path mappings are:" if 1 <= @verbose
+
+  handler_paths.each { |hp|
     path, classname = hp.split('@')
     if classname.nil? || path.nil? || classname.empty? || path.empty?
       raise "Invalid handler/path specification. Both a class and path must be present."
@@ -111,17 +129,67 @@ handler_paths.each { |hp|
     else
       Agoo::Server.handle(nil, path, c.new)
     end
-    if 1 <= @verbose
-      puts "  #{path} => #{classname}"
+    puts "  #{path} => #{classname}" if 1 <= @verbose
+  }
+
+  puts "Agoo is only serving static files in '#{@root}'." if handler_paths.empty?
+  Agoo::Server.start() unless @ran
+
+else
+  @port = 9292 if 0 == @port
+  def run(handler, options={})
+    options[:port] = @port unless options.has_key?(:port) || options.has_key?(:p)
+    options[:root] = @root unless options.has_key?(:root) || options.has_key?(:dir) || options.has_key?(:d)
+    options[:workers] = @workers unless options.has_key?(:workers) || options.has_key?(:wc)
+    options[:root_first] = @first unless options.has_key?(:root_first) || options.has_key?(:f) || options.has_key?(:rmux)
+    options[:graphql] = @graphql unless options.has_key?(:graphql) || options.has_key?(:g)
+    unless @binds.empty?
+      if options.has_key?(:b)
+	b2 = options[:b]
+	b2 = b2.split(',') if b2.is_a?(String)
+	@binds = @binds + b2
+	options.delete(:b)
+      elsif options.has_key?(:bind)
+	b2 = options[:bind]
+	b2 = b2.split(',') if b2.is_a?(String)
+	@binds = @binds + b2
+	options.delete(:bind)
+      end
+      options[:bind] = @binds
     end
-  else
-    # TBD handle loading .ru and .rb files
-
+    unless options.has_key?(:silent) || options.has_key?(:verbose) || options.has_key?(:debug)
+      if 0 == @verbose
+	options[:silent] = true
+      elsif 2 == @verbose
+	options[:verbose] = true
+      elsif 3 <= @verbose
+	options[:debug] = true
+      end
+    end
+    options[:log_dir] = @log_dir unless options.has_key?(:log_dir)
+    unless options.has_key?(:log_classic) || options.has_key?(:no_log_classic)
+      if @classic
+	options[:log_classic] = true
+      else
+	options[:no_log_classic] = true
+      end
+    end
+    unless options.has_key?(:log_console) || options.has_key?(:no_log_console)
+      if @console
+	options[:log_console] = true
+      else
+	options[:no_log_console] = true
+      end
+    end
+    unless options.has_key?(:log_colorize) || options.has_key?(:no_log_colorize)
+      if @colorize
+	options[:log_colorize] = true
+      else
+	options[:no_log_colorize] = true
+      end
+    end
+    ::Rack::Handler::Agoo.run(handler, options)
   end
-}
-
-if handler_paths.empty?
-  puts "Agoo is only serving static files in '#{@root}'."
+  puts "  Running #{@run_file}" if 1 <= @verbose
+  load(@run_file)
 end
-
-Agoo::Server.start()

@@ -59,7 +59,11 @@ module Rack
 	    verbose = 3
 	    options.delete(k)
 	  elsif :b == k || :bind == k
-	    binds = v.split(',')
+	    if v.is_a?(String)
+	      binds = v.split(',')
+	    else
+	      binds = v
+	    end
 	    options.delete(k)
 	  elsif :log_dir == k
 	    log_dir = v
