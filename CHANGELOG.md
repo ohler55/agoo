@@ -1,6 +1,6 @@
 # CHANGELOG
 
-### 2.8.1 - 2019-02-TBD
+### 2.8.1 - 2019-03-01
 
 Add missing options.
 

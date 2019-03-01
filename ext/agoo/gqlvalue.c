@@ -1555,7 +1555,7 @@ convert_to_uuid(agooErr err, gqlValue value) {
 }
 
 int
-gql_value_convert(agooErr err, gqlValue value, struct _gqlType *type) {
+gql_value_convert(agooErr err, gqlValue value, gqlType type) {
     int	code = AGOO_ERR_OK;
 
     if (type != value->type) {

@@ -28,8 +28,10 @@ extern int	agoo_doc_skip_jwhite(agooDoc doc);
 
 extern void	agoo_doc_next_token(agooDoc doc);
 extern void	agoo_doc_read_token(agooDoc doc);
+extern void	agoo_doc_read_value_token(agooDoc doc);
 
 extern int	agoo_doc_read_string(agooErr err, agooDoc doc);
+extern int	agoo_doc_read_quote(agooErr err, agooDoc doc);
 
 extern int	agoo_doc_err(agooDoc doc, agooErr err, const char *fmt, ...);
 extern void	agoo_doc_location(agooDoc doc, int *linep, int *colp);

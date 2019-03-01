@@ -33,6 +33,16 @@ pttttttttttttttttttttttttttp.p.t\
 ................................\
 ................................";
 
+static char	value_map[256] = "\
+.........ww..w..................\
+wpq.....pp..ctt.ttttttttttt..p..\
+pttttttttttttttttttttttttttp.p.t\
+.ttttttttttttttttttttttttttppp..\
+................................\
+................................\
+................................\
+................................";
+
 void
 agoo_doc_init(agooDoc doc, const char *str, int len) {
     if (0 >= len) {
@@ -50,7 +60,7 @@ agoo_doc_init(agooDoc doc, const char *str, int len) {
 int
 agoo_doc_skip_white(agooDoc doc) {
     const char	*start = doc->cur;
-    
+
     for (; 'w' == char_map[*(uint8_t*)doc->cur]; doc->cur++) {
     }
     return (int)(doc->cur - start);
@@ -59,7 +69,7 @@ agoo_doc_skip_white(agooDoc doc) {
 int
 agoo_doc_skip_jwhite(agooDoc doc) {
     const char	*start = doc->cur;
-    
+
     for (; 'w' == json_map[*(uint8_t*)doc->cur]; doc->cur++) {
     }
     return (int)(doc->cur - start);
@@ -82,7 +92,7 @@ agoo_doc_skip_comment(agooDoc doc) {
 bool
 agoo_doc_skip_to(agooDoc doc, char c) {
     const char	*orig = doc->cur;
-    
+
     for (; doc->cur < doc->end; doc->cur++) {
 	if (c == *doc->cur) {
 	    return true;
@@ -114,6 +124,12 @@ agoo_doc_next_token(agooDoc doc) {
     }
 }
 
+void
+agoo_doc_read_value_token(agooDoc doc) {
+    for (; 't' == value_map[*(uint8_t*)doc->cur]; doc->cur++) {
+    }
+}
+
 // Just find end.
 int
 agoo_doc_read_string(agooErr err, agooDoc doc) {
@@ -138,6 +154,26 @@ agoo_doc_read_string(agooErr err, agooDoc doc) {
 		    break;
 		}
 	    }
+	}
+    }
+    if (doc->end <= doc->cur) {
+	return agoo_doc_err(doc, err, "String not terminated");
+    }
+    return AGOO_ERR_OK;
+}
+
+// string delimited by a single quote
+int
+agoo_doc_read_quote(agooErr err, agooDoc doc) {
+    doc->cur++; // skip first '
+    if ('\'' == *doc->cur) { // an empty string
+	doc->cur++;
+	return AGOO_ERR_OK; // empty string
+    }
+    for (; doc->cur < doc->end; doc->cur++) {
+	if ('\'' == *doc->cur) {
+	    doc->cur++;
+	    break;
 	}
     }
     if (doc->end <= doc->cur) {
@@ -200,7 +236,7 @@ read_number(agooErr err, agooDoc doc) {
     int		hasExp = false;
     int		dec_cnt = 0;
     int		d;
-    
+
     if ('-' == *doc->cur) {
 	doc->cur++;
 	neg = true;
@@ -292,7 +328,7 @@ agoo_doc_read_value(agooErr err, agooDoc doc, gqlType type) {
     const char	*start;
 
     agoo_doc_skip_white(doc);
-    start = doc->cur;    
+    start = doc->cur;
     switch (*doc->cur) {
     case '$':
 	doc->cur++;
@@ -368,7 +404,7 @@ agoo_doc_read_value(agooErr err, agooDoc doc, gqlType type) {
 	doc->cur++;
 	while (doc->cur < doc->end) {
 	    gqlValue	member;
-	    
+
 	    agoo_doc_skip_white(doc);
 	    if (']' == *doc->cur) {
 		doc->cur++;
@@ -391,7 +427,7 @@ agoo_doc_read_value(agooErr err, agooDoc doc, gqlType type) {
 	while (doc->cur < doc->end) {
 	    char	key[256];
 	    gqlValue	member;
-	    
+
 	    agoo_doc_skip_white(doc);
 	    if ('}' == *doc->cur) {
 		doc->cur++;
