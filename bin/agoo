@@ -190,6 +190,15 @@ else
     end
     ::Rack::Handler::Agoo.run(handler, options)
   end
-  puts "  Running #{@run_file}" if 1 <= @verbose
-  load(@run_file)
+  begin
+    require 'rack'
+    puts "  Racking #{@run_file}" if 1 <= @verbose
+    path = @run_file
+    Rack::Builder.new {
+      load(path)
+    }
+  rescue LoadError
+    puts "  Running #{@run_file}" if 1 <= @verbose
+    load(@run_file)
+  end
 end
