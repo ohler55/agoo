@@ -24,6 +24,8 @@
 
 struct _agooServer	agoo_server = {false};
 
+double	agoo_io_loop_ratio = 0.5;
+
 int
 agoo_server_setup(agooErr err) {
     long	i;
@@ -40,7 +42,7 @@ agoo_server_setup(agooErr err) {
     }
     agoo_server.loop_max = 4;
     if (0 < (i = sysconf(_SC_NPROCESSORS_ONLN))) {
-	i /= 2;
+	i = (int)(i * agoo_io_loop_ratio);
 	if (1 >= i) {
 	    i = 1;
 	}

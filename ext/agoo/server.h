@@ -36,19 +36,17 @@ typedef struct _agooServer {
     int				loop_max;
     int				loop_cnt;
     atomic_int			con_cnt;
-    
+
     struct _agooUpgraded	*up_list;
     pthread_mutex_t		up_lock;
     int				max_push_pending;
     void			*env_nil_value;
     void			*ctx_nil_value;
-    
+
     // A count of the running threads from the wrapper or the server managed
     // threads.
     atomic_int			running;
 } *agooServer;
-
-extern struct _agooServer	agoo_server;
 
 extern int	agoo_server_setup(agooErr err);
 extern void	agoo_server_shutdown(const char *app_name, void (*stop)());
@@ -66,5 +64,9 @@ extern int	agoo_server_add_func_hook(agooErr	err,
 					  bool		quick);
 
 extern void	agoo_server_publish(struct _agooPub *pub);
+
+extern struct _agooServer	agoo_server;
+
+extern double	agoo_io_loop_ratio;
 
 #endif // AGOO_SERVER_H
