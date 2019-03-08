@@ -14,10 +14,12 @@ typedef struct _errorStream {
 
 static void
 es_free(void *ptr) {
-    ErrorStream	es = (ErrorStream)ptr;
+    if (NULL != ptr) {
+	ErrorStream	es = (ErrorStream)ptr;
 
-    AGOO_FREE(es->text); // allocated with malloc
-    AGOO_FREE(ptr);
+	AGOO_FREE(es->text); // allocated with malloc
+	AGOO_FREE(ptr);
+    }
 }
 
 VALUE
@@ -45,6 +47,9 @@ static VALUE
 es_puts(VALUE self, VALUE str) {
     ErrorStream	es = (ErrorStream)DATA_PTR(self);
 
+    if (NULL == es) {
+	rb_raise(rb_eIOError, "error stream has been closed.");
+    }
     es->text = agoo_text_append(es->text, StringValuePtr(str), (int)RSTRING_LEN(str));
     es->text = agoo_text_append(es->text, "\n", 1);
     if (NULL == es->text) {
@@ -64,6 +69,9 @@ es_write(VALUE self, VALUE str) {
     ErrorStream	es = (ErrorStream)DATA_PTR(self);
     int		cnt = (int)RSTRING_LEN(str);
 
+    if (NULL == es) {
+	rb_raise(rb_eIOError, "error stream has been closed.");
+    }
     if (NULL == (es->text = agoo_text_append(es->text, StringValuePtr(str), cnt))) {
 	rb_raise(rb_eNoMemError, "Failed to allocate memory for the error stream puts.");
     }
@@ -80,8 +88,28 @@ static VALUE
 es_flush(VALUE self) {
     ErrorStream	es = (ErrorStream)DATA_PTR(self);
 
+    if (NULL == es) {
+	rb_raise(rb_eIOError, "error stream has been closed.");
+    }
     agoo_log_cat(&agoo_error_cat, "%s", es->text->text);
     es->text->len = 0;
+
+    return self;
+}
+
+/* Document-method: close
+
+ * call-seq: close()
+ *
+ * Closes the stream.
+ */
+static VALUE
+es_close(VALUE self) {
+    ErrorStream	es = (ErrorStream)DATA_PTR(self);
+
+    es_flush(self);
+    DATA_PTR(self) = NULL;
+    es_free(es);
 
     return self;
 }
@@ -98,4 +126,5 @@ error_stream_init(VALUE mod) {
     rb_define_method(es_class, "puts", es_puts, 1);
     rb_define_method(es_class, "write", es_write, 1);
     rb_define_method(es_class, "flush", es_flush, 0);
+    rb_define_method(es_class, "close", es_close, 0);
 }

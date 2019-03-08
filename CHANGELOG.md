@@ -1,5 +1,11 @@
 # CHANGELOG
 
+### 2.8.2 - 2019-03-TBD
+
+Rack compatibility improvement.
+
+- Add miss `close` method to `Agoo::ErrorStream`.
+
 ### 2.8.1 - 2019-03-01
 
 Add missing options.
