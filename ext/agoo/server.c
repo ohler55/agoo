@@ -254,6 +254,7 @@ void
 agoo_server_bind(agooBind b) {
     // If a bind with the same port already exists, replace it.
     agooBind	prev = NULL;
+    agooBind    bx   = NULL;
 
     if (NULL == b->read) {
 	b->read = agoo_con_http_read;
@@ -264,7 +265,7 @@ agoo_server_bind(agooBind b) {
     if (NULL == b->events) {
 	b->events = agoo_con_http_events;
     }
-    for (agooBind bx = agoo_server.binds; NULL != bx; bx = bx->next) {
+    for (bx = agoo_server.binds; NULL != bx; bx = bx->next) {
 	if (bx->port == b->port) {
 	    b->next = bx->next;
 	    if (NULL == prev) {
