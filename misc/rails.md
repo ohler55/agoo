@@ -150,7 +150,7 @@ also means tha no Ruby objects are created for serving static assets.
 Now how about Agoo in clustered mode.
 
 ##### Rails with Agoo loading a static asset in clustered mode.
-
+```
 $ perfer -t 2 -k -c 40 -b 2 192.168.1.11:9292 -p /robots.txt -d 10
 Benchmarks for:
   URL:                192.168.1.11:9292/robots.txt
@@ -161,6 +161,7 @@ Benchmarks for:
 Results:
   Throughput:         657777 requests/second
   Latency:            0.223 +/-0.073 msecs (and stdev)
+```
 
 A bit faster but not that much over the non-clustered Agoo. The limiting
 factor with static assets is the network. Agoo handles 80 concurrent
