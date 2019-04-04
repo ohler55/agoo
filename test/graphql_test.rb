@@ -82,6 +82,7 @@ type Query @ruby(class: "Query") {
 }
 
 type Mutation {
+  "This is the documenation."
   like(artist: String!): Artist
 }
 

@@ -505,6 +505,7 @@ make_field(agooErr err, agooDoc doc, gqlType type) {
     if (AGOO_ERR_OK != extract_desc(err, doc, &desc, &dlen)) {
 	return err->code;
     }
+    agoo_doc_skip_white(doc);
     if (0 == read_name(err, doc, name, sizeof(name))) {
 	return err->code;
     }
@@ -578,6 +579,7 @@ make_input_arg(agooErr err, agooDoc doc, gqlType type) {
     if (AGOO_ERR_OK != extract_desc(err, doc, &desc, &dlen)) {
 	return err->code;
     }
+    agoo_doc_skip_white(doc);
     if (0 == read_name(err, doc, name, sizeof(name))) {
 	return err->code;
     }

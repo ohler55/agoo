@@ -1,5 +1,11 @@
 # CHANGELOG
 
+### 2.8.3 - 2019-04-04
+
+Description parsing fix.
+
+- Fixed a description parse bug that would fail to ignore whitespace after a description on some quoted descriptions.
+
 ### 2.8.2 - 2019-03-08
 
 Rack compatibility improvement.
