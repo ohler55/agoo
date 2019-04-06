@@ -369,8 +369,8 @@ gql_intro_init(agooErr err) {
 
 static struct _gqlCclass	type_class;
 
-static gqlValue
-extract_arg(agooErr err, gqlField field, gqlSel sel, const char *key) {
+gqlValue
+gql_extract_arg(agooErr err, gqlField field, gqlSel sel, const char *key) {
     if (NULL != sel->args) {
 	gqlSelArg	sa;
 	gqlValue	v = NULL;
@@ -892,7 +892,7 @@ type_fields(agooErr err, gqlDoc doc, gqlCobj obj, gqlField field, gqlSel sel, gq
     struct _gqlField	cf;
     struct _gqlCobj	child = { .clas = &field_class };
     int			d2 = depth + 1;
-    gqlValue		a = extract_arg(err, field, sel, "includeDeprecated");
+    gqlValue		a = gql_extract_arg(err, field, sel, "includeDeprecated");
     bool		inc_dep = false;
 
     if (GQL_OBJECT != type->kind && GQL_SCHEMA != type->kind && GQL_INTERFACE != type->kind) {
@@ -1086,7 +1086,7 @@ type_enum_values(agooErr err, gqlDoc doc, gqlCobj obj, gqlField field, gqlSel se
     struct _gqlField	cf;
     struct _gqlCobj	child = { .clas = &enum_value_class };
     int			d2 = depth + 1;
-    gqlValue		a = extract_arg(err, field, sel, "includeDeprecated");
+    gqlValue		a = gql_extract_arg(err, field, sel, "includeDeprecated");
     bool		inc_dep = false;
 
     if (GQL_ENUM != type->kind) {
@@ -1376,7 +1376,7 @@ root_schema(agooErr err, gqlDoc doc, gqlCobj obj, gqlField field, gqlSel sel, gq
 
 static int
 root_type(agooErr err, gqlDoc doc, gqlCobj obj, gqlField field, gqlSel sel, gqlValue result, int depth) {
-    gqlValue		na = extract_arg(err, field, sel, "name");
+    gqlValue		na = gql_extract_arg(err, field, sel, "name");
     const char		*name = NULL;
     const char		*key = sel->name;
     int			d2 = depth + 1;
