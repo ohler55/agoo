@@ -24,7 +24,7 @@
 // head and tail both increment and wrap.
 // tail points to next open space.
 // When head == tail the queue is full. This happens when tail catches up with head.
-// 
+//
 
 int
 agoo_queue_init(agooErr err, agooQueue q, size_t qsize) {
@@ -109,7 +109,7 @@ agoo_queue_pop(agooQueue q, double timeout) {
     agooQItem	item;
     agooQItem	*next;
     int cnt;
-    
+
     if (q->multi_pop) {
 	while (atomic_flag_test_and_set(&q->pop_lock)) {
 	    dsleep(RETRY_SECS);
@@ -183,7 +183,7 @@ agoo_queue_listen(agooQueue q) {
 	}
     }
     atomic_store(&q->wait_state, WAITING);
-    
+
     return q->rsock;
 }
 
@@ -200,7 +200,6 @@ agoo_queue_release(agooQueue q) {
 int
 agoo_queue_count(agooQueue q) {
     int	size = (int)(q->end - q->q);
-    
+
     return ((agooQItem*)atomic_load(&q->tail) - (agooQItem*)atomic_load(&q->head) + size) % size;
 }
-

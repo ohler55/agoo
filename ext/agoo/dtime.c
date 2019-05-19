@@ -7,15 +7,17 @@
 #include "dtime.h"
 
 #define MIN_SLEEP	(1.0 / (double)CLOCKS_PER_SEC)
+#ifndef CLOCK_REALTIME_COURSE
+#define CLOCK_REALTIME_COURSE	CLOCK_REALTIME
+#endif
 
 double
 dtime() {
-    struct timeval	tv;
-    struct timezone	tz;
+    struct timespec	ts;
 
-    gettimeofday(&tv, &tz);
+    clock_gettime(CLOCK_REALTIME_COURSE, &ts);
 
-    return (double)tv.tv_sec + (double)tv.tv_usec / 1000000.0;
+    return (double)ts.tv_sec + (double)ts.tv_nsec / 1000000000.0;
 }
 
 double
@@ -36,7 +38,7 @@ dsleep(double t) {
 double
 dwait(double t) {
     double	end = dtime() + t;
-    
+
     if (MIN_SLEEP < t) {
 	struct timespec	req, rem;
 
