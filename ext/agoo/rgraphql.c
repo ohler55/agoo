@@ -88,6 +88,9 @@ protect_eval(void *x) {
     return NULL;
 }
 
+// Hidden ruby function.
+extern int ruby_thread_has_gvl_p();
+
 static gqlValue
 eval_wrap(agooErr err, gqlDoc doc) {
     struct _eval	eval = {
@@ -95,9 +98,11 @@ eval_wrap(agooErr err, gqlDoc doc) {
 	.err = err,
 	.value = NULL,
     };
-
-    rb_thread_call_with_gvl(protect_eval, &eval);
-
+    if (ruby_thread_has_gvl_p()) {
+	protect_eval(&eval);
+    } else {
+	rb_thread_call_with_gvl(protect_eval, &eval);
+    }
     return eval.value;
 }
 
