@@ -1,11 +1,13 @@
 # frozen_string_literal: true
 
+# The Rack handler.
 class FlyHandler
   def self.call(req)
     [ 200, { }, [ "flying fish" ] ]
   end
 end
 
+# Turn on INFO logging. The other option are just for documentation.
 Agoo::Log.configure(dir: '',
                     console: true,
                     classic: true,
@@ -20,10 +22,7 @@ Agoo::Log.configure(dir: '',
                       push: false
                     })
 
-worker_count = 1
-worker_count = ENV['AGOO_WORKER_COUNT'].to_i if ENV.key?('AGOO_WORKER_COUNT')
-Agoo::Server.init(9292, '.', thread_count: 1, worker_count: worker_count, graphql: '/graphql')
-
+# The GraphQL classes and setup.
 class Query
   def hello
     'Hello'
@@ -63,12 +62,11 @@ type Mutation {
 
 run FlyHandler
 
-
 # A minimal startup of the Agoo rack handle using rackup. Note this does not
-# allow for loading any static assets.
-# $ bundle exec rackup -r agoo -s agoo
+# allow for loading any static assets. It does set up the GraphQL on /graphql.
 
-# Make requests on port 9292 to received responses.
+# $ bundle exec rackup -r agoo -s agoo -Ographql=/graphql
 
-# TBD how to set options when using rack? maybe have to use command line
-# TBD
+# Make requests on port 9292 to received responses. Try http://localhost:9292
+# and http://localhost:9292/graphql?query={hello} which is the same as
+# http://localhost:9292/graphql?query=%7Bhello%7D.
