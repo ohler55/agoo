@@ -1,5 +1,12 @@
 # CHANGELOG
 
+### 2.8.4 - 2019-06-11
+
+GraphQL with Rack
+
+- Fixed an issue with using GraphQL with Rack. Added a Rack GraphQL example in
+  example/graphql/config.ru.
+
 ### 2.8.3 - 2019-04-04
 
 Description parsing fix.
