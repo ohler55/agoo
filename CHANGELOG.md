@@ -1,6 +1,6 @@
 # CHANGELOG
 
-### 2.8.4 - 2019-06-09
+### 2.8.4 - 2019-06-11
 
 GraphQL with Rack
 
