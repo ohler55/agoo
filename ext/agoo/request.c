@@ -6,6 +6,7 @@
 
 #include "debug.h"
 #include "con.h"
+#include "early_hints.h"
 #include "error_stream.h"
 #include "rack_logger.h"
 #include "request.h"
@@ -17,6 +18,7 @@ static VALUE	connect_val = Qundef;
 static VALUE	content_length_val = Qundef;
 static VALUE	content_type_val = Qundef;
 static VALUE	delete_val = Qundef;
+static VALUE	early_hints_val = Qundef;
 static VALUE	empty_val = Qundef;
 static VALUE	get_val = Qundef;
 static VALUE	head_val = Qundef;
@@ -564,6 +566,11 @@ request_env(agooReq req, VALUE self) {
 	rb_hash_aset(env, rack_hijack_val, self);
 	rb_hash_aset(env, rack_hijack_io_val, Qnil);
 
+	if (agoo_server.rack_early_hints) {
+	    volatile VALUE	eh = agoo_early_hints_new(req);
+
+	    rb_hash_aset(env, early_hints_val, eh);
+	}
 	req->env = (void*)env;
     }
     return (VALUE)req->env;
@@ -603,7 +610,7 @@ to_s(VALUE self) {
  *
  * call-seq: call()
  *
- * Returns an IO like object and hijacks the connection.
+ * Returns an IO like object and hijack the connection.
  */
 static VALUE
 call(VALUE self) {
@@ -679,6 +686,7 @@ request_init(VALUE mod) {
     content_length_val = rb_str_new_cstr("CONTENT_LENGTH");	rb_gc_register_address(&content_length_val);
     content_type_val = rb_str_new_cstr("CONTENT_TYPE");		rb_gc_register_address(&content_type_val);
     delete_val = rb_str_new_cstr("DELETE");			rb_gc_register_address(&delete_val);
+    early_hints_val = rb_str_new_cstr("early_hints");		rb_gc_register_address(&early_hints_val);
     empty_val = rb_str_new_cstr("");				rb_gc_register_address(&empty_val);
     get_val = rb_str_new_cstr("GET");				rb_gc_register_address(&get_val);
     head_val = rb_str_new_cstr("HEAD");				rb_gc_register_address(&head_val);

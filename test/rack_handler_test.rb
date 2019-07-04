@@ -16,7 +16,7 @@ require 'agoo'
 
 class RackHandlerTest < Minitest::Test
   @@server_started = false
-  
+
   class TellMeHandler
     def initialize
     end
@@ -78,6 +78,16 @@ class RackHandlerTest < Minitest::Test
     Agoo::shutdown
   }
 
+  def test_rack_early_hint
+    on = Agoo::Server::rack_early_hints(true)
+    x = Agoo::Server::rack_early_hints(nil)
+    off = Agoo::Server::rack_early_hints(false)
+    assert_equal(true, on, 'after turning on')
+    assert_equal(true, x, 'on query with nil')
+    assert_equal(false, off, 'after turning off')
+    assert_raises(ArgumentError) { Agoo::Server::rack_early_hints(2) }
+  end
+
   def test_eval
     uri = URI('http://localhost:6467/tellme?a=1')
     req = Net::HTTP::Get.new(uri)
@@ -127,13 +137,13 @@ class RackHandlerTest < Minitest::Test
     req['Accept-Encoding'] = '*'
     req['Accept'] = 'application/json'
     req['User-Agent'] = 'Ruby'
-    
+
     res = Net::HTTP.start(uri.hostname, uri.port) { |h|
       h.request(req)
     }
     assert_equal(Net::HTTPNoContent, res.class)
   end
-  
+
   def test_put
     uri = URI('http://localhost:6467/makeme')
     req = Net::HTTP::Put.new(uri)
@@ -142,7 +152,7 @@ class RackHandlerTest < Minitest::Test
     req['Accept'] = 'application/json'
     req['User-Agent'] = 'Ruby'
     req.body = 'hello'
-    
+
     res = Net::HTTP.start(uri.hostname, uri.port) { |h|
       h.request(req)
     }

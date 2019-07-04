@@ -9,6 +9,7 @@
 
 #include "atomic.h"
 #include "debug.h"
+#include "early_hints.h"
 #include "error_stream.h"
 #include "graphql.h"
 #include "log.h"
@@ -109,6 +110,7 @@ Init_agoo() {
     server_init(mod);
     upgraded_init(mod);
     graphql_init(mod);
+    early_hints_init(mod);
 
     rb_define_module_function(mod, "shutdown", ragoo_shutdown, 0);
     rb_define_module_function(mod, "publish", ragoo_publish, 2);
