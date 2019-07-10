@@ -4,6 +4,7 @@
 #define AGOO_DEBUG_H
 
 #include <stdlib.h>
+#include <string.h>
 
 #ifdef MEM_DEBUG
 

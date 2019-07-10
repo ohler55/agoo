@@ -78,16 +78,6 @@ class RackHandlerTest < Minitest::Test
     Agoo::shutdown
   }
 
-  def test_rack_early_hint
-    on = Agoo::Server::rack_early_hints(true)
-    x = Agoo::Server::rack_early_hints(nil)
-    off = Agoo::Server::rack_early_hints(false)
-    assert_equal(true, on, 'after turning on')
-    assert_equal(true, x, 'on query with nil')
-    assert_equal(false, off, 'after turning off')
-    assert_raises(ArgumentError) { Agoo::Server::rack_early_hints(2) }
-  end
-
   def test_eval
     uri = URI('http://localhost:6467/tellme?a=1')
     req = Net::HTTP::Get.new(uri)

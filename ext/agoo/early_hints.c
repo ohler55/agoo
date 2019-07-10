@@ -27,7 +27,7 @@ eh_free(void *ptr) {
 }
 
 VALUE
-agoo_early_hints_create(agooReq req) {
+agoo_early_hints_new(agooReq req) {
     EarlyHints	eh = (EarlyHints)AGOO_MALLOC(sizeof(struct _earlyHints));
 
     if (NULL == eh) {

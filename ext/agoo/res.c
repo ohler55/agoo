@@ -1,5 +1,6 @@
 // Copyright (c) 2018, Peter Ohler, All rights reserved.
 
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -27,6 +28,7 @@ agoo_res_create(agooCon con) {
     }
     res->next = NULL;
     atomic_init(&res->message, NULL);
+    atomic_init(&res->early, NULL);
     res->con = con;
     res->con_kind = AGOO_CON_HTTP;
     res->close = false;
@@ -40,9 +42,13 @@ void
 agoo_res_destroy(agooRes res) {
     if (NULL != res) {
 	agooText	message = agoo_res_message(res);
+	agooEarly	early = atomic_load(&res->early);
 
 	if (NULL != message) {
 	    agoo_text_release(message);
+	}
+	if (NULL != early) {
+	    agoo_early_destroy(early);
 	}
 	res->next = NULL;
 	pthread_mutex_lock(&res->con->loop->lock);
@@ -63,4 +69,3 @@ agoo_res_set_message(agooRes res, agooText t) {
     }
     atomic_store(&res->message, t);
 }
-

@@ -9,6 +9,9 @@ todo
  - subscription
 
 - early_hints
+ - add early to con res
+  - on write, first early then wait for message to be ready
+
  - early_hints_test.rb
 
 

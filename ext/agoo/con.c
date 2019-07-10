@@ -379,7 +379,11 @@ agoo_con_header_read(agooCon c, size_t *mlenp) {
     c->req->body.len = (unsigned int)clen;
     b = strstr(b, "\r\n");
     c->req->header.start = c->req->msg + (b + 2 - c->buf);
-    c->req->header.len = (unsigned int)(hend - b - 2);
+    if (b < hend) {
+	c->req->header.len = (unsigned int)(hend - b - 2);
+    } else {
+	c->req->header.len = 0;
+    }
     c->req->res = NULL;
     c->req->hook = hook;
 
@@ -632,6 +636,7 @@ agoo_con_http_write(agooCon c) {
     agooText	message = agoo_res_message(c->res_head);
     ssize_t	cnt;
 
+    // TBD if early hints then send it before checking on the content
     if (NULL == message) {
 	return true;
     }
@@ -962,6 +967,7 @@ short
 agoo_con_http_events(agooCon c) {
     short	events = 0;
 
+    // TBD look at early also
     if (NULL != c->res_head && NULL != agoo_res_message(c->res_head)) {
 	events = POLLIN | POLLOUT;
     } else if (!c->closing) {
