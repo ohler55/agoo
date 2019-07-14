@@ -17,35 +17,32 @@ class EarlyHandlerTest < Minitest::Test
 
   class CallHandler
     def self.call(req)
+      headers = { 'Content-Type' => 'text/plain' }
       eh = req['early_hints']
       unless eh.nil?
+	headers['Link'] = "Link: </style.css>; rel=preload; as=style, </script.js>; rel=preload; as=script"
 	eh.call([
-		  ["link", "</style.css>; rel=preload; as=style"],
-		  ["link", "</script.js>; rel=preload; as=script"],
+		  ["Link", "</style.css>; rel=preload; as=style"],
+		  ["Link", "</script.js>; rel=preload; as=script"],
 		])
       end
       sleep(0.2)
-      [ 200,
-	{ 'Content-Type' => 'text/plain' },
-	[ 'called' ]
-      ]
+      [ 200, headers, [ 'called' ]]
     end
   end
 
   class PushHandler
     def self.call(req)
+      headers = { 'Content-Type' => 'text/plain' }
       eh = req['early_hints']
       unless eh.nil?
+	headers['Link'] = "Link: </style.css>; rel=preload; as=style;"
 	eh.push({
-                  '/style.css' => { preload: true, rel: 'style' },
-                  '/scrips.js' => { preload: true, rel: 'script' },
+                  '/style.css' => { rel: 'preload', as: 'style' },
                 })
       end
       sleep(0.2)
-      [ 200,
-	{ 'Content-Type' => 'text/plain' },
-	[ 'pushed' ]
-      ]
+      [ 200, headers, [ 'pushed' ]]
     end
   end
 
@@ -55,11 +52,11 @@ class EarlyHandlerTest < Minitest::Test
 			classic: true,
 			colorize: true,
 			states: {
-			  INFO: true,
+			  INFO: false,
 			  DEBUG: false,
 			  connect: false,
-			  request: true,
-			  response: true,
+			  request: false,
+			  response: false,
 			  eval: true,
 			})
 
@@ -97,32 +94,40 @@ class EarlyHandlerTest < Minitest::Test
 
   def test_call
     res = long_request('http://localhost:6473/call')
-    puts "*** call: #{res}"
-    assert_equal('called', res[200])
+    assert_equal(%|HTTP/1.1 103 Early Hints\r
+Link: </style.css>; rel=preload; as=style\r
+Link: </script.js>; rel=preload; as=script\r
+\r
+HTTP/1.1 200 OK\r
+Content-Length: 6\r
+Content-Type: text/plain\r
+Link: Link: </style.css>; rel=preload; as=style, </script.js>; rel=preload; as=script\r
+\r
+called|, res)
   end
 
   def test_push
     res = long_request('http://localhost:6473/push')
-    puts "*** push: #{res}"
-    assert_equal('pushed', res[200])
+    assert_equal(%|HTTP/1.1 103 Early Hints\r
+Link: </style.css>; rel=preload; as=style;\r
+\r
+HTTP/1.1 200 OK\r
+Content-Length: 6\r
+Content-Type: text/plain\r
+Link: Link: </style.css>; rel=preload; as=style;\r
+\r
+pushed|, res)
   end
 
   def long_request(uri)
     u = URI(uri)
     res = ''
     TCPSocket.open(u.hostname, u.port) { |s|
-      puts "*** path: #{u.path}"
-      # TBD handle minimal request
-      s.send("GET #{u.path} HTTP/1.0\r\n\r\n", 0)
+      s.send("GET #{u.path} HTTP/1.1\r\n\r\n", 0)
+      sleep(0.3) # wait for results to be collected
       res = s.recv(1000)
     }
-    puts "*** res: #{res}"
-
-    # TBD parse result with headers, code, and body
-
-    {
-      200 => res
-    }
+    res
   end
 
 end

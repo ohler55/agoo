@@ -13,11 +13,12 @@ struct _agooCon;
 
 typedef struct _agooEarly {
     struct _agooEarly	*next;
+    bool		sent;
     char		*link;
 } *agooEarly;
 
 extern agooEarly	agoo_early_create(const char *link);
+extern agooEarly	agoo_early_alloc(size_t size);
 extern void		agoo_early_destroy(agooEarly early);
-
 
 #endif // AGOO_EARLY_H

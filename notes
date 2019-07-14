@@ -9,18 +9,8 @@ todo
  - subscription
 
 - early_hints
- - add early to con res
-  - on write, first early then wait for message to be ready
-
- - early_hints_test.rb
-
-
- - Agoo::early_hints(path, [
-			["link", "</style.css>; rel=preload; as=style"],
-			["link", "</script.js>; rel=preload; as=script"],
-		])
- - Agoo::early_hints(path, "/style.css", {rel: 'preload', as: 'style'})
-  - can be called multiple times on the same path
+ - check memory leaks
+  - agoo_res_message_next
 
  - Agoo::rack_early_hints = true
   - also rack/handler/agoo.rb option -Oearly_hints

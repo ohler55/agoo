@@ -47,6 +47,7 @@ agoo_text_create(const char *str, int len) {
     agooText	t = (agooText)AGOO_MALLOC(sizeof(struct _agooText) - AGOO_TEXT_MIN_SIZE + len + 1);
 
     if (NULL != t) {
+	t->next = NULL;
 	t->len = len;
 	t->alen = len;
 	t->bin = false;
@@ -63,6 +64,7 @@ agoo_text_dup(agooText t0) {
 
     if (NULL != t0) {
 	if (NULL != (t = (agooText)AGOO_MALLOC(sizeof(struct _agooText) - AGOO_TEXT_MIN_SIZE + t0->alen + 1))) {
+	    t->next = NULL;
 	    t->len = t0->len;
 	    t->alen = t0->alen;
 	    t->bin = false;
@@ -78,6 +80,7 @@ agoo_text_allocate(int len) {
     agooText	t = (agooText)AGOO_MALLOC(sizeof(struct _agooText) - AGOO_TEXT_MIN_SIZE + len + 1);
 
     if (NULL != t) {
+	t->next = NULL;
 	t->len = 0;
 	t->alen = len;
 	t->bin = false;
