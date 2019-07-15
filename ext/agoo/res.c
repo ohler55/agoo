@@ -115,7 +115,7 @@ agoo_res_message_next(agooRes res) {
 
 	res->message = res->message->next;
 	// TBD make sure it is not release by the called, change code if it is
-	agoo_text_release(t);
+	agoo_text_release(t2);
     }
     t = res->message;
     pthread_mutex_unlock(&res->lock);
