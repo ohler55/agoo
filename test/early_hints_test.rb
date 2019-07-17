@@ -31,21 +31,6 @@ class EarlyHandlerTest < Minitest::Test
     end
   end
 
-  class PushHandler
-    def self.call(req)
-      headers = { 'Content-Type' => 'text/plain' }
-      eh = req['early_hints']
-      unless eh.nil?
-	headers['Link'] = "Link: </style.css>; rel=preload; as=style;"
-	eh.push({
-                  '/style.css' => { rel: 'preload', as: 'style' },
-                })
-      end
-      sleep(0.2)
-      [ 200, headers, [ 'pushed' ]]
-    end
-  end
-
   def start_server
     Agoo::Log.configure(dir: '',
 			console: true,
@@ -63,7 +48,6 @@ class EarlyHandlerTest < Minitest::Test
     Agoo::Server.init(6473, 'root', thread_count: 1)
 
     Agoo::Server.handle(:GET, "/call", CallHandler)
-    Agoo::Server.handle(:GET, "/push", PushHandler)
     Agoo::Server.start()
     Agoo::Server::rack_early_hints(true)
 
@@ -104,19 +88,6 @@ Content-Type: text/plain\r
 Link: Link: </style.css>; rel=preload; as=style, </script.js>; rel=preload; as=script\r
 \r
 called|, res)
-  end
-
-  def test_push
-    res = long_request('http://localhost:6473/push')
-    assert_equal(%|HTTP/1.1 103 Early Hints\r
-Link: </style.css>; rel=preload; as=style;\r
-\r
-HTTP/1.1 200 OK\r
-Content-Length: 6\r
-Content-Type: text/plain\r
-Link: Link: </style.css>; rel=preload; as=style;\r
-\r
-pushed|, res)
   end
 
   def long_request(uri)
