@@ -4,6 +4,19 @@ All changes to the Agoo gem are documented here. Releases follow semantic versio
 
 ## [Unreleased]
 
+## [2.9.0] - Unreleased
+
+Early hints and sub-domains
+
+### Added
+
+- Support for early hints added. This includes a server option to
+  activate and then a proposed `early_hints` member of the `env`
+  argument to the Rack `#call` method.
+
+- Sub-domains based on the host header in an HTTP request can now
+  be used to set up multiple root directories.
+
 ## [2.8.4] - 2019-06-14
 
 GraphQL with Rack

@@ -10,11 +10,12 @@
 #define AGOO_TEXT_MIN_SIZE	8
 
 typedef struct _agooText {
-    long	len;  // length of valid text
-    long	alen; // size of allocated text
-    atomic_int	ref_cnt;
-    bool	bin;
-    char	text[AGOO_TEXT_MIN_SIZE];
+    struct _agooText	*next;
+    long		len;  // length of valid text
+    long		alen; // size of allocated text
+    atomic_int		ref_cnt;
+    bool		bin;
+    char		text[AGOO_TEXT_MIN_SIZE];
 } *agooText;
 
 extern agooText	agoo_text_create(const char *str, int len);

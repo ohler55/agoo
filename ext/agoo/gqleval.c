@@ -54,7 +54,7 @@ err_resp(agooRes res, agooErr err, int status) {
 		   code,
 		   at.year, at.mon, at.day, at.hour, at.min, at.sec, frac);
 
-    agoo_res_set_message(res, agoo_text_create(buf, cnt));
+    agoo_res_message_push(res, agoo_text_create(buf, cnt), true);
 }
 
 static void
@@ -84,7 +84,7 @@ value_resp(agooRes res, gqlValue result, int status, int indent) {
     if (NULL == (text = agoo_text_prepend(text, buf, cnt))) {
 	agoo_log_cat(&agoo_error_cat, "Failed to allocate memory for a response.");
     }
-    agoo_res_set_message(res, text);
+    agoo_res_message_push(res, text, true);
 }
 
 gqlValue

@@ -311,7 +311,7 @@ rescue_error(VALUE x) {
 	message = agoo_text_create(buf, cnt);
 
 	req->res->close = true;
-	agoo_res_set_message(req->res, message);
+	agoo_res_message_push(req->res, message, true);
 	agoo_queue_wakeup(&agoo_server.con_queue);
     } else {
 /*
@@ -339,7 +339,7 @@ handle_base_inner(void *x) {
 	rb_funcall((VALUE)req->hook->handler, on_request_id, 2, rr, rres);
     }
     DATA_PTR(rr) = NULL;
-    agoo_res_set_message(req->res, response_text(rres));
+    agoo_res_message_push(req->res, response_text(rres), true);
     agoo_queue_wakeup(&agoo_server.con_queue);
 
     return Qfalse;
@@ -514,7 +514,7 @@ handle_rack_inner(void *x) {
 	    req->hook = agoo_hook_create(AGOO_NONE, NULL, (void*)handler, PUSH_HOOK, &agoo_server.eval_queue);
 	    rupgraded_create(req->res->con, handler, request_env(req, Qnil));
 	    t = agoo_sse_upgrade(req, t);
-	    agoo_res_set_message(req->res, t);
+	    agoo_res_message_push(req->res, t, true);
 	    agoo_queue_wakeup(&agoo_server.con_queue);
 	    return Qfalse;
 	default:
@@ -545,7 +545,7 @@ handle_rack_inner(void *x) {
 	    rb_iterate(rb_each, bv, body_append_cb, (VALUE)&t);
 	}
     }
-    agoo_res_set_message(req->res, t);
+    agoo_res_message_push(req->res, t, true);
     agoo_queue_wakeup(&agoo_server.con_queue);
 
     return Qfalse;
@@ -571,7 +571,7 @@ handle_wab_inner(void *x) {
 	rb_funcall((VALUE)req->hook->handler, on_request_id, 2, rr, rres);
     }
     DATA_PTR(rr) = NULL;
-    agoo_res_set_message(req->res, response_text(rres));
+    agoo_res_message_push(req->res, response_text(rres), true);
     agoo_queue_wakeup(&agoo_server.con_queue);
 
     return Qfalse;
@@ -685,7 +685,7 @@ handle_protected(agooReq req, bool gvi) {
 	agooText	message = agoo_text_create(buf, cnt);
 
 	req->res->close = true;
-	agoo_res_set_message(req->res, message);
+	agoo_res_message_push(req->res, message, true);
 	agoo_queue_wakeup(&agoo_server.con_queue);
 	break;
     }
@@ -1072,6 +1072,27 @@ header_rule(VALUE self, VALUE path, VALUE mime, VALUE key, VALUE value) {
     return Qnil;
 }
 
+/* Document-method: rack_early_hints
+ *
+ * call-seq: rack_early_hints(on)
+ *
+ * Turns on or off the inclusion of a early_hints object in the rack call env
+ * Hash. If the argument is nil then the current value is returned.
+ */
+static VALUE
+rack_early_hints(VALUE self, VALUE on) {
+    if (Qtrue == on) {
+	agoo_server.rack_early_hints = true;
+    } else if (Qfalse == on) {
+	agoo_server.rack_early_hints = false;
+    } else if (Qnil == on) {
+	on = agoo_server.rack_early_hints ? Qtrue : Qfalse;
+    } else {
+	rb_raise(rb_eArgError, "rack_early_hints can only be set to true or false");
+    }
+    return on;
+}
+
 /* Document-class: Agoo::Server
  *
  * An HTTP server that support the rack API as well as some other optimized
@@ -1090,6 +1111,8 @@ server_init(VALUE mod) {
     rb_define_module_function(server_mod, "add_mime", add_mime, 2);
     rb_define_module_function(server_mod, "path_group", path_group, 2);
     rb_define_module_function(server_mod, "header_rule", header_rule, 4);
+
+    rb_define_module_function(server_mod, "rack_early_hints", rack_early_hints, 1);
 
     call_id = rb_intern("call");
     each_id = rb_intern("each");

@@ -24,6 +24,7 @@ typedef struct _agooServer {
     int				thread_cnt;
     bool			pedantic;
     bool			root_first;
+    bool			rack_early_hints;
     pthread_t			listen_thread;
     struct _agooQueue		con_queue;
     agooHook			hooks;
