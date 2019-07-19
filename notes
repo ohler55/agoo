@@ -8,42 +8,14 @@ todo
 
  - subscription
 
+- sub-domains
+ - Host header match for root if any domains are set
+
 - early_hints
  - check memory leaks
   - agoo_res_message_next
 
- - Agoo::rack_early_hints = true
-  - also rack/handler/agoo.rb option -Oearly_hints
 
- - need flag in server for rack_early_hints
- - need hints map
-
- - static option
-  - if set for a path, send a 103 with link headers
-   - same headers must be in final response a well (add automatically)
- - rack proposed
-
-def call(env)
-	if env['PATH_INFO'] == "/index.html" and early_hints = env['rack.early_hints']
-		early_hints.call([
-			["link", "</style.css>; rel=preload; as=style"],
-			["link", "</script.js>; rel=preload; as=script"],
-		])
-	end
-	@app.call(env)
-end
-
-def call(env)
-	if early_hints = env['rack.early_hints']
-		early_hints.push("/style.css", preload: true, rel: 'style')
-		early_hints.push("/script.js", rel: 'script')
-	end
-end
-
-- if flag set, create ibject for early_hints
- - early hints should send on socket but leave open
-- can also set hash as option on server
- - if set and path matches then send
 
 - refs
   - http://www.rubydoc.info/github/rack/rack/master/file/SPEC
