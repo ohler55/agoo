@@ -34,13 +34,13 @@ extern int		agoo_pages_init(agooErr err);
 extern int		agoo_pages_set_root(agooErr err, const char *root);
 extern void		agoo_pages_cleanup();
 
-extern agooGroup	group_create(const char *path);
-extern agooDir		group_add(agooErr err, agooGroup g, const char *dir);
-extern agooPage		group_get(agooErr err, const char *path, int plen);
+extern agooGroup	agoo_group_create(const char *path);
+extern agooDir		agoo_group_add(agooErr err, agooGroup g, const char *dir);
+extern agooPage		agoo_group_get(agooErr err, const char *path, int plen);
 
 extern agooPage		agoo_page_create(const char *path);
 extern agooPage		agoo_page_immutable(agooErr err, const char *path, const char *content, int clen);
-extern agooPage		agoo_page_get(agooErr err, const char *path, int plen);
+extern agooPage		agoo_page_get(agooErr err, const char *path, int plen, const char *root);
 extern int		mime_set(agooErr err, const char *key, const char *value);
 extern int		agoo_header_rule(agooErr err, const char *path, const char *mime, const char *key, const char *value);
 
