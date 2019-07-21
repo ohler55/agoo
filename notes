@@ -9,11 +9,6 @@ todo
  - subscription
 
 - sub-domains
- - Host header match for root if any domains are set
-
- - if sub domain is set then append mapped value to path
- - allow regexp with $n for replacement
-  - separate calls for straight compare and regex
 
 - early_hints
  - check memory leaks

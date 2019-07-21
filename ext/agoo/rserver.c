@@ -15,6 +15,7 @@
 #include "bind.h"
 #include "con.h"
 #include "debug.h"
+#include "domain.h"
 #include "dtime.h"
 #include "err.h"
 #include "graphql.h"
@@ -1084,10 +1085,33 @@ header_rule(VALUE self, VALUE path, VALUE mime, VALUE key, VALUE value) {
  */
 static VALUE
 domain(VALUE self, VALUE host, VALUE path) {
+    struct _agooErr	err = AGOO_ERR_INIT;
 
-    // TBD
-    rb_raise(rb_eArgError, "Not implemented yet.");
+    switch(rb_type(host)) {
+    case RUBY_T_STRING:
+	rb_check_type(path, T_STRING);
+	if (AGOO_ERR_OK != agoo_domain_add(&err, rb_string_value_ptr((VALUE*)&host), rb_string_value_ptr((VALUE*)&path))) {
+	    rb_raise(rb_eArgError, "%s", err.msg);
+	}
+	break;
+    case RUBY_T_REGEXP: {
+	volatile VALUE	v = rb_funcall(host, rb_intern("inspect"), 0);
+	char		rx[1024];
 
+	if (sizeof(rx) <= RSTRING_LEN(v)) {
+	    rb_raise(rb_eArgError, "host Regex limited to %ld characters", sizeof(rx));
+	}
+	strcpy(rx, rb_string_value_ptr((VALUE*)&v) + 1);
+	rx[RSTRING_LEN(v) - 2] = '\0';
+	if (AGOO_ERR_OK != agoo_domain_add_regex(&err, rx, rb_string_value_ptr((VALUE*)&path))) {
+	    rb_raise(rb_eArgError, "%s", err.msg);
+	}
+	break;
+    }
+    default:
+	rb_raise(rb_eArgError, "host must be a String or Regex");
+	break;
+    }
     return Qnil;
 }
 

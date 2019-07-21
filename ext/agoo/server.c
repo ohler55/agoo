@@ -10,6 +10,7 @@
 #include <unistd.h>
 
 #include "con.h"
+#include "domain.h"
 #include "dtime.h"
 #include "http.h"
 #include "hook.h"
@@ -247,6 +248,7 @@ agoo_server_shutdown(const char *app_name, void (*stop)()) {
 
 	agoo_pages_cleanup();
 	agoo_http_cleanup();
+	agoo_domain_cleanup();
     }
 }
 
