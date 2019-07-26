@@ -9,7 +9,6 @@ todo
  - subscription
 
 - sub-domains
- - Host header match for root if any domains are set
 
 - early_hints
  - check memory leaks
@@ -32,7 +31,7 @@ use nice -n19 perfer when on same machine
  - cd example && ruby -I ../ext -I ../lib config.rb
   - localhost:9292
  - cd example && ruby -I ../ext -I ../lib hello.rb
-  - localhost:9292/hello
+  - localhost:6464/hello
  - cd example/push && rackup -I ../../ext -I ../../lib -r agoo -s agoo
   - localhost:9292/websocket.html
   - localhost:9292/sse.html

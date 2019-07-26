@@ -9,6 +9,7 @@
 #include "bind.h"
 #include "con.h"
 #include "debug.h"
+#include "domain.h"
 #include "dtime.h"
 #include "hook.h"
 #include "http.h"
@@ -213,7 +214,7 @@ push_error(agooUpgraded up, const char *msg, int mlen) {
 }
 
 static HeadReturn
-agoo_con_header_read(agooCon c, size_t *mlenp) {
+con_header_read(agooCon c, size_t *mlenp) {
     char		*hend = strstr(c->buf, "\r\n\r\n");
     agooMethod		method;
     struct _agooSeg	path;
@@ -326,21 +327,35 @@ agoo_con_header_read(agooCon c, size_t *mlenp) {
     *mlenp = mlen;
 
     if (AGOO_GET == method) {
-	if (NULL != (p = group_get(&err, path.start, (int)(path.end - path.start)))) {
+	char		root_buf[20148];
+	const char	*root = NULL;
+
+	if (NULL != (p = agoo_group_get(&err, path.start, (int)(path.end - path.start)))) {
 	    if (page_response(c, p, hend)) {
 		return bad_request(c, 500, __LINE__);
 	    }
 	    return HEAD_HANDLED;
 	}
+	if (agoo_domain_use()) {
+	    const char	*host;
+	    int		vlen = 0;
+
+	    if (NULL == (host = agoo_con_header_value(c->buf, (int)(hend - c->buf), "Host", &vlen))) {
+		return bad_request(c, 411, __LINE__);
+	    }
+	    ((char*)host)[vlen] = '\0';
+	    root = agoo_domain_resolve(host, root_buf, sizeof(root_buf));
+	    ((char*)host)[vlen] = '\r';
+	}
 	if (agoo_server.root_first &&
-	    NULL != (p = agoo_page_get(&err, path.start, (int)(path.end - path.start)))) {
+	    NULL != (p = agoo_page_get(&err, path.start, (int)(path.end - path.start), root))) {
 	    if (page_response(c, p, hend)) {
 		return bad_request(c, 500, __LINE__);
 	    }
 	    return HEAD_HANDLED;
 	}
 	if (NULL == (hook = agoo_hook_find(agoo_server.hooks, method, &path))) {
-	    if (NULL != (p = agoo_page_get(&err, path.start, (int)(path.end - path.start)))) {
+	    if (NULL != (p = agoo_page_get(&err, path.start, (int)(path.end - path.start), root))) {
 		if (page_response(c, p, hend)) {
 		    return bad_request(c, 500, __LINE__);
 		}
@@ -447,7 +462,7 @@ agoo_con_http_read(agooCon c) {
 	if (NULL == c->req) {
 	    size_t	mlen;
 
-	    switch (agoo_con_header_read(c, &mlen)) {
+	    switch (con_header_read(c, &mlen)) {
 	    case HEAD_AGAIN:
 		// Try again the next time. Didn't read enough..
 		return false;

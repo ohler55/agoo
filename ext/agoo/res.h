@@ -33,6 +33,4 @@ extern void		agoo_res_add_early(agooRes res, agooEarly early);
 extern agooText		agoo_res_message_peek(agooRes res);
 extern agooText		agoo_res_message_next(agooRes res);
 
-//extern agooText		agoo_res_message(agooRes res);
-
 #endif // AGOO_RES_H

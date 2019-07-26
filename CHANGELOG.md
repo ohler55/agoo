@@ -4,7 +4,7 @@ All changes to the Agoo gem are documented here. Releases follow semantic versio
 
 ## [Unreleased]
 
-## [2.9.0] - Unreleased
+## [2.9.0] - 2019-07-26
 
 Early hints and sub-domains
 

@@ -15,6 +15,7 @@
 #include "bind.h"
 #include "con.h"
 #include "debug.h"
+#include "domain.h"
 #include "dtime.h"
 #include "err.h"
 #include "graphql.h"
@@ -1023,7 +1024,7 @@ path_group(VALUE self, VALUE path, VALUE dirs) {
     rb_check_type(path, T_STRING);
     rb_check_type(dirs, T_ARRAY);
 
-    if (NULL != (g = group_create(StringValuePtr(path)))) {
+    if (NULL != (g = agoo_group_create(StringValuePtr(path)))) {
 	int	i;
 	int	dcnt = (int)RARRAY_LEN(dirs);
 	VALUE	entry;
@@ -1033,7 +1034,7 @@ path_group(VALUE self, VALUE path, VALUE dirs) {
 	    if (T_STRING != rb_type(entry)) {
 		entry = rb_funcall(entry, rb_intern("to_s"), 0);
 	    }
-	    if (NULL == group_add(&err, g, StringValuePtr(entry))) {
+	    if (NULL == agoo_group_add(&err, g, StringValuePtr(entry))) {
 		rb_raise(rb_eStandardError, "%s", err.msg);
 	    }
 	}
@@ -1068,6 +1069,48 @@ header_rule(VALUE self, VALUE path, VALUE mime, VALUE key, VALUE value) {
 
     if (AGOO_ERR_OK != agoo_header_rule(&err, StringValuePtr(path), StringValuePtr(mime), StringValuePtr(key), StringValuePtr(value))) {
 	rb_raise(rb_eArgError, "%s", err.msg);
+    }
+    return Qnil;
+}
+
+/* Document-method: domain
+ *
+ * call-seq: domain(host, path)
+ *
+ * Sets up a sub-domain. The first argument, _host_ should be either a String
+ * or a Regexp that includes variable replacement elements. The _path_
+ * argument should also be a string. If the _host_ argument is a Regex then
+ * the $(n) sequence will be replaced by the matching variable in the Regex
+ * result. The _path_ is the root of the sub-domain.
+ */
+static VALUE
+domain(VALUE self, VALUE host, VALUE path) {
+    struct _agooErr	err = AGOO_ERR_INIT;
+
+    switch(rb_type(host)) {
+    case RUBY_T_STRING:
+	rb_check_type(path, T_STRING);
+	if (AGOO_ERR_OK != agoo_domain_add(&err, rb_string_value_ptr((VALUE*)&host), rb_string_value_ptr((VALUE*)&path))) {
+	    rb_raise(rb_eArgError, "%s", err.msg);
+	}
+	break;
+    case RUBY_T_REGEXP: {
+	volatile VALUE	v = rb_funcall(host, rb_intern("inspect"), 0);
+	char		rx[1024];
+
+	if (sizeof(rx) <= RSTRING_LEN(v)) {
+	    rb_raise(rb_eArgError, "host Regex limited to %ld characters", sizeof(rx));
+	}
+	strcpy(rx, rb_string_value_ptr((VALUE*)&v) + 1);
+	rx[RSTRING_LEN(v) - 2] = '\0';
+	if (AGOO_ERR_OK != agoo_domain_add_regex(&err, rx, rb_string_value_ptr((VALUE*)&path))) {
+	    rb_raise(rb_eArgError, "%s", err.msg);
+	}
+	break;
+    }
+    default:
+	rb_raise(rb_eArgError, "host must be a String or Regex");
+	break;
     }
     return Qnil;
 }
@@ -1111,6 +1154,7 @@ server_init(VALUE mod) {
     rb_define_module_function(server_mod, "add_mime", add_mime, 2);
     rb_define_module_function(server_mod, "path_group", path_group, 2);
     rb_define_module_function(server_mod, "header_rule", header_rule, 4);
+    rb_define_module_function(server_mod, "domain", domain, 2);
 
     rb_define_module_function(server_mod, "rack_early_hints", rack_early_hints, 1);
 

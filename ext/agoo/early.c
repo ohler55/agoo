@@ -16,20 +16,6 @@ agoo_early_create(const char *link) {
     return early;
 }
 
-agooEarly
-agoo_early_alloc(size_t size) {
-    agooEarly	early = (agooEarly)AGOO_CALLOC(1, sizeof(struct _agooEarly));
-
-    if (NULL != early) {
-	early->next = NULL;
-	if (NULL == (early->link = AGOO_CALLOC(1, size))) {
-	    AGOO_FREE(early);
-	    return NULL;
-	}
-    }
-    return early;
-}
-
 void
 agoo_early_destroy(agooEarly early) {
     if (NULL != early) {
