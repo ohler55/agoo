@@ -44,6 +44,7 @@ class StaticTest < Minitest::Test
   end
 
   Minitest.after_run {
+    GC.start
     Agoo::shutdown
   }
 

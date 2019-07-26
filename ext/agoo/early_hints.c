@@ -99,6 +99,7 @@ eh_call(VALUE self, VALUE links) {
 	ll = link;
     }
     agoo_res_add_early(eh->req->res, ll);
+    agoo_early_destroy(ll);
 
     return Qnil;
 }

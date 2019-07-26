@@ -370,6 +370,14 @@ agoo_pages_cleanup() {
 	}
 	*sp = NULL;
     }
+    for (sp = cache.ruckets, i = PAGE_BUCKET_SIZE; 0 < i; i--, sp++) {
+	for (s = *sp; NULL != s; s = n) {
+	    n = s->next;
+	    agoo_page_destroy(s->value);
+	    AGOO_FREE(s);
+	}
+	*sp = NULL;
+    }
     for (i = MIME_BUCKET_SIZE; 0 < i; i--, mp++) {
 	for (sm = *mp; NULL != sm; sm = m) {
 	    m = sm->next;
