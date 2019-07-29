@@ -22,6 +22,7 @@ Agoo::Server.init(6464, '.', thread_count: 1, graphql: '/graphql')
 # Empty response.
 class Empty
   def self.call(_req)
+    Agoo.publish('watch.me', '{"watch":"hello"}')
     [200, {}, []]
   end
 
@@ -51,9 +52,11 @@ end
 class Subscription
   def watch(args={})
     puts "*** watch called"
+    # client.subscribe('time')
     # TBD Agoo::GraphQL::subscribe('word', ???)
     # somehow get the connection to be able to subscribe, maybe put in args as _graphql or something like that
-    "should have subscribed"
+
+    'watch.me'
   end
 end
 
@@ -81,7 +84,10 @@ type Mutation {
   repeat(word: String): String
 }
 type Subscription {
-  watch: String
+  watch: Result
+}
+type Result {
+  word: String
 }
 ^)
 }

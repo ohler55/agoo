@@ -406,28 +406,34 @@ gql_eval_get_hook(agooReq req) {
     } else {
 	result = gql_doc_eval_func(&err, doc);
     }
-    // TBD clean up return logic
-    if (NULL == result && AGOO_ERR_OK != err.code) {
-	gql_doc_destroy(doc);
+    gql_doc_destroy(doc);
+    if (NULL == result) {
 	err_resp(req->res, &err, 500);
 	return;
     }
     if (GQL_SUBSCRIPTION == doc->op->kind) {
-	int	status = 200;
+	int		status = 200;
+	gqlValue	sv;
+	const char	*subject;
+
+	if (NULL == (sv = gql_object_get(result, "subject"))) {
+	    struct _agooErr	e;
+
+	    agoo_err_set(&e, AGOO_ERR_TYPE, "subscription did not return a subject");
+	    err_resp(req->res, &e, 400);
+	    return;
+	}
+	subject = gql_string_get(sv);
 
 	if (AGOO_CON_WS == req->res->con_kind) {
 	    status = 101;
 	}
-	printf("*** GET hook eval - upgrade? %c\n", req->res->con_kind);
+	printf("*** GET hook eval - upgrade? %c - subject: %s\n", req->res->con_kind, subject);
+
+	// TBD subscribe to subject
 
 	value_resp(req->res, NULL, status, indent);
 
-	gql_doc_destroy(doc);
-	return;
-    }
-    gql_doc_destroy(doc);
-    if (NULL == result) {
-	err_resp(req->res, &err, 500);
 	return;
     }
     value_resp(req->res, result, 200, indent);

@@ -7,6 +7,9 @@ todo
  - validation
 
  - subscription
+  - subscribe resolve fund should return subject to listen on
+  - eval for subscribe must be one level but gather test for filter
+
   - should return no body
   - return code same as websocket or sse return (upgrade)
    - return 426 if no upgrade in request

@@ -394,11 +394,13 @@ resolve(agooErr err, gqlDoc doc, gqlRef target, gqlField field, gqlSel sel, gqlV
     }
     if (NULL == sel->args) {
 	child = rb_funcall(obj, rb_intern(sel->name), 0);
+	printf("*** with no args \n");
     } else {
 	volatile VALUE	rargs = rb_hash_new();
 	gqlSelArg	sa;
 	gqlValue	v;
 
+	printf("*** with args \n");
 	for (sa = sel->args; NULL != sa; sa = sa->next) {
 	    if (NULL != sa->var) {
 		v = sa->var->value;
@@ -422,6 +424,15 @@ resolve(agooErr err, gqlDoc doc, gqlRef target, gqlField field, gqlSel sel, gqlV
 	    rb_hash_aset(rargs, rb_str_new_cstr(sa->name), gval_to_ruby(v));
 	}
 	child = rb_funcall(obj, rb_intern(sel->name), 1, rargs);
+    }
+    if (GQL_SUBSCRIPTION == doc->op->kind && RUBY_T_STRING == rb_type(child)) {
+	gqlValue	c;
+
+	if (NULL == (c = gql_string_create(err, rb_string_value_ptr(&child), RSTRING_LEN(child))) ||
+	    AGOO_ERR_OK != gql_object_set(err, result, "subject", c)) {
+	    return err->code;
+	}
+	return AGOO_ERR_OK;
     }
     if (NULL != sel->alias) {
 	key = sel->alias;

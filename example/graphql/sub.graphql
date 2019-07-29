@@ -1,3 +1,5 @@
 subscription sub {
-  watch
+  watch {
+    word
+  }
 }
