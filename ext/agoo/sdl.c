@@ -1318,25 +1318,25 @@ make_sel(agooErr err, agooDoc doc, gqlDoc gdoc, gqlOp op, gqlSel *parentp) {
 
 
 static int
-make_op(agooErr err, agooDoc doc, gqlDoc gdoc) {
+make_op(agooErr err, agooDoc doc, gqlDoc gdoc, gqlOpKind kind) {
     char	name[256];
     const char	*start;
-    gqlOpKind	kind;
     gqlOp	op;
     size_t	nlen;
 
     agoo_doc_skip_white(doc);
     start = doc->cur;
     agoo_doc_read_token(doc);
-    if (doc->cur == start ||
-	(5 == (doc->cur - start) && 0 == strncmp(query_str, start, sizeof(query_str) - 1))) {
-	kind = GQL_QUERY;
-    } else if (8 == (doc->cur - start) && 0 == strncmp(mutation_str, start, sizeof(mutation_str) - 1)) {
-	kind = GQL_MUTATION;
-    } else if (12 == (doc->cur - start) && 0 == strncmp(subscription_str, start, sizeof(subscription_str) - 1)) {
-	kind = GQL_SUBSCRIPTION;
-    } else {
-	return agoo_doc_err(doc, err, "Invalid operation type");
+    if ( start < doc->cur) {
+	if (5 == (doc->cur - start) && 0 == strncmp(query_str, start, sizeof(query_str) - 1)) {
+	    kind = GQL_QUERY;
+	} else if (8 == (doc->cur - start) && 0 == strncmp(mutation_str, start, sizeof(mutation_str) - 1)) {
+	    kind = GQL_MUTATION;
+	} else if (12 == (doc->cur - start) && 0 == strncmp(subscription_str, start, sizeof(subscription_str) - 1)) {
+	    kind = GQL_SUBSCRIPTION;
+	} else {
+	    return agoo_doc_err(doc, err, "Invalid operation type");
+	}
     }
     agoo_doc_skip_white(doc);
     start = doc->cur;
@@ -1597,7 +1597,7 @@ validate_doc(agooErr err, gqlDoc doc) {
 }
 
 gqlDoc
-sdl_parse_doc(agooErr err, const char *str, int len, gqlVar vars) {
+sdl_parse_doc(agooErr err, const char *str, int len, gqlVar vars, gqlOpKind default_kind) {
     struct _agooDoc	doc;
     gqlDoc		gdoc = NULL;
 
@@ -1616,7 +1616,7 @@ sdl_parse_doc(agooErr err, const char *str, int len, gqlVar vars) {
 	case 'q':
 	case 'm':
 	case 's':
-	    if (AGOO_ERR_OK != make_op(err, &doc, gdoc)) {
+	    if (AGOO_ERR_OK != make_op(err, &doc, gdoc, default_kind)) {
 		gql_doc_destroy(gdoc);
 		return NULL;
 	    }

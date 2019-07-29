@@ -879,6 +879,9 @@ publish_pub(agooPub pub, agooConLoop loop) {
     int			cnt = 0;
 
     for (up = agoo_server.up_list; NULL != up; up = up->next) {
+
+	// TBD handle differently for GraphQL
+
 	if (NULL != up->con && up->con->loop == loop && agoo_upgraded_match(up, sub)) {
 	    agooRes	res = agoo_res_create(up->con);
 

@@ -30,6 +30,7 @@ static const char	indent_str[] = "indent";
 static const char	json_content_type[] = "application/json";
 static const char	operation_name_str[] = "operationName";
 static const char	query_str[] = "query";
+static const char	subscription_str[] = "subscription";
 static const char	variables_str[] = "variables";
 
 
@@ -69,6 +70,15 @@ value_resp(agooRes res, gqlValue result, int status, int indent) {
 	AGOO_ERR_MEM(&err, "response");
 	err_resp(res, &err, 500);
 	gql_value_destroy(result);
+	return;
+    }
+    if (NULL == result) {
+	cnt = snprintf(buf, sizeof(buf), "HTTP/1.1 %d %s\r\n\r\n", status, agoo_http_code_message(status));
+	if (NULL == (text = agoo_text_prepend(text, buf, cnt))) {
+	    agoo_log_cat(&agoo_error_cat, "Failed to allocate memory for a response.");
+	}
+	agoo_res_message_push(res, text, true);
+
 	return;
     }
     if (AGOO_ERR_OK != gql_object_set(&err, msg, "data", result)) {
@@ -296,6 +306,7 @@ gql_doc_eval(agooErr err, gqlDoc doc) {
 	    return NULL;
 	}
     }
+    // TBD subscription should null maybe
     return result;
 }
 
@@ -361,13 +372,17 @@ gql_eval_get_hook(agooReq req) {
     gqlDoc		doc;
     gqlValue		result;
     gqlVar		vars = NULL;
+    gqlOpKind		default_kind = GQL_QUERY;
 
     if (NULL != (gq = agoo_req_query_value(req, indent_str, sizeof(indent_str) - 1, &qlen))) {
 	indent = (int)strtol(gq, NULL, 10);
     }
     if (NULL == (gq = agoo_req_query_value(req, query_str, sizeof(query_str) - 1, &qlen))) {
-	err_resp(req->res, &err, 500);
-	return;
+	if (NULL == (gq = agoo_req_query_value(req, subscription_str, sizeof(subscription_str) - 1, &qlen))) {
+	    err_resp(req->res, &err, 500);
+	    return;
+	}
+	default_kind = GQL_SUBSCRIPTION;
     }
     op_name = agoo_req_query_value(req, operation_name_str, sizeof(operation_name_str) - 1, &oplen);
     var_json = agoo_req_query_value(req, variables_str, sizeof(variables_str) - 1, &vlen);
@@ -380,7 +395,7 @@ gql_eval_get_hook(agooReq req) {
     }
     // Only call after extracting the variables as it terminates the string with a \0.
     qlen = agoo_req_query_decode((char*)gq, qlen);
-    if (NULL == (doc = sdl_parse_doc(&err, gq, qlen, vars))) {
+    if (NULL == (doc = sdl_parse_doc(&err, gq, qlen, vars, default_kind))) {
 	err_resp(req->res, &err, 500);
 	return;
     }
@@ -390,6 +405,25 @@ gql_eval_get_hook(agooReq req) {
 	result = gql_doc_eval(&err, doc);
     } else {
 	result = gql_doc_eval_func(&err, doc);
+    }
+    // TBD clean up return logic
+    if (NULL == result && AGOO_ERR_OK != err.code) {
+	gql_doc_destroy(doc);
+	err_resp(req->res, &err, 500);
+	return;
+    }
+    if (GQL_SUBSCRIPTION == doc->op->kind) {
+	int	status = 200;
+
+	if (AGOO_CON_WS == req->res->con_kind) {
+	    status = 101;
+	}
+	printf("*** GET hook eval - upgrade? %c\n", req->res->con_kind);
+
+	value_resp(req->res, NULL, status, indent);
+
+	gql_doc_destroy(doc);
+	return;
     }
     gql_doc_destroy(doc);
     if (NULL == result) {
@@ -416,6 +450,7 @@ eval_post(agooErr err, agooReq req) {
 
     // TBD handle query parameter and concatenate with body query if present
 
+    printf("*** body: %s\n", req->body.start);
     op_name = agoo_req_query_value(req, operation_name_str, sizeof(operation_name_str) - 1, &oplen);
     var_json = agoo_req_query_value(req, variables_str, sizeof(variables_str) - 1, &vlen);
 
@@ -429,7 +464,7 @@ eval_post(agooErr err, agooReq req) {
 	return NULL;
     }
     if (0 == strncmp(graphql_content_type, s, sizeof(graphql_content_type) - 1)) {
-	if (NULL == (doc = sdl_parse_doc(err, req->body.start, req->body.len, vars))) {
+	if (NULL == (doc = sdl_parse_doc(err, req->body.start, req->body.len, vars, GQL_QUERY))) {
 	    return NULL;
 	}
     } else if (0 == strncmp(json_content_type, s, sizeof(json_content_type) - 1)) {
@@ -474,7 +509,7 @@ eval_post(agooErr err, agooReq req) {
 		    }
 		}
 	    }
-	    if (NULL == (doc = sdl_parse_doc(err, query, qlen, vars))) {
+	    if (NULL == (doc = sdl_parse_doc(err, query, qlen, vars, GQL_QUERY))) {
 		goto DONE;
 	    }
 	} else {
@@ -491,7 +526,9 @@ eval_post(agooErr err, agooReq req) {
     } else {
 	result = gql_doc_eval_func(err, doc);
     }
-
+    if (GQL_SUBSCRIPTION == doc->op->kind) {
+	result = NULL;
+    }
 DONE:
     gql_doc_destroy(doc);
     gql_value_destroy(j);
@@ -510,8 +547,10 @@ gql_eval_post_hook(agooReq req) {
     if (NULL != (s = agoo_req_query_value(req, indent_str, sizeof(indent_str) - 1, &len))) {
 	indent = (int)strtol(s, NULL, 10);
     }
-    if (NULL == (result = eval_post(&err, req))) {
+    if (NULL == (result = eval_post(&err, req)) && AGOO_ERR_OK != err.code) {
 	err_resp(req->res, &err, 400);
+    } else if (NULL == result) {
+	value_resp(req->res, result, 200, indent); // TBD return upgrade status if websocket, need to know from request what type it is
     } else {
 	value_resp(req->res, result, 200, indent);
     }

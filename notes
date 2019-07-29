@@ -7,13 +7,42 @@ todo
  - validation
 
  - subscription
+  - should return no body
+  - return code same as websocket or sse return (upgrade)
+   - return 426 if no upgrade in request
+   - return 101 for upgrade?
 
-- sub-domains
+  - pub.[ch]
+   - add field for gqlValue
+   - add type for GQL pub and sub
+   - con.c publish_pub should filter and expand
+    - should a parallel approach be taken for gql instead of sharing?
+   - publish takes object or native, converts to gqlValue, maybe just native
+  - how to upgrade and get subscription in place
+   - can post body be included in wb upgrade or pushed through websocket?
+    - sse has to be early as it is one way
+    - seems like an upgrade can be on any request type
 
-- early_hints
- - check memory leaks
-  - agoo_res_message_next
+  - example, metrics
+   - subscribe to new metric
+    - newMetric(namespace: String, flow: String, task: String, detail: String) Metric
+     - safer or more controlled
+    - newMetric(subject: String) Metric
+     - simpler in some respects
+    - code would Agoo::GraphQL::publish(subject, obj) where obj is a Metric object
+    - both would be valid
+     - call to subscribe similar as with WebSockets
+      - difference is output format from event object
 
+  - graphql_publish
+   - scans all subscribers for matching keys and uses associated output spec to generate the message to send
+   - want to keep ruby value out of publish
+   - convert to full JSON then filter in each based on spec
+   - change current subscribe to have an optional formatter/filter
+   - means publishing JSON is allowed
+   - pub.h add type for AGOO_PUB_GQL
+    - add field to pub.h that is gqlValue
+  -
 
 
 - refs
