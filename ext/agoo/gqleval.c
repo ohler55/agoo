@@ -15,7 +15,9 @@
 #include "res.h"
 #include "sdl.h"
 #include "sectime.h"
+#include "sse.h"
 #include "text.h"
+#include "websocket.h"
 
 #define MAX_RESOLVE_ARGS	16
 
@@ -58,8 +60,11 @@ err_resp(agooRes res, agooErr err, int status) {
     agoo_res_message_push(res, agoo_text_create(buf, cnt), true);
 }
 
+static char	ws_up[] = "HTTP/1.1 101 Switching Protocols\r\n";
+
 static void
-value_resp(agooRes res, gqlValue result, int status, int indent) {
+value_resp(agooReq req, gqlValue result, int status, int indent) {
+    agooRes		res = req->res;
     char		buf[256];
     struct _agooErr	err = AGOO_ERR_INIT;
     int			cnt;
@@ -73,11 +78,39 @@ value_resp(agooRes res, gqlValue result, int status, int indent) {
 	return;
     }
     if (NULL == result) {
-	cnt = snprintf(buf, sizeof(buf), "HTTP/1.1 %d %s\r\n\r\n", status, agoo_http_code_message(status));
-	if (NULL == (text = agoo_text_prepend(text, buf, cnt))) {
-	    agoo_log_cat(&agoo_error_cat, "Failed to allocate memory for a response.");
+	switch (status) {
+	case 101:
+	    if (NULL == (text = agoo_text_append(text, ws_up, sizeof(ws_up) - 1)) ||
+		NULL == (text = agoo_ws_add_headers(req, text)) ||
+		NULL == (text = agoo_text_append(text, "\r\n", 2))) {
+		agoo_log_cat(&agoo_error_cat, "Failed to allocate memory for a response.");
+		return;
+	    }
+	    break;
+	case 200:
+	    text = agoo_sse_upgrade(req, text);
+	    break;
+	default:
+	    agoo_log_cat(&agoo_error_cat, "Did not expect an HTTP status of %d.", status);
+	    return;
 	}
 	agoo_res_message_push(res, text, true);
+
+	// TBD set up hook
+
+	// TBD testing only, need to be thread safe though, maybe with a queue somehow?
+	if (NULL != (res = agoo_res_create(res->con))) {
+	    text = agoo_text_create("Hello", 5);
+
+	    if (NULL == res->con->res_tail) {
+		res->con->res_head = res;
+	    } else {
+		res->con->res_tail->next = res;
+	    }
+	    res->con->res_tail = res;
+	    res->con_kind = AGOO_CON_ANY;
+	    agoo_res_message_push(res, text, true);
+	}
 
 	return;
     }
@@ -432,11 +465,12 @@ gql_eval_get_hook(agooReq req) {
 
 	// TBD subscribe to subject
 
-	value_resp(req->res, NULL, status, indent);
+	// TBD pass in req->res->con_kind
+	value_resp(req, NULL, status, indent);
 
 	return;
     }
-    value_resp(req->res, result, 200, indent);
+    value_resp(req, result, 200, indent);
 }
 
 static gqlValue
@@ -556,9 +590,9 @@ gql_eval_post_hook(agooReq req) {
     if (NULL == (result = eval_post(&err, req)) && AGOO_ERR_OK != err.code) {
 	err_resp(req->res, &err, 400);
     } else if (NULL == result) {
-	value_resp(req->res, result, 200, indent); // TBD return upgrade status if websocket, need to know from request what type it is
+	value_resp(req, result, 200, indent); // TBD return upgrade status if websocket, need to know from request what type it is
     } else {
-	value_resp(req->res, result, 200, indent);
+	value_resp(req, result, 200, indent);
     }
 }
 

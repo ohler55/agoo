@@ -7,13 +7,41 @@ todo
  - validation
 
  - subscription
-  - subscribe resolve fund should return subject to listen on
-  - eval for subscribe must be one level but gather test for filter
+  - create gqlSub and gqlEvent
 
-  - should return no body
+  - gqlSub
+   - subject
+   - gqlDoc (query)
+   - con
+  - on subscribe
+   - eval code to determine subject, that is the filter
+   - create gqlSub
+  - on event create
+   - create a gqlValue
+    - put on pub_queue
+   - members
+    - ref cnt
+    - gqlValue
+    - subject
+  - processing
+   - eval against all subscriptions - like publish_pub() in con.c
+   - which is better, load on ruby side or con write side?
+    - or separate eval thread for publishing?
+    - could it be configurable?
+     - keep sub eval cleanly separate
+
+ - unsubcribe
+  - just close connection
+
+  - add hook to handle writes
+
+
   - return code same as websocket or sse return (upgrade)
    - return 426 if no upgrade in request
    - return 101 for upgrade?
+
+  - subscribe resolve func should return subject to listen on
+  - eval for subscribe must be one level but gather test for filter
 
   - pub.[ch]
    - add field for gqlValue
