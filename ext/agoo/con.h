@@ -21,6 +21,7 @@ struct _agooReq;
 struct _agooRes;
 struct _agooBind;
 struct _agooQueue;
+struct _gqlSub;
 
 typedef struct _agooConLoop {
     struct _agooConLoop	*next;
@@ -32,9 +33,9 @@ typedef struct _agooConLoop {
     struct _agooRes	*res_tail;
 
     pthread_mutex_t	lock;
-    
+
 } *agooConLoop;
-    
+
 typedef struct _agooCon {
     struct _agooCon		*next;
     int				sock;
@@ -56,6 +57,7 @@ typedef struct _agooCon {
     struct _agooRes		*res_tail;
 
     struct _agooUpgraded	*up; // only set for push connections
+    struct _gqlSub		*gsub; // for graphql subscription
     agooConLoop			loop;
 } *agooCon;
 

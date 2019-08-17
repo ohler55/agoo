@@ -9,7 +9,7 @@ Agoo::Log.configure(dir: '',
                     states: {
                       INFO: true,
                       DEBUG: true,
-                      connect: false,
+                      connect: true,
                       request: true,
                       response: true,
                       eval: true,
@@ -33,6 +33,7 @@ end
 
 class Query
   def hello
+    Agoo::GraphQL.publish('watch.me', "What the time?")
     'Hello'
   end
 end
@@ -51,11 +52,6 @@ end
 
 class Subscription
   def watch(args={})
-    puts "*** watch called"
-    # client.subscribe('time')
-    # TBD Agoo::GraphQL::subscribe('word', ???)
-    # somehow get the connection to be able to subscribe, maybe put in args as _graphql or something like that
-
     'watch.me'
   end
 end

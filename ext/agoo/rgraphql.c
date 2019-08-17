@@ -12,7 +12,9 @@
 #include "gqlintro.h"
 #include "gqlvalue.h"
 #include "graphql.h"
+#include "pub.h"
 #include "sdl.h"
+#include "server.h"
 
 typedef struct _eval {
     gqlDoc	doc;
@@ -394,13 +396,11 @@ resolve(agooErr err, gqlDoc doc, gqlRef target, gqlField field, gqlSel sel, gqlV
     }
     if (NULL == sel->args) {
 	child = rb_funcall(obj, rb_intern(sel->name), 0);
-	printf("*** with no args \n");
     } else {
 	volatile VALUE	rargs = rb_hash_new();
 	gqlSelArg	sa;
 	gqlValue	v;
 
-	printf("*** with args \n");
 	for (sa = sel->args; NULL != sa; sa = sa->next) {
 	    if (NULL != sa->var) {
 		v = sa->var->value;
@@ -761,6 +761,29 @@ graphql_sdl_dump(VALUE self, VALUE options) {
     return dump;
 }
 
+/* Document-method: publish
+ *
+ * call-seq: publish(subject, event)
+ *
+ * Publish a event on the given subject. A subject must be a String but and
+ * the event must be one of the objects represented by the the GraphQL schema.
+ */
+static VALUE
+graphql_publish(VALUE self, VALUE subject, VALUE event) {
+    const char		*subj;
+    struct _agooErr	err = AGOO_ERR_INIT;
+
+    rb_check_type(subject, T_STRING);
+    subj = StringValuePtr(subject);
+
+    // TBD create gqlValue
+
+    if (AGOO_ERR_OK != agoo_server_gpublish(&err, subj, NULL)) {
+	rb_raise(rb_eStandardError, "%s", err.msg);
+    }
+    return Qnil;
+}
+
 /* Document-class: Agoo::Graphql
  *
  * The Agoo::GraphQL class provides support for the GraphQL API as defined in
@@ -783,4 +806,6 @@ graphql_init(VALUE mod) {
     rb_define_module_function(graphql_class, "load_file", graphql_load_file, 1);
 
     rb_define_module_function(graphql_class, "sdl_dump", graphql_sdl_dump, 1);
+
+    rb_define_module_function(graphql_class, "publish", graphql_publish, 2);
 }

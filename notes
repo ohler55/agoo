@@ -7,12 +7,30 @@ todo
  - validation
 
  - subscription
+  - server.c
+   - why is res not getting put on queue
+    - probably ned a lock or use a queue
+
+  - then eval doc to get the string
+
+  - when req received
+   - parse doc
+   - call ruby to get subject gqleval.c 467
+   - create a new gqlSub
+    - place on list, use mutex
+   - on gql_new_event
+    - walk list and find matches
+     - if a match then eval doc against event value
+     - add response to con res list
+    - should this be done in thread that does the adding or is another queue and thread needed
+     - initially use the calling thread
+     - or alternaitve is add to event queue or use eval_queue
+
+  - eval of event must be with gvl since it is ruby
+   - to use thegvl
+
   - create gqlSub and gqlEvent
 
-  - gqlSub
-   - subject
-   - gqlDoc (query)
-   - con
   - on subscribe
    - eval code to determine subject, that is the filter
    - create gqlSub

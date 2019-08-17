@@ -12,6 +12,7 @@
 #include "domain.h"
 #include "dtime.h"
 #include "hook.h"
+#include "gqlsub.h"
 #include "http.h"
 #include "log.h"
 #include "page.h"
@@ -89,8 +90,12 @@ agoo_con_destroy(agooCon c) {
     }
     if (NULL != c->up) {
 	agoo_upgraded_release_con(c->up);
-
 	c->up = NULL;
+    }
+    if (NULL != c->gsub) {
+	agoo_server_del_gsub(c->gsub);
+	gql_sub_destroy(c->gsub);
+	c->gsub = NULL;
     }
     agoo_log_cat(&agoo_con_cat, "Connection %llu closed.", (unsigned long long)c->id);
 
@@ -584,6 +589,11 @@ con_ws_read(agooCon c) {
 	    switch (op) {
 	    case AGOO_WS_OP_TEXT:
 	    case AGOO_WS_OP_BIN:
+		if (NULL != c->gsub) {
+		    // GraphQL subscriptions do not accept input on the
+		    // connection.
+		    break;
+		}
 		if (agoo_ws_create_req(c, mlen)) {
 		    return true;
 		}
@@ -879,9 +889,6 @@ publish_pub(agooPub pub, agooConLoop loop) {
     int			cnt = 0;
 
     for (up = agoo_server.up_list; NULL != up; up = up->next) {
-
-	// TBD handle differently for GraphQL
-
 	if (NULL != up->con && up->con->loop == loop && agoo_upgraded_match(up, sub)) {
 	    agooRes	res = agoo_res_create(up->con);
 

@@ -7,6 +7,7 @@
 #include "gqleval.h"
 #include "gqlintro.h"
 #include "gqljson.h"
+#include "gqlsub.h"
 #include "gqlvalue.h"
 #include "graphql.h"
 #include "http.h"
@@ -83,9 +84,13 @@ value_resp(agooReq req, gqlValue result, int status, int indent) {
 	    if (NULL == (text = agoo_text_append(text, ws_up, sizeof(ws_up) - 1)) ||
 		NULL == (text = agoo_ws_add_headers(req, text)) ||
 		NULL == (text = agoo_text_append(text, "\r\n", 2))) {
+
 		agoo_log_cat(&agoo_error_cat, "Failed to allocate memory for a response.");
 		return;
 	    }
+	    // TBD
+	    // req->hook = agoo_hook_create(AGOO_NONE, NULL, (void*)NULL, PUSH_HOOK, &agoo_server.eval_queue);
+
 	    break;
 	case 200:
 	    text = agoo_sse_upgrade(req, text);
@@ -96,7 +101,7 @@ value_resp(agooReq req, gqlValue result, int status, int indent) {
 	}
 	agoo_res_message_push(res, text, true);
 
-	// TBD set up hook
+	// TBD keep from closing
 
 	// TBD testing only, need to be thread safe though, maybe with a queue somehow?
 	if (NULL != (res = agoo_res_create(res->con))) {
@@ -110,7 +115,9 @@ value_resp(agooReq req, gqlValue result, int status, int indent) {
 	    res->con->res_tail = res;
 	    res->con_kind = AGOO_CON_ANY;
 	    agoo_res_message_push(res, text, true);
+
 	}
+	//////////////////
 
 	return;
     }
@@ -448,6 +455,7 @@ gql_eval_get_hook(agooReq req) {
 	int		status = 200;
 	gqlValue	sv;
 	const char	*subject;
+	gqlSub		sub;
 
 	if (NULL == (sv = gql_object_get(result, "subject"))) {
 	    struct _agooErr	e;
@@ -463,9 +471,14 @@ gql_eval_get_hook(agooReq req) {
 	}
 	printf("*** GET hook eval - upgrade? %c - subject: %s\n", req->res->con_kind, subject);
 
-	// TBD subscribe to subject
+	if (NULL == (sub = gql_sub_create(&err, req->res->con, subject, NULL))) { // struct _gqlDoc *query
+	    err_resp(req->res, &err, 400);
+	    return;
+	}
+	agoo_server_add_gsub(sub);
 
-	// TBD pass in req->res->con_kind
+	// TBD pass in req->res->con_kind ?
+
 	value_resp(req, NULL, status, indent);
 
 	return;
@@ -490,7 +503,6 @@ eval_post(agooErr err, agooReq req) {
 
     // TBD handle query parameter and concatenate with body query if present
 
-    printf("*** body: %s\n", req->body.start);
     op_name = agoo_req_query_value(req, operation_name_str, sizeof(operation_name_str) - 1, &oplen);
     var_json = agoo_req_query_value(req, variables_str, sizeof(variables_str) - 1, &vlen);
 

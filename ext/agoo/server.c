@@ -12,11 +12,14 @@
 #include "con.h"
 #include "domain.h"
 #include "dtime.h"
+#include "gqlsub.h"
 #include "http.h"
 #include "hook.h"
 #include "log.h"
 #include "page.h"
 #include "pub.h"
+#include "res.h"
+#include "text.h"
 #include "upgraded.h"
 
 #include "server.h"
@@ -34,6 +37,7 @@ agoo_server_setup(agooErr err) {
     memset(&agoo_server, 0, sizeof(struct _agooServer));
     pthread_mutex_init(&agoo_server.up_lock, 0);
     agoo_server.up_list = NULL;
+    agoo_server.gsub_list = NULL;
     agoo_server.max_push_pending = 32;
 
     if (AGOO_ERR_OK != agoo_pages_init(err) ||
@@ -335,4 +339,62 @@ agoo_server_publish(struct _agooPub *pub) {
 	    agoo_queue_push(&loop->pub_queue, agoo_pub_dup(pub));
 	}
     }
+}
+
+void
+agoo_server_add_gsub(gqlSub sub) {
+    printf("*** add gsub\n");
+    pthread_mutex_lock(&agoo_server.up_lock);
+    sub->next = agoo_server.gsub_list;
+    agoo_server.gsub_list = sub;
+    pthread_mutex_unlock(&agoo_server.up_lock);
+}
+
+void
+agoo_server_del_gsub(gqlSub sub) {
+    gqlSub	s;
+    gqlSub	prev = NULL;
+
+    printf("*** del gsub\n");
+    pthread_mutex_lock(&agoo_server.up_lock);
+    for (s = agoo_server.gsub_list; NULL != s; s = s->next) {
+	if (s == sub) {
+	    if (NULL == prev) {
+		agoo_server.gsub_list = s->next;
+	    } else {
+		prev->next = s->next;
+	    }
+	}
+	prev = s;
+    }
+    pthread_mutex_unlock(&agoo_server.up_lock);
+}
+
+int
+agoo_server_gpublish(agooErr err, const char *subject, struct _gqlValue *event) {
+    gqlSub	sub;
+
+    printf("*** agoo_server_gpublish - %s \n", subject);
+    pthread_mutex_lock(&agoo_server.up_lock);
+    for (sub = agoo_server.gsub_list; NULL != sub; sub = sub->next) {
+	agooRes		res;
+
+	printf("***  adding event\n");
+	// TBD temporary
+	if (NULL != (res = agoo_res_create(sub->con))) {
+	    agooText	text = agoo_text_create("Hello There", 5);
+
+	    if (NULL == res->con->res_tail) {
+		res->con->res_head = res;
+	    } else {
+		res->con->res_tail->next = res;
+	    }
+	    res->con->res_tail = res;
+	    res->con_kind = AGOO_CON_ANY;
+	    agoo_res_message_push(res, text, true);
+	}
+    }
+    pthread_mutex_unlock(&agoo_server.up_lock);
+
+    return AGOO_ERR_OK;
 }
