@@ -28,10 +28,10 @@ typedef struct _agooConLoop {
     struct _agooQueue	pub_queue;
     pthread_t		thread;
     int			id;
-    // TBD use mutex for head and tail, volatile also
+
+    // Cache of responses to be reused.
     struct _agooRes	*res_head;
     struct _agooRes	*res_tail;
-
     pthread_mutex_t	lock;
 
 } *agooConLoop;
@@ -55,6 +55,7 @@ typedef struct _agooCon {
     struct _agooReq		*req;
     struct _agooRes		*res_head;
     struct _agooRes		*res_tail;
+    pthread_mutex_t		res_lock;
 
     struct _agooUpgraded	*up; // only set for push connections
     struct _gqlSub		*gsub; // for graphql subscription
@@ -67,6 +68,8 @@ extern const char*	agoo_con_header_value(const char *header, int hlen, const cha
 
 extern agooConLoop	agoo_conloop_create(agooErr err, int id);
 extern void		agoo_conloop_destroy(agooConLoop loop);
+
+extern void		agoo_con_res_append(agooCon c, struct _agooRes *res);
 
 extern bool		agoo_con_http_read(agooCon c);
 extern bool		agoo_con_http_write(agooCon c);

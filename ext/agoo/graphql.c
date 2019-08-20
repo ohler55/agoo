@@ -1658,7 +1658,7 @@ gql_dump_hook(agooReq req) {
     if (NULL == (text = agoo_text_prepend(text, buf, cnt))) {
 	agoo_log_cat(&agoo_error_cat, "Failed to allocate memory for a GraphQL dump.");
     }
-    agoo_res_message_push(req->res, text, true);
+    agoo_res_message_push(req->res, text);
 }
 
 gqlField

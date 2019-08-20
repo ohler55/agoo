@@ -7,6 +7,13 @@ todo
  - validation
 
  - subscription
+  - con->red_head and res_tail
+   - use functions
+    - peek, pop, append
+   - mutex, check performance
+   - use that in graphql publish
+   - should other write and publish use the same?
+
   - server.c
    - why is res not getting put on queue
     - probably ned a lock or use a queue

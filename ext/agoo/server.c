@@ -380,6 +380,7 @@ agoo_server_gpublish(agooErr err, const char *subject, struct _gqlValue *event) 
 	agooRes		res;
 
 	// TBD place on queue to avoid race conditions
+	//  like regular pub it needes to go to the correct con_loop
 
 	printf("***  adding event\n");
 	// TBD temporary
@@ -393,7 +394,7 @@ agoo_server_gpublish(agooErr err, const char *subject, struct _gqlValue *event) 
 	    }
 	    res->con->res_tail = res;
 	    res->con_kind = AGOO_CON_ANY;
-	    agoo_res_message_push(res, text, true);
+	    agoo_res_message_push(res, text);
 	}
     }
     pthread_mutex_unlock(&agoo_server.up_lock);

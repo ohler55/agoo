@@ -28,7 +28,7 @@ typedef struct _agooRes {
 extern agooRes		agoo_res_create(struct _agooCon *con);
 extern void		agoo_res_destroy(agooRes res);
 
-extern void		agoo_res_message_push(agooRes res, agooText t, bool final);
+extern void		agoo_res_message_push(agooRes res, agooText t);
 extern void		agoo_res_add_early(agooRes res, agooEarly early);
 extern agooText		agoo_res_message_peek(agooRes res);
 extern agooText		agoo_res_message_next(agooRes res);

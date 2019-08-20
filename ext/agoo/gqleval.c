@@ -58,7 +58,7 @@ err_resp(agooRes res, agooErr err, int status) {
 		   code,
 		   at.year, at.mon, at.day, at.hour, at.min, at.sec, frac);
 
-    agoo_res_message_push(res, agoo_text_create(buf, cnt), true);
+    agoo_res_message_push(res, agoo_text_create(buf, cnt));
 }
 
 static char	ws_up[] = "HTTP/1.1 101 Switching Protocols\r\n";
@@ -99,7 +99,7 @@ value_resp(agooReq req, gqlValue result, int status, int indent) {
 	    agoo_log_cat(&agoo_error_cat, "Did not expect an HTTP status of %d.", status);
 	    return;
 	}
-	agoo_res_message_push(res, text, true);
+	agoo_res_message_push(res, text);
 
 	// TBD keep from closing
 
@@ -114,7 +114,7 @@ value_resp(agooReq req, gqlValue result, int status, int indent) {
 	    }
 	    res->con->res_tail = res;
 	    res->con_kind = AGOO_CON_ANY;
-	    agoo_res_message_push(res, text, true);
+	    agoo_res_message_push(res, text);
 
 	}
 	//////////////////
@@ -134,7 +134,7 @@ value_resp(agooReq req, gqlValue result, int status, int indent) {
     if (NULL == (text = agoo_text_prepend(text, buf, cnt))) {
 	agoo_log_cat(&agoo_error_cat, "Failed to allocate memory for a response.");
     }
-    agoo_res_message_push(res, text, true);
+    agoo_res_message_push(res, text);
 }
 
 gqlValue

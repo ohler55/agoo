@@ -312,7 +312,7 @@ rescue_error(VALUE x) {
 	message = agoo_text_create(buf, cnt);
 
 	req->res->close = true;
-	agoo_res_message_push(req->res, message, true);
+	agoo_res_message_push(req->res, message);
 	agoo_queue_wakeup(&agoo_server.con_queue);
     } else {
 /*
@@ -340,7 +340,7 @@ handle_base_inner(void *x) {
 	rb_funcall((VALUE)req->hook->handler, on_request_id, 2, rr, rres);
     }
     DATA_PTR(rr) = NULL;
-    agoo_res_message_push(req->res, response_text(rres), true);
+    agoo_res_message_push(req->res, response_text(rres));
     agoo_queue_wakeup(&agoo_server.con_queue);
 
     return Qfalse;
@@ -515,7 +515,7 @@ handle_rack_inner(void *x) {
 	    req->hook = agoo_hook_create(AGOO_NONE, NULL, (void*)handler, PUSH_HOOK, &agoo_server.eval_queue);
 	    rupgraded_create(req->res->con, handler, request_env(req, Qnil));
 	    t = agoo_sse_upgrade(req, t);
-	    agoo_res_message_push(req->res, t, true);
+	    agoo_res_message_push(req->res, t);
 	    agoo_queue_wakeup(&agoo_server.con_queue);
 	    return Qfalse;
 	default:
@@ -546,7 +546,7 @@ handle_rack_inner(void *x) {
 	    rb_iterate(rb_each, bv, body_append_cb, (VALUE)&t);
 	}
     }
-    agoo_res_message_push(req->res, t, true);
+    agoo_res_message_push(req->res, t);
     agoo_queue_wakeup(&agoo_server.con_queue);
 
     return Qfalse;
@@ -572,7 +572,7 @@ handle_wab_inner(void *x) {
 	rb_funcall((VALUE)req->hook->handler, on_request_id, 2, rr, rres);
     }
     DATA_PTR(rr) = NULL;
-    agoo_res_message_push(req->res, response_text(rres), true);
+    agoo_res_message_push(req->res, response_text(rres));
     agoo_queue_wakeup(&agoo_server.con_queue);
 
     return Qfalse;
@@ -686,7 +686,7 @@ handle_protected(agooReq req, bool gvi) {
 	agooText	message = agoo_text_create(buf, cnt);
 
 	req->res->close = true;
-	agoo_res_message_push(req->res, message, true);
+	agoo_res_message_push(req->res, message);
 	agoo_queue_wakeup(&agoo_server.con_queue);
 	break;
     }

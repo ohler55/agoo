@@ -312,7 +312,6 @@ agoo_ready_go(agooErr err, agooReady ready) {
 	    pp = link->pp;
 	    if (0 != (pp->revents & POLLIN) && NULL != link->handler->read) {
 		if (!link->handler->read(ready, link->ctx)) {
-		    printf("*** POLLIN\n");
 		    ready_remove(ready, link);
 		    continue;
 		}
@@ -340,7 +339,6 @@ agoo_ready_go(agooErr err, agooReady ready) {
 	    next = link->next;
 	    if (NULL != link->handler->check) {
 		if (!link->handler->check(link->ctx, now)) {
-		    printf("*** timeout\n");
 		    ready_remove(ready, link);
 		}
 	    }
