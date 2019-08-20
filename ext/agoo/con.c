@@ -924,6 +924,8 @@ static void
 process_pub_con(agooPub pub, agooConLoop loop) {
     agooUpgraded	up = pub->up;
 
+    // TBD update for graphql
+
     if (NULL != up && NULL != up->con && up->con->loop == loop) {
 	int	pending;
 

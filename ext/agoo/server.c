@@ -379,10 +379,12 @@ agoo_server_gpublish(agooErr err, const char *subject, struct _gqlValue *event) 
     for (sub = agoo_server.gsub_list; NULL != sub; sub = sub->next) {
 	agooRes		res;
 
+	// TBD place on queue to avoid race conditions
+
 	printf("***  adding event\n");
 	// TBD temporary
 	if (NULL != (res = agoo_res_create(sub->con))) {
-	    agooText	text = agoo_text_create("Hello There", 5);
+	    agooText	text = agoo_text_create("Hello There", 11);
 
 	    if (NULL == res->con->res_tail) {
 		res->con->res_head = res;

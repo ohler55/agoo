@@ -33,7 +33,7 @@ end
 
 class Query
   def hello
-    Agoo::GraphQL.publish('watch.me', "What the time?")
+    Agoo::GraphQL.publish('watch.me', "Whats the time?")
     'Hello'
   end
 end
