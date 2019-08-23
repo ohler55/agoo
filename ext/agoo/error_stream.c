@@ -30,9 +30,8 @@ error_stream_new() {
 	rb_raise(rb_eNoMemError, "Failed to allocate memory for the error stream.");
     }
     es->server = NULL;
-    if (NULL == (es->text = agoo_text_allocate(1024))) {
-	rb_raise(rb_eNoMemError, "Failed to allocate memory for the error stream.");
-    }
+    es->text = NULL;
+
     return Data_Wrap_Struct(es_class, NULL, es_free, es);
 }
 
@@ -49,6 +48,10 @@ es_puts(VALUE self, VALUE str) {
 
     if (NULL == es) {
 	rb_raise(rb_eIOError, "error stream has been closed.");
+    }
+    if (NULL == es->text &&
+	NULL == (es->text = agoo_text_allocate(1024))) {
+	rb_raise(rb_eNoMemError, "Failed to allocate memory for the error stream buffer.");
     }
     es->text = agoo_text_append(es->text, StringValuePtr(str), (int)RSTRING_LEN(str));
     es->text = agoo_text_append(es->text, "\n", 1);
@@ -72,6 +75,10 @@ es_write(VALUE self, VALUE str) {
     if (NULL == es) {
 	rb_raise(rb_eIOError, "error stream has been closed.");
     }
+    if (NULL == es->text &&
+	NULL == (es->text = agoo_text_allocate(1024))) {
+	rb_raise(rb_eNoMemError, "Failed to allocate memory for the error stream buffer.");
+    }
     if (NULL == (es->text = agoo_text_append(es->text, StringValuePtr(str), cnt))) {
 	rb_raise(rb_eNoMemError, "Failed to allocate memory for the error stream puts.");
     }
@@ -91,9 +98,10 @@ es_flush(VALUE self) {
     if (NULL == es) {
 	rb_raise(rb_eIOError, "error stream has been closed.");
     }
-    agoo_log_cat(&agoo_error_cat, "%s", es->text->text);
-    es->text->len = 0;
-
+    if (NULL != es->text) {
+	agoo_log_cat(&agoo_error_cat, "%s", es->text->text);
+	es->text->len = 0;
+    }
     return self;
 }
 

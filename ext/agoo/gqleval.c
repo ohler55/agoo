@@ -107,14 +107,9 @@ value_resp(agooReq req, gqlValue result, int status, int indent) {
 	if (NULL != (res = agoo_res_create(res->con))) {
 	    text = agoo_text_create("Hello", 5);
 
-	    if (NULL == res->con->res_tail) {
-		res->con->res_head = res;
-	    } else {
-		res->con->res_tail->next = res;
-	    }
-	    res->con->res_tail = res;
 	    res->con_kind = AGOO_CON_ANY;
 	    agoo_res_message_push(res, text);
+	    agoo_con_res_append(res->con, res);
 
 	}
 	//////////////////

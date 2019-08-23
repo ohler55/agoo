@@ -216,15 +216,10 @@ agoo_ws_ping(agooCon c) {
     if (NULL == (res = agoo_res_create(c))) {
 	agoo_log_cat(&agoo_error_cat, "Memory allocation of response failed on connection %llu.", (unsigned long long)c->id);
     } else {
-	if (NULL == c->res_tail) {
-	    c->res_head = res;
-	} else {
-	    c->res_tail->next = res;
-	}
-	c->res_tail = res;
 	res->close = false;
 	res->con_kind = AGOO_CON_WS;
 	res->ping = true;
+	agoo_con_res_append(c, res);
     }
 }
 
@@ -235,14 +230,9 @@ agoo_ws_pong(agooCon c) {
     if (NULL == (res = agoo_res_create(c))) {
 	agoo_log_cat(&agoo_error_cat, "Memory allocation of response failed on connection %llu.", (unsigned long long)c->id);
     } else {
-	if (NULL == c->res_tail) {
-	    c->res_head = res;
-	} else {
-	    c->res_tail->next = res;
-	}
-	c->res_tail = res;
 	res->close = false;
 	res->con_kind = AGOO_CON_WS;
 	res->pong = true;
+	agoo_con_res_append(c, res);
     }
 }

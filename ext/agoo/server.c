@@ -379,22 +379,15 @@ agoo_server_gpublish(agooErr err, const char *subject, struct _gqlValue *event) 
     for (sub = agoo_server.gsub_list; NULL != sub; sub = sub->next) {
 	agooRes		res;
 
-	// TBD place on queue to avoid race conditions
-	//  like regular pub it needes to go to the correct con_loop
+	// TBD eval against event and generate result for res
 
-	printf("***  adding event\n");
 	// TBD temporary
 	if (NULL != (res = agoo_res_create(sub->con))) {
 	    agooText	text = agoo_text_create("Hello There", 11);
 
-	    if (NULL == res->con->res_tail) {
-		res->con->res_head = res;
-	    } else {
-		res->con->res_tail->next = res;
-	    }
-	    res->con->res_tail = res;
 	    res->con_kind = AGOO_CON_ANY;
 	    agoo_res_message_push(res, text);
+	    agoo_con_res_append(sub->con, res);
 	}
     }
     pthread_mutex_unlock(&agoo_server.up_lock);

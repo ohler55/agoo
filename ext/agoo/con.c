@@ -104,6 +104,7 @@ agoo_con_destroy(agooCon c) {
 	c->res_head = res->next;
 	AGOO_FREE(res);
     }
+    pthread_mutex_destroy(&c->res_lock);
     AGOO_FREE(c);
 }
 
@@ -117,6 +118,44 @@ agoo_con_res_append(agooCon c, agooRes res) {
     }
     c->res_tail = res;
     pthread_mutex_unlock(&c->res_lock);
+}
+
+static void
+agoo_con_res_preppend(agooCon c, agooRes res) {
+    pthread_mutex_lock(&c->res_lock);
+    res->next = c->res_head;
+    c->res_head = res;
+    if (NULL == c->res_tail) {
+	c->res_tail = res;
+    }
+    pthread_mutex_unlock(&c->res_lock);
+}
+
+static agooRes
+agoo_con_res_pop(agooCon c) {
+    agooRes	res;
+
+    pthread_mutex_lock(&c->res_lock);
+    if (NULL != (res = c->res_head)) {
+	c->res_head = res->next;
+	if (res == c->res_tail) {
+	    c->res_tail = NULL;
+	}
+    }
+    pthread_mutex_unlock(&c->res_lock);
+
+    return res;
+}
+
+static agooRes
+agoo_con_res_peek(agooCon c) {
+    agooRes	res;
+
+    pthread_mutex_lock(&c->res_lock);
+    res = c->res_head;
+    pthread_mutex_unlock(&c->res_lock);
+
+    return res;
 }
 
 const char*
@@ -656,7 +695,8 @@ con_ws_read(agooCon c) {
 // return false to remove/close connection
 bool
 agoo_con_http_write(agooCon c) {
-    agooText	message = agoo_res_message_peek(c->res_head);
+    agooRes	res = agoo_con_res_pop(c);
+    agooText	message = agoo_res_message_peek(res);
     ssize_t	cnt;
 
     if (NULL == message) {
@@ -692,23 +732,19 @@ agoo_con_http_write(agooCon c) {
     }
     c->wcnt += cnt;
     if (c->wcnt == message->len) { // finished
-	// TBD lock
-	agooRes		res = c->res_head;
 	agooText	next = agoo_res_message_next(res);
 
 	c->wcnt = 0;
 	if (NULL == next && res->final) {
 	    bool	done = res->close;
 
-	    c->res_head = res->next;
-	    if (res == c->res_tail) {
-		c->res_tail = NULL;
-	    }
 	    agoo_res_destroy(res);
 
 	    return !done;
 	}
     }
+    agoo_con_res_preppend(c, res);
+
     return true;
 }
 
@@ -717,8 +753,7 @@ static const char	pong_msg[] = "\x8a\x00";
 
 static bool
 con_ws_write(agooCon c) {
-    // TBD lock or peek at con
-    agooRes	res = c->res_head;
+    agooRes	res = agoo_con_res_pop(c);
     agooText	message = agoo_res_message_peek(res);
     ssize_t	cnt;
 
@@ -758,17 +793,9 @@ con_ws_write(agooCon c) {
 	    }
 	} else {
 	    agoo_ws_req_close(c);
-	    c->res_head = res->next;
-	    if (res == c->res_tail) {
-		c->res_tail = NULL;
-	    }
 	    agoo_res_destroy(res);
 
 	    return false;
-	}
-	c->res_head = res->next;
-	if (res == c->res_tail) {
-	    c->res_tail = NULL;
 	}
 	return true;
     }
@@ -805,28 +832,25 @@ con_ws_write(agooCon c) {
     }
     c->wcnt += cnt;
     if (c->wcnt == message->len) { // finished
-	agooRes		res = c->res_head;
 	agooText	next = agoo_res_message_next(res);
 
 	c->wcnt = 0;
 	if (NULL == next && res->final) {
 	    bool	done = res->close;
 
-	    c->res_head = res->next;
-	    if (res == c->res_tail) {
-		c->res_tail = NULL;
-	    }
 	    agoo_res_destroy(res);
 
 	    return !done;
 	}
     }
+    agoo_con_res_preppend(c, res);
+
     return true;
 }
 
 static bool
 con_sse_write(agooCon c) {
-    agooRes	res = c->res_head;
+    agooRes	res = agoo_con_res_pop(c);
     agooText	message = agoo_res_message_peek(res);
     ssize_t	cnt;
 
@@ -867,18 +891,15 @@ con_sse_write(agooCon c) {
 
 	c->wcnt = 0;
 	if (NULL == next) {
-	    agooRes	res = c->res_head;
 	    bool	done = res->close;
 
-	    c->res_head = res->next;
-	    if (res == c->res_tail) {
-		c->res_tail = NULL;
-	    }
 	    agoo_res_destroy(res);
 
 	    return !done;
 	}
     }
+    agoo_con_res_preppend(c, res);
+
     return true;
 }
 
@@ -989,8 +1010,9 @@ process_pub_con(agooPub pub, agooConLoop loop) {
 short
 agoo_con_http_events(agooCon c) {
     short	events = 0;
+    agooRes	res = agoo_con_res_peek(c);
 
-    if (NULL != c->res_head && NULL != c->res_head->message) {
+    if (NULL != res && NULL != res->message) {
 	events = POLLIN | POLLOUT;
     } else if (!c->closing) {
 	events = POLLIN;
@@ -1001,8 +1023,9 @@ agoo_con_http_events(agooCon c) {
 static short
 con_ws_events(agooCon c) {
     short	events = 0;
+    agooRes	res = agoo_con_res_peek(c);
 
-    if (NULL != c->res_head && (c->res_head->close || c->res_head->ping || NULL != c->res_head->message)) {
+    if (NULL != res && (res->close || res->ping || NULL != res->message)) {
 	events = POLLIN | POLLOUT;
     } else if (!c->closing) {
 	events = POLLIN;
@@ -1013,8 +1036,9 @@ con_ws_events(agooCon c) {
 static short
 con_sse_events(agooCon c) {
     short	events = 0;
+    agooRes	res = agoo_con_res_peek(c);
 
-    if (NULL != c->res_head && NULL != c->res_head->message) {
+    if (NULL != res && NULL != res->message) {
 	events = POLLOUT;
     }
     return events;
@@ -1023,7 +1047,9 @@ con_sse_events(agooCon c) {
 static bool
 remove_dead_res(agooCon c) {
     agooRes	res;
+    bool	empty;
 
+    pthread_mutex_lock(&c->res_lock);
     while (NULL != (res = c->res_head)) {
 	if (NULL == agoo_res_message_peek(c->res_head) && !c->res_head->close && !c->res_head->ping) {
 	    break;
@@ -1034,7 +1060,10 @@ remove_dead_res(agooCon c) {
 	}
 	agoo_res_destroy(res);
     }
-    return NULL == c->res_head;
+    empty = NULL == c->res_head;
+    pthread_mutex_unlock(&c->res_lock);
+
+    return empty;
 }
 
 static agooReadyIO
@@ -1097,9 +1126,10 @@ con_ready_read(agooReady ready, void *ctx) {
 static bool
 con_ready_write(void *ctx) {
     agooCon	c = (agooCon)ctx;
+    agooRes	res = agoo_con_res_peek(c);
 
-    if (NULL != c->res_head) {
-	agooConKind	kind = c->res_head->con_kind;
+    if (NULL != res) {
+	agooConKind	kind = res->con_kind;
 
 	if (NULL != c->bind->write) {
 	    if (c->bind->write(c)) {
