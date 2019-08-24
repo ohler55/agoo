@@ -121,7 +121,7 @@ agoo_con_res_append(agooCon c, agooRes res) {
 }
 
 static void
-agoo_con_res_preppend(agooCon c, agooRes res) {
+agoo_con_res_prepend(agooCon c, agooRes res) {
     pthread_mutex_lock(&c->res_lock);
     res->next = c->res_head;
     c->res_head = res;
@@ -743,7 +743,7 @@ agoo_con_http_write(agooCon c) {
 	    return !done;
 	}
     }
-    agoo_con_res_preppend(c, res);
+    agoo_con_res_prepend(c, res);
 
     return true;
 }
@@ -843,7 +843,7 @@ con_ws_write(agooCon c) {
 	    return !done;
 	}
     }
-    agoo_con_res_preppend(c, res);
+    agoo_con_res_prepend(c, res);
 
     return true;
 }
@@ -898,7 +898,7 @@ con_sse_write(agooCon c) {
 	    return !done;
 	}
     }
-    agoo_con_res_preppend(c, res);
+    agoo_con_res_prepend(c, res);
 
     return true;
 }
@@ -939,8 +939,6 @@ unsubscribe_pub(agooPub pub) {
 static void
 process_pub_con(agooPub pub, agooConLoop loop) {
     agooUpgraded	up = pub->up;
-
-    // TBD update for graphql
 
     if (NULL != up && NULL != up->con && up->con->loop == loop) {
 	int	pending;

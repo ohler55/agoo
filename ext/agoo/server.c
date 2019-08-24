@@ -370,6 +370,27 @@ agoo_server_del_gsub(gqlSub sub) {
     pthread_mutex_unlock(&agoo_server.up_lock);
 }
 
+static bool
+subject_check(const char *pattern, const char *subject) {
+    for (; '\0' != *pattern && '\0' != *subject; subject++) {
+	if (*subject == *pattern) {
+	    pattern++;
+	} else if ('*' == *pattern) {
+	    for (; '\0' != *subject && '.' != *subject; subject++) {
+	    }
+	    if ('\0' == *subject) {
+		return true;
+	    }
+	    pattern++;
+	} else if ('>' == *pattern) {
+	    return true;
+	} else {
+	    break;
+	}
+    }
+    return '\0' == *pattern && '\0' == *subject;
+}
+
 int
 agoo_server_gpublish(agooErr err, const char *subject, struct _gqlValue *event) {
     gqlSub	sub;
@@ -377,17 +398,23 @@ agoo_server_gpublish(agooErr err, const char *subject, struct _gqlValue *event) 
     printf("*** agoo_server_gpublish - %s \n", subject);
     pthread_mutex_lock(&agoo_server.up_lock);
     for (sub = agoo_server.gsub_list; NULL != sub; sub = sub->next) {
-	agooRes		res;
+	if (subject_check(sub->subject, subject)) {
+	    agooRes	res;
 
-	// TBD eval against event and generate result for res
+	    // TBD eval against event and generate result for res
 
-	// TBD temporary
-	if (NULL != (res = agoo_res_create(sub->con))) {
-	    agooText	text = agoo_text_create("Hello There", 11);
+	    // TBD temporary
+	    if (NULL != (res = agoo_res_create(sub->con))) {
+		// Allocate an extra 32 bytes so the message can be expanded
+		// in place if a WebSocket or SSE write.
+		agooText	text = agoo_text_allocate(50);
 
-	    res->con_kind = AGOO_CON_ANY;
-	    agoo_res_message_push(res, text);
-	    agoo_con_res_append(sub->con, res);
+		text = agoo_text_append(text, "Hello There", 11);
+
+		res->con_kind = AGOO_CON_ANY;
+		agoo_res_message_push(res, text);
+		agoo_con_res_append(sub->con, res);
+	    }
 	}
     }
     pthread_mutex_unlock(&agoo_server.up_lock);

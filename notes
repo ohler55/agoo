@@ -7,14 +7,10 @@ todo
  - validation
 
  - subscription
-  - con->red_head and res_tail
-   - use functions
-    - peek, pop, append
-    - can get rid of res lock and use con lock (I think)
-
-   - mutex, check performance
-   - use that in graphql publish
-   - should other write and publish use the same?
+  - update example to include shema object and ruby object
+  - check correct object in publish in server
+  - get the gql doc type set up
+   - probably a child of doc
 
   - server.c
    - why is res not getting put on queue

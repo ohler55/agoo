@@ -3,6 +3,7 @@
 #ifndef AGOO_DEBUG_H
 #define AGOO_DEBUG_H
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 

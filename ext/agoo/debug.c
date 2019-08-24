@@ -53,7 +53,7 @@ agoo_malloc(size_t size, const char *file, int line) {
 
     if (NULL != ptr) {
 	Rec	r = (Rec)malloc(sizeof(struct _rec));
-	
+
 	if (NULL != r) {
 	    strcpy(((char*)ptr) + size, mem_pad);
 	    r->ptr = ptr;
@@ -79,7 +79,7 @@ agoo_calloc(size_t count, size_t size, const char *file, int line) {
     size *= count;
     if (NULL != (ptr = malloc(size + sizeof(mem_pad)))) {
 	Rec	r = (Rec)malloc(sizeof(struct _rec));
-	
+
 	if (NULL != r) {
 	    memset(ptr, 0, size);
 	    strcpy(((char*)ptr) + size, mem_pad);
@@ -103,7 +103,7 @@ void*
 agoo_realloc(void *orig, size_t size, const char *file, int line) {
     void	*ptr = realloc(orig, size + sizeof(mem_pad));
     Rec		r;
-    
+
     if (NULL != ptr) {
 	strcpy(((char*)ptr) + size, mem_pad);
 	pthread_mutex_lock(&lock);
@@ -131,7 +131,7 @@ agoo_strdup(const char *str, const char *file, int line) {
 
     if (NULL != ptr) {
 	Rec	r = (Rec)malloc(sizeof(struct _rec));
-	
+
 	if (NULL != r) {
 	    strcpy(ptr, str);
 	    strcpy(((char*)ptr) + size, mem_pad);
@@ -158,7 +158,7 @@ agoo_strndup(const char *str, size_t len, const char *file, int line) {
 
     if (NULL != ptr) {
 	Rec	r = (Rec)malloc(sizeof(struct _rec));
-	
+
 	if (NULL != r) {
 	    memcpy(ptr, str, len);
 	    ptr[len] = '\0';
@@ -183,7 +183,7 @@ void
 agoo_mem_check(void *ptr, const char *file, int line) {
     if (NULL != ptr) {
 	Rec	r = NULL;
-    
+
 	pthread_mutex_lock(&lock);
 	for (r = recs; NULL != r; r = r->next) {
 	    if (ptr == r->ptr) {
@@ -199,7 +199,7 @@ agoo_mem_check(void *ptr, const char *file, int line) {
 	    if (0 != strcmp(mem_pad, pad)) {
 		uint8_t	*p;
 		uint8_t	*end = (uint8_t*)pad + sizeof(mem_pad);
-		
+
 		printf("Check - Memory at %s:%d (%p) write outside allocated.\n", file, line, ptr);
 		for (p = (uint8_t*)pad; p < end; p++) {
 		    if (0x20 < *p && *p < 0x7f) {
@@ -219,7 +219,7 @@ agoo_freed(void *ptr, const char *file, int line) {
     if (NULL != ptr) {
 	Rec	r = NULL;
 	Rec	prev = NULL;
-    
+
 	pthread_mutex_lock(&lock);
 	for (r = recs; NULL != r; r = r->next) {
 	    if (ptr == r->ptr) {
@@ -241,7 +241,7 @@ agoo_freed(void *ptr, const char *file, int line) {
 	    if (0 != strcmp(mem_pad, pad)) {
 		uint8_t	*p;
 		uint8_t	*end = (uint8_t*)pad + sizeof(mem_pad);
-		
+
 		printf("Memory at %s:%d (%p) write outside allocated.\n", file, line, ptr);
 		for (p = (uint8_t*)pad; p < end; p++) {
 		    if (0x20 < *p && *p < 0x7f) {

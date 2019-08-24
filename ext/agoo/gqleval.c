@@ -105,7 +105,9 @@ value_resp(agooReq req, gqlValue result, int status, int indent) {
 
 	// TBD testing only, need to be thread safe though, maybe with a queue somehow?
 	if (NULL != (res = agoo_res_create(res->con))) {
-	    text = agoo_text_create("Hello", 5);
+	    agooText	text = agoo_text_allocate(40);
+
+	    text = agoo_text_append(text, "Hello", 5);
 
 	    res->con_kind = AGOO_CON_ANY;
 	    agoo_res_message_push(res, text);

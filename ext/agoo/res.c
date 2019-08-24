@@ -46,6 +46,7 @@ agoo_res_destroy(agooRes res) {
 	    agoo_text_release(res->message);
 	}
 	res->next = NULL;
+	res->message = NULL;
 	pthread_mutex_lock(&res->con->loop->lock);
 	if (NULL == res->con->loop->res_tail) {
 	    res->con->loop->res_head = res;
@@ -127,8 +128,7 @@ agoo_res_message_next(agooRes res) {
     if (NULL != res->message) {
 	agooText	t2 = res->message;
 
-	res->message = res->message->next;
-	// TBD make sure it is not release by the called, change code if it is
+	res->message = t2->next;
 	agoo_text_release(t2);
     }
     t = res->message;
