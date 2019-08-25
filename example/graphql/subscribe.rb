@@ -22,7 +22,7 @@ Agoo::Server.init(6464, '.', thread_count: 1, graphql: '/graphql')
 # Empty response.
 class Empty
   def self.call(_req)
-    Agoo::GraphQL.publish('watch.me', Result.new(Time.now.to_s))
+    Agoo::GraphQL.publish('watch.me', Result.new('the time is', Time.now.to_s))
     [200, {}, []]
   end
 
@@ -33,9 +33,11 @@ end
 
 class Result
   attr_reader :word
+  attr_reader :previous
 
-  def initialize(word)
+  def initialize(word, previous)
     @word = word
+    @previous = previous
   end
 end
 
@@ -47,13 +49,13 @@ end
 
 class Mutation
   def initialize
-    @last = 'Hello'
+    @previous = 'Hello'
   end
 
   def repeat(args={})
     word = args['word']
-    # TBD graphql_publish('word', "#{@last} => #{word}")
-    @last = word
+    Agoo::GraphQL.publish('watch.me', Result.new(word, @previous))
+    @previous = word
   end
 end
 
@@ -91,8 +93,21 @@ type Subscription {
 }
 type Result @ruby(class: "Result") {
   word: String
+  previous: String
 }
 ^)
 }
 
 sleep
+
+# To run this example type the following
+#
+# ruby subscribe.rb
+#
+# Next go to a browser and enter a URL of localhost:6464/websocket.html. This
+# will initiate a Websocket connection that is a GraphQL subscription.
+#
+# Next a trigger (mutation) is sent using curl that will cause a
+# Agoo::GraphQL.publish. The result will be displayed on the browser page.
+#
+# curl -w "\n" -H "Content-Type: application/graphql" -d 'mutation{repeat(word: "A new word.")}' localhost:6464/graphql

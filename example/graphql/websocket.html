@@ -5,7 +5,7 @@
 
     <script type="text/javascript">
       var sock;
-      var url = "ws://" + document.URL.split('/')[2] + '/graphql?subscription={watch{word}}'
+      var url = "ws://" + document.URL.split('/')[2] + '/graphql?subscription={watch{word,previous}}'
       if (typeof MozWebSocket != "undefined") {
           sock = new MozWebSocket(url);
       } else {

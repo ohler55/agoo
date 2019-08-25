@@ -765,8 +765,11 @@ graphql_sdl_dump(VALUE self, VALUE options) {
  *
  * call-seq: publish(subject, event)
  *
- * Publish a event on the given subject. A subject must be a String but and
- * the event must be one of the objects represented by the the GraphQL schema.
+ * Publish an event on the given subject. A subject must be a String while the
+ * event must be one of the objects represented by the the GraphQL
+ * schema. Generally the subjects are selected to identify which objects are
+ * being published and should match the value returned by the subscription
+ * methods.
  */
 static VALUE
 graphql_publish(VALUE self, VALUE subject, VALUE event) {
