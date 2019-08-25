@@ -9,7 +9,7 @@ All changes to the Agoo gem are documented here. Releases follow semantic versio
 GraphQL subscriptions
 
 ### Fixed
-- TBD Rack multiple value header transformation changed to emit multiple entries instead of multiple value.
+- Rack multiple value header transformation changed to emit multiple entries instead of multiple values.
 
 ### Added
 - GraphQL Subscriptions using Websockets and SSE are now supported.

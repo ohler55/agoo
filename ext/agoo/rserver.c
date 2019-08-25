@@ -367,10 +367,25 @@ header_cb(VALUE key, VALUE value, agooText *tp) {
 	}
     }
     if (0 != strcasecmp("Content-Length", ks)) {
-	*tp = agoo_text_append(*tp, ks, klen);
-	*tp = agoo_text_append(*tp, ": ", 2);
-	*tp = agoo_text_append(*tp, vs, vlen);
-	*tp = agoo_text_append(*tp, "\r\n", 2);
+	char	*end = index(vs, '\n');
+
+	do {
+	    end = index(vs, '\n');
+	    *tp = agoo_text_append(*tp, ks, klen);
+	    *tp = agoo_text_append(*tp, ": ", 2);
+	    if (NULL == end) {
+		if (0 < vlen) {
+		    *tp = agoo_text_append(*tp, vs, vlen);
+		}
+	    } else {
+		if (vs < end) {
+		    *tp = agoo_text_append(*tp, vs, end - vs);
+		}
+		vlen -= end - vs + 1;
+		vs = end + 1;
+	    }
+	    *tp = agoo_text_append(*tp, "\r\n", 2);
+	} while (NULL != end && 0 < vlen);
     }
     return ST_CONTINUE;
 }

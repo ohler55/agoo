@@ -24,7 +24,11 @@ class RackHandlerTest < Minitest::Test
     def call(req)
       if 'GET' == req['REQUEST_METHOD']
 	[ 200,
-	  { 'Content-Type' => 'application/json' },
+	  { 'Content-Type' => 'application/json',
+	    'Set-Cookie' => %|favorite=chocolate
+size=big
+|
+	  },
 	  [ Oj.dump(req.to_h, mode: :null) ]
 	]
       elsif 'POST' == req['REQUEST_METHOD']
@@ -90,6 +94,7 @@ class RackHandlerTest < Minitest::Test
     res = Net::HTTP.start(uri.hostname, uri.port) { |h|
       h.request(req)
     }
+    assert_equal('favorite=chocolate, size=big', res['set-cookie'])
     content = res.body
     obj = Oj.load(content, mode: :strict)
     expect = {
