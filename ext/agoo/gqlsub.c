@@ -30,6 +30,8 @@ gql_sub_create(agooErr err, agooCon con, const char *subject, struct _gqlDoc *qu
 void
 gql_sub_destroy(gqlSub sub) {
     AGOO_FREE(sub->subject);
-    // TBD destroy query
+    if (NULL != sub->query) {
+	gql_doc_destroy(sub->query);
+    }
     AGOO_FREE(sub);
 }

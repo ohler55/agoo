@@ -88,9 +88,6 @@ value_resp(agooReq req, gqlValue result, int status, int indent) {
 		agoo_log_cat(&agoo_error_cat, "Failed to allocate memory for a response.");
 		return;
 	    }
-	    // TBD
-	    // req->hook = agoo_hook_create(AGOO_NONE, NULL, (void*)NULL, PUSH_HOOK, &agoo_server.eval_queue);
-
 	    break;
 	case 200:
 	    text = agoo_sse_upgrade(req, text);
@@ -100,22 +97,6 @@ value_resp(agooReq req, gqlValue result, int status, int indent) {
 	    return;
 	}
 	agoo_res_message_push(res, text);
-
-	// TBD keep from closing
-
-	// TBD testing only, need to be thread safe though, maybe with a queue somehow?
-	if (NULL != (res = agoo_res_create(res->con))) {
-	    agooText	text = agoo_text_allocate(40);
-
-	    text = agoo_text_append(text, "Hello", 5);
-
-	    res->con_kind = AGOO_CON_ANY;
-	    agoo_res_message_push(res, text);
-	    agoo_con_res_append(res->con, res);
-
-	}
-	//////////////////
-
 	return;
     }
     if (AGOO_ERR_OK != gql_object_set(&err, msg, "data", result)) {
@@ -343,7 +324,6 @@ gql_doc_eval(agooErr err, gqlDoc doc) {
 	    return NULL;
 	}
     }
-    // TBD subscription should null maybe
     return result;
 }
 
@@ -443,8 +423,8 @@ gql_eval_get_hook(agooReq req) {
     } else {
 	result = gql_doc_eval_func(&err, doc);
     }
-    gql_doc_destroy(doc);
     if (NULL == result) {
+	gql_doc_destroy(doc);
 	err_resp(req->res, &err, 500);
 	return;
     }
@@ -453,12 +433,14 @@ gql_eval_get_hook(agooReq req) {
 	gqlValue	sv;
 	const char	*subject;
 	gqlSub		sub;
+	gqlSel		query;
 
 	if (NULL == (sv = gql_object_get(result, "subject"))) {
 	    struct _agooErr	e;
 
 	    agoo_err_set(&e, AGOO_ERR_TYPE, "subscription did not return a subject");
 	    err_resp(req->res, &e, 400);
+	    gql_doc_destroy(doc);
 	    return;
 	}
 	subject = gql_string_get(sv);
@@ -466,20 +448,18 @@ gql_eval_get_hook(agooReq req) {
 	if (AGOO_CON_WS == req->res->con_kind) {
 	    status = 101;
 	}
-	printf("*** GET hook eval - upgrade? %c - subject: %s\n", req->res->con_kind, subject);
-
-	if (NULL == (sub = gql_sub_create(&err, req->res->con, subject, NULL))) { // struct _gqlDoc *query
+	doc->op->kind = GQL_QUERY; // need so eval does the right thing
+	if (NULL == (sub = gql_sub_create(&err, req->res->con, subject, doc))) {
 	    err_resp(req->res, &err, 400);
 	    return;
 	}
 	agoo_server_add_gsub(sub);
 
-	// TBD pass in req->res->con_kind ?
-
 	value_resp(req, NULL, status, indent);
 
 	return;
     }
+    gql_doc_destroy(doc);
     value_resp(req, result, 200, indent);
 }
 

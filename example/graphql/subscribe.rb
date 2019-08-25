@@ -22,7 +22,7 @@ Agoo::Server.init(6464, '.', thread_count: 1, graphql: '/graphql')
 # Empty response.
 class Empty
   def self.call(_req)
-    Agoo.publish('watch.me', '{"watch":"hello"}')
+    Agoo::GraphQL.publish('watch.me', Result.new(Time.now.to_s))
     [200, {}, []]
   end
 
@@ -31,9 +31,16 @@ class Empty
   end
 end
 
+class Result
+  attr_reader :word
+
+  def initialize(word)
+    @word = word
+  end
+end
+
 class Query
   def hello
-    Agoo::GraphQL.publish('watch.me', "Whats the time?")
     'Hello'
   end
 end
@@ -82,7 +89,7 @@ type Mutation {
 type Subscription {
   watch: Result
 }
-type Result {
+type Result @ruby(class: "Result") {
   word: String
 }
 ^)

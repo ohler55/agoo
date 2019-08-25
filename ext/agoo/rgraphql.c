@@ -776,9 +776,7 @@ graphql_publish(VALUE self, VALUE subject, VALUE event) {
     rb_check_type(subject, T_STRING);
     subj = StringValuePtr(subject);
 
-    // TBD create gqlValue
-
-    if (AGOO_ERR_OK != agoo_server_gpublish(&err, subj, NULL)) {
+    if (AGOO_ERR_OK != agoo_server_gpublish(&err, subj, (gqlRef)event)) {
 	rb_raise(rb_eStandardError, "%s", err.msg);
     }
     return Qnil;

@@ -9,6 +9,7 @@
 #include "atomic.h"
 #include "bind.h"
 #include "err.h"
+#include "gqleval.h"
 #include "hook.h"
 #include "queue.h"
 
@@ -71,7 +72,7 @@ extern void	agoo_server_publish(struct _agooPub *pub);
 
 extern void	agoo_server_add_gsub(struct _gqlSub *sub);
 extern void	agoo_server_del_gsub(struct _gqlSub *sub);
-extern int	agoo_server_gpublish(agooErr err, const char *subject, struct _gqlValue *event);
+extern int	agoo_server_gpublish(agooErr err, const char *subject, gqlRef event);
 
 extern struct _agooServer	agoo_server;
 
