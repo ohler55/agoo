@@ -74,6 +74,7 @@ extern gqlValue	gql_object_create(agooErr err);
 extern int	gql_list_append(agooErr err, gqlValue list, gqlValue item);
 extern int	gql_list_preend(agooErr err, gqlValue list, gqlValue item);
 extern int	gql_object_set(agooErr err, gqlValue obj, const char *key, gqlValue item);
+extern gqlValue	gql_object_get(gqlValue obj, const char *key);
 
 extern void	gql_int_set(gqlValue value, int32_t i);
 extern void	gql_i64_set(gqlValue value, int64_t i);

@@ -12,11 +12,16 @@
 #include "con.h"
 #include "domain.h"
 #include "dtime.h"
+#include "gqlsub.h"
+#include "gqlvalue.h"
+#include "graphql.h"
 #include "http.h"
 #include "hook.h"
 #include "log.h"
 #include "page.h"
 #include "pub.h"
+#include "res.h"
+#include "text.h"
 #include "upgraded.h"
 
 #include "server.h"
@@ -34,6 +39,7 @@ agoo_server_setup(agooErr err) {
     memset(&agoo_server, 0, sizeof(struct _agooServer));
     pthread_mutex_init(&agoo_server.up_lock, 0);
     agoo_server.up_list = NULL;
+    agoo_server.gsub_list = NULL;
     agoo_server.max_push_pending = 32;
 
     if (AGOO_ERR_OK != agoo_pages_init(err) ||
@@ -335,4 +341,114 @@ agoo_server_publish(struct _agooPub *pub) {
 	    agoo_queue_push(&loop->pub_queue, agoo_pub_dup(pub));
 	}
     }
+}
+
+void
+agoo_server_add_gsub(gqlSub sub) {
+    pthread_mutex_lock(&agoo_server.up_lock);
+    sub->next = agoo_server.gsub_list;
+    agoo_server.gsub_list = sub;
+    pthread_mutex_unlock(&agoo_server.up_lock);
+}
+
+void
+agoo_server_del_gsub(gqlSub sub) {
+    gqlSub	s;
+    gqlSub	prev = NULL;
+
+    pthread_mutex_lock(&agoo_server.up_lock);
+    for (s = agoo_server.gsub_list; NULL != s; s = s->next) {
+	if (s == sub) {
+	    if (NULL == prev) {
+		agoo_server.gsub_list = s->next;
+	    } else {
+		prev->next = s->next;
+	    }
+	}
+	prev = s;
+    }
+    pthread_mutex_unlock(&agoo_server.up_lock);
+}
+
+static bool
+subject_check(const char *pattern, const char *subject) {
+    for (; '\0' != *pattern && '\0' != *subject; subject++) {
+	if (*subject == *pattern) {
+	    pattern++;
+	} else if ('*' == *pattern) {
+	    for (; '\0' != *subject && '.' != *subject; subject++) {
+	    }
+	    if ('\0' == *subject) {
+		return true;
+	    }
+	    pattern++;
+	} else if ('>' == *pattern) {
+	    return true;
+	} else {
+	    break;
+	}
+    }
+    return '\0' == *pattern && '\0' == *subject;
+}
+
+static agooText
+gpub_eval(agooErr err, gqlDoc query, gqlRef event) {
+    agooText	t = NULL;
+    gqlSel	sel;
+    gqlSel	s;
+    gqlValue	result;
+
+    if (NULL == query->ops || NULL == query->ops->sels) {
+	agoo_err_set(err, AGOO_ERR_TYPE, "subscription not valid");
+	return NULL;
+    }
+    sel = query->ops->sels;
+    if (NULL != (result = gql_object_create(err))) {
+	struct _gqlField	field;
+
+	memset(&field, 0, sizeof(field));
+	field.type = sel->type;
+	if (AGOO_ERR_OK != gql_eval_sels(err, query, event, &field, sel->sels, result, 0)) {
+	    gql_value_destroy(result);
+	    return NULL;
+	}
+	if (NULL == (t = agoo_text_allocate(1024))) {
+	    AGOO_ERR_MEM(err, "Text");
+	    return NULL;
+	}
+	t = gql_value_json(t, result, 0, 0);
+	gql_value_destroy(result);
+    }
+    return t;
+}
+
+int
+agoo_server_gpublish(agooErr err, const char *subject, gqlRef event) {
+    gqlSub	sub;
+    gqlType	type;
+
+    if (NULL == gql_type_func || NULL == (type = gql_type_func(event))) {
+	return agoo_err_set(err, AGOO_ERR_TYPE, "Not able to determine the type for a GraphQL publish.");
+    }
+    pthread_mutex_lock(&agoo_server.up_lock);
+    for (sub = agoo_server.gsub_list; NULL != sub; sub = sub->next) {
+	if (subject_check(sub->subject, subject)) {
+	    agooRes	res;
+	    agooText	t;
+
+	    if (NULL == (res = agoo_res_create(sub->con))) {
+		AGOO_ERR_MEM(err, "Response");
+		break;
+	    }
+	    if (NULL == (t = gpub_eval(err, sub->query, event))) {
+		break;
+	    }
+	    res->con_kind = AGOO_CON_ANY;
+	    agoo_res_message_push(res, t);
+	    agoo_con_res_append(sub->con, res);
+	}
+    }
+    pthread_mutex_unlock(&agoo_server.up_lock);
+
+    return err->code;
 }

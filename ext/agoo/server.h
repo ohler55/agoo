@@ -9,6 +9,7 @@
 #include "atomic.h"
 #include "bind.h"
 #include "err.h"
+#include "gqleval.h"
 #include "hook.h"
 #include "queue.h"
 
@@ -17,6 +18,8 @@ struct _agooConLoop;
 struct _agooPub;
 struct _agooReq;
 struct _agooUpgraded;
+struct _gqlSub;
+struct _gqlValue;
 
 typedef struct _agooServer {
     volatile bool		inited;
@@ -39,6 +42,7 @@ typedef struct _agooServer {
     atomic_int			con_cnt;
 
     struct _agooUpgraded	*up_list;
+    struct _gqlSub		*gsub_list;
     pthread_mutex_t		up_lock;
     int				max_push_pending;
     void			*env_nil_value;
@@ -65,6 +69,10 @@ extern int	agoo_server_add_func_hook(agooErr	err,
 					  bool		quick);
 
 extern void	agoo_server_publish(struct _agooPub *pub);
+
+extern void	agoo_server_add_gsub(struct _gqlSub *sub);
+extern void	agoo_server_del_gsub(struct _gqlSub *sub);
+extern int	agoo_server_gpublish(agooErr err, const char *subject, gqlRef event);
 
 extern struct _agooServer	agoo_server;
 

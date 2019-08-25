@@ -7,13 +7,15 @@ todo
  - validation
 
  - subscription
-
-- sub-domains
-
-- early_hints
- - check memory leaks
-  - agoo_res_message_next
-
+  - SSE
+   - probably looking for a 101
+  - better example
+   - use POST for updates
+  - docs
+   - describe use and unsubscribe
+  - return code same as websocket or sse return (upgrade)
+   - return 426 if no upgrade in request
+   - return 101 for upgrade?
 
 
 - refs

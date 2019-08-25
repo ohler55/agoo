@@ -75,8 +75,6 @@ agoo_pub_publish(const char *subject, int slen, const char *message, size_t mlen
 
 agooPub
 agoo_pub_write(agooUpgraded up, const char *message, size_t mlen, bool bin) {
-    // Allocate an extra 16 bytes so the message can be expanded in place if a
-    // WebSocket write.
     agooPub	p = (agooPub)AGOO_MALLOC(sizeof(struct _agooPub));
 
     if (NULL != p) {
@@ -130,4 +128,3 @@ agoo_pub_destroy(agooPub pub) {
     }
     AGOO_FREE(pub);
 }
-

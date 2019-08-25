@@ -1,0 +1,23 @@
+<html>
+  <body>
+    <p id="status"> ... </p>
+    <p id="message"> ... waiting ... </p>
+
+    <script type="text/javascript">
+      var sock;
+      var url = "ws://" + document.URL.split('/')[2] + '/graphql?subscription={watch{word}}'
+      if (typeof MozWebSocket != "undefined") {
+          sock = new MozWebSocket(url);
+      } else {
+          sock = new WebSocket(url);
+      }
+      sock.onopen = function() {
+          document.getElementById("status").textContent = "connected";
+          sock.send("Connected!")
+      }
+      sock.onmessage = function(msg) {
+          document.getElementById("message").textContent = msg.data;
+      }
+    </script>
+  </body>
+</html>

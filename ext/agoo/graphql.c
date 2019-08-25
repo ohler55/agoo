@@ -1556,7 +1556,18 @@ static agooText
 op_sdl(agooText text, gqlOp op) {
     gqlSel	sel;
 
-    text = agoo_text_append(text, "query", 5);
+    switch (op->kind) {
+    case GQL_MUTATION:
+	text = agoo_text_append(text, "mutation", 8);
+	break;
+    case GQL_SUBSCRIPTION:
+	text = agoo_text_append(text, "subscription", 12);
+	break;
+    case GQL_QUERY:
+    default:
+	text = agoo_text_append(text, "query", 5);
+	break;
+    }
     if (NULL != op->name) {
 	text = agoo_text_append(text, " ", 1);
 	text = agoo_text_append(text, op->name, -1);
@@ -1647,7 +1658,7 @@ gql_dump_hook(agooReq req) {
     if (NULL == (text = agoo_text_prepend(text, buf, cnt))) {
 	agoo_log_cat(&agoo_error_cat, "Failed to allocate memory for a GraphQL dump.");
     }
-    agoo_res_message_push(req->res, text, true);
+    agoo_res_message_push(req->res, text);
 }
 
 gqlField

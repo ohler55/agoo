@@ -46,6 +46,7 @@ agoo_res_destroy(agooRes res) {
 	    agoo_text_release(res->message);
 	}
 	res->next = NULL;
+	res->message = NULL;
 	pthread_mutex_lock(&res->con->loop->lock);
 	if (NULL == res->con->loop->res_tail) {
 	    res->con->loop->res_head = res;
@@ -58,7 +59,7 @@ agoo_res_destroy(agooRes res) {
 }
 
 void
-agoo_res_message_push(agooRes res, agooText t, bool final) {
+agoo_res_message_push(agooRes res, agooText t) {
     if (NULL != t) {
 	agoo_text_ref(t);
     }
@@ -73,7 +74,7 @@ agoo_res_message_push(agooRes res, agooText t, bool final) {
 	    }
 	    end->next = t;
 	}
-	res->final = final;
+	res->final = true;
     }
     pthread_mutex_unlock(&res->lock);
 }
@@ -91,7 +92,21 @@ agoo_res_add_early(agooRes res, agooEarly early) {
 	t = agoo_text_append(t, "\r\n", 2);
     }
     t = agoo_text_append(t, "\r\n", 2);
-    agoo_res_message_push(res, t, false);
+
+    pthread_mutex_lock(&res->lock);
+    if (!res->final) {
+	if (NULL == res->message) {
+	    res->message = t;
+	} else {
+	    agooText	end = res->message;
+
+	    for (; NULL != end->next; end = end->next) {
+	    }
+	    end->next = t;
+	}
+	res->final = false;
+    }
+    pthread_mutex_unlock(&res->lock);
 }
 
 agooText
@@ -113,8 +128,7 @@ agoo_res_message_next(agooRes res) {
     if (NULL != res->message) {
 	agooText	t2 = res->message;
 
-	res->message = res->message->next;
-	// TBD make sure it is not release by the called, change code if it is
+	res->message = t2->next;
 	agoo_text_release(t2);
     }
     t = res->message;

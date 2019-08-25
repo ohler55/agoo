@@ -993,6 +993,20 @@ gql_object_set(agooErr err, gqlValue obj, const char *key, gqlValue item) {
     return AGOO_ERR_OK;
 }
 
+gqlValue
+gql_object_get(gqlValue obj, const char *key) {
+    if (NULL != obj && obj->type == &object_type) {
+	gqlLink	link = obj->members;
+
+	for (; NULL != link; link = link->next) {
+	    if (0 == strcmp(link->key, key)) {
+		return link->value;
+	    }
+	}
+    }
+    return NULL;
+}
+
 /// create functions //////////////////////////////////////////////////////////
 
 static gqlValue

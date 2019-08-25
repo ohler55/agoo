@@ -44,12 +44,13 @@ json_size(const char *str, size_t len) {
 
 agooText
 agoo_text_create(const char *str, int len) {
-    agooText	t = (agooText)AGOO_MALLOC(sizeof(struct _agooText) - AGOO_TEXT_MIN_SIZE + len + 1);
+    size_t	alen = (AGOO_TEXT_MIN_SIZE <= len) ? len : AGOO_TEXT_MIN_SIZE;
+    agooText	t = (agooText)AGOO_MALLOC(sizeof(struct _agooText) + alen + 1);
 
     if (NULL != t) {
 	t->next = NULL;
 	t->len = len;
-	t->alen = len;
+	t->alen = alen;
 	t->bin = false;
 	atomic_init(&t->ref_cnt, 0);
 	memcpy(t->text, str, len);
@@ -77,12 +78,13 @@ agoo_text_dup(agooText t0) {
 
 agooText
 agoo_text_allocate(int len) {
-    agooText	t = (agooText)AGOO_MALLOC(sizeof(struct _agooText) - AGOO_TEXT_MIN_SIZE + len + 1);
+    size_t	alen = (AGOO_TEXT_MIN_SIZE <= len) ? len : AGOO_TEXT_MIN_SIZE;
+    agooText	t = (agooText)AGOO_MALLOC(sizeof(struct _agooText) + alen + 1);
 
     if (NULL != t) {
 	t->next = NULL;
 	t->len = 0;
-	t->alen = len;
+	t->alen = alen;
 	t->bin = false;
 	atomic_init(&t->ref_cnt, 0);
 	*t->text = '\0';

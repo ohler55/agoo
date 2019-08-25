@@ -12,6 +12,7 @@
 #include "domain.h"
 #include "dtime.h"
 #include "hook.h"
+#include "gqlsub.h"
 #include "http.h"
 #include "log.h"
 #include "page.h"
@@ -67,6 +68,7 @@ agoo_con_create(agooErr err, int sock, uint64_t id, agooBind b) {
 	c->timeout = dtime() + CON_TIMEOUT;
 	c->bind = b;
 	c->loop = NULL;
+	pthread_mutex_init(&c->res_lock, 0);
     }
     return c;
 }
@@ -89,8 +91,12 @@ agoo_con_destroy(agooCon c) {
     }
     if (NULL != c->up) {
 	agoo_upgraded_release_con(c->up);
-
 	c->up = NULL;
+    }
+    if (NULL != c->gsub) {
+	agoo_server_del_gsub(c->gsub);
+	gql_sub_destroy(c->gsub);
+	c->gsub = NULL;
     }
     agoo_log_cat(&agoo_con_cat, "Connection %llu closed.", (unsigned long long)c->id);
 
@@ -98,7 +104,58 @@ agoo_con_destroy(agooCon c) {
 	c->res_head = res->next;
 	AGOO_FREE(res);
     }
+    pthread_mutex_destroy(&c->res_lock);
     AGOO_FREE(c);
+}
+
+void
+agoo_con_res_append(agooCon c, agooRes res) {
+    pthread_mutex_lock(&c->res_lock);
+    if (NULL == c->res_tail) {
+	c->res_head = res;
+    } else {
+	c->res_tail->next = res;
+    }
+    c->res_tail = res;
+    pthread_mutex_unlock(&c->res_lock);
+}
+
+static void
+agoo_con_res_prepend(agooCon c, agooRes res) {
+    pthread_mutex_lock(&c->res_lock);
+    res->next = c->res_head;
+    c->res_head = res;
+    if (NULL == c->res_tail) {
+	c->res_tail = res;
+    }
+    pthread_mutex_unlock(&c->res_lock);
+}
+
+static agooRes
+agoo_con_res_pop(agooCon c) {
+    agooRes	res;
+
+    pthread_mutex_lock(&c->res_lock);
+    if (NULL != (res = c->res_head)) {
+	c->res_head = res->next;
+	if (res == c->res_tail) {
+	    c->res_tail = NULL;
+	}
+    }
+    pthread_mutex_unlock(&c->res_lock);
+
+    return res;
+}
+
+static agooRes
+agoo_con_res_peek(agooCon c) {
+    agooRes	res;
+
+    pthread_mutex_lock(&c->res_lock);
+    res = c->res_head;
+    pthread_mutex_unlock(&c->res_lock);
+
+    return res;
 }
 
 const char*
@@ -146,14 +203,9 @@ bad_request(agooCon c, int status, int line) {
 				       "HTTP/1.1 %d %s\r\nConnection: Close\r\nContent-Length: 0\r\n\r\n", status, msg);
 	agooText	message = agoo_text_create(buf, cnt);
 
-	if (NULL == c->res_tail) {
-	    c->res_head = res;
-	} else {
-	    c->res_tail->next = res;
-	}
-	c->res_tail = res;
+	agoo_con_res_append(c, res);
 	res->close = true;
-	agoo_res_message_push(res, message, true);
+	agoo_res_message_push(res, message);
     }
     return HEAD_ERR;
 }
@@ -177,19 +229,14 @@ page_response(agooCon c, agooPage p, char *hend) {
     if (NULL == (res = agoo_res_create(c))) {
 	return true;
     }
-    if (NULL == c->res_tail) {
-	c->res_head = res;
-    } else {
-	c->res_tail->next = res;
-    }
-    c->res_tail = res;
+    agoo_con_res_append(c, res);
 
     b = strstr(c->buf, "\r\n");
     res->close = should_close(b, (int)(hend - b));
     if (res->close) {
 	c->closing = true;
     }
-    agoo_res_message_push(res, p->resp, true);
+    agoo_res_message_push(res, p->resp);
 
     return false;
 }
@@ -504,12 +551,7 @@ agoo_con_http_read(agooCon c) {
 		    agoo_log_cat(&agoo_error_cat, "memory allocation of response failed on connection %llu.", (unsigned long long)c->id);
 		    return bad_request(c, 500, __LINE__);
 		} else {
-		    if (NULL == c->res_tail) {
-			c->res_head = res;
-		    } else {
-			c->res_tail->next = res;
-		    }
-		    c->res_tail = res;
+		    agoo_con_res_append(c, res);
 		    res->close = should_close(c->req->header.start, c->req->header.len);
 		    if (res->close) {
 			c->closing = true;
@@ -584,6 +626,11 @@ con_ws_read(agooCon c) {
 	    switch (op) {
 	    case AGOO_WS_OP_TEXT:
 	    case AGOO_WS_OP_BIN:
+		if (NULL != c->gsub) {
+		    // GraphQL subscriptions do not accept input on the
+		    // connection.
+		    break;
+		}
 		if (agoo_ws_create_req(c, mlen)) {
 		    return true;
 		}
@@ -648,7 +695,8 @@ con_ws_read(agooCon c) {
 // return false to remove/close connection
 bool
 agoo_con_http_write(agooCon c) {
-    agooText	message = agoo_res_message_peek(c->res_head);
+    agooRes	res = agoo_con_res_pop(c);
+    agooText	message = agoo_res_message_peek(res);
     ssize_t	cnt;
 
     if (NULL == message) {
@@ -684,22 +732,19 @@ agoo_con_http_write(agooCon c) {
     }
     c->wcnt += cnt;
     if (c->wcnt == message->len) { // finished
-	agooRes		res = c->res_head;
 	agooText	next = agoo_res_message_next(res);
 
 	c->wcnt = 0;
 	if (NULL == next && res->final) {
 	    bool	done = res->close;
 
-	    c->res_head = res->next;
-	    if (res == c->res_tail) {
-		c->res_tail = NULL;
-	    }
 	    agoo_res_destroy(res);
 
 	    return !done;
 	}
     }
+    agoo_con_res_prepend(c, res);
+
     return true;
 }
 
@@ -708,7 +753,7 @@ static const char	pong_msg[] = "\x8a\x00";
 
 static bool
 con_ws_write(agooCon c) {
-    agooRes	res = c->res_head;
+    agooRes	res = agoo_con_res_pop(c);
     agooText	message = agoo_res_message_peek(res);
     ssize_t	cnt;
 
@@ -748,17 +793,9 @@ con_ws_write(agooCon c) {
 	    }
 	} else {
 	    agoo_ws_req_close(c);
-	    c->res_head = res->next;
-	    if (res == c->res_tail) {
-		c->res_tail = NULL;
-	    }
 	    agoo_res_destroy(res);
 
 	    return false;
-	}
-	c->res_head = res->next;
-	if (res == c->res_tail) {
-	    c->res_tail = NULL;
 	}
 	return true;
     }
@@ -775,7 +812,7 @@ con_ws_write(agooCon c) {
 	}
 	t = agoo_ws_expand(message);
 	if (t != message) {
-	    agoo_res_message_push(res, t, true);
+	    agoo_res_message_push(res, t);
 	    message = t;
 	}
     }
@@ -795,28 +832,25 @@ con_ws_write(agooCon c) {
     }
     c->wcnt += cnt;
     if (c->wcnt == message->len) { // finished
-	agooRes		res = c->res_head;
 	agooText	next = agoo_res_message_next(res);
 
 	c->wcnt = 0;
 	if (NULL == next && res->final) {
 	    bool	done = res->close;
 
-	    c->res_head = res->next;
-	    if (res == c->res_tail) {
-		c->res_tail = NULL;
-	    }
 	    agoo_res_destroy(res);
 
 	    return !done;
 	}
     }
+    agoo_con_res_prepend(c, res);
+
     return true;
 }
 
 static bool
 con_sse_write(agooCon c) {
-    agooRes	res = c->res_head;
+    agooRes	res = agoo_con_res_pop(c);
     agooText	message = agoo_res_message_peek(res);
     ssize_t	cnt;
 
@@ -834,7 +868,7 @@ con_sse_write(agooCon c) {
 	}
 	t = agoo_sse_expand(message);
 	if (t != message) {
-	    agoo_res_message_push(res, t, true);
+	    agoo_res_message_push(res, t);
 	    message = t;
 	}
     }
@@ -857,18 +891,15 @@ con_sse_write(agooCon c) {
 
 	c->wcnt = 0;
 	if (NULL == next) {
-	    agooRes	res = c->res_head;
 	    bool	done = res->close;
 
-	    c->res_head = res->next;
-	    if (res == c->res_tail) {
-		c->res_tail = NULL;
-	    }
 	    agoo_res_destroy(res);
 
 	    return !done;
 	}
     }
+    agoo_con_res_prepend(c, res);
+
     return true;
 }
 
@@ -883,14 +914,9 @@ publish_pub(agooPub pub, agooConLoop loop) {
 	    agooRes	res = agoo_res_create(up->con);
 
 	    if (NULL != res) {
-		if (NULL == up->con->res_tail) {
-		    up->con->res_head = res;
-		} else {
-		    up->con->res_tail->next = res;
-		}
-		up->con->res_tail = res;
+		agoo_con_res_append(up->con, res);
 		res->con_kind = AGOO_CON_ANY;
-		agoo_res_message_push(res, agoo_text_dup(pub->msg), true);
+		agoo_res_message_push(res, agoo_text_dup(pub->msg));
 		cnt++;
 	    }
 	}
@@ -939,12 +965,7 @@ process_pub_con(agooPub pub, agooConLoop loop) {
 	    agooRes	res = agoo_res_create(up->con);
 
 	    if (NULL != res) {
-		if (NULL == up->con->res_tail) {
-		    up->con->res_head = res;
-		} else {
-		    up->con->res_tail->next = res;
-		}
-		up->con->res_tail = res;
+		agoo_con_res_append(up->con, res);
 		res->con_kind = up->con->bind->kind;
 		res->close = true;
 	    }
@@ -957,14 +978,9 @@ process_pub_con(agooPub pub, agooConLoop loop) {
 	    agooRes	res = agoo_res_create(up->con);
 
 	    if (NULL != res) {
-		if (NULL == up->con->res_tail) {
-		    up->con->res_head = res;
-		} else {
-		    up->con->res_tail->next = res;
-		}
-		up->con->res_tail = res;
+		agoo_con_res_append(up->con, res);
 		res->con_kind = AGOO_CON_ANY;
-		agoo_res_message_push(res, pub->msg, true);
+		agoo_res_message_push(res, pub->msg);
 	    }
 	}
 	break;
@@ -992,8 +1008,9 @@ process_pub_con(agooPub pub, agooConLoop loop) {
 short
 agoo_con_http_events(agooCon c) {
     short	events = 0;
+    agooRes	res = agoo_con_res_peek(c);
 
-    if (NULL != c->res_head && NULL != c->res_head->message) {
+    if (NULL != res && NULL != res->message) {
 	events = POLLIN | POLLOUT;
     } else if (!c->closing) {
 	events = POLLIN;
@@ -1004,8 +1021,9 @@ agoo_con_http_events(agooCon c) {
 static short
 con_ws_events(agooCon c) {
     short	events = 0;
+    agooRes	res = agoo_con_res_peek(c);
 
-    if (NULL != c->res_head && (c->res_head->close || c->res_head->ping || NULL != c->res_head->message)) {
+    if (NULL != res && (res->close || res->ping || NULL != res->message)) {
 	events = POLLIN | POLLOUT;
     } else if (!c->closing) {
 	events = POLLIN;
@@ -1016,8 +1034,9 @@ con_ws_events(agooCon c) {
 static short
 con_sse_events(agooCon c) {
     short	events = 0;
+    agooRes	res = agoo_con_res_peek(c);
 
-    if (NULL != c->res_head && NULL != c->res_head->message) {
+    if (NULL != res && NULL != res->message) {
 	events = POLLOUT;
     }
     return events;
@@ -1026,7 +1045,9 @@ con_sse_events(agooCon c) {
 static bool
 remove_dead_res(agooCon c) {
     agooRes	res;
+    bool	empty;
 
+    pthread_mutex_lock(&c->res_lock);
     while (NULL != (res = c->res_head)) {
 	if (NULL == agoo_res_message_peek(c->res_head) && !c->res_head->close && !c->res_head->ping) {
 	    break;
@@ -1037,7 +1058,10 @@ remove_dead_res(agooCon c) {
 	}
 	agoo_res_destroy(res);
     }
-    return NULL == c->res_head;
+    empty = NULL == c->res_head;
+    pthread_mutex_unlock(&c->res_lock);
+
+    return empty;
 }
 
 static agooReadyIO
@@ -1100,9 +1124,10 @@ con_ready_read(agooReady ready, void *ctx) {
 static bool
 con_ready_write(void *ctx) {
     agooCon	c = (agooCon)ctx;
+    agooRes	res = agoo_con_res_peek(c);
 
-    if (NULL != c->res_head) {
-	agooConKind	kind = c->res_head->con_kind;
+    if (NULL != res) {
+	agooConKind	kind = res->con_kind;
 
 	if (NULL != c->bind->write) {
 	    if (c->bind->write(c)) {

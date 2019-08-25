@@ -12,7 +12,9 @@
 #include "gqlintro.h"
 #include "gqlvalue.h"
 #include "graphql.h"
+#include "pub.h"
 #include "sdl.h"
+#include "server.h"
 
 typedef struct _eval {
     gqlDoc	doc;
@@ -423,6 +425,15 @@ resolve(agooErr err, gqlDoc doc, gqlRef target, gqlField field, gqlSel sel, gqlV
 	}
 	child = rb_funcall(obj, rb_intern(sel->name), 1, rargs);
     }
+    if (GQL_SUBSCRIPTION == doc->op->kind && RUBY_T_STRING == rb_type(child)) {
+	gqlValue	c;
+
+	if (NULL == (c = gql_string_create(err, rb_string_value_ptr(&child), RSTRING_LEN(child))) ||
+	    AGOO_ERR_OK != gql_object_set(err, result, "subject", c)) {
+	    return err->code;
+	}
+	return AGOO_ERR_OK;
+    }
     if (NULL != sel->alias) {
 	key = sel->alias;
     }
@@ -750,6 +761,27 @@ graphql_sdl_dump(VALUE self, VALUE options) {
     return dump;
 }
 
+/* Document-method: publish
+ *
+ * call-seq: publish(subject, event)
+ *
+ * Publish a event on the given subject. A subject must be a String but and
+ * the event must be one of the objects represented by the the GraphQL schema.
+ */
+static VALUE
+graphql_publish(VALUE self, VALUE subject, VALUE event) {
+    const char		*subj;
+    struct _agooErr	err = AGOO_ERR_INIT;
+
+    rb_check_type(subject, T_STRING);
+    subj = StringValuePtr(subject);
+
+    if (AGOO_ERR_OK != agoo_server_gpublish(&err, subj, (gqlRef)event)) {
+	rb_raise(rb_eStandardError, "%s", err.msg);
+    }
+    return Qnil;
+}
+
 /* Document-class: Agoo::Graphql
  *
  * The Agoo::GraphQL class provides support for the GraphQL API as defined in
@@ -772,4 +804,6 @@ graphql_init(VALUE mod) {
     rb_define_module_function(graphql_class, "load_file", graphql_load_file, 1);
 
     rb_define_module_function(graphql_class, "sdl_dump", graphql_sdl_dump, 1);
+
+    rb_define_module_function(graphql_class, "publish", graphql_publish, 2);
 }

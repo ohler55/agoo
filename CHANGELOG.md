@@ -4,6 +4,17 @@ All changes to the Agoo gem are documented here. Releases follow semantic versio
 
 ## [Unreleased]
 
+## [2.10.0] - 2019-TBD
+
+GraphQL subscriptions
+
+### Fixed
+- TBD Rack multiple value header transformation changed to emit multiple entries instead of multiple value.
+
+### Added
+- GraphQL Subscriptions using Websockets and SSE are now supported.
+ - SSE pending
+
 ## [2.9.0] - 2019-07-26
 
 Early hints and sub-domains
