@@ -42,7 +42,7 @@ gqlValue	(*gql_doc_eval_func)(agooErr err, gqlDoc doc) = NULL;
 // TBD errors should have message, location, and path
 static void
 err_resp(agooRes res, agooErr err, int status) {
-    char		buf[256];
+    char		buf[1024];
     int			cnt;
     int64_t		now = agoo_now_nano();
     time_t		t = (time_t)(now / 1000000000LL);
@@ -435,6 +435,18 @@ gql_eval_get_hook(agooReq req) {
 	gqlSub		sub;
 	gqlSel		query;
 
+	switch (req->res->con_kind) {
+	case AGOO_CON_WS:
+	    status = 101;
+	    break;
+	case AGOO_CON_SSE:
+	    break;
+	default:
+	    gql_doc_destroy(doc);
+	    agoo_err_set(&err, AGOO_ERR_NETWORK, "An upgrade to Websockets or SSE is required for a GraphQL subscription.");
+	    err_resp(req->res, &err, 426);
+	    return;
+	}
 	if (NULL == (sv = gql_object_get(result, "subject"))) {
 	    struct _agooErr	e;
 
@@ -579,7 +591,7 @@ gql_eval_post_hook(agooReq req) {
     if (NULL == (result = eval_post(&err, req)) && AGOO_ERR_OK != err.code) {
 	err_resp(req->res, &err, 400);
     } else if (NULL == result) {
-	value_resp(req, result, 200, indent); // TBD return upgrade status if websocket, need to know from request what type it is
+	value_resp(req, result, 200, indent);
     } else {
 	value_resp(req, result, 200, indent);
     }
