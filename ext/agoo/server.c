@@ -395,7 +395,6 @@ static agooText
 gpub_eval(agooErr err, gqlDoc query, gqlRef event) {
     agooText	t = NULL;
     gqlSel	sel;
-    gqlSel	s;
     gqlValue	result;
 
     if (NULL == query->ops || NULL == query->ops->sels) {

@@ -433,7 +433,6 @@ gql_eval_get_hook(agooReq req) {
 	gqlValue	sv;
 	const char	*subject;
 	gqlSub		sub;
-	gqlSel		query;
 
 	switch (req->res->con_kind) {
 	case AGOO_CON_WS:
