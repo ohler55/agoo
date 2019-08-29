@@ -4,7 +4,7 @@
     <p id="message"> ... waiting ... </p>
 
     <script type="text/javascript">
-    var src = new EventSource('/graphql?subscription={watch}');
+    var src = new EventSource('/graphql?subscription={watch{word,previous}}');
     src.onopen = function() {
         document.getElementById('status').textContent = 'connected';
     }

@@ -1113,7 +1113,7 @@ domain(VALUE self, VALUE host, VALUE path) {
 	volatile VALUE	v = rb_funcall(host, rb_intern("inspect"), 0);
 	char		rx[1024];
 
-	if (sizeof(rx) <= RSTRING_LEN(v)) {
+	if (sizeof(rx) <= (size_t)RSTRING_LEN(v)) {
 	    rb_raise(rb_eArgError, "host Regex limited to %ld characters", sizeof(rx));
 	}
 	strcpy(rx, rb_string_value_ptr((VALUE*)&v) + 1);

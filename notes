@@ -6,14 +6,6 @@ todo
 - graphql
  - validation
 
- - subscription
-  - SSE
-   - probably looking for a 101
-  - return code same as websocket or sse return (upgrade)
-   - return 426 if no upgrade in request
-   - return 101 for upgrade?
-
-
 - refs
   - http://www.rubydoc.info/github/rack/rack/master/file/SPEC
 
@@ -43,6 +35,11 @@ use nice -n19 perfer when on same machine
   - memory and performance with perfer
  - cd example && ruby memx.rb
   - memory and performance with perfer, multiple workers
+ - cd example/graphql && ruby  -I ../../ext -I ../../lib subscribe.rb
+  - localhost:6464/websocket.html
+  - localhost:6464/sse.html
+  - curl -w "\n" -H "Content-Type: application/graphql" -d 'mutation{repeat(word: "foo")}' localhost:6464/graphql
+  - curl -w "\n" -H "Content-Type: application/graphql" -d 'mutation{repeat(word: "bar")}' localhost:6464/graphql
 
 
 - server log hook

@@ -887,7 +887,7 @@ con_sse_write(agooCon c) {
     }
     c->wcnt += cnt;
     if (c->wcnt == message->len) { // finished
-	agooText	next = agoo_res_message_next(c->res_head);
+	agooText	next = agoo_res_message_next(res);
 
 	c->wcnt = 0;
 	if (NULL == next) {
@@ -1095,8 +1095,9 @@ con_ready_check(void *ctx, double now) {
 	}
     } else if (AGOO_CON_WS == c->bind->kind || AGOO_CON_SSE == c->bind->kind) {
 	c->timeout = dtime() + CON_TIMEOUT;
-	agoo_ws_ping(c);
-
+	if (AGOO_CON_WS == c->bind->kind) {
+	    agoo_ws_ping(c);
+	}
 	return true;
     } else {
 	c->closing = true;
