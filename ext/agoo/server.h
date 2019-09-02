@@ -28,6 +28,7 @@ typedef struct _agooServer {
     bool			pedantic;
     bool			root_first;
     bool			rack_early_hints;
+    bool			tls;
     pthread_t			listen_thread;
     struct _agooQueue		con_queue;
     agooHook			hooks;

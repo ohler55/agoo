@@ -9,6 +9,12 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+#ifdef HAVE_OPENSSL_SSL_H
+#include <openssl/bio.h>
+#include <openssl/ssl.h>
+#include <openssl/err.h>
+#endif
+
 #include "con.h"
 #include "domain.h"
 #include "dtime.h"
@@ -34,8 +40,6 @@ double	agoo_io_loop_ratio = 0.5;
 
 int
 agoo_server_setup(agooErr err) {
-    long	i;
-
     memset(&agoo_server, 0, sizeof(struct _agooServer));
     pthread_mutex_init(&agoo_server.up_lock, 0);
     agoo_server.up_list = NULL;
@@ -47,6 +51,8 @@ agoo_server_setup(agooErr err) {
 	AGOO_ERR_OK != agoo_queue_multi_init(err, &agoo_server.eval_queue, 1024, true, true)) {
 	return err->code;
     }
+    long	i;
+
     agoo_server.loop_max = 4;
     if (0 < (i = sysconf(_SC_NPROCESSORS_ONLN))) {
 	i = (int)(i * agoo_io_loop_ratio);
@@ -263,6 +269,10 @@ agoo_server_bind(agooBind b) {
     // If a bind with the same port already exists, replace it.
     agooBind	prev = NULL;
     agooBind    bx   = NULL;
+
+    // TBD if https then ...
+    // TBD what about unix:// ?
+    // TBD TLS should have been setup in rserver
 
     if (NULL == b->read) {
 	b->read = agoo_con_http_read;

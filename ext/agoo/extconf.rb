@@ -3,15 +3,20 @@ require 'rbconfig'
 
 extension_name = 'agoo'
 dir_config(extension_name)
+dir_config('openssl')
 
 $CFLAGS += " -DPLATFORM_LINUX" if 'x86_64-linux' == RUBY_PLATFORM
 
 # Adding the __attribute__ flag only works with gcc compilers and even then it
-# does not work to check args with varargs s just remove the check.
+# does not work to check args with varargs so just remove the check.
 CONFIG['warnflags'].slice!(/ -Wsuggest-attribute=format/)
 
 have_header('stdatomic.h')
 #have_header('sys/epoll.h')
+have_header('openssl/ssl.h')
+have_library('ssl')
+
+$CFLAGS += ' -std=c11'
 
 create_makefile(File.join(extension_name, extension_name))
 

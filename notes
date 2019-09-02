@@ -3,6 +3,11 @@
 todo
 -----------
 
+- TLS
+ - if agoo_server_bind and have openssl then initialize
+  - error if no ssl
+ - options for key, ca, cert
+
 - graphql
  - validation
 
