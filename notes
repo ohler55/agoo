@@ -4,9 +4,13 @@ todo
 -----------
 
 - TLS
- - if agoo_server_bind and have openssl then initialize
-  - error if no ssl
- - options for key, ca, cert
+ - http read and write should check bind ssl flag
+  - accept also needs a few calls to initialize
+  - close must also close ssl
+
+ - openssl req -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem -nodes -days 365 -subj '/CN=localhost'
+  - -nodes means no password
+
 
 - graphql
  - validation

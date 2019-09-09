@@ -9,12 +9,6 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#ifdef HAVE_OPENSSL_SSL_H
-#include <openssl/bio.h>
-#include <openssl/ssl.h>
-#include <openssl/err.h>
-#endif
-
 #include "con.h"
 #include "domain.h"
 #include "dtime.h"
@@ -61,6 +55,33 @@ agoo_server_setup(agooErr err) {
 	}
 	agoo_server.loop_max = (int)i;
     }
+    return AGOO_ERR_OK;
+}
+
+int
+agoo_server_ssl_init(agooErr err, const char *cert_pem, const char *key_pem) {
+#ifdef HAVE_OPENSSL_SSL_H
+    OpenSSL_add_all_algorithms();
+    SSL_load_error_strings();
+    if (NULL == (agoo_server.ssl_ctx = SSL_CTX_new(SSLv23_server_method()))) {
+	// TBD get error string
+	//ERR_print_errors_fp(stderr);
+	return agoo_err_set(err, AGOO_ERR_TLS, "TLS new CTX failed");
+    }
+    SSL_CTX_set_ecdh_auto(agoo_server.ssl_ctx, 1);
+
+    if (0 != SSL_CTX_use_certificate_file(agoo_server.ssl_ctx, cert_pem, SSL_FILETYPE_PEM)) {
+        //ERR_print_errors_fp(stderr);
+	return agoo_err_set(err, AGOO_ERR_TLS, "TLS failed to use cert at %s", cert_pem);
+    }
+    if (0 != SSL_CTX_use_PrivateKey_file(agoo_server.ssl_ctx, key_pem, SSL_FILETYPE_PEM)) {
+        //ERR_print_errors_fp(stderr);
+	return agoo_err_set(err, AGOO_ERR_TLS, "TLS failed to use private key at %s", key_pem);
+    }
+    if (!SSL_CTX_check_private_key(agoo_server.ssl_ctx)) {
+	return agoo_err_set(err, AGOO_ERR_TLS, "TLS private key check failed");
+    }
+#endif
     return AGOO_ERR_OK;
 }
 
