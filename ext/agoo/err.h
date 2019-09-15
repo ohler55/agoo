@@ -29,6 +29,7 @@ typedef enum {
     AGOO_ERR_TOO_MANY,
     AGOO_ERR_TYPE,
     AGOO_ERR_EVAL,
+    AGOO_ERR_TLS,
     AGOO_ERR_LAST
 } agooErrCode;
 

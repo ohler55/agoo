@@ -25,7 +25,7 @@ agoo_err_set(agooErr err, int code, const char *fmt, ...) {
 int
 agoo_err_no(agooErr err, const char *fmt, ...) {
     int	cnt = 0;
-    
+
     if (NULL != fmt) {
 	va_list	ap;
 
@@ -53,7 +53,7 @@ agoo_err_clear(agooErr err) {
 const char*
 agoo_err_str(agooErrCode code) {
     const char	*str = NULL;
-    
+
     if (code < AGOO_ERR_START) {
 	str = strerror(code);
     }
@@ -72,6 +72,7 @@ agoo_err_str(agooErrCode code) {
 	case AGOO_ERR_TOO_MANY:	str = "too many";		break;
 	case AGOO_ERR_TYPE:	str = "type error";		break;
 	case AGOO_ERR_EVAL:	str = "eval error";		break;
+	case AGOO_ERR_TLS:	str = "TLS error";		break;
 	default:		str = "unknown error";		break;
 	}
     }
@@ -82,5 +83,3 @@ int
 agoo_err_memory(agooErr err, const char *type, const char *file, int line) {
     return agoo_err_set(err, AGOO_ERR_MEMORY, "Failed to allocate memory for a %s at %s:%d.", type, file, line);
 }
-
-    

@@ -22,16 +22,12 @@ typedef struct _agooBind {
 	struct in_addr	addr4;
 	struct in6_addr	addr6;
     };
-    agooConKind		kind;
     bool		(*read)(struct _agooCon *c);
     bool		(*write)(struct _agooCon *c);
     short		(*events)(struct _agooCon *c);
-    char		scheme[8];
     char		*name; // if set then Unix file
-    char		*key;  // if set then SSL
-    char		*cert;
-    char		*ca;
     char		*id;
+    agooConKind		kind;
 } *agooBind;
 
 extern agooBind	agoo_bind_url(agooErr err, const char *url);

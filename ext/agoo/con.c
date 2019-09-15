@@ -83,6 +83,12 @@ agoo_con_destroy(agooCon c) {
 	agoo_ws_req_close(c);
     }
     if (0 < c->sock) {
+#ifdef HAVE_OPENSSL_SSL_H
+	if (NULL != c->ssl) {
+	    SSL_free(c->ssl);
+	    c->ssl = NULL;
+	}
+#endif
 	close(c->sock);
 	c->sock = 0;
     }
@@ -282,7 +288,7 @@ con_header_read(agooCon c, size_t *mlenp) {
     }
     if (agoo_req_cat.on) {
 	*hend = '\0';
-	agoo_log_cat(&agoo_req_cat, "%llu: %s", (unsigned long long)c->id, c->buf);
+	agoo_log_cat(&agoo_req_cat, "%s %llu: %s", agoo_con_kind_str(c->bind->kind), (unsigned long long)c->id, c->buf);
 	*hend = '\r';
     }
     for (b = c->buf; ' ' != *b; b++) {
@@ -480,6 +486,18 @@ check_upgrade(agooCon c) {
     }
 }
 
+#ifdef HAVE_OPENSSL_SSL_H
+static void
+con_ssl_error(agooCon c, const char *filename, int line) {
+    char		buf[224];
+    unsigned long	e = ERR_get_error();
+
+    c->dead = true;
+    ERR_error_string_n(e, buf, sizeof(buf));
+    agoo_log_cat(&agoo_error_cat, "%s at %s:%d", buf, filename, line);
+}
+#endif
+
 bool
 agoo_con_http_read(agooCon c) {
     ssize_t	cnt;
@@ -487,10 +505,34 @@ agoo_con_http_read(agooCon c) {
     if (c->dead || 0 == c->sock || c->closing) {
 	return true;
     }
-    if (NULL != c->req) {
-	cnt = recv(c->sock, c->req->msg + c->bcnt, c->req->mlen - c->bcnt, 0);
+    if (AGOO_CON_HTTPS == c->bind->kind) {
+#ifdef HAVE_OPENSSL_SSL_H
+	if (NULL != c->req) {
+	    cnt = SSL_read(c->ssl, c->req->msg + c->bcnt, c->req->mlen - c->bcnt);
+	} else {
+	    cnt = SSL_read(c->ssl, c->buf + c->bcnt, sizeof(c->buf) - c->bcnt - 1);
+	}
+	if (0 > cnt) {
+	    unsigned long	e = ERR_get_error();
+
+	    if (0 == e) {
+		cnt = 0;
+		return false;
+	    } else {
+		con_ssl_error(c, __FILE__, __LINE__);
+		return true;
+	    }
+	}
+#else
+	agoo_log_cat(&agoo_error_cat, "SSL not included in the build.");
+	c->dead = true;
+#endif
     } else {
-	cnt = recv(c->sock, c->buf + c->bcnt, sizeof(c->buf) - c->bcnt - 1, 0);
+	if (NULL != c->req) {
+	    cnt = recv(c->sock, c->req->msg + c->bcnt, c->req->mlen - c->bcnt, 0);
+	} else {
+	    cnt = recv(c->sock, c->buf + c->bcnt, sizeof(c->buf) - c->bcnt - 1, 0);
+	}
     }
     c->timeout = dtime() + CON_TIMEOUT;
     if (0 >= cnt) {
@@ -544,7 +586,7 @@ agoo_con_http_read(agooCon c) {
 		long	mlen;
 
 		if (agoo_debug_cat.on && NULL != c->req && NULL != c->req->body.start) {
-		    agoo_log_cat(&agoo_debug_cat, "request on %llu: %s", (unsigned long long)c->id, c->req->body.start);
+		    agoo_log_cat(&agoo_debug_cat, "%s request on %llu: %s", agoo_con_kind_str(c->bind->kind), (unsigned long long)c->id, c->req->body.start);
 		}
 		if (NULL == (res = agoo_res_create(c))) {
 		    c->req = NULL;
@@ -582,6 +624,79 @@ agoo_con_http_read(agooCon c) {
 	break;
     }
     return false;
+}
+
+// return false to remove/close connection
+bool
+agoo_con_http_write(agooCon c) {
+    agooRes	res = agoo_con_res_pop(c);
+    agooText	message = agoo_res_message_peek(res);
+    ssize_t	cnt;
+
+    if (NULL == message) {
+	return true;
+    }
+    c->timeout = dtime() + CON_TIMEOUT;
+    if (0 == c->wcnt) {
+	if (agoo_resp_cat.on) {
+	    char	buf[4096];
+	    char	*hend = strstr(message->text, "\r\n\r\n");
+
+	    if (NULL == hend) {
+		hend = message->text + message->len;
+	    }
+	    if ((long)sizeof(buf) <= hend - message->text) {
+		hend = message->text + sizeof(buf) - 1;
+	    }
+	    memcpy(buf, message->text, hend - message->text);
+	    buf[hend - message->text] = '\0';
+	    agoo_log_cat(&agoo_resp_cat, "%s %llu: %s", agoo_con_kind_str(c->bind->kind), (unsigned long long)c->id, buf);
+	}
+	if (agoo_debug_cat.on) {
+	    agoo_log_cat(&agoo_debug_cat, "%s response on %llu: %s", agoo_con_kind_str(c->bind->kind), (unsigned long long)c->id, message->text);
+	}
+    }
+    if (AGOO_CON_HTTPS == c->bind->kind) {
+#ifdef HAVE_OPENSSL_SSL_H
+	if (0 >= (cnt = SSL_write(c->ssl, message->text + c->wcnt, message->len - c->wcnt))) {
+	    unsigned long	e = ERR_get_error();
+
+	    if (0 == e) {
+		return true;
+	    }
+	    con_ssl_error(c, __FILE__, __LINE__);
+	    return false;
+	}
+#else
+	agoo_log_cat(&agoo_error_cat, "SSL not included in the build.");
+	c->dead = true;
+#endif
+    } else {
+	if (0 > (cnt = send(c->sock, message->text + c->wcnt, message->len - c->wcnt, MSG_DONTWAIT))) {
+	    if (EAGAIN == errno) {
+		return true;
+	    }
+	    agoo_log_cat(&agoo_error_cat, "Socket error @ %llu.", (unsigned long long)c->id);
+
+	    return false;
+	}
+    }
+    c->wcnt += cnt;
+    if (c->wcnt == message->len) { // finished
+	agooText	next = agoo_res_message_next(res);
+
+	c->wcnt = 0;
+	if (NULL == next && res->final) {
+	    bool	done = res->close;
+
+	    agoo_res_destroy(res);
+
+	    return !done;
+	}
+    }
+    agoo_con_res_prepend(c, res);
+
+    return true;
 }
 
 static bool
@@ -690,62 +805,6 @@ con_ws_read(agooCon c) {
 	break;
     }
     return false;
-}
-
-// return false to remove/close connection
-bool
-agoo_con_http_write(agooCon c) {
-    agooRes	res = agoo_con_res_pop(c);
-    agooText	message = agoo_res_message_peek(res);
-    ssize_t	cnt;
-
-    if (NULL == message) {
-	return true;
-    }
-    c->timeout = dtime() + CON_TIMEOUT;
-    if (0 == c->wcnt) {
-	if (agoo_resp_cat.on) {
-	    char	buf[4096];
-	    char	*hend = strstr(message->text, "\r\n\r\n");
-
-	    if (NULL == hend) {
-		hend = message->text + message->len;
-	    }
-	    if ((long)sizeof(buf) <= hend - message->text) {
-		hend = message->text + sizeof(buf) - 1;
-	    }
-	    memcpy(buf, message->text, hend - message->text);
-	    buf[hend - message->text] = '\0';
-	    agoo_log_cat(&agoo_resp_cat, "%llu: %s", (unsigned long long)c->id, buf);
-	}
-	if (agoo_debug_cat.on) {
-	    agoo_log_cat(&agoo_debug_cat, "response on %llu: %s", (unsigned long long)c->id, message->text);
-	}
-    }
-    if (0 > (cnt = send(c->sock, message->text + c->wcnt, message->len - c->wcnt, MSG_DONTWAIT))) {
-	if (EAGAIN == errno) {
-	    return true;
-	}
-	agoo_log_cat(&agoo_error_cat, "Socket error @ %llu.", (unsigned long long)c->id);
-
-	return false;
-    }
-    c->wcnt += cnt;
-    if (c->wcnt == message->len) { // finished
-	agooText	next = agoo_res_message_next(res);
-
-	c->wcnt = 0;
-	if (NULL == next && res->final) {
-	    bool	done = res->close;
-
-	    agoo_res_destroy(res);
-
-	    return !done;
-	}
-    }
-    agoo_con_res_prepend(c, res);
-
-    return true;
 }
 
 static const char	ping_msg[] = "\x89\x00";
@@ -1171,6 +1230,24 @@ queue_ready_io(void *ctx) {
     return AGOO_READY_IN;
 }
 
+static void
+con_ssl_setup(agooCon c) {
+#ifdef HAVE_OPENSSL_SSL_H
+    if (NULL == (c->ssl = SSL_new(agoo_server.ssl_ctx))) {
+	con_ssl_error(c, __FILE__, __LINE__);
+    }
+    if (!SSL_set_fd(c->ssl, c->sock)) {
+	con_ssl_error(c, __FILE__, __LINE__);
+    }
+    if (!SSL_accept(c->ssl)) {
+	con_ssl_error(c, __FILE__, __LINE__);
+    }
+#else
+    agoo_log_cat(&agoo_error_cat, "SSL not included in the build.");
+    c->dead = true;
+#endif
+}
+
 static bool
 con_queue_ready_read(agooReady ready, void *ctx) {
     agooConLoop		loop = (agooConLoop)ctx;
@@ -1183,6 +1260,9 @@ con_queue_ready_read(agooReady ready, void *ctx) {
 	if (AGOO_ERR_OK != agoo_ready_add(&err, ready, c->sock, &con_handler, c)) {
 	    agoo_log_cat(&agoo_error_cat, "Failed to add connection to manager. %s", err.msg);
 	    agoo_err_clear(&err);
+	}
+	if (AGOO_CON_HTTPS == c->bind->kind) {
+	    con_ssl_setup(c);
 	}
     }
     return true;
@@ -1248,6 +1328,9 @@ agoo_con_loop(void *x) {
 	    if (AGOO_ERR_OK != agoo_ready_add(&err, ready, c->sock, &con_handler, c)) {
 		agoo_log_cat(&agoo_error_cat, "Failed to add connection to manager. %s", err.msg);
 		agoo_err_clear(&err);
+	    }
+	    if (AGOO_CON_HTTPS == c->bind->kind) {
+		con_ssl_setup(c);
 	    }
 	}
 	while (NULL != (pub = (agooPub)agoo_queue_pop(&loop->pub_queue, 0.0))) {

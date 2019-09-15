@@ -160,6 +160,21 @@ configure(agooErr err, int port, const char *root, VALUE options) {
 		}
 	    }
 	}
+	if (Qnil != (v = rb_hash_lookup(options, ID2SYM(rb_intern("ssl_cert"))))) {
+	    rb_check_type(v, T_STRING);
+	    const char	*cert =StringValuePtr(v);
+
+	    if (Qnil != (v = rb_hash_lookup(options, ID2SYM(rb_intern("ssl_key"))))) {
+		rb_check_type(v, T_STRING);
+		const char	*key =StringValuePtr(v);
+
+		if (AGOO_ERR_OK != agoo_server_ssl_init(err, cert, key)) {
+		    rb_raise(rb_eArgError, "%s", err->msg);
+		}
+	    } else {
+		rb_raise(rb_eArgError, "An ssl_key must be provided if an ssl_cert was provided.");
+	    }
+	}
 	if (Qnil != (v = rb_hash_lookup(options, ID2SYM(rb_intern("bind"))))) {
 	    int	len;
 	    int	i;
@@ -258,6 +273,12 @@ configure(agooErr err, int port, const char *root, VALUE options) {
  *   - *:bind* [_String_|_Array_] a binding or array of binds. Examples are: "http ://127.0.0.1:6464", "unix:///tmp/agoo.socket", "http ://[::1]:6464, or to not restrict the address "http ://:6464".
  *
  *   - *:graphql* [_String_] path to GraphQL endpoint if support for GraphQL is desired.
+ *
+ *   - *:max_push_pending* [_Integer_] maximum number or outstanding push messages, less than 1000.
+ *
+ *   - *:ssl_sert* [_String_] filepath to the SSL certificate file.
+ *
+ *   - *:ssl_key* [_String_] filepath to the SSL private key file.
  */
 static VALUE
 rserver_init(int argc, VALUE *argv, VALUE self) {

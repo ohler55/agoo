@@ -7,6 +7,9 @@
 #include <pthread.h>
 #include <stdbool.h>
 #include <stdint.h>
+#ifdef HAVE_OPENSSL_SSL_H
+#include <openssl/ssl.h>
+#endif
 
 #include "err.h"
 #include "req.h"
@@ -59,6 +62,9 @@ typedef struct _agooCon {
 
     struct _agooUpgraded	*up; // only set for push connections
     struct _gqlSub		*gsub; // for graphql subscription
+#ifdef HAVE_OPENSSL_SSL_H
+    SSL				*ssl;
+#endif
     agooConLoop			loop;
 } *agooCon;
 

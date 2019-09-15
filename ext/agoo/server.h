@@ -6,6 +6,12 @@
 #include <pthread.h>
 #include <stdbool.h>
 
+#ifdef HAVE_OPENSSL_SSL_H
+#include <openssl/bio.h>
+#include <openssl/ssl.h>
+#include <openssl/err.h>
+#endif
+
 #include "atomic.h"
 #include "bind.h"
 #include "err.h"
@@ -28,6 +34,7 @@ typedef struct _agooServer {
     bool			pedantic;
     bool			root_first;
     bool			rack_early_hints;
+    bool			tls;
     pthread_t			listen_thread;
     struct _agooQueue		con_queue;
     agooHook			hooks;
@@ -48,6 +55,9 @@ typedef struct _agooServer {
     void			*env_nil_value;
     void			*ctx_nil_value;
 
+#ifdef HAVE_OPENSSL_SSL_H
+    SSL_CTX			*ssl_ctx;
+#endif
     // A count of the running threads from the wrapper or the server managed
     // threads.
     atomic_int			running;
@@ -56,6 +66,7 @@ typedef struct _agooServer {
 extern int	agoo_server_setup(agooErr err);
 extern void	agoo_server_shutdown(const char *app_name, void (*stop)());
 extern void	agoo_server_bind(agooBind b);
+extern int	agoo_server_ssl_init(agooErr err, const char *cert_pem, const char *key_pem);
 
 extern int	setup_listen(agooErr err);
 extern int	agoo_server_start(agooErr err, const char *app_name, const char *version);

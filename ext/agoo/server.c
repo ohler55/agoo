@@ -34,8 +34,6 @@ double	agoo_io_loop_ratio = 0.5;
 
 int
 agoo_server_setup(agooErr err) {
-    long	i;
-
     memset(&agoo_server, 0, sizeof(struct _agooServer));
     pthread_mutex_init(&agoo_server.up_lock, 0);
     agoo_server.up_list = NULL;
@@ -47,6 +45,8 @@ agoo_server_setup(agooErr err) {
 	AGOO_ERR_OK != agoo_queue_multi_init(err, &agoo_server.eval_queue, 1024, true, true)) {
 	return err->code;
     }
+    long	i;
+
     agoo_server.loop_max = 4;
     if (0 < (i = sysconf(_SC_NPROCESSORS_ONLN))) {
 	i = (int)(i * agoo_io_loop_ratio);
@@ -55,6 +55,41 @@ agoo_server_setup(agooErr err) {
 	}
 	agoo_server.loop_max = (int)i;
     }
+    return AGOO_ERR_OK;
+}
+
+#ifdef HAVE_OPENSSL_SSL_H
+static int
+ssl_error(agooErr err, const char *filename, int line) {
+    char		buf[224];
+    unsigned long	e = ERR_get_error();
+
+    ERR_error_string_n(e, buf, sizeof(buf));
+
+    return agoo_err_set(err, AGOO_ERR_TLS, "%s at %s:%d", buf, filename, line);
+}
+#endif
+
+int
+agoo_server_ssl_init(agooErr err, const char *cert_pem, const char *key_pem) {
+#ifdef HAVE_OPENSSL_SSL_H
+    SSL_load_error_strings();
+    SSL_library_init();
+    if (NULL == (agoo_server.ssl_ctx = SSL_CTX_new(SSLv23_server_method()))) {
+	return ssl_error(err, __FILE__, __LINE__);
+    }
+    SSL_CTX_set_ecdh_auto(agoo_server.ssl_ctx, 1);
+
+    if (!SSL_CTX_use_certificate_file(agoo_server.ssl_ctx, cert_pem, SSL_FILETYPE_PEM)) {
+	return ssl_error(err, __FILE__, __LINE__);
+    }
+    if (!SSL_CTX_use_PrivateKey_file(agoo_server.ssl_ctx, key_pem, SSL_FILETYPE_PEM)) {
+	return ssl_error(err, __FILE__, __LINE__);
+    }
+    if (!SSL_CTX_check_private_key(agoo_server.ssl_ctx)) {
+	return agoo_err_set(err, AGOO_ERR_TLS, "TLS private key check failed");
+    }
+#endif
     return AGOO_ERR_OK;
 }
 
@@ -255,6 +290,12 @@ agoo_server_shutdown(const char *app_name, void (*stop)()) {
 	agoo_pages_cleanup();
 	agoo_http_cleanup();
 	agoo_domain_cleanup();
+#ifdef HAVE_OPENSSL_SSL_H
+	if (NULL != agoo_server.ssl_ctx) {
+	    SSL_CTX_free(agoo_server.ssl_ctx);
+	    EVP_cleanup();
+	}
+#endif
     }
 }
 
