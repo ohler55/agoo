@@ -88,6 +88,11 @@ Agoo is not available on Windows.
 
 ## News
 
+- Version 2.11.0 supports GraphQL subscriptions. TLS (SSL,HTTPS)
+  support added. Examples for both. Related, the
+  [graphql-benchmark](https://github.com/the-benchmarker/graphql-benchmarks)
+  repo was given to [the-benchmarker](https://github.com/the-benchmarker).
+
 - Agoo has a new GraphQL module with a simple, easy to use
   API. Checkout the [hello](example/graphql/hello.rb) or
   [song](example/graphql/song.rb) examples.
