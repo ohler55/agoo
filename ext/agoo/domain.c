@@ -115,7 +115,6 @@ agoo_domain_resolve(const char *host, char *buf, size_t blen) {
 			    *b++ = *m++;
 			    *b = '\0';
 			}
-			// TBD
 		    } else {
 			*b++ = *p;
 		    }

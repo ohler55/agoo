@@ -290,6 +290,12 @@ agoo_server_shutdown(const char *app_name, void (*stop)()) {
 	agoo_pages_cleanup();
 	agoo_http_cleanup();
 	agoo_domain_cleanup();
+#ifdef HAVE_OPENSSL_SSL_H
+	if (NULL != agoo_server.ssl_ctx) {
+	    SSL_CTX_free(agoo_server.ssl_ctx);
+	    EVP_cleanup();
+	}
+#endif
     }
 }
 

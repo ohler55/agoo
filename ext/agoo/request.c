@@ -23,6 +23,7 @@ static VALUE	empty_val = Qundef;
 static VALUE	get_val = Qundef;
 static VALUE	head_val = Qundef;
 static VALUE	http_val = Qundef;
+static VALUE	https_val = Qundef;
 static VALUE	options_val = Qundef;
 static VALUE	patch_val = Qundef;
 static VALUE	path_info_val = Qundef;
@@ -262,7 +263,9 @@ rack_version(VALUE self) {
 
 static VALUE
 req_rack_url_scheme(agooReq r) {
-    // TBD http or https when ssl is supported
+    if (AGOO_CON_HTTPS == r->res->con->bind->kind) {
+	return https_val;
+    }
     return http_val;
 }
 
@@ -691,6 +694,7 @@ request_init(VALUE mod) {
     get_val = rb_str_new_cstr("GET");				rb_gc_register_address(&get_val);
     head_val = rb_str_new_cstr("HEAD");				rb_gc_register_address(&head_val);
     http_val = rb_str_new_cstr("http");				rb_gc_register_address(&http_val);
+    https_val = rb_str_new_cstr("https");			rb_gc_register_address(&https_val);
     options_val = rb_str_new_cstr("OPTIONS");			rb_gc_register_address(&options_val);
     patch_val = rb_str_new_cstr("PATCH");			rb_gc_register_address(&patch_val);
     path_info_val = rb_str_new_cstr("PATH_INFO");		rb_gc_register_address(&path_info_val);

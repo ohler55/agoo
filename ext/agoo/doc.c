@@ -283,7 +283,6 @@ read_number(agooErr err, agooDoc doc) {
 	    for (; '0' <= *doc->cur && *doc->cur <= '9'; doc->cur++) {
 		exp = exp * 10 + (*doc->cur - '0');
 		if (EXP_MAX <= exp) {
-		    // TBD maybe just ignore extra and continue till the end
 		    agoo_doc_err(doc, err, "number has too many digits");
 		    return NULL;
 		}

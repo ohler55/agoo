@@ -4,8 +4,6 @@ todo
 -----------
 
 - TLS
- - http read and write should check bind ssl flag
-  - accept also needs a few calls to initialize
   - close must also close ssl
 
  - openssl req -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem -nodes -days 365 -subj '/CN=localhost'
@@ -31,6 +29,8 @@ use nice -n19 perfer when on same machine
   - localhost:9292
  - cd example && ruby -I ../ext -I ../lib hello.rb
   - localhost:6464/hello
+ - cd example && ruby -I ../ext -I ../lib tls.rb
+  - localhost:6465/hello
  - cd example/push && rackup -I ../../ext -I ../../lib -r agoo -s agoo
   - localhost:9292/websocket.html
   - localhost:9292/sse.html
@@ -42,6 +42,8 @@ use nice -n19 perfer when on same machine
   - localhost:6464/sse.html
  - cd example && ruby -I ../ext -I ../lib mem.rb
   - memory and performance with perfer
+  - perfer -t 2 -c 100 -k http://127.0.0.1:6464/hello -d 30
+  - top
  - cd example && ruby memx.rb
   - memory and performance with perfer, multiple workers
  - cd example/graphql && ruby  -I ../../ext -I ../../lib subscribe.rb

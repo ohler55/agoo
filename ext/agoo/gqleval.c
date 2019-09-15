@@ -39,7 +39,6 @@ static const char	variables_str[] = "variables";
 
 gqlValue	(*gql_doc_eval_func)(agooErr err, gqlDoc doc) = NULL;
 
-// TBD errors should have message, location, and path
 static void
 err_resp(agooRes res, agooErr err, int status) {
     char		buf[1024];
@@ -540,7 +539,7 @@ eval_post(agooErr err, agooReq req) {
 		    for (link = m->value->members; NULL != link; link = link->next) {
 			gqlVar	v = gql_op_var_create(err, link->key, link->value->type, link->value);
 
-			link->value = NULL; // TBD is this correct?
+			link->value = NULL;
 			if (NULL == v) {
 			    goto DONE;
 			}
