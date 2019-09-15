@@ -28,7 +28,6 @@ typedef struct _agooBind {
     char		*name; // if set then Unix file
     char		*id;
     agooConKind		kind;
-    bool		ssl;
 } *agooBind;
 
 extern agooBind	agoo_bind_url(agooErr err, const char *url);

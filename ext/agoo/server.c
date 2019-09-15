@@ -58,25 +58,33 @@ agoo_server_setup(agooErr err) {
     return AGOO_ERR_OK;
 }
 
+#ifdef HAVE_OPENSSL_SSL_H
+static int
+ssl_error(agooErr err, const char *filename, int line) {
+    char		buf[224];
+    unsigned long	e = ERR_get_error();
+
+    ERR_error_string_n(e, buf, sizeof(buf));
+
+    return agoo_err_set(err, AGOO_ERR_TLS, "%s at %s:%d", buf, filename, line);
+}
+#endif
+
 int
 agoo_server_ssl_init(agooErr err, const char *cert_pem, const char *key_pem) {
 #ifdef HAVE_OPENSSL_SSL_H
-    OpenSSL_add_all_algorithms();
     SSL_load_error_strings();
+    SSL_library_init();
     if (NULL == (agoo_server.ssl_ctx = SSL_CTX_new(SSLv23_server_method()))) {
-	// TBD get error string
-	//ERR_print_errors_fp(stderr);
-	return agoo_err_set(err, AGOO_ERR_TLS, "TLS new CTX failed");
+	return ssl_error(err, __FILE__, __LINE__);
     }
     SSL_CTX_set_ecdh_auto(agoo_server.ssl_ctx, 1);
 
-    if (0 != SSL_CTX_use_certificate_file(agoo_server.ssl_ctx, cert_pem, SSL_FILETYPE_PEM)) {
-        //ERR_print_errors_fp(stderr);
-	return agoo_err_set(err, AGOO_ERR_TLS, "TLS failed to use cert at %s", cert_pem);
+    if (!SSL_CTX_use_certificate_file(agoo_server.ssl_ctx, cert_pem, SSL_FILETYPE_PEM)) {
+	return ssl_error(err, __FILE__, __LINE__);
     }
-    if (0 != SSL_CTX_use_PrivateKey_file(agoo_server.ssl_ctx, key_pem, SSL_FILETYPE_PEM)) {
-        //ERR_print_errors_fp(stderr);
-	return agoo_err_set(err, AGOO_ERR_TLS, "TLS failed to use private key at %s", key_pem);
+    if (!SSL_CTX_use_PrivateKey_file(agoo_server.ssl_ctx, key_pem, SSL_FILETYPE_PEM)) {
+	return ssl_error(err, __FILE__, __LINE__);
     }
     if (!SSL_CTX_check_private_key(agoo_server.ssl_ctx)) {
 	return agoo_err_set(err, AGOO_ERR_TLS, "TLS private key check failed");
@@ -290,10 +298,6 @@ agoo_server_bind(agooBind b) {
     // If a bind with the same port already exists, replace it.
     agooBind	prev = NULL;
     agooBind    bx   = NULL;
-
-    // TBD if https then ...
-    // TBD what about unix:// ?
-    // TBD TLS should have been setup in rserver
 
     if (NULL == b->read) {
 	b->read = agoo_con_http_read;

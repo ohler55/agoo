@@ -4,6 +4,13 @@ All changes to the Agoo gem are documented here. Releases follow semantic versio
 
 ## [Unreleased]
 
+## [2.11.0] - [tls branch]
+
+TLS using OpenSSL
+
+### Added
+- TLS (SSL) support added.
+
 ## [2.10.0] - 2019-08-29
 
 GraphQL subscriptions

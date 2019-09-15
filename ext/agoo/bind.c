@@ -180,7 +180,7 @@ url_ssl(agooErr err, const char *url) {
     return NULL;
 #endif
     if (NULL == colon) {
-	port = 80; // TBD https default port
+	port = 443;
     } else if (15 < colon - url) {
 	agoo_err_set(err, AGOO_ERR_ARG, "https bind address is not valid, too long. (%s)", url);
 	return NULL;
@@ -209,11 +209,10 @@ url_ssl(agooErr err, const char *url) {
 	    AGOO_FREE(b);
 	    return NULL;
 	}
-	b->kind = AGOO_CON_HTTP;
+	b->kind = AGOO_CON_HTTPS;
 	b->read = NULL;
 	b->write = NULL;
 	b->events = NULL;
-	b->ssl = true;
 
 	return b;
     }
