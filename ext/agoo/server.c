@@ -55,7 +55,6 @@ agoo_server_setup(agooErr err) {
 	}
 	agoo_server.loop_max = (int)i;
     }
-	agoo_server.loop_max = 1;
     return AGOO_ERR_OK;
 }
 
