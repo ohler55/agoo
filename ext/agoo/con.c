@@ -75,10 +75,7 @@ agoo_con_create(agooErr err, int sock, uint64_t id, agooBind b) {
 
 void
 agoo_con_destroy(agooCon c) {
-    agooRes	res;
-
     atomic_fetch_sub(&agoo_server.con_cnt, 1);
-
     if (AGOO_CON_WS == c->bind->kind || AGOO_CON_SSE == c->bind->kind) {
 	agoo_ws_req_close(c);
     }
@@ -105,6 +102,8 @@ agoo_con_destroy(agooCon c) {
 	c->gsub = NULL;
     }
     agoo_log_cat(&agoo_con_cat, "Connection %llu closed.", (unsigned long long)c->id);
+
+    agooRes	res;
 
     while (NULL != (res = c->res_head)) {
 	c->res_head = res->next;
@@ -520,6 +519,7 @@ agoo_con_http_read(agooCon c) {
 		return false;
 	    } else {
 		con_ssl_error(c, __FILE__, __LINE__);
+		c->dead = true;
 		return true;
 	    }
 	}
@@ -544,6 +544,7 @@ agoo_con_http_read(agooCon c) {
 		agoo_log_cat(&agoo_warn_cat, "Failed to read request. %s.", strerror(errno));
 	    }
 	}
+	c->dead = true;
 	return true;
     }
     c->bcnt += cnt;
@@ -553,7 +554,7 @@ agoo_con_http_read(agooCon c) {
 
 	    switch (con_header_read(c, &mlen)) {
 	    case HEAD_AGAIN:
-		// Try again the next time. Didn't read enough..
+		// Try again the next time. Didn't read enough.
 		return false;
 	    case HEAD_OK:
 		// req was created
@@ -665,6 +666,8 @@ agoo_con_http_write(agooCon c) {
 		return true;
 	    }
 	    con_ssl_error(c, __FILE__, __LINE__);
+	    c->dead = true;
+
 	    return false;
 	}
 #else
@@ -677,6 +680,7 @@ agoo_con_http_write(agooCon c) {
 		return true;
 	    }
 	    agoo_log_cat(&agoo_error_cat, "Socket error @ %llu.", (unsigned long long)c->id);
+	    c->dead = true;
 
 	    return false;
 	}
@@ -1127,7 +1131,7 @@ static agooReadyIO
 con_ready_io(void *ctx) {
     agooCon	c = (agooCon)ctx;
 
-    if (NULL != c->bind) {
+    if (NULL != c->bind && !c->dead && 0 != c->sock) {
 	switch (c->bind->events(c)) {
 	case POLLIN:		return AGOO_READY_IN;
 	case POLLOUT:		return AGOO_READY_OUT;
@@ -1138,33 +1142,32 @@ con_ready_io(void *ctx) {
     return AGOO_READY_NONE;
 }
 
+// Ready to close check. True if ready to close.
 static bool
 con_ready_check(void *ctx, double now) {
     agooCon	c = (agooCon)ctx;
 
     if (c->dead || 0 == c->sock) {
 	if (remove_dead_res(c)) {
-	    return false;
+	    return true;
 	}
     } else if (0.0 == c->timeout || now < c->timeout) {
-	return true;
+	return false;
     } else if (c->closing) {
 	if (remove_dead_res(c)) {
-	    return false;
+	    return true;
 	}
     } else if (AGOO_CON_WS == c->bind->kind || AGOO_CON_SSE == c->bind->kind) {
 	c->timeout = dtime() + CON_TIMEOUT;
 	if (AGOO_CON_WS == c->bind->kind) {
 	    agoo_ws_ping(c);
 	}
-	return true;
+	return false;
     } else {
 	c->closing = true;
 	c->timeout = now + 0.5;
-
-	return true;
     }
-    return true;
+    return false;
 }
 
 static bool
@@ -1178,6 +1181,8 @@ con_ready_read(agooReady ready, void *ctx) {
     } else {
 	return true; // not an error, just ignore
     }
+    c->dead = true;
+
     return false;
 }
 
@@ -1208,6 +1213,8 @@ con_ready_write(void *ctx) {
 	    }
 	}
     }
+    c->dead = true;
+
     return false;
 }
 
@@ -1216,12 +1223,17 @@ con_ready_destroy(void *ctx) {
     agoo_con_destroy((agooCon)ctx);
 }
 
+static void
+con_ready_error(void *ctx) {
+    ((agooCon)ctx)->dead = true;
+}
+
 static struct _agooHandler	con_handler = {
     .io = con_ready_io,
     .check = con_ready_check,
     .read = con_ready_read,
     .write = con_ready_write,
-    .error = NULL,
+    .error = con_ready_error,
     .destroy = con_ready_destroy,
 };
 

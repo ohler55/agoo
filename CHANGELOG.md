@@ -4,6 +4,13 @@ All changes to the Agoo gem are documented here. Releases follow semantic versio
 
 ## [Unreleased]
 
+## [2.11.1] - [2019-09-pending]
+
+Race fix
+
+### Fixed
+- A race condion occurred with a slow Ruby response and a connection close. Fixed.
+
 ## [2.11.0] - [2019-09-15]
 
 TLS using OpenSSL

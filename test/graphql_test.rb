@@ -248,8 +248,9 @@ directive @ruby(class: String!) on SCHEMA | OBJECT
   ##################################
 
   def test_load
-    content = Agoo::GraphQL.sdl_dump(with_descriptions: false, all: false)
+    content = Agoo::GraphQL.sdl_dump(with_descriptions: true, all: true)
     content.force_encoding('UTF-8')
+    puts content
     assert_equal(SCHEMA_EXPECT, content)
   end
 
