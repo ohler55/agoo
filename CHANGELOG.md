@@ -4,7 +4,7 @@ All changes to the Agoo gem are documented here. Releases follow semantic versio
 
 ## [Unreleased]
 
-## [2.11.1] - [2019-09-pending]
+## [2.11.1] - [2019-09-22]
 
 Race fix
 
