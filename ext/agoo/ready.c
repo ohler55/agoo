@@ -201,6 +201,13 @@ ready_remove(agooReady ready, Link link) {
     ready->lcnt--;
 }
 
+static void
+ready_check_remove(agooReady ready, Link link) {
+    if (NULL == link->handler->check || link->handler->check(link->ctx, 0.0)) {
+	ready_remove(ready, link);
+    }
+}
+
 int
 agoo_ready_go(agooErr err, agooReady ready) {
     double	now;
@@ -250,13 +257,13 @@ agoo_ready_go(agooErr err, agooReady ready) {
 	link = (Link)ep->data.ptr;
 	if (0 != (ep->events & EPOLLIN) && NULL != link->handler->read) {
 	    if (!link->handler->read(ready, link->ctx)) {
-		ready_remove(ready, link);
+		ready_check_remove(ready, link);
 		continue;
 	    }
 	}
 	if (0 != (ep->events & EPOLLOUT && NULL != link->handler->write)) {
 	    if (!link->handler->write(link->ctx)) {
-		ready_remove(ready, link);
+		ready_check_remove(ready, link);
 		continue;
 	    }
 	}
@@ -264,7 +271,7 @@ agoo_ready_go(agooErr err, agooReady ready) {
 	    if (NULL != link->handler->error) {
 		link->handler->error(link->ctx);
 	    }
-	    ready_remove(ready, link);
+	    ready_check_remove(ready, link);
 	    continue;
 	}
     }
@@ -312,13 +319,13 @@ agoo_ready_go(agooErr err, agooReady ready) {
 	    pp = link->pp;
 	    if (0 != (pp->revents & POLLIN) && NULL != link->handler->read) {
 		if (!link->handler->read(ready, link->ctx)) {
-		    ready_remove(ready, link);
+		    ready_check_remove(ready, link);
 		    continue;
 		}
 	    }
 	    if (0 != (pp->revents & POLLOUT && NULL != link->handler->write)) {
 		if (!link->handler->write(link->ctx)) {
-		    ready_remove(ready, link);
+		    ready_check_remove(ready, link);
 		    continue;
 		}
 	    }
@@ -326,7 +333,7 @@ agoo_ready_go(agooErr err, agooReady ready) {
 		if (NULL != link->handler->error) {
 		    link->handler->error(link->ctx);
 		}
-		ready_remove(ready, link);
+		ready_check_remove(ready, link);
 		continue;
 	    }
 	}
@@ -337,10 +344,8 @@ agoo_ready_go(agooErr err, agooReady ready) {
     if (ready->next_check <= now) {
 	for (link = ready->links; NULL != link; link = next) {
 	    next = link->next;
-	    if (NULL != link->handler->check) {
-		if (!link->handler->check(link->ctx, now)) {
-		    ready_remove(ready, link);
-		}
+	    if (NULL != link->handler->check && link->handler->check(link->ctx, now)) {
+		ready_remove(ready, link);
 	    }
 	}
 	ready->next_check = dtime() + CHECK_FREQ;
