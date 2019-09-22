@@ -487,19 +487,19 @@ check_upgrade(agooCon c) {
 
 #ifdef HAVE_OPENSSL_SSL_H
 static void
-con_ssl_error(agooCon c, const char *filename, int line) {
+con_ssl_error(agooCon c, const char *what, const char *filename, int line) {
     char		buf[224];
     unsigned long	e = ERR_get_error();
 
     c->dead = true;
     ERR_error_string_n(e, buf, sizeof(buf));
-    agoo_log_cat(&agoo_error_cat, "%s at %s:%d", buf, filename, line);
+    agoo_log_cat(&agoo_error_cat, "%s %s at %s:%d", what, buf, filename, line);
 }
 #endif
 
 bool
 agoo_con_http_read(agooCon c) {
-    ssize_t	cnt;
+    ssize_t	cnt = 0;
 
     if (c->dead || 0 == c->sock || c->closing) {
 	return true;
@@ -518,7 +518,7 @@ agoo_con_http_read(agooCon c) {
 		cnt = 0;
 		return false;
 	    } else {
-		con_ssl_error(c, __FILE__, __LINE__);
+		con_ssl_error(c, "read", __FILE__, __LINE__);
 		c->dead = true;
 		return true;
 	    }
@@ -632,7 +632,7 @@ bool
 agoo_con_http_write(agooCon c) {
     agooRes	res = agoo_con_res_pop(c);
     agooText	message = agoo_res_message_peek(res);
-    ssize_t	cnt;
+    ssize_t	cnt = 0;
 
     if (NULL == message) {
 	return true;
@@ -665,7 +665,7 @@ agoo_con_http_write(agooCon c) {
 	    if (0 == e) {
 		return true;
 	    }
-	    con_ssl_error(c, __FILE__, __LINE__);
+	    con_ssl_error(c, "write", __FILE__, __LINE__);
 	    c->dead = true;
 
 	    return false;
@@ -1246,13 +1246,13 @@ static void
 con_ssl_setup(agooCon c) {
 #ifdef HAVE_OPENSSL_SSL_H
     if (NULL == (c->ssl = SSL_new(agoo_server.ssl_ctx))) {
-	con_ssl_error(c, __FILE__, __LINE__);
+	con_ssl_error(c, "new SSL", __FILE__, __LINE__);
     }
     if (!SSL_set_fd(c->ssl, c->sock)) {
-	con_ssl_error(c, __FILE__, __LINE__);
+	con_ssl_error(c, "SSL set fd", __FILE__, __LINE__);
     }
     if (!SSL_accept(c->ssl)) {
-	con_ssl_error(c, __FILE__, __LINE__);
+	con_ssl_error(c, "SSL accept", __FILE__, __LINE__);
     }
 #else
     agoo_log_cat(&agoo_error_cat, "SSL not included in the build.");
