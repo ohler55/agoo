@@ -14,7 +14,7 @@ require 'oj'
 
 require 'agoo'
 
-class RackHandlerTest < Minitest::Test
+class HijackHandlerTest < Minitest::Test
   class HijackHandler
     def call(env)
       io = env['rack.hijack'].call
