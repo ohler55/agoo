@@ -27,34 +27,33 @@ hello world|)
     end
   end
 
+  Minitest.after_run {
+    GC.start
+    Agoo::shutdown
+  }
+
   def test_hijack
-    begin
-      Agoo::Log.configure(dir: '',
-			  console: true,
-			  classic: true,
-			  colorize: true,
-			  states: {
-			    INFO: false,
-			    DEBUG: false,
-			    connect: false,
-			    request: false,
-			    response: false,
-			    eval: true,
-			  })
+    Agoo::Log.configure(dir: '',
+		  console: true,
+		  classic: true,
+		  colorize: true,
+		  states: {
+		    INFO: false,
+		    DEBUG: false,
+		    connect: false,
+		    request: false,
+		    response: false,
+		    eval: true,
+		  })
 
-      Agoo::Server.init(6471, 'root', thread_count: 1)
+    Agoo::Server.init(6471, 'root', thread_count: 1)
 
-      handler = HijackHandler.new
-      Agoo::Server.handle(:GET, "/hijack", handler)
+    handler = HijackHandler.new
+    Agoo::Server.handle(:GET, "/hijack", handler)
 
-      Agoo::Server.start()
+    Agoo::Server.start()
 
-      jack
-
-    ensure
-      GC.start
-      Agoo.shutdown
-    end
+    jack
   end
 
   def jack
@@ -72,5 +71,5 @@ hello world|)
 
     assert_equal('hello world', content, 'content mismatch')
   end
-  
+
 end
