@@ -125,7 +125,7 @@ the develop branch. Pull requests should be made against the develop branch.
 
 ## Support
 
-[Get supported Agoo with a Tidelift Subscription.](https://tidelift.com/subscription/pkg/rubygems-agoo?utm_source=rubygems-agoo&utm_medium=referral&utm_campaign=readme)
+[Get supported Agoo with a Tidelift Subscription.](https://tidelift.com/subscription/pkg/rubygems-agoo?utm_source=rubygems-agoo&utm_medium=referral&utm_campaign=readme) Security updates are [supported](https://tidelift.com/security).
 
 ## Links
 
