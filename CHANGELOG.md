@@ -13,6 +13,8 @@ Coerce improvements
 
 - Coerce String to defined scalar now succeeds.
 
+- Handle comments in all locations.
+
 ## [2.11.1] - [2019-09-22]
 
 Race fix

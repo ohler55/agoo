@@ -61,7 +61,14 @@ int
 agoo_doc_skip_white(agooDoc doc) {
     const char	*start = doc->cur;
 
-    for (; 'w' == char_map[*(uint8_t*)doc->cur]; doc->cur++) {
+    while (true) {
+	for (; 'w' == char_map[*(uint8_t*)doc->cur]; doc->cur++) {
+	}
+	if ('#' == *doc->cur) {
+	    agoo_doc_skip_comment(doc);
+	} else {
+	    break;
+	}
     }
     return (int)(doc->cur - start);
 }
