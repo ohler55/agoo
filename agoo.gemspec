@@ -12,7 +12,6 @@ Gem::Specification.new do |s|
   s.summary = 'An HTTP server'
   s.description = 'A fast HTTP server supporting rack.'
   s.licenses = ['MIT']
-  s.required_ruby_version = '>= 2.0'
 
   s.files = Dir["{lib,ext,test}/**/*.{rb,h,c}"] + ['LICENSE', 'README.md', 'CHANGELOG.md']
   s.test_files = Dir["test/**/*.rb"]
