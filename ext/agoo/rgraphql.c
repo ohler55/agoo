@@ -222,6 +222,9 @@ coerce(agooErr err, gqlRef ref, gqlType type) {
     gqlValue		value = NULL;
     volatile VALUE	v;
 
+    if (Qnil == (VALUE)ref) {
+	return gql_null_create(err);
+    }
     if (NULL == type) {
 	// This is really an error but make a best effort anyway.
 	switch (rb_type((VALUE)ref)) {

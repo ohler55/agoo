@@ -4,6 +4,15 @@ All changes to the Agoo gem are documented here. Releases follow semantic versio
 
 ## [Unreleased]
 
+## [2.11.2] - [2019-10-20]
+
+Coerce improvements
+
+### Fixed
+- Coerce of `nil` to anything returns GraphQL `null`.
+
+- Coerce String to defined scalar now succeeds.
+
 ## [2.11.1] - [2019-09-22]
 
 Race fix

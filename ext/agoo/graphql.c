@@ -746,6 +746,7 @@ gql_scalar_create(agooErr err, const char *name, const char *desc, size_t dlen) 
 	type->to_json = NULL;
 	type->to_sdl = NULL;
 	type->destroy = NULL;
+	type->scalar_kind = GQL_SCALAR_STRING;
     }
     return type;
 }
