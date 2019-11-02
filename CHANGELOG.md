@@ -4,6 +4,12 @@ All changes to the Agoo gem are documented here. Releases follow semantic versio
 
 ## [Unreleased]
 
+## [2.11.3] - [2019-11-02]
+
+Benchamark options
+
+- An option for polling timeout added. Trade off CPU use with reponsiveness.
+
 ## [2.11.2] - [2019-10-20]
 
 Coerce improvements
