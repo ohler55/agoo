@@ -62,6 +62,7 @@ static ID	to_i_id;
 
 static const char	err500[] = "HTTP/1.1 500 Internal Server Error\r\n";
 
+static double	poll_timeout = 0.1;
 struct _rServer	the_rserver = {};
 
 static void
@@ -127,6 +128,15 @@ configure(agooErr err, int port, const char *root, VALUE options) {
 		the_rserver.worker_cnt = wc;
 	    } else {
 		rb_raise(rb_eArgError, "thread_count must be between 1 and %d.", MAX_WORKERS);
+	    }
+	}
+	if (Qnil != (v = rb_hash_lookup(options, ID2SYM(rb_intern("poll_timeout"))))) {
+	    double	timeout = rb_num2dbl(v);
+
+	    if (0.0001 <= timeout || timeout < 1.0) {
+		poll_timeout = timeout;
+	    } else {
+		rb_raise(rb_eArgError, "poll_timeout must be between 0.0001 and 1.0.");
 	    }
 	}
 	if (Qnil != (v = rb_hash_lookup(options, ID2SYM(rb_intern("max_push_pending"))))) {
@@ -269,6 +279,8 @@ configure(agooErr err, int port, const char *root, VALUE options) {
  *   - *:thread_count* [_Integer_] number of ruby worker threads. Defaults to one. If zero then the _start_ function will not return but instead will proess using the thread that called _start_. Usually the default is best unless the workers are making IO calls.
  *
  *   - *:worker_count* [_Integer_] number of workers to fork. Defaults to one which is not to fork.
+ *
+ *   - *:poll_timeout* [_Float_] timeout seconds when polling. Default is 0.1. Lower gives faster response times but uses more CPU.
  *
  *   - *:bind* [_String_|_Array_] a binding or array of binds. Examples are: "http ://127.0.0.1:6464", "unix:///tmp/agoo.socket", "http ://[::1]:6464, or to not restrict the address "http ://:6464".
  *
@@ -735,7 +747,7 @@ process_loop(void *ptr) {
 
     atomic_fetch_add(&agoo_server.running, 1);
     while (agoo_server.active) {
-	if (NULL != (req = (agooReq)agoo_queue_pop(&agoo_server.eval_queue, 0.1))) {
+	if (NULL != (req = (agooReq)agoo_queue_pop(&agoo_server.eval_queue, poll_timeout))) {
 	    handle_protected(req, true);
 	    agoo_req_destroy(req);
 	}
@@ -743,6 +755,7 @@ process_loop(void *ptr) {
 	    agoo_shutdown();
 	    break;
 	}
+	agoo_queue_wakeup(&agoo_server.con_queue); // TBD remove if it doesn't speed up the response time
     }
     atomic_fetch_sub(&agoo_server.running, 1);
 
@@ -811,7 +824,7 @@ rserver_start(VALUE self) {
 	agooReq	req;
 
 	while (agoo_server.active) {
-	    if (NULL != (req = (agooReq)agoo_queue_pop(&agoo_server.eval_queue, 0.1))) {
+	    if (NULL != (req = (agooReq)agoo_queue_pop(&agoo_server.eval_queue, poll_timeout))) {
 		handle_protected(req, false);
 		agoo_req_destroy(req);
 	    } else {

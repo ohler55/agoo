@@ -3,9 +3,9 @@
 todo
 -----------
 
-- TLS
-  - close must also close ssl
+- add additional optional plan and request to method calls
 
+- TLS
  - openssl req -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem -nodes -days 365 -subj '/CN=localhost'
   - -nodes means no password
 

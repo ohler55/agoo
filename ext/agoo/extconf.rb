@@ -14,6 +14,7 @@ end
 # Adding the __attribute__ flag only works with gcc compilers and even then it
 # does not work to check args with varargs so just remove the check.
 CONFIG['warnflags'].slice!(/ -Wsuggest-attribute=format/)
+CONFIG['warnflags'].slice!(/ -Wdeclaration-after-statement/)
 
 have_header('stdatomic.h')
 #have_header('sys/epoll.h')
