@@ -3,9 +3,46 @@
 todo
 -----------
 
-- TLS
-  - close must also close ssl
+- add special variables for graphql
+ - query myQuery($req: AgooRequest!, $plan: AgooPlan) { }
+ - when the AgooRequest or AgooPlan types are seen thay are populated automatically
 
+input AgooRequest {
+  method: AgooMethod!
+  port: Int!
+  host: String!
+  path: String!
+  query: [AgooQuery!]
+  headers: [String!]!
+}
+
+input AgooQuery {
+  key: String!
+  value: [String!]!
+}
+
+input AgooPlan {
+  field: String!
+  args: [AgooArg]
+  directives: [AgooDirective]
+  fields: [AgooPlan]
+}
+
+input AgooArg {
+  name: String!
+  bool: Boolean
+  num: Int
+  dec: Float
+  str: String
+}
+
+input AgooDirective {
+  name: String!
+  args: [AgooArg]
+}
+
+
+- TLS
  - openssl req -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem -nodes -days 365 -subj '/CN=localhost'
   - -nodes means no password
 
