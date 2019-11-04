@@ -835,6 +835,7 @@ type_kind(agooErr err, gqlDoc doc, gqlCobj obj, gqlField field, gqlSel sel, gqlV
     const char	*key = sel->name;
 
     switch (((gqlType)obj->ptr)->kind) {
+    case GQL_SCHEMA:	kind = "SCHEMA";	break;
     case GQL_OBJECT:	kind = "OBJECT";	break;
     case GQL_INPUT:	kind = "INPUT_OBJECT";	break;
     case GQL_UNION:	kind = "UNION";		break;
@@ -843,7 +844,7 @@ type_kind(agooErr err, gqlDoc doc, gqlCobj obj, gqlField field, gqlSel sel, gqlV
     case GQL_SCALAR:	kind = "SCALAR";	break;
     case GQL_LIST:	kind = "LIST";		break;
     default:
-	return agoo_err_set(err, AGOO_ERR_ARG, "__Type kind field not valid. %s:%d", __FILE__, __LINE__);
+	return agoo_err_set(err, AGOO_ERR_ARG, "__Type kind (%d) field not valid. %s:%d", ((gqlType)obj->ptr)->kind, __FILE__, __LINE__);
     }
     if (NULL != sel->alias) {
 	key = sel->alias;

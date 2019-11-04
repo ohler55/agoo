@@ -1,0 +1,25 @@
+
+type Query {
+  artist(name: String!): Artist
+  artists: [Artist]
+}
+
+type Mutation {
+  like(artist: String!, song: String!): Song
+}
+
+type Artist {
+  name: String!
+  songs: [Song]
+  origin: [String]
+}
+
+type Song {
+  name: String!
+  artist: Artist
+  duration: Int
+  release: Date
+  likes: Int
+}
+
+scalar Date
