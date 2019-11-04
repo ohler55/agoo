@@ -17,8 +17,8 @@ Agoo::Log.configure(dir: '',
 		      push: false,
 		    })
 
-# Implement the Ruby classes to support the API. The GraphQL type and Ruby
-# class names are the same in this example to make it easier to follow.
+# Next implement the Ruby classes to support the API. The type and class names
+# are the same in this example to make it easier to follow.
 class Artist
   attr_reader :name
   attr_reader :songs
