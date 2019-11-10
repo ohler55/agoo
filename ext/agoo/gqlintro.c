@@ -162,7 +162,7 @@ create_field_type(agooErr err) {
 	NULL == gql_type_field(err, type, "args", input_list, NULL, NULL, 0, true) ||
 	NULL == gql_type_field(err, type, "type", type_type, NULL, NULL, 0, true) ||
 	NULL == gql_type_field(err, type, "isDeprecated", &gql_bool_type, NULL, NULL, 0, true) ||
-	NULL == gql_type_field(err, type, "reason", &gql_string_type, NULL, NULL, 0, false)) {
+	NULL == gql_type_field(err, type, "deprecationReason", &gql_string_type, NULL, NULL, 0, false)) {
 
 	return err->code;
     }

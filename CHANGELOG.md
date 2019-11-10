@@ -4,6 +4,16 @@ All changes to the Agoo gem are documented here. Releases follow semantic versio
 
 ## [Unreleased]
 
+## [2.11.4] - [2019-11-10]
+
+GraphQL Introspection
+
+### Fixed
+
+- __Field deprecatedReason is no longer listed as 'reason'.
+
+- Missing SCHEMA __Type kind added.
+
 ## [2.11.3] - [2019-11-02]
 
 Benchamark options
