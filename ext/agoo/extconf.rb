@@ -11,6 +11,8 @@ else
   $CFLAGS += ' -std=c11'
 end
 
+$CFLAGS += ' -D_POSIX_SOURCE -D_GNU_SOURCE'
+
 # Adding the __attribute__ flag only works with gcc compilers and even then it
 # does not work to check args with varargs so just remove the check.
 CONFIG['warnflags'].slice!(/ -Wsuggest-attribute=format/)

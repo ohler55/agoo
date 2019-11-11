@@ -4,6 +4,14 @@ All changes to the Agoo gem are documented here. Releases follow semantic versio
 
 ## [Unreleased]
 
+## [2.11.5] - [2019-11-11]
+
+Alpine
+
+### Fixed
+
+- Added compiler directives to allow building on Alpine linux.
+
 ## [2.11.4] - [2019-11-10]
 
 GraphQL Introspection
