@@ -116,7 +116,7 @@ parse_num(agooErr err, agooDoc doc) {
 	if (INT32_MAX < i) {
 	    value = gql_i64_create(err, si);
 	} else {
-	    value = gql_int_create(err, si);
+	    value = gql_int_create(err, (int)si);
 	}
     } else { // decimal
 	double	d = (double)i + (double)num / (double)div;
@@ -256,7 +256,7 @@ parse_escaped(agooErr err, agooDoc doc) {
 	    return NULL;
 	}
     }
-    value = gql_string_create(err, t->text, t->len);
+    value = gql_string_create(err, t->text, (int)(t->len));
     doc->cur++; // past trailing "
 DONE:
     agoo_text_release(t);
@@ -458,7 +458,7 @@ gqlValue
 gql_json_parse(agooErr err, const char *json, size_t len) {
     struct _agooDoc	doc;
 
-    agoo_doc_init(&doc, json, len);
+    agoo_doc_init(&doc, json, (int)(len));
 
     return parse_value(err, &doc);
 }

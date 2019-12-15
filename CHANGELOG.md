@@ -4,6 +4,16 @@ All changes to the Agoo gem are documented here. Releases follow semantic versio
 
 ## [Unreleased]
 
+## [2.11.6] - [2019-12-??]
+
+Bug fixes
+
+### Fixed
+
+- Missing variable arguments no longer cause a crash.
+
+- Eliminated the type cast warnings introduced by the Ruby 2.6.5 which uses stricter makefile settings.
+
 ## [2.11.5] - [2019-11-11]
 
 Alpine

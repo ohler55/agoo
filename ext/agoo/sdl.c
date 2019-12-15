@@ -867,14 +867,14 @@ sdl_parse(agooErr err, const char *str, int len) {
 	case 's': // schema or scalar
 	    if (6 < (doc.end - doc.cur) && 'c' == doc.cur[1]) {
 		if ('a' == doc.cur[2]) {
-		    if (AGOO_ERR_OK != make_scalar(err, &doc, desc, dlen, extend_next)) {
+		    if (AGOO_ERR_OK != make_scalar(err, &doc, desc, (int)dlen, extend_next)) {
 			return err->code;
 		    }
 		    desc = NULL;
 		    dlen = 0;
 		    break;
 		} else {
-		    if (AGOO_ERR_OK != make_schema(err, &doc, desc, dlen, extend_next)) {
+		    if (AGOO_ERR_OK != make_schema(err, &doc, desc, (int)dlen, extend_next)) {
 			return err->code;
 		    }
 		    desc = NULL;
@@ -886,7 +886,7 @@ sdl_parse(agooErr err, const char *str, int len) {
 	case 'e': // enum or extend
 	    if (4 < (doc.end - doc.cur)) {
 		if ('n' == doc.cur[1]) {
-		    if (AGOO_ERR_OK != make_enum(err, &doc, desc, dlen, extend_next)) {
+		    if (AGOO_ERR_OK != make_enum(err, &doc, desc, (int)dlen, extend_next)) {
 			return err->code;
 		    }
 		    desc = NULL;
@@ -904,21 +904,21 @@ sdl_parse(agooErr err, const char *str, int len) {
 	    }
 	    return agoo_doc_err(&doc, err, "Unknown directive");
 	case 'u': // union
-	    if (AGOO_ERR_OK != make_union(err, &doc, desc, dlen, extend_next)) {
+	    if (AGOO_ERR_OK != make_union(err, &doc, desc, (int)dlen, extend_next)) {
 		return err->code;
 	    }
 	    desc = NULL;
 	    dlen = 0;
 	    break;
 	case 'd': // directive
-	    if (AGOO_ERR_OK != make_directive(err, &doc, desc, dlen)) {
+	    if (AGOO_ERR_OK != make_directive(err, &doc, desc, (int)dlen)) {
 		return err->code;
 	    }
 	    desc = NULL;
 	    dlen = 0;
 	    break;
 	case 't': // type
-	    if (AGOO_ERR_OK != make_type(err, &doc, desc, dlen, extend_next)) {
+	    if (AGOO_ERR_OK != make_type(err, &doc, desc, (int)dlen, extend_next)) {
 		return err->code;
 	    }
 	    desc = NULL;
@@ -927,14 +927,14 @@ sdl_parse(agooErr err, const char *str, int len) {
 	case 'i': // interface, input
 	    if (5 < (doc.end - doc.cur) && 'n' == doc.cur[1]) {
 		if ('p' == doc.cur[2]) {
-		    if (AGOO_ERR_OK != make_input(err, &doc, desc, dlen, extend_next)) {
+		    if (AGOO_ERR_OK != make_input(err, &doc, desc, (int)dlen, extend_next)) {
 			return err->code;
 		    }
 		    desc = NULL;
 		    dlen = 0;
 		    break;
 		} else {
-		    if (AGOO_ERR_OK != make_interface(err, &doc, desc, dlen, extend_next)) {
+		    if (AGOO_ERR_OK != make_interface(err, &doc, desc, (int)dlen, extend_next)) {
 			return err->code;
 		    }
 		    desc = NULL;
@@ -1001,7 +1001,7 @@ make_sel_arg(agooErr err, agooDoc doc, gqlDoc gdoc, gqlOp op, gqlSel sel) {
 		break;
 	    }
 	}
-	if (NULL == var) {
+	if (NULL == var || NULL == var->value) {
 	    for (var = gdoc->vars; NULL != var; var = var->next) {
 		if (0 == strcmp(var_name, var->name)) {
 		    break;
@@ -1602,6 +1602,7 @@ sdl_parse_doc(agooErr err, const char *str, int len, gqlVar vars, gqlOpKind defa
     gqlDoc		gdoc = NULL;
 
     agoo_doc_init(&doc, str, len);
+
     if (NULL == (gdoc = gql_doc_create(err))) {
 	return NULL;
     }

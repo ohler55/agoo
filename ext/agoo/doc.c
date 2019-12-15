@@ -340,7 +340,7 @@ agoo_doc_read_value(agooErr err, agooDoc doc, gqlType type) {
 	doc->cur++;
 	start++;
 	agoo_doc_read_token(doc);
-	value = gql_var_create(err, start, doc->cur - start);
+	value = gql_var_create(err, start, (int)(doc->cur - start));
 	break;
     case '"': {
 	const char	*end;
@@ -355,7 +355,7 @@ agoo_doc_read_value(agooErr err, agooDoc doc, gqlType type) {
 	} else {
 	    end = doc->cur - 1;
 	}
-	value = gql_string_create(err, start, end - start);
+	value = gql_string_create(err, start, (int)(end - start));
 	break;
     }
     case '-':
@@ -377,7 +377,7 @@ agoo_doc_read_value(agooErr err, agooDoc doc, gqlType type) {
 	if (doc->cur - start == 4 && 0 == strncmp("null", start, 4)) {
 	    value = gql_null_create(err);
 	} else {
-	    value = gql_token_create(err, start, doc->cur - start, type);
+	    value = gql_token_create(err, start, (int)(doc->cur - start), type);
 	}
 	break;
     case 't':
@@ -385,7 +385,7 @@ agoo_doc_read_value(agooErr err, agooDoc doc, gqlType type) {
 	if (doc->cur - start == 4 && 0 == strncmp("true", start, 4)) {
 	    value = gql_bool_create(err, true);
 	} else {
-	    value = gql_token_create(err, start, doc->cur - start, type);
+	    value = gql_token_create(err, start, (int)(doc->cur - start), type);
 	}
 	break;
     case 'f':
@@ -393,7 +393,7 @@ agoo_doc_read_value(agooErr err, agooDoc doc, gqlType type) {
 	if (doc->cur - start == 5 && 0 == strncmp("false", start, 5)) {
 	    value = gql_bool_create(err, false);
 	} else {
-	    value = gql_token_create(err, start, doc->cur - start, type);
+	    value = gql_token_create(err, start, (int)(doc->cur - start), type);
 	}
 	break;
     case '[':
@@ -467,7 +467,7 @@ agoo_doc_read_value(agooErr err, agooDoc doc, gqlType type) {
 	break;
     default: // Enum value
 	agoo_doc_read_token(doc);
-	value = gql_token_create(err, start, doc->cur - start, type);
+	value = gql_token_create(err, start, (int)(doc->cur - start), type);
 	break;
     }
     return value;

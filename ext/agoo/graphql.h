@@ -54,7 +54,6 @@ struct _agooReq;
 struct _gqlDirUse;
 struct _gqlField;
 struct _gqlLink;
-struct _gqlLink;
 struct _gqlType;
 struct _gqlValue;
 

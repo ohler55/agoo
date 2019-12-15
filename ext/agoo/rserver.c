@@ -412,7 +412,7 @@ header_cb(VALUE key, VALUE value, agooText *tp) {
 		}
 	    } else {
 		if (vs < end) {
-		    *tp = agoo_text_append(*tp, vs, end - vs);
+		    *tp = agoo_text_append(*tp, vs, (int)(end - vs));
 		}
 		vlen -= end - vs + 1;
 		vs = end + 1;
@@ -995,7 +995,7 @@ handle(VALUE self, VALUE method, VALUE pattern, VALUE handler) {
 		if (NULL == t) {
 		    rb_raise(rb_eNoMemError, "Failed to allocate memory for a response.");
 		}
-		if (NULL == agoo_page_immutable(&err, pat, t->text, t->len)) {
+		if (NULL == agoo_page_immutable(&err, pat, t->text, (int)t->len)) {
 		    rb_raise(rb_eArgError, "%s", err.msg);
 		}
 		agoo_text_release(t);

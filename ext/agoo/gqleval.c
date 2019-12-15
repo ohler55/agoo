@@ -48,7 +48,7 @@ err_resp(agooRes res, agooErr err, int status) {
     long long		frac = (long long)now % 1000000000LL;
     struct _agooTime	at;
     const char		*code = agoo_err_str(err->code);
-    int			clen = strlen(code);
+    int			clen = (int)strlen(code);
 
     agoo_sectime(t, &at);
     cnt = snprintf(buf, sizeof(buf),
@@ -488,7 +488,7 @@ eval_post(agooErr err, agooReq req) {
     gqlValue		result = NULL;
     gqlValue		j = NULL;
 
-    // TBD handle query parameter and concatenate with body query if present
+    // TBD handle query parameter and concatenate with JSON body variables if present
 
     op_name = agoo_req_query_value(req, operation_name_str, sizeof(operation_name_str) - 1, &oplen);
     var_json = agoo_req_query_value(req, variables_str, sizeof(variables_str) - 1, &vlen);
@@ -521,14 +521,14 @@ eval_post(agooErr err, agooReq req) {
 			goto DONE;
 		    }
 		    query = s;
-		    qlen = strlen(s);
+		    qlen = (int)strlen(s);
 		} else if (0 == strcmp("operationName", m->key)) {
 		    if (NULL == (s = gql_string_get(m->value))) {
 			agoo_err_set(err, AGOO_ERR_TYPE, "operationName must be an string");
 			goto DONE;
 		    }
 		    op_name = s;
-		    oplen = strlen(s);
+		    oplen = (int)strlen(s);
 		} else if (0 == strcmp("variables", m->key)) {
 		    gqlLink	link;
 

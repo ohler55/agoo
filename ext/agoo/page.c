@@ -523,7 +523,7 @@ agoo_page_immutable(agooErr err, const char *path, const char *content, int clen
 	}
 	plen = (int)strlen(path);
 	if (NULL != cache.root) {
-	    int	rlen = strlen(cache.root);
+	    int	rlen = (int)strlen(cache.root);
 
 	    if (0 == strncmp(cache.root, p->path, rlen) && '/' == p->path[rlen]) {
 		rel_path = p->path + rlen + 1;
@@ -657,7 +657,7 @@ update_contents(agooPage p) {
     rewind(f);
 
     if (NULL != cache.root) {
-	int	rlen = strlen(cache.root);
+	int	rlen = (int)strlen(cache.root);
 
 	if (0 == strncmp(cache.root, path, rlen) && '/' == path[rlen]) {
 	    rel_path = path + rlen + 1;
@@ -972,7 +972,7 @@ agoo_header_rule(agooErr err, const char *path, const char *mime, const char *ke
     } else if (NULL == (hr->mime = AGOO_STRDUP(mime))) {
 	goto ERROR;
     }
-    hr->len = strlen(hr->key) + strlen(hr->value) + 4;
+    hr->len = (int)strlen(hr->key) + (int)strlen(hr->value) + 4;
     hr->next = cache.head_rules;
     cache.head_rules = hr;
 

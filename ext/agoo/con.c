@@ -509,13 +509,13 @@ agoo_con_http_read(agooCon c) {
     if (AGOO_CON_HTTPS == c->bind->kind) {
 #ifdef HAVE_OPENSSL_SSL_H
 	if (NULL != c->req) {
-	    cnt = SSL_read(c->ssl, c->req->msg + c->bcnt, c->req->mlen - c->bcnt);
+	    cnt = SSL_read(c->ssl, c->req->msg + c->bcnt, (int)(c->req->mlen - c->bcnt));
 	} else {
-	    cnt = SSL_read(c->ssl, c->buf + c->bcnt, sizeof(c->buf) - c->bcnt - 1);
+	    cnt = SSL_read(c->ssl, c->buf + c->bcnt, (int)(sizeof(c->buf) - c->bcnt - 1));
 	}
 	if (0 > cnt) {
 	    //unsigned long	e = ERR_get_error();
-	    int		e = ERR_get_error();
+	    int		e = (int)ERR_get_error();
 
 	    if (0 == e) {
 		return false;
@@ -661,7 +661,7 @@ agoo_con_http_write(agooCon c) {
     }
     if (AGOO_CON_HTTPS == c->bind->kind) {
 #ifdef HAVE_OPENSSL_SSL_H
-	if (0 >= (cnt = SSL_write(c->ssl, message->text + c->wcnt, message->len - c->wcnt))) {
+	if (0 >= (cnt = SSL_write(c->ssl, message->text + c->wcnt, (int)(message->len - c->wcnt)))) {
 	    unsigned long	e = ERR_get_error();
 
 	    if (0 == e) {

@@ -233,7 +233,7 @@ coerce(agooErr err, gqlRef ref, gqlType type) {
 	    break;
 	case RUBY_T_STRING:
 	    v = ref_to_string(ref);
-	    value = gql_string_create(err, rb_string_value_ptr(&v), RSTRING_LEN(v));
+	    value = gql_string_create(err, rb_string_value_ptr(&v), (int)RSTRING_LEN(v));
 	    break;
 	case RUBY_T_ARRAY: {
 	    gqlValue	v;
@@ -265,7 +265,7 @@ coerce(agooErr err, gqlRef ref, gqlType type) {
 	    if (i < INT32_MIN || INT32_MAX < i) {
 		value = gql_i64_create(err, i);
 	    } else {
-		value = gql_int_create(err, i);
+		value = gql_int_create(err, (int)i);
 	    }
 	    break;
 	}
@@ -282,7 +282,7 @@ coerce(agooErr err, gqlRef ref, gqlType type) {
 	}
 	default:
 	    v = ref_to_string(ref);
-	    value = gql_string_create(err, rb_string_value_ptr(&v), RSTRING_LEN(v));
+	    value = gql_string_create(err, rb_string_value_ptr(&v), (int)RSTRING_LEN(v));
 	    break;
 	}
     } else if (GQL_SCALAR == type->kind) {
@@ -307,7 +307,7 @@ coerce(agooErr err, gqlRef ref, gqlType type) {
 	case GQL_SCALAR_TOKEN:
 	case GQL_SCALAR_ID:
 	    v = ref_to_string(ref);
-	    value = gql_string_create(err, rb_string_value_ptr(&v), RSTRING_LEN(v));
+	    value = gql_string_create(err, rb_string_value_ptr(&v), (int)RSTRING_LEN(v));
 	    break;
 	case GQL_SCALAR_TIME: {
 	    VALUE	clas = rb_obj_class((VALUE)ref);
@@ -319,7 +319,7 @@ coerce(agooErr err, gqlRef ref, gqlType type) {
 	}
 	case GQL_SCALAR_UUID:
 	    v = ref_to_string(ref);
-	    value = gql_uuid_str_create(err, rb_string_value_ptr(&v), RSTRING_LEN(v));
+	    value = gql_uuid_str_create(err, rb_string_value_ptr(&v), (int)RSTRING_LEN(v));
 	    break;
 	case GQL_SCALAR_LIST: {
 	    gqlValue	v;
@@ -347,7 +347,7 @@ coerce(agooErr err, gqlRef ref, gqlType type) {
 	}
     } else if (GQL_ENUM == type->kind) {
 	v = ref_to_string(ref);
-	value = gql_string_create(err, rb_string_value_ptr(&v), RSTRING_LEN(v));
+	value = gql_string_create(err, rb_string_value_ptr(&v), (int)RSTRING_LEN(v));
     } else {
 	rb_raise(rb_eStandardError, "Can not coerce a non-scalar into a %s.", type->name);
     }
@@ -410,6 +410,9 @@ resolve(agooErr err, gqlDoc doc, gqlRef target, gqlField field, gqlSel sel, gqlV
 	    } else {
 		v = sa->value;
 	    }
+	    if (NULL == v) {
+		v = gql_null_create(err);
+	    }
 	    if (NULL != field) {
 		gqlArg	fa;
 
@@ -431,7 +434,7 @@ resolve(agooErr err, gqlDoc doc, gqlRef target, gqlField field, gqlSel sel, gqlV
     if (GQL_SUBSCRIPTION == doc->op->kind && RUBY_T_STRING == rb_type(child)) {
 	gqlValue	c;
 
-	if (NULL == (c = gql_string_create(err, rb_string_value_ptr(&child), RSTRING_LEN(child))) ||
+	if (NULL == (c = gql_string_create(err, rb_string_value_ptr(&child), (int)RSTRING_LEN(child))) ||
 	    AGOO_ERR_OK != gql_object_set(err, result, "subject", c)) {
 	    return err->code;
 	}
@@ -669,7 +672,7 @@ graphql_load(VALUE self, VALUE sdl) {
 	rb_raise(rb_eStandardError, "GraphQL root not set. Use Agoo::GraphQL.schema.");
     }
     rb_check_type(sdl, T_STRING);
-    if (AGOO_ERR_OK != sdl_parse(&err, StringValuePtr(sdl), RSTRING_LEN(sdl))) {
+    if (AGOO_ERR_OK != sdl_parse(&err, StringValuePtr(sdl), (int)RSTRING_LEN(sdl))) {
 	rb_raise(rb_eStandardError, "%s", err.msg);
     }
     return Qnil;
@@ -712,7 +715,7 @@ graphql_load_file(VALUE self, VALUE path) {
 	sdl[len] = '\0';
     }
     fclose(f);
-    if (AGOO_ERR_OK != sdl_parse(&err, sdl, len)) {
+    if (AGOO_ERR_OK != sdl_parse(&err, sdl, (int)len)) {
 	xfree(sdl);
 	rb_raise(rb_eStandardError, "%s", err.msg);
     }

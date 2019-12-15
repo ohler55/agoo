@@ -110,7 +110,7 @@ agoo_sectime(int64_t secs, agooTime at) {
 	    }
 	}
     }
-    at->year = (qc - shift) * 400 + c * 100 + qy * 4 + y;
+    at->year = (int)((qc - shift) * 400 + c * 100 + qy * 4 + y);
     if (leap) {
 	ms = eom_leap_secs;
     } else {
@@ -125,12 +125,12 @@ agoo_sectime(int64_t secs, agooTime at) {
 	    break;
 	}
     }
-    at->day = secs / 86400LL;
+    at->day = (int)(secs / 86400LL);
     secs = secs - (int64_t)at->day * 86400LL;
     at->day++;
-    at->hour = secs / 3600LL;
+    at->hour = (int)(secs / 3600LL);
     secs = secs - (int64_t)at->hour * 3600LL;
-    at->min = secs / 60LL;
+    at->min = (int)(secs / 60LL);
     secs = secs - (int64_t)at->min * 60LL;
-    at->sec = secs;
+    at->sec = (int)secs;
 }

@@ -105,7 +105,7 @@ agoo_pub_dup(agooPub src) {
 	if (NULL == src->subject) {
 	    p->subject = NULL;
 	} else {
-	    p->subject = agoo_subject_create(src->subject->pattern, strlen(src->subject->pattern));
+	    p->subject = agoo_subject_create(src->subject->pattern, (int)strlen(src->subject->pattern));
 	}
 	p->msg = src->msg;
 	if (NULL != p->msg) {
