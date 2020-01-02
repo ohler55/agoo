@@ -17,16 +17,17 @@ addons:
     sources:
       - ubuntu-toolchain-r-test
     packages:
-      - g++
+      - g++-6
 
 env:
-  - CC=gcc 
-  - CXX=g++
+  - MATRIX_EVAL="CC=gcc-6 && CXX=g++-6"
 
 before_install:
   - if [ ${TRAVIS_OS_NAME} == "osx" ] ; then brew install openssl ; fi
 
 before_script:
+  - sudo mv /usr/bin/gcc /usr/bin/gcc.old
+  - eval "${MATRIX_EVAL}"
   - gem build agoo.gemspec
   - gem install oj
   - gem install agoo-*
