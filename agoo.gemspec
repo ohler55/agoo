@@ -26,6 +26,6 @@ Gem::Specification.new do |s|
   s.required_ruby_version = '>= 2.5'
   s.requirements << 'Linux or macOS'
 
-  s.add_development_dependency 'oj', '~> 3.7', '>= 3.7.1'
-  
+  s.add_development_dependency 'oj', '~> 3.10', '>= 3.10.0'
+
 end

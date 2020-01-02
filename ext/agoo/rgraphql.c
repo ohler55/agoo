@@ -62,7 +62,7 @@ make_ruby_use(agooErr err, VALUE root, const char *method, const char *type_name
 }
 
 static VALUE
-rescue_error(VALUE x) {
+rescue_error(VALUE x, VALUE ignore) {
     Eval		eval = (Eval)x;
     volatile VALUE	info = rb_errinfo();
     volatile VALUE	msg = rb_funcall(info, rb_intern("message"), 0);
@@ -75,8 +75,8 @@ rescue_error(VALUE x) {
 }
 
 static VALUE
-call_eval(void *x) {
-    Eval	eval = (Eval)x;
+call_eval(VALUE x) {
+    Eval	eval = (Eval)(void*)x;
 
     eval->value = gql_doc_eval(eval->err, eval->doc);
 
@@ -548,7 +548,7 @@ root_op(const char *op) {
 }
 
 static VALUE
-rescue_yield_error(VALUE x) {
+rescue_yield_error(VALUE x, VALUE ignore) {
     agooErr		err = (agooErr)x;
     volatile VALUE	info = rb_errinfo();
     volatile VALUE	msg = rb_funcall(info, rb_intern("message"), 0);

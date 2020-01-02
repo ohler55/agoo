@@ -17,6 +17,7 @@ $CFLAGS += ' -D_POSIX_SOURCE -D_GNU_SOURCE'
 # does not work to check args with varargs so just remove the check.
 CONFIG['warnflags'].slice!(/ -Wsuggest-attribute=format/)
 CONFIG['warnflags'].slice!(/ -Wdeclaration-after-statement/)
+CONFIG['warnflags'].slice!(/ -Wmissing-noreturn/)
 
 have_header('stdatomic.h')
 #have_header('sys/epoll.h')

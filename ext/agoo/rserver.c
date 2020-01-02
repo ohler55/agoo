@@ -325,7 +325,7 @@ rserver_init(int argc, VALUE *argv, VALUE self) {
 static const char	bad500[] = "HTTP/1.1 500 Internal Error\r\nConnection: Close\r\nContent-Length: ";
 
 static VALUE
-rescue_error(VALUE x) {
+rescue_error(VALUE x, VALUE ignore) {
     agooReq		req = (agooReq)x;
     volatile VALUE	info = rb_errinfo();
     volatile VALUE	msg = rb_funcall(info, rb_intern("message"), 0);
@@ -364,8 +364,8 @@ rescue_error(VALUE x) {
 }
 
 static VALUE
-handle_base_inner(void *x) {
-    agooReq		req = (agooReq)x;
+handle_base_inner(VALUE x) {
+    agooReq		req = (agooReq)(void*)x;
     volatile VALUE	rr = request_wrap(req);
     volatile VALUE	rres = response_new();
 
@@ -387,7 +387,8 @@ handle_base(void *x) {
 }
 
 static int
-header_cb(VALUE key, VALUE value, agooText *tp) {
+header_cb(VALUE key, VALUE value, VALUE tv) {
+    agooText		*tp = (agooText*)tv;
     const char		*ks = StringValuePtr(key);
     int			klen = (int)RSTRING_LEN(key);
     const char		*vs = StringValuePtr(value);
@@ -424,28 +425,34 @@ header_cb(VALUE key, VALUE value, agooText *tp) {
 }
 
 static VALUE
-header_each_cb(VALUE kv, agooText *tp) {
-    header_cb(rb_ary_entry(kv, 0), rb_ary_entry(kv, 1), tp);
+header_each_cb(VALUE kv, VALUE cb_arg, int argc, const VALUE *argv, VALUE blockarg) {
+    agooText	*tp = (agooText*)cb_arg;
+
+    header_cb(rb_ary_entry(kv, 0), rb_ary_entry(kv, 1), (VALUE)tp);
 
     return Qnil;
 }
 
 static VALUE
-body_len_cb(VALUE v, int *sizep) {
+body_len_cb(VALUE v, VALUE cb_arg, int argc, const VALUE *argv, VALUE blockarg) {
+    int	*sizep = (int*)cb_arg;
+
     *sizep += (int)RSTRING_LEN(v);
 
     return Qnil;
 }
 
 static VALUE
-body_append_cb(VALUE v, agooText *tp) {
+body_append_cb(VALUE v, VALUE cb_arg, int argc, const VALUE *argv, VALUE blockarg) {
+    agooText	*tp = (agooText*)cb_arg;
+
     *tp = agoo_text_append(*tp, StringValuePtr(v), (int)RSTRING_LEN(v));
 
     return Qnil;
 }
 
 static VALUE
-handle_rack_inner(void *x) {
+handle_rack_inner(VALUE x) {
     agooReq		req = (agooReq)x;
     agooText		t;
     volatile VALUE	env = request_env(req, request_wrap(req));
@@ -611,7 +618,7 @@ handle_rack(void *x) {
 }
 
 static VALUE
-handle_wab_inner(void *x) {
+handle_wab_inner(VALUE x) {
     agooReq		req = (agooReq)x;
     volatile VALUE	rr = request_wrap(req);
     volatile VALUE	rres = response_new();
@@ -634,7 +641,7 @@ handle_wab(void *x) {
 }
 
 static VALUE
-handle_push_inner(void *x) {
+handle_push_inner(VALUE x) {
     agooReq	req = (agooReq)x;
 
     switch (req->method) {

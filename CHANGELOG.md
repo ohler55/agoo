@@ -2,9 +2,19 @@
 
 All changes to the Agoo gem are documented here. Releases follow semantic versioning.
 
-## [Unreleased]
+## [2.11.7] - 2020-01-02
 
-## [2.11.6] - [2019-12-??]
+Ruby 2.7.0 cleanup
+
+### Fixed
+
+- .travis.yml cleanup (thanks waghanza).
+
+- Compile warnings eliminated.
+
+- Added `require 'stringio'` to agoo.rb (issue #80)
+
+## [2.11.6] - 2019-12-15
 
 Bug fixes
 
@@ -14,7 +24,7 @@ Bug fixes
 
 - Eliminated the type cast warnings introduced by the Ruby 2.6.5 which uses stricter makefile settings.
 
-## [2.11.5] - [2019-11-11]
+## [2.11.5] - 2019-11-11
 
 Alpine
 
@@ -22,7 +32,7 @@ Alpine
 
 - Added compiler directives to allow building on Alpine linux.
 
-## [2.11.4] - [2019-11-10]
+## [2.11.4] - 2019-11-10
 
 GraphQL Introspection
 
@@ -32,13 +42,13 @@ GraphQL Introspection
 
 - Missing SCHEMA __Type kind added.
 
-## [2.11.3] - [2019-11-02]
+## [2.11.3] - 2019-11-02
 
 Benchamark options
 
 - An option for polling timeout added. Trade off CPU use with reponsiveness.
 
-## [2.11.2] - [2019-10-20]
+## [2.11.2] - 2019-10-20
 
 Coerce improvements
 
@@ -49,14 +59,14 @@ Coerce improvements
 
 - Handle comments in all locations.
 
-## [2.11.1] - [2019-09-22]
+## [2.11.1] - 2019-09-22
 
 Race fix
 
 ### Fixed
 - A race condion occurred with a slow Ruby response and a connection close. Fixed.
 
-## [2.11.0] - [2019-09-15]
+## [2.11.0] - 2019-09-15
 
 TLS using OpenSSL
 
