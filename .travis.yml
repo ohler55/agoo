@@ -1,39 +1,37 @@
 language: ruby
-rvm:
-  #- 2.5.3
-  - 2.6.3
-  - 2.7.0
 
-matrix:
-  include:
-    - os: linux
-      addons:
-        apt:
-          sources:
-            - ubuntu-toolchain-r-test
-          packages:
-            - g++-6
-      env:
-        - MATRIX_EVAL="CC=gcc-6 && CXX=g++-6"
-      before_script:
-        - sudo mv /usr/bin/gcc /usr/bin/gcc.old
-        - sudo ln -s /usr/bin/gcc-6 /usr/bin/gcc
-        - eval "${MATRIX_EVAL}"
-        - gem build agoo.gemspec
-        - gem install oj
-        - gem install agoo-*
-        - cd ext/agoo
-        - ruby extconf.rb && make clean all
-        - cd ../..
-    - os: osx
-      before_script:
-        - eval "${MATRIX_EVAL}"
-        - gem build agoo.gemspec
-        - gem install oj
-        - gem install agoo-*
-        - cd ext/agoo
-        - ruby extconf.rb && make clean all
-        - cd ../..
+rvm:
+  - 2.3
+  - 2.4
+  - 2.5
+  - 2.6
+  - 2.7
+
+os:
+  - linux
+  - osx
+
+addons:
+  apt:
+    update: true
+    sources:
+      - ubuntu-toolchain-r-test
+    packages:
+      - g++-6
+
+env:
+  - MATRIX_EVAL="CC=gcc-6 && CXX=g++-6"
+
+before_script:
+  - sudo mv /usr/bin/gcc /usr/bin/gcc.old
+  - sudo ln -s /usr/bin/gcc-6 /usr/bin/gcc
+  - eval "${MATRIX_EVAL}"
+  - gem build agoo.gemspec
+  - gem install oj
+  - gem install agoo-*
+  - cd ext/agoo
+  - ruby extconf.rb && make clean all
+  - cd ../..
 
 script:
   - cd test
