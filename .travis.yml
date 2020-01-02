@@ -9,17 +9,6 @@ os:
   - linux
   - osx
 
-addons:
-  apt:
-    update: true
-    sources:
-      - ubuntu-toolchain-r-test
-    packages:
-      - g++
-
-before_install:
-  - if [ ${TRAVIS_OS_NAME} == "osx" ] ; then brew install openssl ; fi
-
 before_script:
   - gem build agoo.gemspec
   - gem install oj
