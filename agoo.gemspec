@@ -23,7 +23,7 @@ Gem::Specification.new do |s|
   s.bindir = 'bin'
   s.executables << 'agoo'
 
-  s.required_ruby_version = '>= 2.3.0'
+  s.required_ruby_version = '>= 2.5'
   s.requirements << 'Linux or macOS'
 
   s.add_development_dependency 'oj', '~> 3.7', '>= 3.7.1'
