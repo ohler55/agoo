@@ -23,8 +23,10 @@ env:
   - CC=gcc 
   - CXX=g++
 
-before_script:
+before_install:
   - if [ ${TRAVIS_OS_NAME} == "osx" ] ; then brew install openssl ; fi
+
+before_script:
   - gem build agoo.gemspec
   - gem install oj
   - gem install agoo-*
