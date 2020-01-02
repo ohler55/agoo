@@ -23,6 +23,7 @@ env:
   - MATRIX_EVAL="CC=gcc-6 && CXX=g++-6"
 
 before_script:
+  - if [ ${TRAVIS_OS_NAME} == "osx" ] ; then brew install openssl ; fi
   - sudo mv /usr/bin/gcc /usr/bin/gcc.old
   - sudo ln -s /usr/bin/gcc-6 /usr/bin/gcc
   - eval "${MATRIX_EVAL}"
