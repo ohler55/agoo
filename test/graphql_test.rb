@@ -26,7 +26,7 @@ class Artist
     @likes = 0
   end
 
-  def song(args={})
+  def song(args)
     @songs[args['name']]
   end
 
@@ -35,7 +35,7 @@ class Artist
     @songs << song
   end
 
-  def genre_songs(args={})
+  def genre_songs(args)
     g = args['genre']
     a = []
     @songs.each { |s|
@@ -126,7 +126,7 @@ class Query
     @artists = artists
   end
 
-  def artist(args={})
+  def artist(args)
     @artists[args['name']]
   end
 end
@@ -138,7 +138,7 @@ class Mutation
     @artists = artists
   end
 
-  def like(args={})
+  def like(args)
     artist = @artists[args['artist']]
     artist.like
     artist

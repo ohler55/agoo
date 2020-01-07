@@ -2,6 +2,14 @@
 
 All changes to the Agoo gem are documented here. Releases follow semantic versioning.
 
+## [2.12.0] - 2020-01-??
+
+Request GraphQL access
+
+### Added
+
+- Optional addition of request information is no available in GraphQL resolve functions.
+
 ## [2.11.7] - 2020-01-02
 
 Ruby 2.7.0 cleanup

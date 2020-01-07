@@ -416,6 +416,7 @@ gql_eval_get_hook(agooReq req) {
 	return;
     }
     set_doc_op(doc, op_name, oplen);
+    doc->req = req;
 
     if (NULL == gql_doc_eval_func) {
 	result = gql_doc_eval(&err, doc);
@@ -488,8 +489,6 @@ eval_post(agooErr err, agooReq req) {
     gqlValue		result = NULL;
     gqlValue		j = NULL;
 
-    // TBD handle query parameter and concatenate with JSON body variables if present
-
     op_name = agoo_req_query_value(req, operation_name_str, sizeof(operation_name_str) - 1, &oplen);
     var_json = agoo_req_query_value(req, variables_str, sizeof(variables_str) - 1, &vlen);
 
@@ -559,6 +558,7 @@ eval_post(agooErr err, agooReq req) {
 	return NULL;
     }
     set_doc_op(doc, op_name, oplen);
+    doc->req = req;
 
     if (NULL == gql_doc_eval_func) {
 	result = gql_doc_eval(err, doc);

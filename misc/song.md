@@ -95,7 +95,7 @@ class Artist
   attr_reader :name
   attr_reader :songs
   attr_reader :origin
-  
+
   def initialize(name, origin)
     @name = name
     @songs = []
@@ -117,7 +117,7 @@ class Song
   attr_reader :artist   # reference
   attr_reader :duration # integer
   attr_reader :release  # time
-  
+
   def initialize(name, artist, duration, release)
     @name = name
     @artist = artist
@@ -128,11 +128,18 @@ class Song
 end
 ```
 
-Method match fields in the Ruby classes. Note the method all have either no
-arguments or `args={}`. This is what GraphQL APIs expect and the
-[Agoo](https://github.com/ohler55/agoo) GraphQL implementation follows suit. The
-`initialize` method are used to set up the data for this example as we will
-see shortly.
+Method match fields in the Ruby classes. Note the method all have
+either no arguments or `args={}`. This is what the GraphQL APIs expect
+and the [Agoo](https://github.com/ohler55/agoo) GraphQL implementation
+follows suit. [Agoo](https://github.com/ohler55/agoo) offers
+additional options that are available based on the method
+signature. If a method signature is `(args, req)` or `(args, req,
+plan)` then the request object is included. The plan, if included, is
+an object that can be queried for information about the query. (It has
+not been implemented as of version 2.12.0.)
+
+The `initialize` methods are used to set up the data for this example
+as we will see shortly.
 
 The query root class als needs to be defined. Note the `artist` method which
 matches the SDL `Query` root type. An `attr_reader` for `artists` was also
@@ -163,7 +170,7 @@ class Schema
   attr_reader :query
   attr_reader :mutation
   attr_reader :subscription
- 
+
   def initialize()
     # Set up some data for testing.
     artist = Artist.new('Fazerdaze', ['Morningside', 'Auckland', 'New Zealand'])

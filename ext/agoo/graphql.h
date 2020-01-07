@@ -202,6 +202,9 @@ typedef struct _gqlDoc {
     gqlFrag		frags;
     gqlOp		op; // the op to execute
     struct _gqlFuncs	funcs;
+    struct _agooReq	*req;
+    void		*ctx;
+    void		(*ctx_free)(void*);
 } *gqlDoc;
 
 extern int	gql_init(agooErr err);

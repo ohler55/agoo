@@ -13,6 +13,7 @@
 #include "gqlvalue.h"
 #include "graphql.h"
 #include "pub.h"
+#include "request.h"
 #include "sdl.h"
 #include "server.h"
 
@@ -33,7 +34,13 @@ static VALUE		vroot = Qnil;
 static TypeClass	type_class_map = NULL;
 
 static int
-make_ruby_use(agooErr err, VALUE root, const char *method, const char *type_name, bool fresh, gqlType schema_type, const char *desc) {
+make_ruby_use(agooErr    err,
+	      VALUE      root,
+	      const char *method,
+	      const char *type_name,
+	      bool       fresh,
+	      gqlType    schema_type,
+	      const char *desc) {
     gqlType		type;
     gqlDirUse		use;
     volatile VALUE	v;
@@ -372,12 +379,25 @@ ref_type(gqlRef ref) {
     return type;
 }
 
+static VALUE
+make_plan(gqlSel sel) {
+
+    // TBD create a plan object that wraps the sel, create children as needed
+    // plan is not valid outside of method
+    // should be able to create SDL from it
+
+    return Qnil;
+}
+
 static int
 resolve(agooErr err, gqlDoc doc, gqlRef target, gqlField field, gqlSel sel, gqlValue result, int depth) {
     volatile VALUE	child;
+    volatile VALUE	rreq = Qnil;
     VALUE		obj = (VALUE)target;
     int			d2 = depth + 1;
     const char		*key = sel->name;
+    ID			method;
+    int			arity;
 
     if ('_' == *sel->name && '_' == sel->name[1]) {
 	if (0 == strcmp("__typename", sel->name)) {
@@ -397,8 +417,10 @@ resolve(agooErr err, gqlDoc doc, gqlRef target, gqlField field, gqlSel sel, gqlV
 	    return agoo_err_set(err, AGOO_ERR_EVAL, "Not a valid operation on the root object.");
 	}
     }
-    if (NULL == sel->args) {
-	child = rb_funcall(obj, rb_intern(sel->name), 0);
+    method = rb_intern(sel->name);
+    arity = rb_obj_method_arity(obj, method);
+    if (0 == arity) {
+	child = rb_funcall(obj, method, 0);
     } else {
 	volatile VALUE	rargs = rb_hash_new();
 	gqlSelArg	sa;
@@ -429,7 +451,21 @@ resolve(agooErr err, gqlDoc doc, gqlRef target, gqlField field, gqlSel sel, gqlV
 	    }
 	    rb_hash_aset(rargs, rb_str_new_cstr(sa->name), gval_to_ruby(v));
 	}
-	child = rb_funcall(obj, rb_intern(sel->name), 1, rargs);
+	if (-1 == arity || 1 == arity) {
+	    child = rb_funcall(obj, method, 1, rargs);
+	} else {
+	    if (NULL == doc->ctx) {
+		rreq = request_wrap(doc->req);
+		doc->ctx = (void*)rreq;
+	    } else {
+		rreq = (VALUE)doc->ctx;
+	    }
+	    if (-2 == arity || 2 == arity) {
+		child = rb_funcall(obj, method, 2, rargs, rreq);
+	    } else {
+		child = rb_funcall(obj, method, 3, rargs, rreq, make_plan(sel));
+	    }
+	}
     }
     if (GQL_SUBSCRIPTION == doc->op->kind && RUBY_T_STRING == rb_type(child)) {
 	gqlValue	c;

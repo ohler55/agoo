@@ -1355,6 +1355,9 @@ gql_doc_create(agooErr err) {
 	doc->ops = NULL;
 	doc->vars = NULL;
 	doc->frags = NULL;
+	doc->req = NULL;
+	doc->ctx = NULL;
+	doc->ctx_free = NULL;
     }
     return doc;
 }
@@ -1473,6 +1476,9 @@ gql_doc_destroy(gqlDoc doc) {
     while (NULL != (frag = doc->frags)) {
 	doc->frags = frag->next;
 	gql_frag_destroy(frag);
+    }
+    if (NULL != doc->ctx_free) {
+	doc->ctx_free(doc->ctx);
     }
     AGOO_FREE(doc);
 }
