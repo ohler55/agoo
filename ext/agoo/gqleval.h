@@ -15,6 +15,8 @@ typedef struct _gqlKeyVal {
     struct _gqlValue	*value;
 } *gqlKeyVal;
 
+struct _agooReq;
+struct _agooText;
 struct _gqlDoc;
 struct _gqlField;
 struct _gqlSel;
@@ -47,5 +49,8 @@ extern struct _gqlType*		_gql_root_type;
 extern gqlRef			(*gql_root_op)(const char *op);
 
 extern struct _gqlValue*	(*gql_doc_eval_func)(agooErr err, struct _gqlDoc *doc);
+
+extern int			(*gql_build_headers)(agooErr err, struct _agooReq *req, struct _agooText *headers);
+extern int			gql_add_header(agooErr err, struct _agooText *headers, const char *key, const char *value);
 
 #endif // AGOO_GQLEVAL_H

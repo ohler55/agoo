@@ -30,6 +30,9 @@ typedef struct _typeClass {
 
 static VALUE		graphql_class = Qundef;
 static VALUE		vroot = Qnil;
+static VALUE		build_headers_func = Qnil;
+
+static ID		call_id;
 
 static TypeClass	type_class_map = NULL;
 
@@ -827,6 +830,80 @@ graphql_publish(VALUE self, VALUE subject, VALUE event) {
     return Qnil;
 }
 
+typedef struct _bhArgs {
+    agooErr	err;
+    agooReq	req;
+    agooText	headers;
+} *bhArgs;
+
+
+
+static VALUE
+rescue_build_header(VALUE x, VALUE ignore) {
+    bhArgs		args = (bhArgs)x;
+    volatile VALUE	info = rb_errinfo();
+    volatile VALUE	msg = rb_funcall(info, rb_intern("message"), 0);
+
+    agoo_err_set(args->err, AGOO_ERR_EVAL, "%s", rb_string_value_ptr(&msg));
+
+    return Qnil;
+}
+
+static int
+build_headers_cb(VALUE key, VALUE value, VALUE x) {
+    bhArgs		args = (bhArgs)x;
+    const char		*ks = rb_string_value_ptr((VALUE*)&key);
+    const char		*vs = rb_string_value_ptr((VALUE*)&value);
+
+    if (AGOO_ERR_OK != gql_add_header(args->err, args->headers, ks, vs)) {
+	rb_raise(rb_eStandardError, "%s", args->err->msg);
+    }
+    return ST_CONTINUE;
+}
+
+static VALUE
+inner_build_headers(VALUE x) {
+    volatile VALUE	hh = rb_funcall(build_headers_func, call_id, 1, request_wrap(((bhArgs)x)->req));
+
+    rb_hash_foreach(hh, build_headers_cb, x);
+
+    return Qnil;
+}
+
+static void*
+protected_build_headers(void *x) {
+    return (void*)rb_rescue2(inner_build_headers, (VALUE)x, rescue_build_header, (VALUE)x, rb_eException, 0);
+}
+
+static int
+build_headers(agooErr err, agooReq req, agooText headers) {
+    struct _bhArgs	args = {
+	.err = err,
+	.req = req,
+	.headers = headers,
+    };
+    rb_thread_call_with_gvl(protected_build_headers, &args);
+
+    return err->code;
+}
+
+/* Document-method: build_headers=
+ *
+ * call-seq: build_headers=(func)
+ *
+ * Provide a function to call that builds headers for GraphQL responses. The
+ * function should expect a single request and should return a Hash of the
+ * headers to add. Content-Type and Content-Length should not be set.
+ */
+static VALUE
+graphql_build_headers(VALUE self, VALUE func) {
+    gql_build_headers = build_headers;
+    build_headers_func = func;
+    rb_gc_register_address(&build_headers_func);
+
+    return Qnil;
+}
+
 /* Document-class: Agoo::Graphql
  *
  * The Agoo::GraphQL class provides support for the GraphQL API as defined in
@@ -851,4 +928,8 @@ graphql_init(VALUE mod) {
     rb_define_module_function(graphql_class, "sdl_dump", graphql_sdl_dump, 1);
 
     rb_define_module_function(graphql_class, "publish", graphql_publish, 2);
+
+    rb_define_module_function(graphql_class, "build_headers=", graphql_build_headers, 1);
+
+    call_id = rb_intern("call");
 }

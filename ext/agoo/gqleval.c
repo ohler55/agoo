@@ -36,8 +36,8 @@ static const char	query_str[] = "query";
 static const char	subscription_str[] = "subscription";
 static const char	variables_str[] = "variables";
 
-
 gqlValue	(*gql_doc_eval_func)(agooErr err, gqlDoc doc) = NULL;
+int		(*gql_build_headers)(agooErr err, agooReq req, agooText headers)  = NULL;
 
 static void
 err_resp(agooRes res, agooErr err, int status) {
@@ -93,25 +93,72 @@ value_resp(agooReq req, gqlValue result, int status, int indent) {
 	    break;
 	default:
 	    agoo_log_cat(&agoo_error_cat, "Did not expect an HTTP status of %d.", status);
-	    return;
+	    agoo_err_set(&err, AGOO_ERR_EVAL, "Did not expect an HTTP status of %d.", status);
+	    goto FAILED;
 	}
 	agoo_res_message_push(res, text);
 	return;
     }
     if (AGOO_ERR_OK != gql_object_set(&err, msg, "data", result)) {
-	err_resp(res, &err, 500);
-	gql_value_destroy(result);
-	return;
+	goto FAILED;
     }
     text = gql_value_json(text, msg, indent, 0);
     gql_value_destroy(msg); // also destroys result
+    result = NULL;
 
     cnt = snprintf(buf, sizeof(buf), "HTTP/1.1 %d %s\r\nContent-Type: application/json\r\nContent-Length: %ld\r\n\r\n",
 		   status, agoo_http_code_message(status), text->len);
-    if (NULL == (text = agoo_text_prepend(text, buf, cnt))) {
-	agoo_log_cat(&agoo_error_cat, "Failed to allocate memory for a response.");
+    if (NULL == gql_build_headers) {
+	if (NULL == (text = agoo_text_prepend(text, buf, cnt))) {
+	    agoo_log_cat(&agoo_error_cat, "Failed to allocate memory for a response.");
+	    return;
+	}
+    } else {
+	agooText	headers = agoo_text_allocate(4094);
+
+	headers = agoo_text_append(headers, buf, cnt - 2);
+	if (NULL == headers) {
+	    agoo_log_cat(&agoo_error_cat, "Failed to allocate memory for a response.");
+	    return;
+	}
+	if (AGOO_ERR_OK != gql_build_headers(&err, req, headers)) {
+	    goto FAILED;
+	}
+	headers = agoo_text_append(headers, "\r\n", 2);
+	if (NULL == headers) {
+	    agoo_log_cat(&agoo_error_cat, "Failed to allocate memory for a response.");
+	    return;
+	}
+	if (NULL == (text = agoo_text_prepend(text, headers->text, (int)headers->len))) {
+	    agoo_log_cat(&agoo_error_cat, "Failed to allocate memory for a response.");
+	    agoo_text_release(headers);
+	    return;
+	}
+	agoo_text_release(headers);
     }
     agoo_res_message_push(res, text);
+
+    return;
+
+FAILED:
+    err_resp(res, &err, 500);
+    if (NULL != result) {
+	gql_value_destroy(result);
+    }
+    return;
+}
+
+int
+gql_add_header(agooErr err, agooText headers, const char *key, const char *value) {
+    headers = agoo_text_append(headers, key, -1);
+    headers = agoo_text_append(headers, ": ", 2);
+    headers = agoo_text_append(headers, value, -1);
+    headers = agoo_text_append(headers, "\r\n", 2);
+
+    if (NULL == headers) {
+	AGOO_ERR_MEM(err, "headers");
+    }
+    return err->code;
 }
 
 gqlValue

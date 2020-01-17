@@ -7,6 +7,32 @@ todo
  - example
  -
 
+- option for adding headers to graphql
+ - gqleval.c
+  - value_resp()
+   - if not NULL function to add headers
+    - build with text.h then prepend
+    - build_headers(agooReq req, agooText headers)
+     - function to add header, reject content-type and content-length
+      - int ggql_add_header(agooErr err, const char *key, const char *value, agooText headers)
+
+ - allow Ruby calls to provide additional headers
+  - maybe a second return arg so check for array or not
+   - less than ideal
+  - ** or provide a function for the server that is called on each graphql
+   - least amount of changes
+  - add to request as target for adding headers
+   - means it is exposed to the rack implementation
+
+ - CORS
+  - Access-Control-Allow-Origin: origin
+   - get origin from request or *
+  - Access-Control-Allow-Headers: *
+   - if OPTIONS use value of request Access-Control-Request-Headers
+  - Access-Control-Allow-Credentials: true
+  - Access-Control-Max-Age: 3600
+
+
 - HTTP/2
  - upgrade connection to http/2 (h2)
   - handle like current conneciton but by stream instead for writing

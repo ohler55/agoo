@@ -8,7 +8,14 @@ Request GraphQL access
 
 ### Added
 
-- Optional addition of request information is no available in GraphQL resolve functions.
+- Optional addition of request information is now available in GraphQL resolve functions.
+
+- The @deprecated directive default value is now double quoted to
+  match what GraphiQL expected. It is inconsistent with all other
+  string values but it is needed to not cause GraphiQL to choke on the
+  response for loading a schema.
+
+- Headers for GraphQL responses can now be set.
 
 ## [2.11.7] - 2020-01-02
 

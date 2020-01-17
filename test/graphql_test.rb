@@ -226,6 +226,9 @@ directive @ruby(class: String!) on SCHEMA | OBJECT
     Agoo::GraphQL.schema(Schema.new) {
       Agoo::GraphQL.load($songs_sdl)
       Agoo::GraphQL.load($extend_sdl)
+      Agoo::GraphQL.build_headers = proc{ |req|
+	{ 'Set-Cookie' => 'UserID=Bozo; Max-Age=3600; Version=1' }
+      }
     }
     @@server_started = true
   end
@@ -283,6 +286,7 @@ directive @ruby(class: String!) on SCHEMA | OBJECT
     }
     content = res.body
     assert_equal('application/json', res['Content-Type'])
+    assert_equal('UserID=Bozo; Max-Age=3600; Version=1', res['Set-Cookie'])
     assert_equal(expect, content)
   end
 
