@@ -590,8 +590,7 @@ list_destroy(gqlValue value) {
 
     while (NULL != (link = value->members)) {
 	value->members = link->next;
-	gql_value_destroy(link->value);
-	AGOO_FREE(link);
+	gql_link_destroy(link);
     }
 }
 
@@ -679,9 +678,7 @@ object_destroy(gqlValue value) {
 
     while (NULL != (link = value->members)) {
 	value->members = link->next;
-	gql_value_destroy(link->value);
-	AGOO_FREE(link->key);
-	AGOO_FREE(link);
+	gql_link_destroy(link);
     }
 }
 
@@ -1572,6 +1569,9 @@ int
 gql_value_convert(agooErr err, gqlValue value, gqlType type) {
     int	code = AGOO_ERR_OK;
 
+    if (GQL_NON_NULL == type->kind) {
+	type = type->base;
+    }
     if (type != value->type) {
 	switch (type->scalar_kind) {
 	case GQL_SCALAR_BOOL:

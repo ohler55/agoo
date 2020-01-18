@@ -642,6 +642,13 @@ gql_eval_post_hook(agooReq req) {
     }
 }
 
+void
+gql_eval_options_hook(agooReq req) {
+    struct _agooErr	err = AGOO_ERR_INIT;
+
+    value_resp(req, gql_object_create(&err), 200, 0);
+}
+
 gqlValue
 gql_get_arg_value(gqlKeyVal args, const char *key) {
     gqlValue	value = NULL;

@@ -17,6 +17,8 @@ Request GraphQL access
 
 - Headers for GraphQL responses can now be set.
 
+- Fixed incorrect values in introspection responses.
+
 ## [2.11.7] - 2020-01-02
 
 Ruby 2.7.0 cleanup

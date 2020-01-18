@@ -123,6 +123,17 @@ puts %^\nopen 'localhost:6464/graphql?query={artist(name:"Fazerdaze"){name,songs
 Agoo::Server.init(6464, 'root', thread_count: 1, graphql: '/graphql')
 Agoo::Server.start
 Agoo::GraphQL.schema($schema) {Agoo::GraphQL.load_file('song.graphql')}
+#Agoo::GraphQL.schema($schema) {Agoo::GraphQL.load_file('schema.graphql')}
+# Use CORS to allow GraphiQL to connect.
+Agoo::GraphQL.build_headers = proc{ |req|
+  origin = req.headers['HTTP_ORIGIN'] || '*'
+  {
+    'Access-Control-Allow-Origin' => origin,
+    'Access-Control-Allow-Headers' => '*',
+    'Access-Control-Allow-Credentials' => true,
+    'Access-Control-Max-Age' => 3600,
+  }
+}
 
 # When starting with a thread_count over 0 just sleep until a ^C is
 # signalled. Agoo must be running to load the SDL.

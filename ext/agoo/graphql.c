@@ -517,8 +517,7 @@ gql_type_field(agooErr		err,
 	       gqlType		return_type,
 	       gqlValue		default_value,
 	       const char	*desc,
-	       size_t		dlen,
-	       bool		required) {
+	       size_t		dlen) {
     gqlField	f = (gqlField)AGOO_MALLOC(sizeof(struct _gqlField));
 
     if (NULL == f) {
@@ -538,7 +537,6 @@ gql_type_field(agooErr		err,
 	f->args = NULL;
 	f->dir = NULL;
 	f->default_value = default_value;
-	f->required = required;
 	if (NULL == type->fields) {
 	    type->fields = f;
 	} else {
@@ -559,8 +557,7 @@ gql_field_arg(agooErr		err,
 	      gqlType		type,
 	      const char	*desc,
 	      size_t		dlen,
-	      struct _gqlValue	*def_value,
-	      bool		required) {
+	      struct _gqlValue	*def_value) {
     gqlArg	a = (gqlArg)AGOO_MALLOC(sizeof(struct _gqlArg));
 
     if (NULL == a) {
@@ -579,7 +576,6 @@ gql_field_arg(agooErr		err,
 	}
 	a->default_value = def_value;
 	a->dir = NULL;
-	a->required = required;
 	if (NULL == field->args) {
 	    field->args = a;
 	} else {
@@ -600,8 +596,7 @@ gql_input_arg(agooErr		err,
 	      gqlType		type,
 	      const char	*desc,
 	      size_t		dlen,
-	      struct _gqlValue	*def_value,
-	      bool		required) {
+	      struct _gqlValue	*def_value) {
     gqlArg	a = (gqlArg)AGOO_MALLOC(sizeof(struct _gqlArg));
 
     if (NULL == a) {
@@ -620,7 +615,6 @@ gql_input_arg(agooErr		err,
 	}
 	a->default_value = def_value;
 	a->dir = NULL;
-	a->required = required;
 	if (NULL == input->args) {
 	    input->args = a;
 	} else {
@@ -801,8 +795,7 @@ gql_dir_arg(agooErr 		err,
 	    gqlType		type,
 	    const char	 	*desc,
 	    size_t		dlen,
-	    struct _gqlValue	*def_value,
-	    bool 		required) {
+	    struct _gqlValue	*def_value) {
 
     gqlArg	a = (gqlArg)AGOO_MALLOC(sizeof(struct _gqlArg));
 
@@ -822,7 +815,6 @@ gql_dir_arg(agooErr 		err,
 	}
 	a->default_value = def_value;
 	a->dir = NULL;
-	a->required = required;
 	if (NULL == dir->args) {
 	    dir->args = a;
 	} else {
@@ -863,11 +855,11 @@ gql_directive_on(agooErr err, gqlDir d, const char *on, int len) {
 }
 
 gqlType
-gql_assure_list(agooErr err, gqlType base, bool not_empty) {
+gql_assure_list(agooErr err, gqlType base) {
     char	name[256];
     gqlType	type;
 
-    if ((int)sizeof(name) <= snprintf(name, sizeof(name), "[%s%s]", base->name, not_empty ? "!" : "")) {
+    if ((int)sizeof(name) <= snprintf(name, sizeof(name), "[%s]", base->name)) {
 	agoo_err_set(err, AGOO_ERR_ARG, "Name too long");
 	return NULL;
     }
@@ -876,7 +868,24 @@ gql_assure_list(agooErr err, gqlType base, bool not_empty) {
 	    return NULL;
 	}
 	type->base = base;
-	type->not_empty = not_empty;
+    }
+    return type;
+}
+
+gqlType
+gql_assure_nonnull(agooErr err, gqlType base) {
+    char	name[256];
+    gqlType	type;
+
+    if ((int)sizeof(name) <= snprintf(name, sizeof(name), "%s!", base->name)) {
+	agoo_err_set(err, AGOO_ERR_ARG, "Name too long");
+	return NULL;
+    }
+    if (NULL == (type = gql_type_get(name))) {
+	if (NULL == (type = type_create(err, GQL_NON_NULL, name, NULL, 0))) {
+	    return NULL;
+	}
+	type->base = base;
     }
     return type;
 }
@@ -988,9 +997,6 @@ arg_sdl(agooText text, gqlArg a, bool with_desc, bool same_line, bool last) {
     if (NULL != a->type) { // should always be true
 	text = agoo_text_append(text, a->type->name, -1);
     }
-    if (a->required) {
-	text = agoo_text_append(text, "!", 1);
-    }
     if (NULL != a->default_value) {
 	text = agoo_text_append(text, " = ", 3);
 	text = gql_value_sdl(text, a->default_value, 0, 0);
@@ -1024,9 +1030,6 @@ field_sdl(agooText text, gqlField f, bool with_desc) {
     }
     text = agoo_text_append(text, ": ", 2);
     text = agoo_text_append(text, f->type->name, -1);
-    if (f->required) {
-	text = agoo_text_append(text, "!", 1);
-    }
     if (NULL != f->default_value) {
 	text = agoo_text_append(text, " = ", 3);
 	text = gql_value_sdl(text, f->default_value, 0, 0);
@@ -1216,6 +1219,7 @@ gql_schema_sdl(agooText text, bool with_desc, bool all) {
     if (0 < cnt) {
 	gqlType	types[cnt];
 	gqlType	*tp = types;
+	long	len;
 
 	for (bucket = buckets, i = 0; i < BUCKET_SIZE; bucket++, i++) {
 	    for (s = *bucket; NULL != s; s = s->next) {
@@ -1231,8 +1235,9 @@ gql_schema_sdl(agooText text, bool with_desc, bool all) {
 	}
 	qsort(types, cnt, sizeof(gqlType), type_cmp);
 	for (i = 0, tp = types; i < cnt; i++, tp++) {
+	    len = text->len;
 	    text = gql_type_sdl(text, *tp, with_desc);
-	    if (i < cnt - 1) {
+	    if (i < cnt - 1 && len < text->len) {
 		text = agoo_text_append(text, "\n", 1);
 	    }
 	}

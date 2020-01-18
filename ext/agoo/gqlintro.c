@@ -21,22 +21,30 @@ static int
 create_schema_type(agooErr err) {
     gqlType	type;
     gqlType	type_type;
-    gqlType	type_list;
+    gqlType	type_nn;
+    gqlType	type_nn_list;
+    gqlType	type_nn_list_nn;
     gqlType	dir_type;
-    gqlType	dir_list;
+    gqlType	dir_nn;
+    gqlType	dir_nn_list;
+    gqlType	dir_nn_list_nn;
 
     if (NULL == (type = gql_type_create(err, "__Schema", NULL, 0, NULL)) ||
 
 	NULL == (type_type = gql_assure_type(err, "__Type")) ||
-	NULL == (type_list = gql_assure_list(err, type_type, true)) ||
+	NULL == (type_nn = gql_assure_nonnull(err, type_type)) ||
+	NULL == (type_nn_list = gql_assure_list(err, type_nn)) ||
+	NULL == (type_nn_list_nn = gql_assure_nonnull(err, type_nn_list)) ||
 	NULL == (dir_type = gql_assure_type(err, "__Directive")) ||
-	NULL == (dir_list = gql_assure_list(err, dir_type, true)) ||
+	NULL == (dir_nn = gql_assure_nonnull(err, dir_type)) ||
+	NULL == (dir_nn_list = gql_assure_list(err, dir_nn)) ||
+	NULL == (dir_nn_list_nn = gql_assure_nonnull(err, dir_nn_list)) ||
 
-	NULL == gql_type_field(err, type, "types", type_list, NULL, NULL, 0, true) ||
-	NULL == gql_type_field(err, type, "queryType", type_type, NULL, NULL, 0, true) ||
-	NULL == gql_type_field(err, type, "mutationType", type_type, NULL, NULL, 0, false) ||
-	NULL == gql_type_field(err, type, "subscriptionType", type_type, NULL, NULL, 0, false) ||
-	NULL == gql_type_field(err, type, "directives", dir_list, NULL, NULL, 0, true)) {
+	NULL == gql_type_field(err, type, "types", type_nn_list_nn, NULL, NULL, 0) ||
+	NULL == gql_type_field(err, type, "queryType", type_nn, NULL, NULL, 0) ||
+	NULL == gql_type_field(err, type, "mutationType", type_type, NULL, NULL, 0) ||
+	NULL == gql_type_field(err, type, "subscriptionType", type_type, NULL, NULL, 0) ||
+	NULL == gql_type_field(err, type, "directives", dir_nn_list_nn, NULL, NULL, 0)) {
 
 	return err->code;
     }
@@ -63,34 +71,44 @@ create_type_type(agooErr err) {
     gqlField	enum_values = NULL;
     gqlValue	dv;
     gqlType	kind_type;
-    gqlType	type_list;
+    gqlType	kind_nn;
+    gqlType	type_nn;
+    gqlType	type_nn_list;
     gqlType	field_type;
+    gqlType	field_nn;
     gqlType	field_list;
     gqlType	enum_type;
-    gqlType	enum_list;
+    gqlType	enum_nn;
+    gqlType	enum_nn_list;
     gqlType	input_type;
-    gqlType	input_list;
+    gqlType	input_nn;
+    gqlType	input_nn_list;
 
     if (NULL == (type = gql_type_create(err, "__Type", NULL, 0, NULL)) ||
 
-	NULL == (type_list = gql_assure_list(err, type, true)) ||
+	NULL == (type_nn = gql_assure_nonnull(err, type)) ||
+	NULL == (type_nn_list = gql_assure_list(err, type_nn)) ||
 	NULL == (field_type = gql_assure_type(err, "__Field")) ||
-	NULL == (field_list = gql_assure_list(err, field_type, true)) ||
+	NULL == (field_nn = gql_assure_nonnull(err, field_type)) ||
+	NULL == (field_list = gql_assure_list(err, field_nn)) ||
 	NULL == (kind_type = gql_assure_type(err, "__TypeKind")) ||
+	NULL == (kind_nn = gql_assure_nonnull(err, kind_type)) ||
 	NULL == (enum_type = gql_assure_type(err, "__EnumValue")) ||
-	NULL == (enum_list = gql_assure_list(err, enum_type, true)) ||
+	NULL == (enum_nn = gql_assure_nonnull(err, enum_type)) ||
+	NULL == (enum_nn_list = gql_assure_list(err, enum_nn)) ||
 	NULL == (input_type = gql_assure_type(err, "__InputValue")) ||
-	NULL == (input_list = gql_assure_list(err, input_type, true)) ||
+	NULL == (input_nn = gql_assure_nonnull(err, input_type)) ||
+	NULL == (input_nn_list = gql_assure_list(err, input_nn)) ||
 
-	NULL == gql_type_field(err, type, "kind", kind_type, NULL, NULL, 0, true) ||
-	NULL == gql_type_field(err, type, "name", &gql_string_type, NULL, NULL, 0, false) ||
-	NULL == gql_type_field(err, type, "description", &gql_string_type, NULL, NULL, 0, false) ||
-	NULL == (fields = gql_type_field(err, type, "fields", field_list, NULL, NULL, 0, false)) ||
-	NULL == gql_type_field(err, type, "interfaces", type_list, NULL, NULL, 0, false) ||
-	NULL == gql_type_field(err, type, "possibleTypes", type_list, NULL, NULL, 0, false) ||
-	NULL == (enum_values = gql_type_field(err, type, "enumValues", enum_list, NULL, NULL, 0, false)) ||
-	NULL == gql_type_field(err, type, "inputFields", input_list, NULL, NULL, 0, false) ||
-	NULL == gql_type_field(err, type, "ofType", type, NULL, NULL, 0, false)) {
+	NULL == gql_type_field(err, type, "kind", kind_nn, NULL, NULL, 0) ||
+	NULL == gql_type_field(err, type, "name", &gql_string_type, NULL, NULL, 0) ||
+	NULL == gql_type_field(err, type, "description", &gql_string_type, NULL, NULL, 0) ||
+	NULL == (fields = gql_type_field(err, type, "fields", field_list, NULL, NULL, 0)) ||
+	NULL == gql_type_field(err, type, "interfaces", type_nn_list, NULL, NULL, 0) ||
+	NULL == gql_type_field(err, type, "possibleTypes", type_nn_list, NULL, NULL, 0) ||
+	NULL == (enum_values = gql_type_field(err, type, "enumValues", enum_nn_list, NULL, NULL, 0)) ||
+	NULL == gql_type_field(err, type, "inputFields", input_nn_list, NULL, NULL, 0) ||
+	NULL == gql_type_field(err, type, "ofType", type, NULL, NULL, 0)) {
 
 	return err->code;
     }
@@ -98,9 +116,9 @@ create_type_type(agooErr err) {
 
     if (NULL == (dv = gql_bool_create(err, false)) ||
 
-	NULL == gql_field_arg(err, fields, "includeDeprecated", &gql_bool_type, NULL, 0, dv, false) ||
+	NULL == gql_field_arg(err, fields, "includeDeprecated", &gql_bool_type, NULL, 0, dv) ||
 	NULL == (dv = gql_bool_create(err, false)) ||
-	NULL == gql_field_arg(err, enum_values, "includeDeprecated", &gql_bool_type, NULL, 0, dv, false)) {
+	NULL == gql_field_arg(err, enum_values, "includeDeprecated", &gql_bool_type, NULL, 0, dv)) {
 
 	return err->code;
     }
@@ -148,21 +166,31 @@ static int
 create_field_type(agooErr err) {
     gqlType	type;
     gqlType	type_type;
+    gqlType	type_nn;
     gqlType	input_type;
-    gqlType	input_list;
+    gqlType	input_nn;
+    gqlType	input_nn_list;
+    gqlType	input_nn_list_nn;
+    gqlType	string_nn;
+    gqlType	boolean_nn;
 
     if (NULL == (type = gql_type_create(err, "__Field", NULL, 0, NULL)) ||
 
+	NULL == (string_nn = gql_assure_nonnull(err, &gql_string_type)) ||
+	NULL == (boolean_nn = gql_assure_nonnull(err, &gql_bool_type)) ||
 	NULL == (type_type = gql_assure_type(err, "__Type")) ||
+	NULL == (type_nn = gql_assure_nonnull(err, type_type)) ||
 	NULL == (input_type = gql_assure_type(err, "__InputValue")) ||
-	NULL == (input_list = gql_assure_list(err, input_type, true)) ||
+	NULL == (input_nn = gql_assure_nonnull(err, input_type)) ||
+	NULL == (input_nn_list = gql_assure_list(err, input_nn)) ||
+	NULL == (input_nn_list_nn = gql_assure_nonnull(err, input_nn_list)) ||
 
-	NULL == gql_type_field(err, type, "name", &gql_string_type, NULL, NULL, 0, true) ||
-	NULL == gql_type_field(err, type, "description", &gql_string_type, NULL, NULL, 0, false) ||
-	NULL == gql_type_field(err, type, "args", input_list, NULL, NULL, 0, true) ||
-	NULL == gql_type_field(err, type, "type", type_type, NULL, NULL, 0, true) ||
-	NULL == gql_type_field(err, type, "isDeprecated", &gql_bool_type, NULL, NULL, 0, true) ||
-	NULL == gql_type_field(err, type, "deprecationReason", &gql_string_type, NULL, NULL, 0, false)) {
+	NULL == gql_type_field(err, type, "name", string_nn, NULL, NULL, 0) ||
+	NULL == gql_type_field(err, type, "description", &gql_string_type, NULL, NULL, 0) ||
+	NULL == gql_type_field(err, type, "args", input_nn_list_nn, NULL, NULL, 0) ||
+	NULL == gql_type_field(err, type, "type", type_nn, NULL, NULL, 0) ||
+	NULL == gql_type_field(err, type, "isDeprecated", boolean_nn, NULL, NULL, 0) ||
+	NULL == gql_type_field(err, type, "deprecationReason", &gql_string_type, NULL, NULL, 0)) {
 
 	return err->code;
     }
@@ -181,15 +209,19 @@ static int
 create_input_type(agooErr err) {
     gqlType	type;
     gqlType	type_type;
+    gqlType	type_nn;
+    gqlType	string_nn;
 
     if (NULL == (type = gql_type_create(err, "__InputValue", NULL, 0, NULL)) ||
 
+	NULL == (string_nn = gql_assure_nonnull(err, &gql_string_type)) ||
 	NULL == (type_type = gql_assure_type(err, "__Type")) ||
+	NULL == (type_nn = gql_assure_nonnull(err, type_type)) ||
 
-	NULL == gql_type_field(err, type, "name", &gql_string_type, NULL, NULL, 0, true) ||
-	NULL == gql_type_field(err, type, "description", &gql_string_type, NULL, NULL, 0, false) ||
-	NULL == gql_type_field(err, type, "type", type_type, NULL, NULL, 0, true) ||
-	NULL == gql_type_field(err, type, "defaultValue", &gql_string_type, NULL, NULL, 0, false)) {
+	NULL == gql_type_field(err, type, "name", string_nn, NULL, NULL, 0) ||
+	NULL == gql_type_field(err, type, "description", &gql_string_type, NULL, NULL, 0) ||
+	NULL == gql_type_field(err, type, "type", type_nn, NULL, NULL, 0) ||
+	NULL == gql_type_field(err, type, "defaultValue", &gql_string_type, NULL, NULL, 0)) {
 
 	return err->code;
     }
@@ -207,12 +239,18 @@ create_input_type(agooErr err) {
 static int
 create_enum_type(agooErr err) {
     gqlType	type;
+    gqlType	string_nn;
+    gqlType	boolean_nn;
 
     if (NULL == (type = gql_type_create(err, "__EnumValue", NULL, 0, NULL)) ||
-	NULL == gql_type_field(err, type, "name", &gql_string_type, NULL, NULL, 0, true) ||
-	NULL == gql_type_field(err, type, "description", &gql_string_type, NULL, NULL, 0, false) ||
-	NULL == gql_type_field(err, type, "isDeprecated", &gql_bool_type, NULL, NULL, 0, true) ||
-	NULL == gql_type_field(err, type, "deprecationReason", &gql_string_type, NULL, NULL, 0, false)) {
+
+	NULL == (string_nn = gql_assure_nonnull(err, &gql_string_type)) ||
+	NULL == (boolean_nn = gql_assure_nonnull(err, &gql_bool_type)) ||
+
+	NULL == gql_type_field(err, type, "name", string_nn, NULL, NULL, 0) ||
+	NULL == gql_type_field(err, type, "description", &gql_string_type, NULL, NULL, 0) ||
+	NULL == gql_type_field(err, type, "isDeprecated", &gql_bool_type, NULL, NULL, 0) ||
+	NULL == gql_type_field(err, type, "deprecationReason", &gql_string_type, NULL, NULL, 0)) {
 
 	return err->code;
     }
@@ -231,21 +269,31 @@ static int
 create_directive_type(agooErr err) {
     gqlType	type;
     gqlType	input_type;
-    gqlType	input_list;
+    gqlType	input_nn;
+    gqlType	input_nn_list;
+    gqlType	input_nn_list_nn;
     gqlType	loc_type;
-    gqlType	loc_list;
+    gqlType	loc_nn;
+    gqlType	loc_nn_list;
+    gqlType	loc_nn_list_nn;
+    gqlType	string_nn;
 
     if (NULL == (type = gql_type_create(err, "__Directive", NULL, 0, NULL)) ||
 
+	NULL == (string_nn = gql_assure_nonnull(err, &gql_string_type)) ||
 	NULL == (input_type = gql_assure_type(err, "__InputValue")) ||
-	NULL == (input_list = gql_assure_list(err, input_type, true)) ||
+	NULL == (input_nn = gql_assure_nonnull(err, input_type)) ||
+	NULL == (input_nn_list = gql_assure_list(err, input_nn)) ||
+	NULL == (input_nn_list_nn = gql_assure_nonnull(err, input_nn_list)) ||
 	NULL == (loc_type = gql_assure_type(err, "__DirectiveLocation")) ||
-	NULL == (loc_list = gql_assure_list(err, loc_type, true)) ||
+	NULL == (loc_nn = gql_assure_nonnull(err, loc_type)) ||
+	NULL == (loc_nn_list = gql_assure_list(err, loc_nn)) ||
+	NULL == (loc_nn_list_nn = gql_assure_nonnull(err, loc_nn_list)) ||
 
-	NULL == gql_type_field(err, type, "name", &gql_string_type, NULL, NULL, 0, true) ||
-	NULL == gql_type_field(err, type, "description", &gql_string_type, NULL, NULL, 0, false) ||
-	NULL == gql_type_field(err, type, "locations", loc_list, NULL, NULL, 0, true) ||
-	NULL == gql_type_field(err, type, "args", input_list, NULL, NULL, 0, true)) {
+	NULL == gql_type_field(err, type, "name", string_nn, NULL, NULL, 0) ||
+	NULL == gql_type_field(err, type, "description", &gql_string_type, NULL, NULL, 0) ||
+	NULL == gql_type_field(err, type, "locations", loc_nn_list_nn, NULL, NULL, 0) ||
+	NULL == gql_type_field(err, type, "args", input_nn_list_nn, NULL, NULL, 0)) {
 
 	return err->code;
     }
@@ -302,7 +350,7 @@ create_dir_skip(agooErr err) {
     if (AGOO_ERR_OK != gql_directive_on(err, dir, "FIELD", -1) ||
 	AGOO_ERR_OK != gql_directive_on(err, dir, "FRAGMENT_SPREAD", -1) ||
 	AGOO_ERR_OK != gql_directive_on(err, dir, "INLINE_FRAGMENT", -1) ||
-	NULL == gql_dir_arg(err, dir, "if", &gql_bool_type, NULL, -1, NULL, true)) {
+	NULL == gql_dir_arg(err, dir, "if", &gql_bool_type, NULL, -1, NULL)) {
 
 	return err->code;
     }
@@ -320,7 +368,7 @@ create_dir_include(agooErr err) {
     if (AGOO_ERR_OK != gql_directive_on(err, dir, "FIELD", -1) ||
 	AGOO_ERR_OK != gql_directive_on(err, dir, "FRAGMENT_SPREAD", -1) ||
 	AGOO_ERR_OK != gql_directive_on(err, dir, "INLINE_FRAGMENT", -1) ||
-	NULL == gql_dir_arg(err, dir, "if", &gql_bool_type, NULL, 0, NULL, true)) {
+	NULL == gql_dir_arg(err, dir, "if", &gql_bool_type, NULL, 0, NULL)) {
 
 	return err->code;
     }
@@ -339,7 +387,7 @@ create_dir_deprecated(agooErr err) {
     if (AGOO_ERR_OK != gql_directive_on(err, dir, "FIELD_DEFINITION", -1) ||
 	AGOO_ERR_OK != gql_directive_on(err, dir, "ENUM_VALUE", -1) ||
 	NULL == (dv = gql_string_create(err, "No longer supported", -1)) ||
-	NULL == gql_dir_arg(err, dir, "reason", &gql_string_type, NULL, -1, dv, false)) {
+	NULL == gql_dir_arg(err, dir, "reason", &gql_string_type, NULL, -1, dv)) {
 
 	return err->code;
     }
@@ -843,6 +891,7 @@ type_kind(agooErr err, gqlDoc doc, gqlCobj obj, gqlField field, gqlSel sel, gqlV
     case GQL_ENUM:	kind = "ENUM";		break;
     case GQL_SCALAR:	kind = "SCALAR";	break;
     case GQL_LIST:	kind = "LIST";		break;
+    case GQL_NON_NULL:	kind = "NON_NULL";	break;
     default:
 	return agoo_err_set(err, AGOO_ERR_ARG, "__Type kind (%d) field not valid. %s:%d", ((gqlType)obj->ptr)->kind, __FILE__, __LINE__);
     }
@@ -896,6 +945,13 @@ type_fields(agooErr err, gqlDoc doc, gqlCobj obj, gqlField field, gqlSel sel, gq
     gqlValue		a = gql_extract_arg(err, field, sel, "includeDeprecated");
     bool		inc_dep = false;
 
+    if (NULL != sel->alias) {
+	key = sel->alias;
+    }
+    if (NULL == list ||
+	AGOO_ERR_OK != gql_object_set(err, result, key, list)) {
+	return err->code;
+    }
     if (GQL_OBJECT != type->kind && GQL_SCHEMA != type->kind && GQL_INTERFACE != type->kind) {
 	if (NULL == (co = gql_null_create(err)) ||
 	    AGOO_ERR_OK != gql_list_append(err, list, co)) {
@@ -905,13 +961,6 @@ type_fields(agooErr err, gqlDoc doc, gqlCobj obj, gqlField field, gqlSel sel, gq
     }
     if (NULL != a && GQL_SCALAR_BOOL == a->type->scalar_kind && a->b) {
 	inc_dep = true;
-    }
-    if (NULL != sel->alias) {
-	key = sel->alias;
-    }
-    if (NULL == list ||
-	AGOO_ERR_OK != gql_object_set(err, result, key, list)) {
-	return err->code;
     }
     memset(&cf, 0, sizeof(cf));
     cf.type = sel->type->base;
@@ -944,19 +993,19 @@ type_interfaces(agooErr err, gqlDoc doc, gqlCobj obj, gqlField field, gqlSel sel
     struct _gqlCobj	child = { .clas = &type_class };
     int			d2 = depth + 1;
 
-    if (GQL_OBJECT != type->kind) {
-	if (NULL == (co = gql_null_create(err)) ||
-	    AGOO_ERR_OK != gql_list_append(err, list, co)) {
-	    return err->code;
-	}
-	return AGOO_ERR_OK;
-    }
     if (NULL != sel->alias) {
 	key = sel->alias;
     }
     if (NULL == list ||
 	AGOO_ERR_OK != gql_object_set(err, result, key, list)) {
 	return err->code;
+    }
+    if (GQL_OBJECT != type->kind) {
+	if (NULL == (co = gql_null_create(err)) ||
+	    AGOO_ERR_OK != gql_list_append(err, list, co)) {
+	    return err->code;
+	}
+	return AGOO_ERR_OK;
     }
     memset(&cf, 0, sizeof(cf));
     cf.type = sel->type->base;
@@ -1005,7 +1054,7 @@ possible_cb(gqlType type, void *ctx) {
     if (AGOO_ERR_OK != pc->err->code) {
 	return;
     }
-    if (GQL_LIST != type->kind && has_interface(type, pc->interface)) {
+    if (GQL_OBJECT == type->kind && has_interface(type, pc->interface)) {
 	gqlValue	co;
 
 	if (NULL == (co = gql_object_create(pc->err)) ||
@@ -1022,8 +1071,8 @@ type_possible_types(agooErr err, gqlDoc doc, gqlCobj obj, gqlField field, gqlSel
     gqlType		type = (gqlType)obj->ptr;
     const char		*key = sel->name;
     gqlTypeLink    	tl;
-    gqlValue		list = gql_list_create(err, NULL);
     gqlValue		co;
+    gqlValue		list;
     struct _gqlField	cf;
     struct _gqlCobj	child = { .clas = &type_class };
     int			d2 = depth + 1;
@@ -1031,15 +1080,12 @@ type_possible_types(agooErr err, gqlDoc doc, gqlCobj obj, gqlField field, gqlSel
     if (NULL != sel->alias) {
 	key = sel->alias;
     }
-    if (NULL == list ||
-	AGOO_ERR_OK != gql_object_set(err, result, key, list)) {
-	return err->code;
-    }
     memset(&cf, 0, sizeof(cf));
     cf.type = sel->type->base;
 
     switch (type->kind) {
     case GQL_INTERFACE: {
+	list = gql_list_create(err, NULL);
 	struct _posCtx	pc = {
 	    .err = err,
 	    .doc = doc,
@@ -1050,11 +1096,18 @@ type_possible_types(agooErr err, gqlDoc doc, gqlCobj obj, gqlField field, gqlSel
 	    .child = &child,
 	    .cf = &cf,
 	};
-
+	if (NULL == list ||
+	    AGOO_ERR_OK != gql_object_set(err, result, key, list)) {
+	    return err->code;
+	}
 	gql_type_iterate(possible_cb, &pc);
 	break;
     }
     case GQL_UNION:
+	if (NULL == (list = gql_list_create(err, NULL)) ||
+	    AGOO_ERR_OK != gql_object_set(err, result, key, list)) {
+	    return err->code;
+	}
 	for (tl = type->types; NULL != tl; tl = tl->next) {
 	    if (NULL == (co = gql_object_create(err)) ||
 		AGOO_ERR_OK != gql_list_append(err, list, co)) {
@@ -1067,10 +1120,11 @@ type_possible_types(agooErr err, gqlDoc doc, gqlCobj obj, gqlField field, gqlSel
 	}
 	break;
     default:
-	if (NULL == (co = gql_null_create(err)) ||
-	    AGOO_ERR_OK != gql_list_append(err, list, co)) {
+	if (NULL == (list = gql_null_create(err)) ||
+	    AGOO_ERR_OK != gql_object_set(err, result, key, list)) {
 	    return err->code;
 	}
+	break;
     }
     return AGOO_ERR_OK;
 }
@@ -1090,6 +1144,13 @@ type_enum_values(agooErr err, gqlDoc doc, gqlCobj obj, gqlField field, gqlSel se
     gqlValue		a = gql_extract_arg(err, field, sel, "includeDeprecated");
     bool		inc_dep = false;
 
+    if (NULL != sel->alias) {
+	key = sel->alias;
+    }
+    if (NULL == list ||
+	AGOO_ERR_OK != gql_object_set(err, result, key, list)) {
+	return err->code;
+    }
     if (GQL_ENUM != type->kind) {
 	if (NULL == (co = gql_null_create(err)) ||
 	    AGOO_ERR_OK != gql_list_append(err, list, co)) {
@@ -1099,13 +1160,6 @@ type_enum_values(agooErr err, gqlDoc doc, gqlCobj obj, gqlField field, gqlSel se
     }
     if (NULL != a && GQL_SCALAR_BOOL == a->type->scalar_kind && a->b) {
 	inc_dep = true;
-    }
-    if (NULL != sel->alias) {
-	key = sel->alias;
-    }
-    if (NULL == list ||
-	AGOO_ERR_OK != gql_object_set(err, result, key, list)) {
-	return err->code;
     }
     memset(&cf, 0, sizeof(cf));
     cf.type = sel->type->base;
@@ -1138,19 +1192,19 @@ type_input_fields(agooErr err, gqlDoc doc, gqlCobj obj, gqlField field, gqlSel s
     struct _gqlCobj	child = { .clas = &input_value_class };
     int			d2 = depth + 1;
 
-    if (GQL_INPUT != type->kind) {
-	if (NULL == (co = gql_null_create(err)) ||
-	    AGOO_ERR_OK != gql_list_append(err, list, co)) {
-	    return err->code;
-	}
-	return AGOO_ERR_OK;
-    }
     if (NULL != sel->alias) {
 	key = sel->alias;
     }
     if (NULL == list ||
 	AGOO_ERR_OK != gql_object_set(err, result, key, list)) {
 	return err->code;
+    }
+    if (GQL_INPUT != type->kind) {
+	if (NULL == (co = gql_null_create(err)) ||
+	    AGOO_ERR_OK != gql_list_append(err, list, co)) {
+	    return err->code;
+	}
+	return AGOO_ERR_OK;
     }
     memset(&cf, 0, sizeof(cf));
     cf.type = sel->type->base;

@@ -209,6 +209,7 @@ configure(agooErr err, int port, const char *root, VALUE options) {
 	    agooHook	dump_hook;
 	    agooHook	get_hook;
 	    agooHook	post_hook;
+	    agooHook	options_hook;
 	    char	schema_path[256];
 	    long	plen;
 
@@ -227,9 +228,11 @@ configure(agooErr err, int port, const char *root, VALUE options) {
 	    dump_hook = agoo_hook_func_create(AGOO_GET, schema_path, gql_dump_hook, &agoo_server.eval_queue);
 	    get_hook = agoo_hook_func_create(AGOO_GET, path, gql_eval_get_hook, &agoo_server.eval_queue);
 	    post_hook = agoo_hook_func_create(AGOO_POST, path, gql_eval_post_hook, &agoo_server.eval_queue);
+	    options_hook = agoo_hook_func_create(AGOO_OPTIONS, path, gql_eval_options_hook, &agoo_server.eval_queue);
 	    dump_hook->next = get_hook;
 	    get_hook->next = post_hook;
-	    post_hook->next = agoo_server.hooks;
+	    post_hook->next = options_hook;
+	    options_hook->next = agoo_server.hooks;
 	    agoo_server.hooks = dump_hook;
 	}
 	if (Qnil != (v = rb_hash_lookup(options, ID2SYM(rb_intern("quiet"))))) {

@@ -28,6 +28,12 @@ typedef struct _typeClass {
     const char	*classname;
 } *TypeClass;
 
+typedef struct _bhArgs {
+    agooErr	err;
+    agooReq	req;
+    agooText	headers;
+} *bhArgs;
+
 static VALUE		graphql_class = Qundef;
 static VALUE		vroot = Qnil;
 static VALUE		build_headers_func = Qnil;
@@ -57,7 +63,7 @@ make_ruby_use(agooErr    err,
 	return agoo_err_set(err, AGOO_ERR_ARG, "Failed to find the '%s' type.", type_name);
     }
     if (fresh) {
-	if (NULL == gql_type_field(err, schema_type, method, type, NULL, desc, 0, false)) {
+	if (NULL == gql_type_field(err, schema_type, method, type, NULL, desc, 0)) {
 	    return err->code;
 	}
     }
@@ -234,6 +240,9 @@ coerce(agooErr err, gqlRef ref, gqlType type) {
 
     if (Qnil == (VALUE)ref) {
 	return gql_null_create(err);
+    }
+    if (NULL != type && GQL_NON_NULL == type->kind) {
+	type = type->base;
     }
     if (NULL == type) {
 	// This is really an error but make a best effort anyway.
@@ -642,7 +651,7 @@ graphql_schema(VALUE self, VALUE root) {
 	printf("*-*-* %s\n", err.msg);
 	exit(2);
     }
-    if (NULL == gql_dir_arg(&err, dir, "class", &gql_string_type, NULL, 0, NULL, true)) {
+    if (NULL == gql_dir_arg(&err, dir, "class", &gql_string_type, NULL, 0, NULL)) {
 	printf("*-*-* %s\n", err.msg);
 	exit(3);
     }
@@ -830,14 +839,6 @@ graphql_publish(VALUE self, VALUE subject, VALUE event) {
     return Qnil;
 }
 
-typedef struct _bhArgs {
-    agooErr	err;
-    agooReq	req;
-    agooText	headers;
-} *bhArgs;
-
-
-
 static VALUE
 rescue_build_header(VALUE x, VALUE ignore) {
     bhArgs		args = (bhArgs)x;
@@ -853,9 +854,10 @@ static int
 build_headers_cb(VALUE key, VALUE value, VALUE x) {
     bhArgs		args = (bhArgs)x;
     const char		*ks = rb_string_value_ptr((VALUE*)&key);
-    const char		*vs = rb_string_value_ptr((VALUE*)&value);
+    volatile VALUE	vs = rb_obj_as_string(value);
+    const char		*s = rb_string_value_ptr((VALUE*)&vs);
 
-    if (AGOO_ERR_OK != gql_add_header(args->err, args->headers, ks, vs)) {
+    if (AGOO_ERR_OK != gql_add_header(args->err, args->headers, ks, s)) {
 	rb_raise(rb_eStandardError, "%s", args->err->msg);
     }
     return ST_CONTINUE;
