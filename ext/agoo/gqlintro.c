@@ -249,7 +249,7 @@ create_enum_type(agooErr err) {
 
 	NULL == gql_type_field(err, type, "name", string_nn, NULL, NULL, 0) ||
 	NULL == gql_type_field(err, type, "description", &gql_string_type, NULL, NULL, 0) ||
-	NULL == gql_type_field(err, type, "isDeprecated", &gql_bool_type, NULL, NULL, 0) ||
+	NULL == gql_type_field(err, type, "isDeprecated", boolean_nn, NULL, NULL, 0) ||
 	NULL == gql_type_field(err, type, "deprecationReason", &gql_string_type, NULL, NULL, 0)) {
 
 	return err->code;
@@ -342,15 +342,18 @@ create_directive_location_type(agooErr err) {
 static int
 create_dir_skip(agooErr err) {
     gqlDir	dir = gql_directive_create(err, "skip", NULL, 0);
+    gqlType	boolean_nn;
 
     if (NULL == dir) {
 	return err->code;
     }
     dir->core = true;
-    if (AGOO_ERR_OK != gql_directive_on(err, dir, "FIELD", -1) ||
+    if (NULL == (boolean_nn = gql_assure_nonnull(err, &gql_bool_type)) ||
+
+	AGOO_ERR_OK != gql_directive_on(err, dir, "FIELD", -1) ||
 	AGOO_ERR_OK != gql_directive_on(err, dir, "FRAGMENT_SPREAD", -1) ||
 	AGOO_ERR_OK != gql_directive_on(err, dir, "INLINE_FRAGMENT", -1) ||
-	NULL == gql_dir_arg(err, dir, "if", &gql_bool_type, NULL, -1, NULL)) {
+	NULL == gql_dir_arg(err, dir, "if", boolean_nn, NULL, -1, NULL)) {
 
 	return err->code;
     }
@@ -360,15 +363,18 @@ create_dir_skip(agooErr err) {
 static int
 create_dir_include(agooErr err) {
     gqlDir	dir = gql_directive_create(err, "include", NULL, 0);
+    gqlType	boolean_nn;
 
     if (NULL == dir) {
 	return err->code;
     }
     dir->core = true;
-    if (AGOO_ERR_OK != gql_directive_on(err, dir, "FIELD", -1) ||
+    if (NULL == (boolean_nn = gql_assure_nonnull(err, &gql_bool_type)) ||
+
+	AGOO_ERR_OK != gql_directive_on(err, dir, "FIELD", -1) ||
 	AGOO_ERR_OK != gql_directive_on(err, dir, "FRAGMENT_SPREAD", -1) ||
 	AGOO_ERR_OK != gql_directive_on(err, dir, "INLINE_FRAGMENT", -1) ||
-	NULL == gql_dir_arg(err, dir, "if", &gql_bool_type, NULL, 0, NULL)) {
+	NULL == gql_dir_arg(err, dir, "if", boolean_nn, NULL, 0, NULL)) {
 
 	return err->code;
     }
@@ -404,9 +410,9 @@ gql_intro_init(agooErr err) {
 	AGOO_ERR_OK != create_directive_location_type(err) ||
 	AGOO_ERR_OK != create_directive_type(err) ||
 	AGOO_ERR_OK != create_schema_type(err) ||
-	AGOO_ERR_OK != create_dir_deprecated(err) ||
+	AGOO_ERR_OK != create_dir_skip(err) ||
 	AGOO_ERR_OK != create_dir_include(err) ||
-	AGOO_ERR_OK != create_dir_skip(err)) {
+	AGOO_ERR_OK != create_dir_deprecated(err)) {
 
 	return err->code;
     }
@@ -937,7 +943,7 @@ type_fields(agooErr err, gqlDoc doc, gqlCobj obj, gqlField field, gqlSel sel, gq
     gqlType		type = (gqlType)obj->ptr;
     const char		*key = sel->name;
     gqlField		f;
-    gqlValue		list = gql_list_create(err, NULL);
+    gqlValue		list;
     gqlValue		co;
     struct _gqlField	cf;
     struct _gqlCobj	child = { .clas = &field_class };
@@ -948,16 +954,16 @@ type_fields(agooErr err, gqlDoc doc, gqlCobj obj, gqlField field, gqlSel sel, gq
     if (NULL != sel->alias) {
 	key = sel->alias;
     }
-    if (NULL == list ||
-	AGOO_ERR_OK != gql_object_set(err, result, key, list)) {
-	return err->code;
-    }
     if (GQL_OBJECT != type->kind && GQL_SCHEMA != type->kind && GQL_INTERFACE != type->kind) {
-	if (NULL == (co = gql_null_create(err)) ||
-	    AGOO_ERR_OK != gql_list_append(err, list, co)) {
+	if (NULL == (list = gql_null_create(err)) ||
+	    AGOO_ERR_OK != gql_object_set(err, result, key, list)) {
 	    return err->code;
 	}
 	return AGOO_ERR_OK;
+    }
+    if (NULL == (list = gql_list_create(err, NULL)) ||
+	AGOO_ERR_OK != gql_object_set(err, result, key, list)) {
+	return err->code;
     }
     if (NULL != a && GQL_SCALAR_BOOL == a->type->scalar_kind && a->b) {
 	inc_dep = true;
@@ -987,7 +993,7 @@ type_interfaces(agooErr err, gqlDoc doc, gqlCobj obj, gqlField field, gqlSel sel
     gqlType		type = (gqlType)obj->ptr;
     const char		*key = sel->name;
     gqlTypeLink    	tl;
-    gqlValue		list = gql_list_create(err, NULL);
+    gqlValue		list;
     gqlValue		co;
     struct _gqlField	cf;
     struct _gqlCobj	child = { .clas = &type_class };
@@ -996,16 +1002,16 @@ type_interfaces(agooErr err, gqlDoc doc, gqlCobj obj, gqlField field, gqlSel sel
     if (NULL != sel->alias) {
 	key = sel->alias;
     }
-    if (NULL == list ||
-	AGOO_ERR_OK != gql_object_set(err, result, key, list)) {
-	return err->code;
-    }
     if (GQL_OBJECT != type->kind) {
-	if (NULL == (co = gql_null_create(err)) ||
-	    AGOO_ERR_OK != gql_list_append(err, list, co)) {
+	if (NULL == (list = gql_null_create(err)) ||
+	    AGOO_ERR_OK != gql_object_set(err, result, key, list)) {
 	    return err->code;
 	}
 	return AGOO_ERR_OK;
+    }
+    if (NULL == (list = gql_list_create(err, NULL)) ||
+	AGOO_ERR_OK != gql_object_set(err, result, key, list)) {
+	return err->code;
     }
     memset(&cf, 0, sizeof(cf));
     cf.type = sel->type->base;
@@ -1019,6 +1025,18 @@ type_interfaces(agooErr err, gqlDoc doc, gqlCobj obj, gqlField field, gqlSel sel
 	    return err->code;
 	}
     }
+    // The spec indicates the type is [__Type!] and makes a comment that is
+    // should be non-null for Objects only. GraphiQL expected an empty list
+    // which contradicts the spec.
+    /*
+    if (NULL == list->members) {
+	gql_value_destroy(list);
+	if (NULL == (list = gql_null_create(err)) ||
+	    AGOO_ERR_OK != gql_object_set(err, result, key, list)) {
+	    return err->code;
+	}
+    }
+    */
     return AGOO_ERR_OK;
 }
 
@@ -1136,7 +1154,7 @@ type_enum_values(agooErr err, gqlDoc doc, gqlCobj obj, gqlField field, gqlSel se
     gqlType		type = (gqlType)obj->ptr;
     const char		*key = sel->name;
     gqlEnumVal		c;
-    gqlValue		list = gql_list_create(err, NULL);
+    gqlValue		list;
     gqlValue		co;
     struct _gqlField	cf;
     struct _gqlCobj	child = { .clas = &enum_value_class };
@@ -1147,16 +1165,16 @@ type_enum_values(agooErr err, gqlDoc doc, gqlCobj obj, gqlField field, gqlSel se
     if (NULL != sel->alias) {
 	key = sel->alias;
     }
-    if (NULL == list ||
-	AGOO_ERR_OK != gql_object_set(err, result, key, list)) {
-	return err->code;
-    }
     if (GQL_ENUM != type->kind) {
-	if (NULL == (co = gql_null_create(err)) ||
-	    AGOO_ERR_OK != gql_list_append(err, list, co)) {
+	if (NULL == (list = gql_null_create(err)) ||
+	    AGOO_ERR_OK != gql_object_set(err, result, key, list)) {
 	    return err->code;
 	}
 	return AGOO_ERR_OK;
+    }
+    if (NULL == (list = gql_list_create(err, NULL)) ||
+	AGOO_ERR_OK != gql_object_set(err, result, key, list)) {
+	return err->code;
     }
     if (NULL != a && GQL_SCALAR_BOOL == a->type->scalar_kind && a->b) {
 	inc_dep = true;
@@ -1186,7 +1204,7 @@ type_input_fields(agooErr err, gqlDoc doc, gqlCobj obj, gqlField field, gqlSel s
     gqlType		type = (gqlType)obj->ptr;
     const char		*key = sel->name;
     gqlArg		a;
-    gqlValue		list = gql_list_create(err, NULL);
+    gqlValue		list;
     gqlValue		co;
     struct _gqlField	cf;
     struct _gqlCobj	child = { .clas = &input_value_class };
@@ -1195,16 +1213,16 @@ type_input_fields(agooErr err, gqlDoc doc, gqlCobj obj, gqlField field, gqlSel s
     if (NULL != sel->alias) {
 	key = sel->alias;
     }
-    if (NULL == list ||
-	AGOO_ERR_OK != gql_object_set(err, result, key, list)) {
-	return err->code;
-    }
     if (GQL_INPUT != type->kind) {
-	if (NULL == (co = gql_null_create(err)) ||
-	    AGOO_ERR_OK != gql_list_append(err, list, co)) {
+	if (NULL == (list = gql_null_create(err)) ||
+	    AGOO_ERR_OK != gql_object_set(err, result, key, list)) {
 	    return err->code;
 	}
 	return AGOO_ERR_OK;
+    }
+    if (NULL == (list = gql_list_create(err, NULL)) ||
+	AGOO_ERR_OK != gql_object_set(err, result, key, list)) {
+	return err->code;
     }
     memset(&cf, 0, sizeof(cf));
     cf.type = sel->type->base;
@@ -1283,7 +1301,7 @@ schema_types_cb(gqlType type, void *ctx) {
     struct _gqlCobj	child = { .clas = &type_class, .ptr = (void*)type };
     struct _gqlField	cf;
 
-    if (AGOO_ERR_OK != scc->err->code || GQL_LIST == type->kind) {
+    if (AGOO_ERR_OK != scc->err->code || GQL_LIST == type->kind || GQL_NON_NULL == type->kind) {
 	return;
     }
     memset(&cf, 0, sizeof(cf));

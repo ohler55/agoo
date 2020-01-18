@@ -1224,7 +1224,7 @@ gql_schema_sdl(agooText text, bool with_desc, bool all) {
 	for (bucket = buckets, i = 0; i < BUCKET_SIZE; bucket++, i++) {
 	    for (s = *bucket; NULL != s; s = s->next) {
 		type = s->type;
-		if (GQL_LIST == type->kind) {
+		if (GQL_LIST == type->kind || GQL_NON_NULL == type->kind) {
 		    continue;
 		}
 		if (!all && type->core) {
