@@ -10,7 +10,7 @@ todo
 - build headers
  - provide static version in rgraphql
   - headers({})
-   - build a text and just append each time
+   - build a text and set gql_headers
 
 
  - CORS

@@ -37,7 +37,8 @@ static const char	subscription_str[] = "subscription";
 static const char	variables_str[] = "variables";
 
 gqlValue	(*gql_doc_eval_func)(agooErr err, gqlDoc doc) = NULL;
-int		(*gql_build_headers)(agooErr err, agooReq req, agooText headers)  = NULL;
+agooText	(*gql_build_headers)(agooErr err, agooReq req, agooText headers)  = NULL;
+agooText	gql_headers = NULL;
 
 static void
 err_resp(agooRes res, agooErr err, int status) {
@@ -108,12 +109,7 @@ value_resp(agooReq req, gqlValue result, int status, int indent) {
 
     cnt = snprintf(buf, sizeof(buf), "HTTP/1.1 %d %s\r\nContent-Type: application/json\r\nContent-Length: %ld\r\n\r\n",
 		   status, agoo_http_code_message(status), text->len);
-    if (NULL == gql_build_headers) {
-	if (NULL == (text = agoo_text_prepend(text, buf, cnt))) {
-	    agoo_log_cat(&agoo_error_cat, "Failed to allocate memory for a response.");
-	    return;
-	}
-    } else {
+    if (NULL != gql_headers || NULL != gql_build_headers) {
 	agooText	headers = agoo_text_allocate(4094);
 
 	headers = agoo_text_append(headers, buf, cnt - 2);
@@ -121,8 +117,10 @@ value_resp(agooReq req, gqlValue result, int status, int indent) {
 	    agoo_log_cat(&agoo_error_cat, "Failed to allocate memory for a response.");
 	    return;
 	}
-	if (AGOO_ERR_OK != gql_build_headers(&err, req, headers)) {
-	    goto FAILED;
+	if (NULL != gql_headers) {
+	    headers = agoo_text_append(headers, gql_headers->text, (int)gql_headers->len);
+	} else {
+	    headers = gql_build_headers(&err, req, headers);
 	}
 	headers = agoo_text_append(headers, "\r\n", 2);
 	if (NULL == headers) {
@@ -135,6 +133,11 @@ value_resp(agooReq req, gqlValue result, int status, int indent) {
 	    return;
 	}
 	agoo_text_release(headers);
+    } else {
+	if (NULL == (text = agoo_text_prepend(text, buf, cnt))) {
+	    agoo_log_cat(&agoo_error_cat, "Failed to allocate memory for a response.");
+	    return;
+	}
     }
     agoo_res_message_push(res, text);
 
@@ -148,7 +151,7 @@ FAILED:
     return;
 }
 
-int
+agooText
 gql_add_header(agooErr err, agooText headers, const char *key, const char *value) {
     headers = agoo_text_append(headers, key, -1);
     headers = agoo_text_append(headers, ": ", 2);
@@ -158,7 +161,7 @@ gql_add_header(agooErr err, agooText headers, const char *key, const char *value
     if (NULL == headers) {
 	AGOO_ERR_MEM(err, "headers");
     }
-    return err->code;
+    return headers;
 }
 
 gqlValue

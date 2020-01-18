@@ -50,7 +50,8 @@ extern gqlRef			(*gql_root_op)(const char *op);
 
 extern struct _gqlValue*	(*gql_doc_eval_func)(agooErr err, struct _gqlDoc *doc);
 
-extern int			(*gql_build_headers)(agooErr err, struct _agooReq *req, struct _agooText *headers);
-extern int			gql_add_header(agooErr err, struct _agooText *headers, const char *key, const char *value);
+extern struct _agooText*	(*gql_build_headers)(agooErr err, struct _agooReq *req, struct _agooText *headers);
+extern struct _agooText*	gql_add_header(agooErr err, struct _agooText *headers, const char *key, const char *value);
+extern struct _agooText*	gql_headers;
 
 #endif // AGOO_GQLEVAL_H

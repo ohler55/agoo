@@ -639,6 +639,7 @@ graphql_schema(VALUE self, VALUE root) {
     gqlDirUse		use;
     gqlType		schema_type;
     bool		fresh = false;
+    gqlType		string_nn;
 
     if (!rb_block_given_p()) {
 	rb_raise(rb_eStandardError, "A block is required.");
@@ -651,7 +652,8 @@ graphql_schema(VALUE self, VALUE root) {
 	printf("*-*-* %s\n", err.msg);
 	exit(2);
     }
-    if (NULL == gql_dir_arg(&err, dir, "class", &gql_string_type, NULL, 0, NULL)) {
+    if (NULL == (string_nn = gql_assure_nonnull(&err, &gql_string_type)) ||
+	NULL == gql_dir_arg(&err, dir, "class", string_nn, NULL, 0, NULL)) {
 	printf("*-*-* %s\n", err.msg);
 	exit(3);
     }
@@ -857,7 +859,7 @@ build_headers_cb(VALUE key, VALUE value, VALUE x) {
     volatile VALUE	vs = rb_obj_as_string(value);
     const char		*s = rb_string_value_ptr((VALUE*)&vs);
 
-    if (AGOO_ERR_OK != gql_add_header(args->err, args->headers, ks, s)) {
+    if (NULL == (args->headers = gql_add_header(args->err, args->headers, ks, s))) {
 	rb_raise(rb_eStandardError, "%s", args->err->msg);
     }
     return ST_CONTINUE;
@@ -877,7 +879,7 @@ protected_build_headers(void *x) {
     return (void*)rb_rescue2(inner_build_headers, (VALUE)x, rescue_build_header, (VALUE)x, rb_eException, 0);
 }
 
-static int
+static agooText
 build_headers(agooErr err, agooReq req, agooText headers) {
     struct _bhArgs	args = {
 	.err = err,
@@ -886,7 +888,7 @@ build_headers(agooErr err, agooReq req, agooText headers) {
     };
     rb_thread_call_with_gvl(protected_build_headers, &args);
 
-    return err->code;
+    return args.headers;
 }
 
 /* Document-method: build_headers=
@@ -902,6 +904,38 @@ graphql_build_headers(VALUE self, VALUE func) {
     gql_build_headers = build_headers;
     build_headers_func = func;
     rb_gc_register_address(&build_headers_func);
+
+    return Qnil;
+}
+
+static int
+headers_cb(VALUE key, VALUE value, VALUE x) {
+    agooText		*tp = (agooText*)x;
+    const char		*ks = rb_string_value_ptr((VALUE*)&key);
+    volatile VALUE	vs = rb_obj_as_string(value);
+    const char		*s = rb_string_value_ptr((VALUE*)&vs);
+    struct _agooErr	err = AGOO_ERR_INIT;
+
+    if (NULL == (*tp = gql_add_header(&err, *tp, ks, s))) {
+	rb_raise(rb_eStandardError, "%s", err.msg);
+    }
+    return ST_CONTINUE;
+}
+
+
+/* Document-method: headers
+ *
+ * call-seq: headers(header_hash)
+ *
+ * Provide a Hash to be used as the headers for GraphQL responses.
+ * Content-Type and Content-Length should not be set.
+ */
+static VALUE
+graphql_headers(VALUE self, VALUE map) {
+    agooText	t = agoo_text_allocate(1024);
+
+    rb_hash_foreach(map, headers_cb, (VALUE)&t);
+    gql_headers = t;
 
     return Qnil;
 }
@@ -932,6 +966,7 @@ graphql_init(VALUE mod) {
     rb_define_module_function(graphql_class, "publish", graphql_publish, 2);
 
     rb_define_module_function(graphql_class, "build_headers=", graphql_build_headers, 1);
+    rb_define_module_function(graphql_class, "headers", graphql_headers, 1);
 
     call_id = rb_intern("call");
 }

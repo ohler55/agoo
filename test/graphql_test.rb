@@ -226,10 +226,13 @@ directive @ruby(class: String!) on SCHEMA | OBJECT
     Agoo::GraphQL.schema(Schema.new) {
       Agoo::GraphQL.load($songs_sdl)
       Agoo::GraphQL.load($extend_sdl)
+    }
+=begin
       Agoo::GraphQL.build_headers = proc{ |req|
 	{ 'Set-Cookie' => 'UserID=Bozo; Max-Age=3600; Version=1' }
       }
-    }
+=end
+    Agoo::GraphQL.headers({ 'Set-Cookie' => 'UserID=Bozo; Max-Age=3600; Version=1' })
     @@server_started = true
   end
 
@@ -675,7 +678,7 @@ query skippy($boo: Boolean = true){
     "__type":{
       "name":"[__Type!]",
       "ofType":{
-        "name":"__Type"
+        "name":"__Type!"
       }
     }
   }
@@ -739,7 +742,7 @@ query skippy($boo: Boolean = true){
         {
           "name":"name",
           "type":{
-            "name":"String"
+            "name":"String!"
           },
           "args":[
           ]
@@ -917,15 +920,14 @@ query skippy($boo: Boolean = true){
           ]
         },
         {
-          "name":"skip",
+          "name":"deprecated",
           "locations":[
-            "FIELD",
-            "FRAGMENT_SPREAD",
-            "INLINE_FRAGMENT"
+            "FIELD_DEFINITION",
+            "ENUM_VALUE"
           ],
           "args":[
             {
-              "name":"if"
+              "name":"reason"
             }
           ]
         },
@@ -943,14 +945,15 @@ query skippy($boo: Boolean = true){
           ]
         },
         {
-          "name":"deprecated",
+          "name":"skip",
           "locations":[
-            "FIELD_DEFINITION",
-            "ENUM_VALUE"
+            "FIELD",
+            "FRAGMENT_SPREAD",
+            "INLINE_FRAGMENT"
           ],
           "args":[
             {
-              "name":"reason"
+              "name":"if"
             }
           ]
         }
