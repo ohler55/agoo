@@ -581,19 +581,24 @@ eval_post(agooErr err, agooReq req) {
 		} else if (0 == strcmp("variables", m->key)) {
 		    gqlLink	link;
 
-		    if (GQL_SCALAR_OBJECT != m->value->type->scalar_kind) {
-			agoo_err_set(err, AGOO_ERR_EVAL, "expected variables to be an object.");
-			goto DONE;
-		    }
-		    for (link = m->value->members; NULL != link; link = link->next) {
-			gqlVar	v = gql_op_var_create(err, link->key, link->value->type, link->value);
+		    switch (m->value->type->scalar_kind) {
+		    case GQL_SCALAR_OBJECT:
+			for (link = m->value->members; NULL != link; link = link->next) {
+			    gqlVar	v = gql_op_var_create(err, link->key, link->value->type, link->value);
 
-			link->value = NULL;
-			if (NULL == v) {
-			    goto DONE;
+			    link->value = NULL;
+			    if (NULL == v) {
+				goto DONE;
+			    }
+			    v->next = vars;
+			    vars = v;
 			}
-			v->next = vars;
-			vars = v;
+			break;
+		    case GQL_SCALAR_NULL:
+			break;
+		    default:
+			agoo_err_set(err, AGOO_ERR_EVAL, "expected variables to be an object or null.");
+			goto DONE;
 		    }
 		}
 	    }
@@ -619,7 +624,9 @@ eval_post(agooErr err, agooReq req) {
 	result = NULL;
     }
 DONE:
-    gql_doc_destroy(doc);
+    if (NULL != doc) {
+	gql_doc_destroy(doc);
+    }
     gql_value_destroy(j);
 
     return result;

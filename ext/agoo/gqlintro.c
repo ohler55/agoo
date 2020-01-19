@@ -1301,7 +1301,7 @@ schema_types_cb(gqlType type, void *ctx) {
     struct _gqlCobj	child = { .clas = &type_class, .ptr = (void*)type };
     struct _gqlField	cf;
 
-    if (AGOO_ERR_OK != scc->err->code || GQL_LIST == type->kind || GQL_NON_NULL == type->kind) {
+    if (AGOO_ERR_OK != scc->err->code || GQL_LIST == type->kind || GQL_NON_NULL == type->kind || GQL_SCHEMA == type->kind) {
 	return;
     }
     memset(&cf, 0, sizeof(cf));

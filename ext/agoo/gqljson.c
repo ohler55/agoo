@@ -424,6 +424,7 @@ parse_value(agooErr err, agooDoc doc) {
 	if (4 <= doc->end - doc->cur &&
 	    'r' == doc->cur[1] && 'u' == doc->cur[2] && 'e' == doc->cur[3]) {
 	    value = gql_bool_create(err, true);
+	    doc->cur += 4;
 	} else {
 	    agoo_doc_err(doc, err, "invalid token");
 	}
@@ -432,6 +433,7 @@ parse_value(agooErr err, agooDoc doc) {
 	if (5 <= doc->end - doc->cur &&
 	    'a' == doc->cur[1] && 'l' == doc->cur[2] && 's' == doc->cur[3] && 'e' == doc->cur[4]) {
 	    value = gql_bool_create(err, false);
+	    doc->cur += 5;
 	} else {
 	    agoo_doc_err(doc, err, "invalid token");
 	}
@@ -440,6 +442,7 @@ parse_value(agooErr err, agooDoc doc) {
 	if (4 <= doc->end - doc->cur &&
 	    'u' == doc->cur[1] && 'l' == doc->cur[2] && 'l' == doc->cur[3]) {
 	    value = gql_null_create(err);
+	    doc->cur += 4;
 	} else {
 	    agoo_doc_err(doc, err, "invalid token");
 	}

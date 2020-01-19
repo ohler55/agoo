@@ -845,9 +845,6 @@ query skippy($boo: Boolean = true){
           "name":"Boolean"
         },
         {
-          "name":"schema"
-        },
-        {
           "name":"String"
         },
         {

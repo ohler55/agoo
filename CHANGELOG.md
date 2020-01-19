@@ -2,9 +2,9 @@
 
 All changes to the Agoo gem are documented here. Releases follow semantic versioning.
 
-## [2.12.0] - 2020-01-??
+## [2.12.0] - 2020-01-19
 
-Request GraphQL access
+Request GraphQL access and GraphiQL support
 
 ### Added
 
@@ -13,6 +13,8 @@ Request GraphQL access
 - Headers for GraphQL responses can now be set.
 
 - Fixed incorrect values in introspection responses.
+
+- Fixed JSON parser bug with null, true, and false.
 
 ## [2.11.7] - 2020-01-02
 
