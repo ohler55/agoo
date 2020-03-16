@@ -2,6 +2,14 @@
 
 All changes to the Agoo gem are documented here. Releases follow semantic versioning.
 
+## [2.12.1] - 2020-03-17
+
+Check SO_REUSEPORT
+
+### Fixed
+
+- Verifiy SO_REUSEPORT is define for older OS versions.
+
 ## [2.12.0] - 2020-01-19
 
 Request GraphQL access and GraphiQL support

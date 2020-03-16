@@ -286,7 +286,9 @@ usual_listen(agooErr err, agooBind b) {
 #ifdef OSX_OS
     setsockopt(b->fd, SOL_SOCKET, SO_NOSIGPIPE, &optval, sizeof(optval));
 #endif
+#ifdef SO_REUSEPORT
     setsockopt(b->fd, SOL_SOCKET, SO_REUSEPORT, &optval, sizeof(optval));
+#endif
     setsockopt(b->fd, IPPROTO_TCP, TCP_NODELAY, &optval, sizeof(optval));
     if (AF_INET6 == b->family) {
 	struct sockaddr_in6	addr;
