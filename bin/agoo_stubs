@@ -1,0 +1,117 @@
+#!/usr/bin/env ruby
+
+while (index = ARGV.index('-I'))
+  _, path = ARGV.slice!(index, 2)
+  $LOAD_PATH << path
+end
+
+require 'optparse'
+
+require 'agoo'
+
+usage = %{
+Usage: agoo_stubs [options] <graphql_schema>
+
+version #{Agoo::VERSION}
+
+TBD
+
+Example:
+
+  agoo_stubs --module Impl --dir lib schema.graphql
+
+}
+
+@verbose = false
+@single = false
+@dir = nil
+@mod = nil
+
+@opts = OptionParser.new(usage)
+@opts.on('-h', '--help', 'show this display')                            { puts @opts.help; Process.exit!(0) }
+@opts.on('-v', '--verbose', 'verbose output')                            { @verbose = true }
+@opts.on('-s', '--single', 'single file, dir is filename')               { @single = true }
+@opts.on('-d', '--dir PATH', String, 'directory to write files into')    { |d| @dir = d }
+@opts.on('-m', '--module STRING', String, 'module for the stub classes') { |m| @mod = m }
+
+files = @opts.parse(ARGV)
+
+if files.empty?
+  puts "A schema file must be specified."
+  puts @opts.help
+end
+
+Agoo::GraphQL.schema(nil) {
+  Agoo::GraphQL.load_file('example/graphql/song.graphql')
+}
+
+@out = nil
+
+def write_type_stub(f, t, depth)
+  indent = '  ' * depth
+  f.puts "#{indent}# #{t.description}" unless t.description.nil?
+  f.puts "#{indent}class #{t.name}"
+  t.fields.each { |field|
+    next unless field.args.nil?
+    f.puts "#{indent}  # #{field.description}" unless field.description.nil?
+    f.puts "#{indent}  attr_accessor :#{field.name.downcase}"
+  }
+  f.puts
+  f.puts "#{indent}  def initialize"
+  f.puts "#{indent}  end"
+  t.fields.each { |field|
+    next if field.args.nil?
+    f.puts
+    f.puts "#{indent}  # #{field.description}" unless field.description.nil?
+    args = field.args.map { |a| a.name }.join(', ')
+    f.puts "#{indent}  def #{field.name.downcase}(#{args})"
+    f.puts "#{indent}  end"
+  }
+  f.puts "#{indent}end"
+end
+
+def write_type_stub_file(t)
+  # determine file name, use @dir and module
+  # open file
+  # print modules
+  # set indent
+  # start the object
+  # if no args on field then just attr_accessor
+  # else method
+
+end
+
+if @dir.nil?
+  @single = true
+  @out = STDOUT
+elsif @single
+  @out = File.new(@dir, 'w')
+end
+
+if @single
+  depth = 0
+  unless @mod.nil?
+    @mod.split('::').each { |m|
+      @out.puts("#{'  ' * depth}module #{m}")
+      depth += 1
+    }
+    @out.puts
+  end
+  Agoo::GraphQL.sdl_types.sort { |a,b| a.name <=> b.name }.each { |t|
+    write_type_stub(@out, t, depth)
+    @out.puts
+  }
+  unless @mod.nil?
+    @mod.split('::').size.times {
+      depth -= 1
+      @out.puts("#{'  ' * depth}end")
+    }
+  end
+else
+
+  # TBD assure dir exists
+
+  # TBD each file plus one that pulls all together
+end
+
+@out.close unless @out.nil? || STDOUT == @out

@@ -37,6 +37,9 @@ typedef struct _bhArgs {
 static VALUE		graphql_class = Qundef;
 static VALUE		vroot = Qnil;
 static VALUE		build_headers_func = Qnil;
+static VALUE		arg_clas = Qnil;
+static VALUE		field_clas = Qnil;
+static VALUE		type_clas = Qnil;
 
 static ID		call_id;
 
@@ -774,16 +777,16 @@ graphql_load_file(VALUE self, VALUE path) {
     return Qnil;
 }
 
-/* Document-method: dump_sdl
+/* Document-method: sdl_dump
  *
- * call-seq: dump_sdl()
+ * call-seq: sdl_dump()
  *
  * The preferred method of inspecting a GraphQL schema is to use introspection
  * queries but for debugging and for reviewing the schema a dump of the schema
- * as SDL can be helpful. The _#dump_sdl_ method returns the schema as an SDL
+ * as SDL can be helpful. The _#sdl_dump_ method returns the schema as an SDL
  * string.
  *
- * - *options* [_Hash_] server options
+ * - *options* [_Hash_] options
  *
  *   - *:with_description* [_true_|_false_] if true the description strings are included. If false they are not included.
  *
@@ -815,6 +818,80 @@ graphql_sdl_dump(VALUE self, VALUE options) {
     agoo_text_release(t);
 
     return dump;
+}
+
+static void
+type_cb(gqlType type, void *ctx) {
+    VALUE	rtypes = (VALUE)ctx;
+    VALUE	t;
+
+    if (GQL_OBJECT != type->kind || type->core) {
+	return;
+    }
+    t = rb_obj_alloc(type_clas);
+    rb_ivar_set(t, rb_intern("@name"), rb_str_new_cstr(type->name));
+    if (NULL != type->desc) {
+	rb_ivar_set(t, rb_intern("@description"), rb_str_new_cstr(type->desc));
+    }
+    if (NULL != type->fields) {
+	VALUE		fields = rb_ary_new();
+	VALUE		field;
+	gqlField	f;
+
+	rb_ivar_set(t, rb_intern("@fields"), fields);
+	for (f = type->fields; NULL != f; f = f->next) {
+	    field = rb_obj_alloc(field_clas);
+	    rb_ary_push(fields, field);
+	    rb_ivar_set(field, rb_intern("@name"), rb_str_new_cstr(f->name));
+	    if (NULL != f->desc) {
+		rb_ivar_set(field, rb_intern("@description"), rb_str_new_cstr(f->desc));
+	    }
+	    if (NULL != f->type) {
+		rb_ivar_set(field, rb_intern("@type_name"), rb_str_new_cstr(f->type->name));
+	    }
+	    if (NULL != f->default_value) {
+		rb_ivar_set(field, rb_intern("@default_value"), gval_to_ruby(f->default_value));
+	    }
+	    if (NULL != f->args) {
+		VALUE	args = rb_ary_new();
+		VALUE	arg;
+		gqlArg	a;
+
+		rb_ivar_set(field, rb_intern("@args"), args);
+		for (a = f->args; NULL != a; a = a->next) {
+		    arg = rb_obj_alloc(arg_clas);
+		    rb_ary_push(args, arg);
+		    rb_ivar_set(arg, rb_intern("@name"), rb_str_new_cstr(a->name));
+		    if (NULL != a->desc) {
+			rb_ivar_set(arg, rb_intern("@description"), rb_str_new_cstr(a->desc));
+		    }
+		    if (NULL != a->type) {
+			rb_ivar_set(arg, rb_intern("@type_name"), rb_str_new_cstr(a->type->name));
+		    }
+		    if (NULL != a->default_value) {
+			rb_ivar_set(arg, rb_intern("@default_value"), gval_to_ruby(a->default_value));
+		    }
+		}
+	    }
+	}
+    }
+    rb_ary_push(rtypes, t);
+}
+
+/* Document-method: sdl_types
+ *
+ * call-seq: sdl_types()
+ *
+ * TBD
+ *
+ */
+static VALUE
+graphql_sdl_types(VALUE self) {
+    VALUE	rtypes = rb_ary_new();
+
+    gql_type_iterate(type_cb, (void*)rtypes);
+
+    return rtypes;
 }
 
 /* Document-method: publish
@@ -963,10 +1040,16 @@ graphql_init(VALUE mod) {
 
     rb_define_module_function(graphql_class, "sdl_dump", graphql_sdl_dump, 1);
 
+    rb_define_module_function(graphql_class, "sdl_types", graphql_sdl_types, 0);
+
     rb_define_module_function(graphql_class, "publish", graphql_publish, 2);
 
     rb_define_module_function(graphql_class, "build_headers=", graphql_build_headers, 1);
     rb_define_module_function(graphql_class, "headers", graphql_headers, 1);
+
+    arg_clas = rb_const_get_at(graphql_class, rb_intern("Arg"));
+    field_clas = rb_const_get_at(graphql_class, rb_intern("Field"));
+    type_clas = rb_const_get_at(graphql_class, rb_intern("Type"));
 
     call_id = rb_intern("call");
 }
