@@ -882,8 +882,7 @@ type_cb(gqlType type, void *ctx) {
  *
  * call-seq: sdl_types()
  *
- * TBD
- *
+ * Returns an array of all SDL types as Ruby objects.
  */
 static VALUE
 graphql_sdl_types(VALUE self) {
