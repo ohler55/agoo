@@ -2,6 +2,14 @@
 
 All changes to the Agoo gem are documented here. Releases follow semantic versioning.
 
+## [2.12.2] - 2020-03-22
+
+Stub generator
+
+### Added
+
+- GraphQL stub generator to generate Ruby class file corresponding to GraphQL schema type. The generator is `bin/agoo_stubs`.
+
 ## [2.12.1] - 2020-03-17
 
 Check SO_REUSEPORT

@@ -14,38 +14,41 @@ Usage: agoo_stubs [options] <graphql_schema>
 
 version #{Agoo::VERSION}
 
-TBD
+Generates Ruby files that match the types in the GraphQL schema file specified.
 
 Example:
 
-  agoo_stubs --module Impl --dir lib schema.graphql
+  agoo_stubs --module Data --dir lib schema.graphql
 
 }
 
 @verbose = false
-@single = false
+@single = nil
 @dir = nil
 @mod = nil
 
 @opts = OptionParser.new(usage)
 @opts.on('-h', '--help', 'show this display')                            { puts @opts.help; Process.exit!(0) }
 @opts.on('-v', '--verbose', 'verbose output')                            { @verbose = true }
-@opts.on('-s', '--single', 'single file, dir is filename')               { @single = true }
+@opts.on('-s', '--single PATH', String, 'path to fiel for all stubs')    { |s| @single = s }
 @opts.on('-d', '--dir PATH', String, 'directory to write files into')    { |d| @dir = d }
 @opts.on('-m', '--module STRING', String, 'module for the stub classes') { |m| @mod = m }
 
-files = @opts.parse(ARGV)
+@files = @opts.parse(ARGV)
 
-if files.empty?
+if @files.empty?
   puts "A schema file must be specified."
   puts @opts.help
+  Process.exit!(0)
+elsif 1 < @files.size
+  puts "Only one schema file can be specified."
+  puts @opts.help
+  Process.exit!(0)
 end
 
 Agoo::GraphQL.schema(nil) {
-  Agoo::GraphQL.load_file('example/graphql/song.graphql')
+  Agoo::GraphQL.load_file(@files[0])
 }
-
-@out = nil
 
 def write_type_stub(f, t, depth)
   indent = '  ' * depth
@@ -54,7 +57,7 @@ def write_type_stub(f, t, depth)
   t.fields.each { |field|
     next unless field.args.nil?
     f.puts "#{indent}  # #{field.description}" unless field.description.nil?
-    f.puts "#{indent}  attr_accessor :#{field.name.downcase}"
+    f.puts "#{indent}  attr_accessor :#{field.name}"
   }
   f.puts
   f.puts "#{indent}  def initialize"
@@ -64,31 +67,64 @@ def write_type_stub(f, t, depth)
     f.puts
     f.puts "#{indent}  # #{field.description}" unless field.description.nil?
     args = field.args.map { |a| a.name }.join(', ')
-    f.puts "#{indent}  def #{field.name.downcase}(#{args})"
+    f.puts "#{indent}  def #{field.name}(#{args})"
     f.puts "#{indent}  end"
   }
   f.puts "#{indent}end"
 end
 
-def write_type_stub_file(t)
-  # determine file name, use @dir and module
-  # open file
-  # print modules
-  # set indent
-  # start the object
-  # if no args on field then just attr_accessor
-  # else method
-
+def calc_filepath(t)
+  path = @dir
+  path += '/' + @mod.split('::').map { |m| m.downcase }.join('/') unless @mod.nil?
+  path + '/' + t.name.downcase + '.rb'
 end
+
+def assure_parent_dir(path)
+  dirs = path.split('/')[0..-2]
+  dirs.each_index { |i|
+    path = dirs[0..i].join('/')
+    Dir.mkdir(path) unless Dir.exist?(path)
+  }
+end
+
+def write_type_stub_file(t)
+  path = calc_filepath(t)
+  assure_parent_dir(path)
+  File.open(path, 'w') { |f|
+    f.puts "# #{t.name} class for schema file #{@files[0]}"
+    f.puts
+    depth = 0
+    unless @mod.nil?
+      @mod.split('::').each { |m|
+	f.puts("#{'  ' * depth}module #{m}")
+	depth += 1
+      }
+      f.puts
+    end
+    write_type_stub(f, t, depth)
+    f.puts
+    unless @mod.nil?
+      @mod.split('::').size.times {
+	depth -= 1
+	f.puts("#{'  ' * depth}end")
+      }
+    end
+  }
+end
+
+@out = nil
 
 if @dir.nil?
-  @single = true
-  @out = STDOUT
-elsif @single
-  @out = File.new(@dir, 'w')
+  if @single.nil?
+    @out = STDOUT
+  else @single
+    @out = File.new(@single, 'w')
+  end
 end
 
-if @single
+unless @out.nil?
+  @out.puts "# Classes for schema file #{@files[0]}"
+  @out.puts
   depth = 0
   unless @mod.nil?
     @mod.split('::').each { |m|
@@ -107,11 +143,24 @@ if @single
       @out.puts("#{'  ' * depth}end")
     }
   end
+  @out.close unless STDOUT == @out
 else
+  Agoo::GraphQL.sdl_types.each { |t|
+    write_type_stub_file(t)
+  }
+  unless @mod.nil?
+    path = @dir
+    path += '/' + @mod.split('::').map { |m| m.downcase }.join('/')
+    assure_parent_dir(path)
+    m = path.split('/')[-1]
+    path += '.rb'
 
-  # TBD assure dir exists
-
-  # TBD each file plus one that pulls all together
+    File.open(path, 'w') { |f|
+      f.puts "# Classes for schema file #{@files[0]}"
+      f.puts
+      Agoo::GraphQL.sdl_types.sort { |a,b| a.name <=> b.name }.each { |t|
+	f.puts "require_relative '#{m}/#{t.name.downcase}'"
+      }
+    }
+  end
 end
-
-@out.close unless @out.nil? || STDOUT == @out

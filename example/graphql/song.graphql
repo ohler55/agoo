@@ -8,12 +8,14 @@ type Mutation {
   like(artist: String!, song: String!): Song
 }
 
+"Represents a music artist."
 type Artist {
   name: String!
   songs: [Song]
   origin: [String]
 }
 
+"Information about a song of an artist."
 type Song {
   name: String!
   artist: Artist
