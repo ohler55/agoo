@@ -22,6 +22,7 @@ Gem::Specification.new do |s|
 
   s.bindir = 'bin'
   s.executables << 'agoo'
+  s.executables << 'agoo_stubs'
 
   s.required_ruby_version = '>= 2.5'
   s.requirements << 'Linux or macOS'
