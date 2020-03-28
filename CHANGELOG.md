@@ -2,6 +2,14 @@
 
 All changes to the Agoo gem are documented here. Releases follow semantic versioning.
 
+## [2.12.3] - 2020-03-28
+
+rb_rescue2 termination
+
+### Fixed
+
+- rb_rescue2 must be terminated by a (VALUE)0 and not simply 0.
+
 ## [2.12.2] - 2020-03-22
 
 Stub generator

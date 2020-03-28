@@ -384,7 +384,7 @@ handle_base_inner(VALUE x) {
 
 static void*
 handle_base(void *x) {
-    rb_rescue2(handle_base_inner, (VALUE)x, rescue_error, (VALUE)x, rb_eException, 0);
+    rb_rescue2(handle_base_inner, (VALUE)x, rescue_error, (VALUE)x, rb_eException, (VALUE)0);
 
     return NULL;
 }
@@ -613,7 +613,7 @@ handle_rack_inner(VALUE x) {
 static void*
 handle_rack(void *x) {
     //rb_gc_disable();
-    rb_rescue2(handle_rack_inner, (VALUE)x, rescue_error, (VALUE)x, rb_eException, 0);
+    rb_rescue2(handle_rack_inner, (VALUE)x, rescue_error, (VALUE)x, rb_eException, (VALUE)0);
     //rb_gc_enable();
     //rb_gc();
 
@@ -638,7 +638,7 @@ handle_wab_inner(VALUE x) {
 
 static void*
 handle_wab(void *x) {
-    rb_rescue2(handle_wab_inner, (VALUE)x, rescue_error, (VALUE)x, rb_eException, 0);
+    rb_rescue2(handle_wab_inner, (VALUE)x, rescue_error, (VALUE)x, rb_eException, (VALUE)0);
 
     return NULL;
 }
@@ -696,7 +696,7 @@ handle_push_inner(VALUE x) {
 
 static void*
 handle_push(void *x) {
-    rb_rescue2(handle_push_inner, (VALUE)x, rescue_error, (VALUE)x, rb_eException, 0);
+    rb_rescue2(handle_push_inner, (VALUE)x, rescue_error, (VALUE)x, rb_eException, (VALUE)0);
     return NULL;
 }
 

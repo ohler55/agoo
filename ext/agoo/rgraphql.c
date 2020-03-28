@@ -104,7 +104,7 @@ call_eval(VALUE x) {
 
 static void*
 protect_eval(void *x) {
-    rb_rescue2(call_eval, (VALUE)x, rescue_error, (VALUE)x, rb_eException, 0);
+    rb_rescue2(call_eval, (VALUE)x, rescue_error, (VALUE)x, rb_eException, (VALUE)0);
 
     return NULL;
 }
@@ -682,7 +682,7 @@ graphql_schema(VALUE self, VALUE root) {
 	printf("*-*-* %s\n", err.msg);
 	exit(6);
     }
-    rb_rescue2(rescue_yield, Qnil, rescue_yield_error, (VALUE)&err, rb_eException, 0);
+    rb_rescue2(rescue_yield, Qnil, rescue_yield_error, (VALUE)&err, rb_eException, (VALUE)0);
     if (AGOO_ERR_OK != err.code) {
 	printf("*-*-* %s\n", err.msg);
 	exit(7);
@@ -952,7 +952,7 @@ inner_build_headers(VALUE x) {
 
 static void*
 protected_build_headers(void *x) {
-    return (void*)rb_rescue2(inner_build_headers, (VALUE)x, rescue_build_header, (VALUE)x, rb_eException, 0);
+    return (void*)rb_rescue2(inner_build_headers, (VALUE)x, rescue_build_header, (VALUE)x, rb_eException, (VALUE)0);
 }
 
 static agooText
