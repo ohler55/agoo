@@ -169,6 +169,6 @@ connections at the same latency as one.
 
 ### Summary
 
-Benachmarks are not everything but if they are an important consideration when
+Benchmarks are not everything but if they are an important consideration when
 selecting a web server for Rails or Rack then Agoo clearly has an advantage
 over the Rack and Rails default.

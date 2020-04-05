@@ -30,7 +30,7 @@ Example:
 @opts = OptionParser.new(usage)
 @opts.on('-h', '--help', 'show this display')                            { puts @opts.help; Process.exit!(0) }
 @opts.on('-v', '--verbose', 'verbose output')                            { @verbose = true }
-@opts.on('-s', '--single PATH', String, 'path to fiel for all stubs')    { |s| @single = s }
+@opts.on('-s', '--single PATH', String, 'path to file for all stubs')    { |s| @single = s }
 @opts.on('-d', '--dir PATH', String, 'directory to write files into')    { |d| @dir = d }
 @opts.on('-m', '--module STRING', String, 'module for the stub classes') { |m| @mod = m }
 
@@ -66,8 +66,8 @@ def write_type_stub(f, t, depth)
     next if field.args.nil?
     f.puts
     f.puts "#{indent}  # #{field.description}" unless field.description.nil?
-    args = field.args.map { |a| a.name }.join(', ')
-    f.puts "#{indent}  def #{field.name}(#{args})"
+    f.puts "#{indent}  # args: #{field.args.map { |a| a.name }.join(', ')}"
+    f.puts "#{indent}  def #{field.name}(args={})"
     f.puts "#{indent}  end"
   }
   f.puts "#{indent}end"
