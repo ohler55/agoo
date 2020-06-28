@@ -7,10 +7,18 @@
 
 #define MAX_WORKERS	32
 
+typedef struct _rUse {
+    struct _rUse	*next;
+    VALUE		clas;
+    VALUE		*argv;
+    int			argc;
+} *RUse;
+
 typedef struct _rServer {
     int		worker_cnt;
     int		worker_pids[MAX_WORKERS];
     VALUE	*eval_threads; // Qnil terminated
+    RUse	*uses;
 } *RServer;
 
 extern struct _rServer	the_rserver;

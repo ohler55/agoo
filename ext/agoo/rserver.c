@@ -103,6 +103,7 @@ configure(agooErr err, int port, const char *root, VALUE options) {
     }
     agoo_server.thread_cnt = 0;
     the_rserver.worker_cnt = 1;
+    the_rserver.uses = NULL;
     atomic_init(&agoo_server.running, 0);
     agoo_server.listen_thread = 0;
     agoo_server.con_loops = NULL;
@@ -1014,6 +1015,9 @@ handle(VALUE self, VALUE method, VALUE pattern, VALUE handler) {
 	    }
 	}
     }
+    if (NULL != the_rserver.uses) {
+	// TBD wrap the handler
+    }
     if (NULL == (hook = rhook_create(meth, pat, handler, &agoo_server.eval_queue))) {
 	rb_raise(rb_eStandardError, "out of memory.");
     } else {
@@ -1195,6 +1199,33 @@ rack_early_hints(VALUE self, VALUE on) {
     return on;
 }
 
+/* Document-method: use
+ *
+ * call-seq: use(app, *args, &block)
+ *
+ * The use function must be called before the handle functions. Any
+ * invocations of use apply only to handlers called after the call to use.
+ *
+ * TBD what it does, middleware
+ */
+static VALUE
+use(int argc, VALUE *argv, VALUE self) {
+    if (argc < 1) { // at least the middleware class must be provided.
+	rb_raise(rb_eArgError, "no middleware class provided");
+    }
+    VALUE	mc = argv[0];
+
+    if (T_CLASS != rb_type(mc)) {
+	rb_raise(rb_eArgError, "the first argument to use must be a class");
+    }
+    printf("*** use - argc: %d %s\n", argc, rb_class2name(mc));
+
+    // TBD add element to the_rserver
+    // on handle wrap
+
+    return Qnil;
+}
+
 /* Document-class: Agoo::Server
  *
  * An HTTP server that support the rack API as well as some other optimized
@@ -1214,6 +1245,7 @@ server_init(VALUE mod) {
     rb_define_module_function(server_mod, "path_group", path_group, 2);
     rb_define_module_function(server_mod, "header_rule", header_rule, 4);
     rb_define_module_function(server_mod, "domain", domain, 2);
+    rb_define_module_function(server_mod, "use", use, -1);
 
     rb_define_module_function(server_mod, "rack_early_hints", rack_early_hints, 1);
 
