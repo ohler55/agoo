@@ -1016,7 +1016,12 @@ handle(VALUE self, VALUE method, VALUE pattern, VALUE handler) {
 	}
     }
     if (NULL != the_rserver.uses) {
-	// TBD wrap the handler
+	RUse	u;
+
+	for (u = the_rserver.uses; NULL != u; u = u->next) {
+	    u->argv[0] = handler;
+	    handler = rb_funcall2(u->clas, rb_intern("new"), u->argc, u->argv);
+	}
     }
     if (NULL == (hook = rhook_create(meth, pat, handler, &agoo_server.eval_queue))) {
 	rb_raise(rb_eStandardError, "out of memory.");
@@ -1201,27 +1206,34 @@ rack_early_hints(VALUE self, VALUE on) {
 
 /* Document-method: use
  *
- * call-seq: use(app, *args, &block)
+ * call-seq: use(middleware, *args)
  *
- * The use function must be called before the handle functions. Any
- * invocations of use apply only to handlers called after the call to use.
- *
- * TBD what it does, middleware
+ * The use function must be called before the _handle_ functions. Any
+ * invocations of _use_ apply only to handlers called after the call to use.
  */
 static VALUE
 use(int argc, VALUE *argv, VALUE self) {
+    VALUE	mc;
+    RUse	u;
+
     if (argc < 1) { // at least the middleware class must be provided.
 	rb_raise(rb_eArgError, "no middleware class provided");
     }
-    VALUE	mc = argv[0];
-
+    mc = argv[0];
     if (T_CLASS != rb_type(mc)) {
 	rb_raise(rb_eArgError, "the first argument to use must be a class");
     }
-    printf("*** use - argc: %d %s\n", argc, rb_class2name(mc));
-
-    // TBD add element to the_rserver
-    // on handle wrap
+    if (NULL == (u = (RUse)AGOO_MALLOC(sizeof(struct _rUse)))) {
+	rb_raise(rb_eNoMemError, "Failed to allocate memory for a middleware use.");
+    }
+    u->clas = mc;
+    u->argc = argc;
+    if (NULL == (u->argv = (VALUE*)AGOO_MALLOC(sizeof(VALUE) * u->argc))) {
+	rb_raise(rb_eNoMemError, "Failed to allocate memory for a middleware use.");
+    }
+    memcpy(u->argv, argv, argc * sizeof(VALUE));
+    u->next = the_rserver.uses;
+    the_rserver.uses = u;
 
     return Qnil;
 }
