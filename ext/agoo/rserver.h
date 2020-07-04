@@ -18,7 +18,7 @@ typedef struct _rServer {
     int		worker_cnt;
     int		worker_pids[MAX_WORKERS];
     VALUE	*eval_threads; // Qnil terminated
-    RUse	*uses;
+    RUse	uses;
 } *RServer;
 
 extern struct _rServer	the_rserver;

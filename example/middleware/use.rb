@@ -27,20 +27,32 @@ class MyHandler
 end
 
 class Middle
-  def initialize(app, *args, &block)
+  def initialize(app, *args)
     @app = app
     @suffix = args[0]
-    @blk = block
   end
 
-  def self.call(env)
+  def call(env)
     status, headers, body = @app.call(env)
     body[0] = "#{body[0]} #{@suffix}" if 0 < body.length
     [status, headers, body]
   end
 end
 
-Agoo::Server.use(Middle, "world", "foo")
+class Outer
+  def initialize(app, *args)
+    @app = app
+  end
+
+  def call(env)
+    status, headers, body = @app.call(env)
+    body[0] = "#{body[0]} and universe" if 0 < body.length
+    [status, headers, body]
+  end
+end
+
+Agoo::Server.use(Outer)
+Agoo::Server.use(Middle, "world")
 
 # Register the handler before calling start.
 Agoo::Server.handle(:GET, "/hello", MyHandler)
