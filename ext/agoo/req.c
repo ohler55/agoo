@@ -14,7 +14,7 @@ agooReq
 agoo_req_create(size_t mlen) {
     size_t	size = mlen + sizeof(struct _agooReq) - 7;
     agooReq	req = (agooReq)AGOO_MALLOC(size);
-    
+
     if (NULL != req) {
 	memset(req, 0, size);
 	req->env = agoo_server.env_nil_value;
@@ -56,7 +56,7 @@ agoo_req_port(agooReq r) {
     int		len;
     const char	*host;
     const char	*colon;
-    
+
     if (NULL == (host = agoo_con_header_value(r->header.start, r->header.len, "Host", &len))) {
 	return 0;
     }
@@ -94,7 +94,7 @@ agoo_req_query_value(agooReq r, const char *key, int klen, int *vlenp) {
 static int
 hexVal(int c) {
     int	h = -1;
-    
+
     if ('0' <= c && c <= '9') {
 	h = c - '0';
     } else if ('a' <= c && c <= 'f') {
@@ -110,12 +110,12 @@ agoo_req_query_decode(char *s, int len) {
     char	*sn = s;
     char	*so = s;
     char	*end = s + len;
-    
+
     while (so < end) {
 	if ('%' == *so) {
 	    int	n;
 	    int	c = 0;
-	    
+
 	    so++;
 	    if (0 > (c = hexVal(*so))) {
 		*sn++ = '%';
@@ -133,7 +133,7 @@ agoo_req_query_decode(char *s, int len) {
 	}
     }
     *sn = '\0';
-    
+
     return (int)(sn - s);
 }
 
@@ -145,9 +145,9 @@ agoo_req_header_value(agooReq req, const char *key, int *vlen) {
     const char	*hend = h + req->header.len;
     const char	*value;
     int		klen = (int)strlen(key);
-    
+
     while (h < hend) {
-	if (0 == strncmp(key, h, klen) && ':' == h[klen]) {
+	if (0 == strncasecmp(key, h, klen) && ':' == h[klen]) {
 	    h += klen + 1;
 	    for (; ' ' == *h; h++) {
 	    }
@@ -155,7 +155,7 @@ agoo_req_header_value(agooReq req, const char *key, int *vlen) {
 	    for (; '\r' != *h && '\0' != *h; h++) {
 	    }
 	    *vlen = (int)(h - value);
- 
+
 	    return value;
 	}
 	for (; h < hend; h++) {
@@ -167,4 +167,3 @@ agoo_req_header_value(agooReq req, const char *key, int *vlen) {
     }
     return NULL;
 }
-

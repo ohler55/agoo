@@ -551,11 +551,11 @@ eval_post(agooErr err, agooReq req) {
 	agoo_err_set(err, AGOO_ERR_TYPE, "required Content-Type not in the HTTP header");
 	return NULL;
     }
-    if (0 == strncmp(graphql_content_type, s, sizeof(graphql_content_type) - 1)) {
+    if (0 == strncasecmp(graphql_content_type, s, sizeof(graphql_content_type) - 1)) {
 	if (NULL == (doc = sdl_parse_doc(err, req->body.start, req->body.len, vars, GQL_QUERY))) {
 	    return NULL;
 	}
-    } else if (0 == strncmp(json_content_type, s, sizeof(json_content_type) - 1)) {
+    } else if (0 == strncasecmp(json_content_type, s, sizeof(json_content_type) - 1)) {
 	gqlLink	m;
 
 	if (NULL != (j = gql_json_parse(err, req->body.start, req->body.len))) {

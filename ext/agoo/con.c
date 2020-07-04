@@ -173,7 +173,7 @@ agoo_con_header_value(const char *header, int hlen, const char *key, int *vlen) 
     int		klen = (int)strlen(key);
 
     while (h < hend) {
-	if (0 == strncmp(key, h, klen) && ':' == h[klen]) {
+	if (0 == strncasecmp(key, h, klen) && ':' == h[klen]) {
 	    h += klen + 1;
 	    for (; ' ' == *h; h++) {
 	    }

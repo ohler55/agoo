@@ -223,25 +223,25 @@ url_ssl(agooErr err, const char *url) {
 
 agooBind
 agoo_bind_url(agooErr err, const char *url) {
-    if (0 == strncmp("tcp://", url, 6)) {
+    if (0 == strncasecmp("tcp://", url, 6)) {
 	if ('[' == url[6]) {
 	    return url_tcp6(err, url + 6, "tcp");
 	}
 	return url_tcp(err, url + 6, "tcp");
     }
-    if (0 == strncmp("http://", url, 7)) {
+    if (0 == strncasecmp("http://", url, 7)) {
 	if ('[' == url[7]) {
 	    return url_tcp6(err, url + 7, "http");
 	}
 	return url_tcp(err, url + 7, "http");
     }
-    if (0 == strncmp("unix://", url, 7)) {
+    if (0 == strncasecmp("unix://", url, 7)) {
 	return url_named(err, url + 7);
     }
-    if (0 == strncmp("https://", url, 8)) {
+    if (0 == strncasecmp("https://", url, 8)) {
 	return url_ssl(err, url + 8);
     }
-    if (0 == strncmp("ssl://", url, 6)) {
+    if (0 == strncasecmp("ssl://", url, 6)) {
 	return url_ssl(err, url + 6);
     }
     // All others assume http

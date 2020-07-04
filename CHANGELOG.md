@@ -2,6 +2,16 @@
 
 All changes to the Agoo gem are documented here. Releases follow semantic versioning.
 
+## [2.13.0] - 2020-07-04
+
+### Added
+
+- Agoo::Server.use() added. It works similar to the Rack use() function.
+
+### Fixed
+
+- Header checks are now case insensitive to comply with RFC 7230.
+
 ## [2.12.3] - 2020-03-28
 
 rb_rescue2 termination
