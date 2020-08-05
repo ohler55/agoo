@@ -88,7 +88,7 @@ $ bundle install
 Start rails with agoo as server:
 
 ```
-$ rails server agoo
+$ rails server -u agoo
 ```
 
 Enjoy the increased performance!
