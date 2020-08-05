@@ -68,6 +68,31 @@ sleep
 gem install agoo
 ```
 
+## Using agoo as server for rails
+
+As agoo supports rack compatible apps you can use it for rails applications:
+
+Add agoo to the Gemfile:
+
+```
+# Gemfile
+gem 'agoo'
+```
+
+Install bundle:
+
+```
+$ bundle install
+```
+
+Start rails with agoo as server:
+
+```
+$ rails server agoo
+```
+
+Enjoy the increased performance!
+
 ## What Is This?
 
 Agoo is Japanese for a type of flying fish. This gem flies. It is a high
