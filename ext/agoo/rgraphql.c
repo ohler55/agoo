@@ -998,7 +998,6 @@ headers_cb(VALUE key, VALUE value, VALUE x) {
     return ST_CONTINUE;
 }
 
-
 /* Document-method: headers
  *
  * call-seq: headers(header_hash)
@@ -1016,6 +1015,31 @@ graphql_headers(VALUE self, VALUE map) {
     return Qnil;
 }
 
+/* Document-method: call
+ *
+ * call-seq: call(env)
+ *
+ * Allows the GraphQL class to be used as a rack handler. This is a horribly
+ * inefficient way to invoke the graphql engine. The build in server
+ * multiplexing is a far better approach to use.
+ */
+static VALUE
+graphql_call(VALUE self, VALUE env) {
+
+    // TBD check env is hash
+    // if GET ... QUERY_STRING
+    // if POST ...
+    //   check headers for content type
+    //   rack.input (stream)
+
+    // create request
+    // call gql_eval_get_hook
+    // extract the response
+    // build the rack response
+
+
+    return Qnil;
+}
 /* Document-class: Agoo::Graphql
  *
  * The Agoo::GraphQL class provides support for the GraphQL API as defined in
@@ -1045,6 +1069,8 @@ graphql_init(VALUE mod) {
 
     rb_define_module_function(graphql_class, "build_headers=", graphql_build_headers, 1);
     rb_define_module_function(graphql_class, "headers", graphql_headers, 1);
+
+    rb_define_module_function(graphql_class, "call", graphql_call, 1);
 
     arg_clas = rb_const_get_at(graphql_class, rb_intern("Arg"));
     field_clas = rb_const_get_at(graphql_class, rb_intern("Field"));

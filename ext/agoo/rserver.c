@@ -337,9 +337,9 @@ rescue_error(VALUE x, VALUE ignore) {
     const char		*ms = rb_string_value_ptr(&msg);
 
     if (NULL == req->up) {
-	char	buf[1024];
-	int	len = (int)(strlen(classname) + 2 + strlen(ms));
-	int	cnt;
+	char		buf[1024];
+	int		len = (int)(strlen(classname) + 2 + strlen(ms));
+	int		cnt;
 	agooText	message;
 
 	if ((int)(sizeof(buf) - sizeof(bad500) + 7) <= len) {
