@@ -388,14 +388,29 @@ rack_run_once(VALUE self) {
 
 static void
 add_header_value(VALUE hh, const char *key, int klen, const char *val, int vlen) {
+    VALUE	v;
+
     if (sizeof(content_type) - 1 == klen && 0 == strncasecmp(key, content_type, sizeof(content_type) - 1)) {
-	rb_hash_aset(hh, content_type_val, rb_str_new(val, vlen));
+	if (Qnil == (v = rb_hash_lookup2(hh, content_type_val, Qnil))) {
+	    rb_hash_aset(hh, content_type_val, rb_str_new(val, vlen));
+	} else {
+	    volatile VALUE	a = rb_ary_new();
+
+	    rb_ary_push(a, v);
+	    rb_ary_push(a, rb_str_new(val, vlen));
+	    rb_hash_aset(hh, content_type_val, a);
+	}
     } else if (sizeof(content_length) - 1 == klen && 0 == strncasecmp(key, content_length, sizeof(content_length) - 1)) {
-	rb_hash_aset(hh, content_length_val, rb_str_new(val, vlen));
+	if (Qnil == (v = rb_hash_lookup2(hh, content_length_val, Qnil))) {
+	    rb_hash_aset(hh, content_length_val, rb_str_new(val, vlen));
+	} else {
+	    rb_raise(rb_eArgError, "Multiple Content-Length headers.");
+	}
     } else {
 	char		hkey[1024];
 	char		*k = hkey;
 	volatile VALUE	sval = rb_str_new(val, vlen);
+	volatile VALUE	kval;
 
 	strcpy(hkey, "HTTP_");
 	k = hkey + 5;
@@ -414,7 +429,16 @@ add_header_value(VALUE hh, const char *key, int klen, const char *val, int vlen)
 		*k = toupper(*k);
 	    }
 	}
-	rb_hash_aset(hh, rb_str_new(hkey, klen + 5), sval);
+	kval = rb_str_new(hkey, klen + 5);
+	if (Qnil == (v = rb_hash_lookup2(hh, kval, Qnil))) {
+	    rb_hash_aset(hh, kval, sval);
+	} else {
+	    volatile VALUE	a = rb_ary_new();
+
+	    rb_ary_push(a, v);
+	    rb_ary_push(a, sval);
+	    rb_hash_aset(hh, kval, a);
+	}
     }
 }
 

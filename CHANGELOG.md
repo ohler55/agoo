@@ -2,11 +2,15 @@
 
 All changes to the Agoo gem are documented here. Releases follow semantic versioning.
 
-## [2.14.0] - unreleased
+## [2.14.0] - 2020-11-07
 
 ### Added
 
 - REMOTE_ADDR element added to requests/env argument to `call()`.
+
+- Added check for multiple Content-Length headers.
+
+- Multiple occurrances of a header are now passed to the Rack `call()` method as an array.
 
 ## [2.13.0] - 2020-07-05
 
