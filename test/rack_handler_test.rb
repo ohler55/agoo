@@ -105,6 +105,7 @@ size=big
       "PATH_INFO" => "/tellme",
       "QUERY_STRING" => "a=1",
       "REQUEST_METHOD" => "GET",
+      "REMOTE_ADDR" => "127.0.0.1",
       "SCRIPT_NAME" => "",
       "SERVER_NAME" => "localhost",
       "SERVER_PORT" => "6467",

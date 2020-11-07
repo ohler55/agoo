@@ -189,6 +189,7 @@ agoo_ws_create_req(agooCon c, long mlen) {
     c->req->method = (AGOO_WS_OP_BIN == op) ? AGOO_ON_BIN : AGOO_ON_MSG;
     c->req->upgrade = AGOO_UP_NONE;
     c->req->up = c->up;
+    memcpy(c->req->remote, c->remote, sizeof(c->remote));
     c->req->res = NULL;
     if (c->up->on_msg) {
 	c->req->hook = agoo_hook_create(AGOO_NONE, NULL, c->up->ctx, PUSH_HOOK, &agoo_server.eval_queue);

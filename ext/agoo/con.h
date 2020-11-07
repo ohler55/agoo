@@ -3,6 +3,7 @@
 #ifndef AGOO_CON_H
 #define AGOO_CON_H
 
+#include <arpa/inet.h>
 #include <poll.h>
 #include <pthread.h>
 #include <stdbool.h>
@@ -45,6 +46,7 @@ typedef struct _agooCon {
     struct _agooBind		*bind;
     struct pollfd		*pp;
     uint64_t			id;
+    char			remote[INET6_ADDRSTRLEN];
     char			buf[MAX_HEADER_SIZE];
     size_t			bcnt;
 

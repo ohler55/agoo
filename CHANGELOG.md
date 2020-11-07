@@ -2,6 +2,12 @@
 
 All changes to the Agoo gem are documented here. Releases follow semantic versioning.
 
+## [2.14.0] - unreleased
+
+### Added
+
+- REMOTE_ADDR element added to requests/env argument to `call()`.
+
 ## [2.13.0] - 2020-07-05
 
 ### Added

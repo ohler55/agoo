@@ -82,7 +82,7 @@ class BaseHandlerTest < Minitest::Test
     GC.start
     Agoo::shutdown
   }
-  
+
   def test_eval
     uri = URI('http://localhost:6470/tellme?a=1')
     req = Net::HTTP::Get.new(uri)
@@ -132,13 +132,13 @@ class BaseHandlerTest < Minitest::Test
     req['Accept-Encoding'] = '*'
     req['Accept'] = 'application/json'
     req['User-Agent'] = 'Ruby'
-    
+
     res = Net::HTTP.start(uri.hostname, uri.port) { |h|
       h.request(req)
     }
     assert_equal(Net::HTTPNoContent, res.class)
   end
-  
+
   def test_put
     uri = URI('http://localhost:6470/makeme')
     req = Net::HTTP::Put.new(uri)
@@ -147,7 +147,7 @@ class BaseHandlerTest < Minitest::Test
     req['Accept'] = 'application/json'
     req['User-Agent'] = 'Ruby'
     req.body = 'hello'
-    
+
     res = Net::HTTP.start(uri.hostname, uri.port) { |h|
       h.request(req)
     }
