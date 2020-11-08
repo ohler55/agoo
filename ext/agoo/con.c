@@ -63,6 +63,22 @@ agoo_con_create(agooErr err, int sock, uint64_t id, agooBind b) {
     if (NULL == (c = (agooCon)AGOO_CALLOC(1, sizeof(struct _agooCon)))) {
 	AGOO_ERR_MEM(err, "Connection");
     } else {
+	// It would be better to get this information in server.c after
+	// accept() but that does not work on macOS so instead a call to
+	// getpeername() is used instead.
+	struct sockaddr_storage	addr;
+	socklen_t		len = sizeof(addr);
+
+	getpeername(sock, (struct sockaddr*)&addr, &len);
+	if (addr.ss_family == AF_INET) {
+	    struct sockaddr_in	*s = (struct sockaddr_in*)&addr;
+
+	    inet_ntop(AF_INET, &s->sin_addr, c->remote, sizeof(c->remote));
+	} else {
+	    struct sockaddr_in6	*s = (struct sockaddr_in6*)&addr;
+
+	    inet_ntop(AF_INET6, &s->sin6_addr, c->remote, sizeof(c->remote));
+	}
 	c->sock = sock;
 	c->id = id;
 	c->timeout = dtime() + CON_TIMEOUT;
@@ -437,6 +453,7 @@ con_header_read(agooCon c, size_t *mlenp) {
     c->req->method = method;
     c->req->upgrade = AGOO_UP_NONE;
     c->req->up = NULL;
+    memcpy(c->req->remote, c->remote, sizeof(c->remote));
     c->req->path.start = c->req->msg + (path.start - c->buf);
     c->req->path.len = (int)(path.end - path.start);
     c->req->query.start = c->req->msg + (query - c->buf);

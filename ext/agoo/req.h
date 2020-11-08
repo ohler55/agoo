@@ -3,6 +3,7 @@
 #ifndef AGOO_REQ_H
 #define AGOO_REQ_H
 
+#include <arpa/inet.h>
 #include <stdint.h>
 
 #include "hook.h"
@@ -32,6 +33,7 @@ typedef struct _agooReq {
     struct _agooStr		query;
     struct _agooStr		header;
     struct _agooStr		body;
+    char			remote[INET6_ADDRSTRLEN];
     void			*env;
     agooHook			hook;
     size_t			mlen;   // allocated msg length

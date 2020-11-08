@@ -43,6 +43,7 @@ static VALUE	rack_upgrade_val = Qundef;
 static VALUE	rack_url_scheme_val = Qundef;
 static VALUE	rack_version_val = Qundef;
 static VALUE	rack_version_val_val = Qundef;
+static VALUE	remote_addr_val = Qundef;
 static VALUE	request_method_val = Qundef;
 static VALUE	script_name_val = Qundef;
 static VALUE	server_name_val = Qundef;
@@ -95,6 +96,27 @@ static VALUE
 method(VALUE self) {
     return req_method((agooReq)DATA_PTR(self));
 }
+
+static VALUE
+req_remote_addr(agooReq r) {
+
+    if (NULL == r) {
+	rb_raise(rb_eArgError, "Request is no longer valid.");
+    }
+    return rb_str_new(r->remote, strlen(r->remote));
+}
+
+/* Document-method: remote_addr
+ *
+ * call-seq: remote_addr()
+ *
+ * Returns the remote address.
+ */
+static VALUE
+remote_addr(VALUE self) {
+    return req_remote_addr((agooReq)DATA_PTR(self));
+}
+
 
 static VALUE
 req_script_name(agooReq r) {
@@ -366,14 +388,29 @@ rack_run_once(VALUE self) {
 
 static void
 add_header_value(VALUE hh, const char *key, int klen, const char *val, int vlen) {
+    VALUE	v;
+
     if (sizeof(content_type) - 1 == klen && 0 == strncasecmp(key, content_type, sizeof(content_type) - 1)) {
-	rb_hash_aset(hh, content_type_val, rb_str_new(val, vlen));
+	if (Qnil == (v = rb_hash_lookup2(hh, content_type_val, Qnil))) {
+	    rb_hash_aset(hh, content_type_val, rb_str_new(val, vlen));
+	} else {
+	    volatile VALUE	a = rb_ary_new();
+
+	    rb_ary_push(a, v);
+	    rb_ary_push(a, rb_str_new(val, vlen));
+	    rb_hash_aset(hh, content_type_val, a);
+	}
     } else if (sizeof(content_length) - 1 == klen && 0 == strncasecmp(key, content_length, sizeof(content_length) - 1)) {
-	rb_hash_aset(hh, content_length_val, rb_str_new(val, vlen));
+	if (Qnil == (v = rb_hash_lookup2(hh, content_length_val, Qnil))) {
+	    rb_hash_aset(hh, content_length_val, rb_str_new(val, vlen));
+	} else {
+	    rb_raise(rb_eArgError, "Multiple Content-Length headers.");
+	}
     } else {
 	char		hkey[1024];
 	char		*k = hkey;
 	volatile VALUE	sval = rb_str_new(val, vlen);
+	volatile VALUE	kval;
 
 	strcpy(hkey, "HTTP_");
 	k = hkey + 5;
@@ -392,7 +429,16 @@ add_header_value(VALUE hh, const char *key, int klen, const char *val, int vlen)
 		*k = toupper(*k);
 	    }
 	}
-	rb_hash_aset(hh, rb_str_new(hkey, klen + 5), sval);
+	kval = rb_str_new(hkey, klen + 5);
+	if (Qnil == (v = rb_hash_lookup2(hh, kval, Qnil))) {
+	    rb_hash_aset(hh, kval, sval);
+	} else {
+	    volatile VALUE	a = rb_ary_new();
+
+	    rb_ary_push(a, v);
+	    rb_ary_push(a, sval);
+	    rb_hash_aset(hh, kval, a);
+	}
     }
 }
 
@@ -545,8 +591,9 @@ request_env(agooReq req, VALUE self) {
 	rb_hash_aset(env, script_name_val, req_script_name(req));
 	rb_hash_aset(env, path_info_val, req_path_info(req));
 	rb_hash_aset(env, query_string_val, req_query_string(req));
-	rb_hash_aset(env, server_name_val, req_server_name(req));
+	rb_hash_aset(env, remote_addr_val, req_remote_addr(req));
 	rb_hash_aset(env, server_port_val, req_server_port(req));
+	rb_hash_aset(env, server_name_val, req_server_name(req));
 	fill_headers(req, env);
 	rb_hash_aset(env, rack_version_val, rack_version_val_val);
 	rb_hash_aset(env, rack_url_scheme_val, req_rack_url_scheme(req));
@@ -663,6 +710,7 @@ request_init(VALUE mod) {
     rb_define_method(req_class, "query_string", query_string, 0);
     rb_define_method(req_class, "server_name", server_name, 0);
     rb_define_method(req_class, "server_port", server_port, 0);
+    rb_define_method(req_class, "remote_addr", remote_addr, 0);
     rb_define_method(req_class, "rack_version", rack_version, 0);
     rb_define_method(req_class, "rack_url_scheme", rack_url_scheme, 0);
     rb_define_method(req_class, "rack_input", rack_input, 0);
@@ -713,6 +761,7 @@ request_init(VALUE mod) {
     rack_upgrade_val = rb_str_new_cstr("rack.upgrade?");	rb_gc_register_address(&rack_upgrade_val);
     rack_url_scheme_val = rb_str_new_cstr("rack.url_scheme");	rb_gc_register_address(&rack_url_scheme_val);
     rack_version_val = rb_str_new_cstr("rack.version");		rb_gc_register_address(&rack_version_val);
+    remote_addr_val = rb_str_new_cstr("REMOTE_ADDR");		rb_gc_register_address(&remote_addr_val);
     request_method_val = rb_str_new_cstr("REQUEST_METHOD");	rb_gc_register_address(&request_method_val);
     script_name_val = rb_str_new_cstr("SCRIPT_NAME");		rb_gc_register_address(&script_name_val);
     server_name_val = rb_str_new_cstr("SERVER_NAME");		rb_gc_register_address(&server_name_val);
