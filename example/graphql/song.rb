@@ -32,7 +32,7 @@ class Artist
 
   def song(args={})
     n = args['name']
-    @songs.each { |s| return s if n = s.name }
+    @songs.each { |s| return s if n == s.name }
     nil
   end
 
@@ -65,7 +65,7 @@ class Query
 
   def artist(args={})
     n = args['name']
-    @artists.each { |a| return a if n = a.name }
+    @artists.each { |a| return a if n == a.name }
     nil
   end
 end
