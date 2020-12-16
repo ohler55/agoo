@@ -1,4 +1,4 @@
-# [![{}j](http://www.ohler.com/dev/misc/agoo.svg)](http://www.ohler.com/agoo) Agoo gem
+# [![{}j](misc/agoo_128.svg)](http://www.ohler.com/agoo) Agoo gem
 
 [![Build Status](https://img.shields.io/travis/ohler55/agoo/master.svg)](http://travis-ci.org/ohler55/agoo?branch=master)
 [![Gem Version](https://badge.fury.io/rb/agoo.svg)](https://badge.fury.io/rb/agoo)
