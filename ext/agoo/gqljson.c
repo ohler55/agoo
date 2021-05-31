@@ -307,6 +307,7 @@ parse_object(agooErr err, agooDoc doc) {
     agoo_doc_skip_jwhite(doc);
     if ('}' != *doc->cur) {
 	for (; doc->cur < doc->end; doc->cur++) {
+	    agoo_doc_skip_jwhite(doc);
 	    if ('"' != *doc->cur) {
 		return return_parse_err(err, doc, "expected an object key as a string", value);
 	    }

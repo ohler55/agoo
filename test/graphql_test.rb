@@ -79,6 +79,7 @@ end
 $songs_sdl = %^
 type Query @ruby(class: "Query") {
   artist(name: String!): Artist
+  artists: [Artist!]
 }
 
 type Mutation {
@@ -120,26 +121,30 @@ type Song {
 ^
 
 class Query
-  attr_reader :artists
+  attr_reader :artistHash
 
   def initialize(artists)
-    @artists = artists
+    @artistHash = artists
   end
 
   def artist(args)
-    @artists[args['name']]
+    @artistHash[args['name']]
+  end
+
+  def artists(args)
+    @artistHash.values
   end
 end
 
 class Mutation
-  attr_reader :artists
+  attr_reader :artistHash
 
   def initialize(artists)
-    @artists = artists
+    @artistHash = artists
   end
 
   def like(args)
-    artist = @artists[args['artist']]
+    artist = @artistHash[args['artist']]
     artist.like
     artist
   end
@@ -187,6 +192,7 @@ type Mutation @ruby(class: "Mutation") {
 
 type Query @ruby(class: "Query") {
   artist(name: String!): Artist
+  artists: [Artist!]
 }
 
 type Song @ruby(class: "Song") {
@@ -450,6 +456,30 @@ fragment basic on Artist {
 }^
 
     post_test(uri, body, 'application/graphql', expect)
+  end
+
+  def test_post_json_fragment
+    uri = URI('http://localhost:6472/graphql?indent=2')
+    body = %^{
+  "query": "fragment basic on Artist {name origin} query list($filter: String) {artists {...basic}}",
+  "operationName": "list",
+  "variables": {"filters": {}}
+}^
+    expect = %^{
+  "data":{
+    "artists":[
+      {
+        "name":"Fazerdaze",
+        "origin":[
+          "Morningside",
+          "Auckland",
+          "New Zealand"
+        ]
+      }
+    ]
+  }
+}^
+    post_test(uri, body, 'application/json', expect)
   end
 
   def test_post_inline
