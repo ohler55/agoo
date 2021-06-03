@@ -620,7 +620,7 @@ eval_post(agooErr err, agooReq req) {
     } else {
 	result = gql_doc_eval_func(err, doc);
     }
-    if (GQL_SUBSCRIPTION == doc->op->kind) {
+    if (NULL != doc->op && GQL_SUBSCRIPTION == doc->op->kind) {
 	result = NULL;
     }
 DONE:

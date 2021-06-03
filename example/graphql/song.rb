@@ -9,7 +9,7 @@ Agoo::Log.configure(dir: '',
 		    colorize: true,
 		    states: {
 		      INFO: true,
-		      DEBUG: false,
+		      DEBUG: true,
 		      connect: true,
 		      request: true,
 		      response: true,
