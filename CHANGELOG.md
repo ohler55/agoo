@@ -2,7 +2,7 @@
 
 All changes to the Agoo gem are documented here. Releases follow semantic versioning.
 
-## [2.14.1] - unreleased
+## [2.14.1] - 2021-06-09
 
 ### Fixed
 - Evaluating an empty GraphQL request with comments only no longer crashes.
