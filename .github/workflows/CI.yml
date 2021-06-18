@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - develop
+      - master
+  pull_request:
+
+jobs:
+  Build:
+    strategy:
+      fail-fast: true
+      matrix:
+        # Due to https://github.com/actions/runner/issues/849, we have to use quotes for '3.0'
+        ruby:
+          - head
+          - '3.0'
+          - '2.7'
+          - '2.6'
+          - '2.5'
+        os:
+          - ubuntu
+          - macos
+
+    runs-on: ${{ matrix.os }}-latest
+    continue-on-error: ${{ matrix.ruby == '3.0' || matrix.ruby == 'head'}}
+    name: Ruby ${{ matrix.ruby }} (${{ matrix.os }})
+    steps:
+      - uses: actions/checkout@v2
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ matrix.ruby }}
+      - name: build
+        run: |
+          cd ./ext/agoo
+          ruby extconf.rb
+          make
+      - name: test
+        run: |
+          cd test
+          ./tests.sh
