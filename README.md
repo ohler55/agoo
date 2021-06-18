@@ -1,6 +1,6 @@
 # [![{}j](misc/agoo_128.svg)](http://www.ohler.com/agoo) Agoo
 
-[![Build Status](https://img.shields.io/travis/ohler55/agoo/master.svg)](http://travis-ci.org/ohler55/agoo?branch=master)
+[![Build Status](https://img.shields.io/github/workflow/status/ohler55/agoo/CI?logo=github)](https://github.com/ohler55/agoo/actions/workflows/CI.yml)
 [![Gem Version](https://badge.fury.io/rb/agoo.svg)](https://badge.fury.io/rb/agoo)
 ![Gem](https://img.shields.io/gem/dt/agoo.svg) [![TideLift](https://tidelift.com/badges/github/ohler55/agoo)](https://tidelift.com/subscription/pkg/rubygems-agoo?utm_source=rubygems-agoo&utm_medium=referral&utm_campaign=readme)
 
@@ -163,4 +163,3 @@ the develop branch. Pull requests should be made against the develop branch.
  - *WABuR* *repo*: https://github.com/ohler55/wabur has an option to use Agoo
 
  - *Perfer* *repo*: https://github.com/ohler55/perfer
-
