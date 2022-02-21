@@ -2,6 +2,11 @@
 
 All changes to the Agoo gem are documented here. Releases follow semantic versioning.
 
+## [2.14.2] - 2022-02-22
+
+### Fixed
+- Invalid SDL now raises and exception instead of crashing.
+
 ## [2.14.1] - 2021-06-09
 
 ### Fixed

@@ -892,8 +892,8 @@ gql_assure_nonnull(agooErr err, gqlType base) {
 
 void
 gql_type_destroy(gqlType type) {
-    type_destroy(type);
     type_remove(type);
+    type_destroy(type);
 }
 
 // If negative then there are non-simple-string characters.

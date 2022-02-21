@@ -523,14 +523,14 @@ handle_rack_inner(VALUE x) {
 		if (Qnil != body) {
 		    body = rb_ivar_get(body, rb_intern("@body"));
 		}
-		if (rb_respond_to(body, rb_intern("each"))) {
-		    rb_iterate(rb_each, body, body_len_cb, (VALUE)&bsize);
+		if (rb_respond_to(body, each_id)) {
+		    rb_block_call(body, each_id, 0, 0, body_len_cb, (VALUE)&bsize);
 		}
 	    } else {
-		rb_iterate(rb_each, bv, body_len_cb, (VALUE)&bsize);
+		rb_block_call(bv, each_id, 0, 0, body_len_cb, (VALUE)&bsize);
 	    }
 	} else {
-	    rb_iterate(rb_each, bv, body_len_cb, (VALUE)&bsize);
+	    rb_block_call(bv, each_id, 0, 0, body_len_cb, (VALUE)&bsize);
 	}
     }
     switch (code) {
@@ -587,7 +587,7 @@ handle_rack_inner(VALUE x) {
 	if (T_HASH == rb_type(hv)) {
 	    rb_hash_foreach(hv, header_cb, (VALUE)&t);
 	} else {
-	    rb_iterate(rb_each, hv, header_each_cb, (VALUE)&t);
+	    rb_block_call(hv, each_id, 0, 0, header_each_cb, (VALUE)&t);
 	}
     }
     t = agoo_text_append(t, "\r\n", 2);
@@ -602,7 +602,7 @@ handle_rack_inner(VALUE x) {
 		t = agoo_text_append(t, StringValuePtr(v), (int)RSTRING_LEN(v));
 	    }
 	} else {
-	    rb_iterate(rb_each, bv, body_append_cb, (VALUE)&t);
+	    rb_block_call(bv, each_id, 0, 0, body_append_cb, (VALUE)&t);
 	}
     }
     agoo_res_message_push(req->res, t);

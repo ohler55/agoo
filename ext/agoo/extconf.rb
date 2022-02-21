@@ -20,7 +20,7 @@ CONFIG['warnflags'].slice!(/ -Wdeclaration-after-statement/)
 CONFIG['warnflags'].slice!(/ -Wmissing-noreturn/)
 
 have_header('stdatomic.h')
-#have_header('sys/epoll.h')
+have_header('sys/epoll.h')
 have_header('openssl/ssl.h')
 have_library('ssl')
 

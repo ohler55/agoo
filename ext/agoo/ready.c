@@ -5,7 +5,7 @@
 #include <string.h>
 #include <unistd.h>
 
-#if HAVE_SYS_EPOLL_H
+#ifdef HAVE_SYS_EPOLL_H
 #include <sys/epoll.h>
 #else
 #include <ctype.h>
@@ -22,7 +22,7 @@
 // milliseconds
 #define MAX_WAIT		10
 
-#if HAVE_SYS_EPOLL_H
+#ifdef HAVE_SYS_EPOLL_H
 #define EPOLL_SIZE		100
 #else
 #define INITIAL_POLL_SIZE	1024
@@ -34,7 +34,7 @@ typedef struct _link {
     int			fd;
     void		*ctx;
     agooHandler		handler;
-#if HAVE_SYS_EPOLL_H
+#ifdef HAVE_SYS_EPOLL_H
     uint32_t		events; // last events set
 #else
     struct pollfd	*pp;
@@ -45,7 +45,7 @@ struct _agooReady {
     Link	links;
     int		lcnt;
     double	next_check;
-#if HAVE_SYS_EPOLL_H
+#ifdef HAVE_SYS_EPOLL_H
     int		epoll_fd;
 #else
     struct pollfd	*pa;
@@ -82,7 +82,7 @@ agoo_ready_create(agooErr err) {
 	ready->links = NULL;
 	ready->lcnt = 0;
 	ready->next_check = dtime() + CHECK_FREQ;
-#if HAVE_SYS_EPOLL_H
+#ifdef HAVE_SYS_EPOLL_H
 	if (0 > (ready->epoll_fd = epoll_create(1))) {
 	    agoo_err_no(err, "epoll create failed");
 	    return NULL;
@@ -111,7 +111,7 @@ agoo_ready_destroy(agooReady ready) {
 	}
 	AGOO_FREE(link);
     }
-#if HAVE_SYS_EPOLL_H
+#ifdef HAVE_SYS_EPOLL_H
     close(ready->epoll_fd);
 #else
     AGOO_FREE(ready->pa);
@@ -137,7 +137,7 @@ agoo_ready_add(agooErr		err,
     ready->links = link;
     ready->lcnt++;
 
-#if HAVE_SYS_EPOLL_H
+#ifdef HAVE_SYS_EPOLL_H
     link->events = EPOLLIN;
     {
 	struct epoll_event	event = {
@@ -181,7 +181,7 @@ ready_remove(agooReady ready, Link link) {
     if (NULL != link->next) {
 	link->next->prev = link->prev;
     }
-#if HAVE_SYS_EPOLL_H
+#ifdef HAVE_SYS_EPOLL_H
     {
 	struct epoll_event	event = {
 	    .events = 0,
@@ -214,7 +214,7 @@ agoo_ready_go(agooErr err, agooReady ready) {
     Link	link;
     Link	next;
 
-#if HAVE_SYS_EPOLL_H
+#ifdef HAVE_SYS_EPOLL_H
     struct epoll_event	events[EPOLL_SIZE];
     struct epoll_event	*ep;
     int			cnt;
