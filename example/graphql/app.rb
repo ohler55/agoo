@@ -37,7 +37,7 @@ end
 
 class Query
   def hello
-    'Hello'
+    "Hello from PID #{Process.pid}"
   end
 end
 
