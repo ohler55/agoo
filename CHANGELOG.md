@@ -2,6 +2,13 @@
 
 All changes to the Agoo gem are documented here. Releases follow semantic versioning.
 
+## [2.14.3] - 2022-05-05
+
+### Fixed
+- Agoo now reports an error if the developer make the mistake of
+  building a schema that loops back on itself too many times using
+  fragments.
+
 ## [2.14.2] - 2022-02-22
 
 ### Fixed

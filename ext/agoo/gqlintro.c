@@ -1497,13 +1497,13 @@ gql_intro_eval(agooErr err, gqlDoc doc, gqlSel sel, gqlValue result, int depth) 
     struct _gqlCobj	obj;
 
     if (0 == strcmp("__type", sel->name)) {
-	if (1 < depth) {
+	if (2 < depth) {
 	    return agoo_err_set(err, AGOO_ERR_EVAL, "__type can only be called from a query root.");
 	}
 	obj.clas = &root_class;
 	obj.ptr = NULL;
     } else if (0 == strcmp("__schema", sel->name)) {
-	if (1 < depth) {
+	if (2 < depth) {
 	    return agoo_err_set(err, AGOO_ERR_EVAL, "__scheme can only be called from a query root.");
 	}
 	obj.clas = &root_class;

@@ -21,6 +21,7 @@
 #include "websocket.h"
 
 #define MAX_RESOLVE_ARGS	16
+#define MAX_DEPTH		100
 
 gqlRef		gql_root = NULL;
 gqlType		_gql_root_type = NULL;
@@ -273,7 +274,10 @@ gql_eval_sels(agooErr err, gqlDoc doc, gqlRef ref, gqlField field, gqlSel sels, 
     gqlSel	sel;
     gqlField	sf = NULL;
 
-    // TBD if depth over max then return an error
+    if (MAX_DEPTH < depth) {
+	return agoo_err_set(err, AGOO_ERR_EVAL, "Maximum resolve depth of %d exceeded.", MAX_DEPTH);
+    }
+    depth++;
 
     for (sel = sels; NULL != sel; sel = sel->next) {
 	if (NULL != field) {

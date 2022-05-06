@@ -458,6 +458,32 @@ fragment basic on Artist {
     post_test(uri, body, 'application/graphql', expect)
   end
 
+  def test_post_fragment_loop
+    uri = URI('http://localhost:6472/graphql?indent=2')
+    body = %^
+{
+  artist(name:"Fazerdaze") {
+    ...loop
+  }
+}
+
+fragment loop on Artist {
+  name
+  ...loop
+}
+^
+    expect = %^{
+  "errors":[
+    {
+      "message":"Maximum resolve depth of 100 exceeded.",
+      "code":"eval error"
+    }
+  ]
+}
+^
+    post_test(uri, body, 'application/graphql', expect, 'errors.0.timestamp')
+  end
+
   def test_post_json_fragment
     uri = URI('http://localhost:6472/graphql?indent=2')
     body = %^{
@@ -1044,7 +1070,7 @@ mutation {
     assert_equal(expect, content)
   end
 
-  def post_test(uri, body, content_type, expect)
+  def post_test(uri, body, content_type, expect, ignore=nil)
     uri = URI(uri)
     req = Net::HTTP::Post.new(uri)
     req['Accept-Encoding'] = '*'
@@ -1055,6 +1081,11 @@ mutation {
     }
     content = res.body
     assert_equal('application/json', res['Content-Type'])
+    unless ignore.nil?
+      result = Oj.load(content, mode: :strict)
+      deep_delete(result, ignore.split('.'))
+      content = Oj.dump(result, indent: 2)
+    end
     assert_equal(expect, content)
   end
 end
