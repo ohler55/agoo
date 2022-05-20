@@ -33,7 +33,7 @@ size=big
 	]
       elsif 'POST' == req['REQUEST_METHOD']
 	[ 204, { }, [] ]
-      elsif 'PUT' == req['REQUEST_METHOD']
+      elsif 'PUT' == req['REQUEST_METHOD'] ||  'PATCH' == req['REQUEST_METHOD']
 	[ 201,
 	  { },
 	  [ req['rack.input'].read ]
@@ -65,6 +65,7 @@ size=big
     Agoo::Server.handle(:GET, "/tellme", handler)
     Agoo::Server.handle(:POST, "/makeme", handler)
     Agoo::Server.handle(:PUT, "/makeme", handler)
+    Agoo::Server.handle(:PATCH, "/makeme", handler)
 
     Agoo::Server.start()
 
@@ -143,6 +144,22 @@ size=big
   def test_put
     uri = URI('http://localhost:6467/makeme')
     req = Net::HTTP::Put.new(uri)
+    # Set the headers the way we want them.
+    req['Accept-Encoding'] = '*'
+    req['Accept'] = 'application/json'
+    req['User-Agent'] = 'Ruby'
+    req.body = 'hello'
+
+    res = Net::HTTP.start(uri.hostname, uri.port) { |h|
+      h.request(req)
+    }
+    assert_equal(Net::HTTPCreated, res.class)
+    assert_equal('hello', res.body)
+  end
+
+  def test_patch
+    uri = URI('http://localhost:6467/makeme')
+    req = Net::HTTP::Patch.new(uri)
     # Set the headers the way we want them.
     req['Accept-Encoding'] = '*'
     req['Accept'] = 'application/json'

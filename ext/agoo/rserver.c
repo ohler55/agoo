@@ -48,6 +48,7 @@ static VALUE	options_sym;
 static VALUE	post_sym;
 static VALUE	push_env_key;
 static VALUE	put_sym;
+static VALUE	patch_sym;
 
 static VALUE	rserver;
 
@@ -971,6 +972,8 @@ handle(VALUE self, VALUE method, VALUE pattern, VALUE handler) {
 	meth = AGOO_POST;
     } else if (put_sym == method) {
 	meth = AGOO_PUT;
+    } else if (patch_sym == method) {
+	meth = AGOO_PATCH;
     } else if (Qnil == method) {
 	meth = AGOO_ALL;
     } else {
@@ -1277,6 +1280,7 @@ server_init(VALUE mod) {
     options_sym = ID2SYM(rb_intern("OPTIONS"));		rb_gc_register_address(&options_sym);
     post_sym = ID2SYM(rb_intern("POST"));		rb_gc_register_address(&post_sym);
     put_sym = ID2SYM(rb_intern("PUT"));			rb_gc_register_address(&put_sym);
+    patch_sym = ID2SYM(rb_intern("PATCH"));			rb_gc_register_address(&patch_sym);
 
     push_env_key = rb_str_new_cstr("rack.upgrade");	rb_gc_register_address(&push_env_key);
 
