@@ -327,6 +327,8 @@ con_header_read(agooCon c, size_t *mlenp) {
 	    method = AGOO_PUT;
 	} else if (4 == b - c->buf && 0 == strncmp("POST", c->buf, 4)) {
 	    method = AGOO_POST;
+	} else if (5 == b - c->buf && 0 == strncmp("PATCH", c->buf, 5)) {
+	    method = AGOO_PATCH;
 	} else {
 	    return bad_request(c, 400, __LINE__);
 	}
