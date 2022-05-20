@@ -2,6 +2,12 @@
 
 All changes to the Agoo gem are documented here. Releases follow semantic versioning.
 
+## [2.15.0] - 2022-05-20
+
+### Added
+
+- Support added for PATCH.
+
 ## [2.14.3] - 2022-05-05
 
 ### Fixed
