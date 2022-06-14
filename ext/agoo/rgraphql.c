@@ -58,8 +58,24 @@ make_ruby_use(agooErr    err,
     volatile VALUE	v;
     ID			m = rb_intern(method);
 
-    if (!rb_respond_to(root, m) ||
-	Qnil == (v = rb_funcall(root, m, 0))) {
+    if (!rb_respond_to(root, m)) {
+	return AGOO_ERR_OK;
+    }
+    switch (rb_obj_method_arity(root, m)) {
+    case 0:
+	v = rb_funcall(root, m, 0);
+	break;
+    case 1:
+	v = rb_funcall(root, m, 1, Qnil);
+	break;
+    case 2:
+	v = rb_funcall(root, m, 2, Qnil, Qnil);
+	break;
+    default:
+	v = Qnil;
+	break;
+    }
+    if (Qnil == v) {
 	return AGOO_ERR_OK;
     }
     if (NULL == (type = gql_type_get(type_name))) {
