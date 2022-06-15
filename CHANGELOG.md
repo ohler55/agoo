@@ -8,6 +8,9 @@ All changes to the Agoo gem are documented here. Releases follow semantic versio
 
 - Support added for PATCH.
 
+- A `:hide_schema` option has been added to show the graphql/schema as
+  not found unless added by with the handle method of the server.
+
 ## [2.14.3] - 2022-05-05
 
 ### Fixed
