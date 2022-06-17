@@ -478,8 +478,14 @@ gql_eval_get_hook(agooReq req) {
 	result = gql_doc_eval_func(&err, doc);
     }
     if (NULL == result) {
+	int code = 500;
+
+	if (err.code < 0) {
+	    code = -err.code;
+	}
+	err.code = AGOO_ERR_EVAL;
 	gql_doc_destroy(doc);
-	err_resp(req->res, &err, 500);
+	err_resp(req->res, &err, code);
 	return;
     }
     if (GQL_SUBSCRIPTION == doc->op->kind) {
@@ -648,7 +654,13 @@ gql_eval_post_hook(agooReq req) {
 	indent = (int)strtol(s, NULL, 10);
     }
     if (NULL == (result = eval_post(&err, req)) && AGOO_ERR_OK != err.code) {
-	err_resp(req->res, &err, 400);
+	int code = 400;
+
+	if (err.code < 0) {
+	    code = -err.code;
+	}
+	err.code = AGOO_ERR_EVAL;
+	err_resp(req->res, &err, code);
     } else if (NULL == result) {
 	value_resp(req, result, 200, indent);
     } else {

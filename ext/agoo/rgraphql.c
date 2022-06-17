@@ -105,7 +105,13 @@ rescue_error(VALUE x, VALUE ignore) {
     const char		*ms = rb_string_value_ptr(&msg);
 
     agoo_err_set(eval->err, AGOO_ERR_EVAL, "%s: %s", classname, ms);
+    if (rb_respond_to(info, rb_intern("code"))) {
+	VALUE	code = rb_funcall(info, rb_intern("code"), 0);
 
+	if (RUBY_T_FIXNUM == rb_type(code)) {
+	    eval->err->code = -FIX2INT(code);
+	}
+    }
     return Qfalse;
 }
 

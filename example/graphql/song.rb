@@ -105,8 +105,9 @@ class Schema
     # req will contain the request parameters which can be used to determine
     # if the query should continue. For example the req["QUERY_STRING"] could
     # be checked for an occurance of "__" and rejected by raising an
-    # exception.
-    # puts "*** query #{args} - #{req}"
+    # exception. If the exception responds to :code then that code will be
+    # used as the HTTP status code.
+    # puts "*** query #{req}"
     @query
   end
 end

@@ -11,6 +11,9 @@ All changes to the Agoo gem are documented here. Releases follow semantic versio
 - A `:hide_schema` option has been added to show the graphql/schema as
   not found unless added by with the handle method of the server.
 
+- Raising an exception that responds to `code` in a graphql resolve
+  function will return that code as the HTTP status code.
+
 ## [2.14.3] - 2022-05-05
 
 ### Fixed
