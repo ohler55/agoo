@@ -497,7 +497,6 @@ resolve(agooErr err, gqlDoc doc, gqlRef target, gqlField field, gqlSel sel, gqlV
 	    } else {
 		rreq = (VALUE)doc->ctx;
 	    }
-	    printf("*** %s - %lu\n", sel->name, rreq);
 	    if (-2 == arity || 2 == arity) {
 		child = rb_funcall(obj, method, 2, rargs, rreq);
 	    } else {
