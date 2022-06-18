@@ -30,7 +30,7 @@ class Artist
     @origin = origin
   end
 
-  def song(args={})
+  def song(args, req)
     n = args['name']
     @songs.each { |s| return s if n == s.name }
     nil
@@ -92,13 +92,23 @@ class Mutation
 end
 
 class Schema
-  attr_reader :query
+  #attr_reader :query
   attr_reader :mutation
   attr_reader :subscription
 
-  def initialize(query)
-    @query = query
-    @mutation = Mutation.new(query.artists)
+  def initialize(q)
+    @query = q
+    @mutation = Mutation.new(@query.artists)
+  end
+
+  def query(_, req)
+    # req will contain the request parameters which can be used to determine
+    # if the query should continue. For example the req["QUERY_STRING"] could
+    # be checked for an occurance of "__" and rejected by raising an
+    # exception. If the exception responds to :code then that code will be
+    # used as the HTTP status code.
+    # puts "*** query #{req}"
+    @query
   end
 end
 

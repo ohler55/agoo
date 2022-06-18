@@ -208,12 +208,12 @@ configure(agooErr err, int port, const char *root, VALUE options) {
 	}
 	if (Qnil != (v = rb_hash_lookup(options, ID2SYM(rb_intern("graphql"))))) {
 	    const char	*path;
-	    agooHook	dump_hook;
 	    agooHook	get_hook;
 	    agooHook	post_hook;
 	    agooHook	options_hook;
-	    char	schema_path[256];
+	    agooHook	head = NULL;
 	    long	plen;
+	    VALUE	hide_schema = Qnil;
 
 	    rb_check_type(v, T_STRING);
 	    if (AGOO_ERR_OK != gql_init(err)) {
@@ -221,21 +221,29 @@ configure(agooErr err, int port, const char *root, VALUE options) {
 	    }
 	    path = StringValuePtr(v);
 	    plen = (long)RSTRING_LEN(v);
-	    if ((int)sizeof(schema_path) - 8 < plen) {
-		rb_raise(rb_eArgError, "A graphql schema path is limited to %d characters.", (int)(sizeof(schema_path) - 8));
-	    }
-	    memcpy(schema_path, path, plen);
-	    memcpy(schema_path + plen, "/schema", 8);
 
-	    dump_hook = agoo_hook_func_create(AGOO_GET, schema_path, gql_dump_hook, &agoo_server.eval_queue);
 	    get_hook = agoo_hook_func_create(AGOO_GET, path, gql_eval_get_hook, &agoo_server.eval_queue);
 	    post_hook = agoo_hook_func_create(AGOO_POST, path, gql_eval_post_hook, &agoo_server.eval_queue);
 	    options_hook = agoo_hook_func_create(AGOO_OPTIONS, path, gql_eval_options_hook, &agoo_server.eval_queue);
-	    dump_hook->next = get_hook;
+	    if (Qnil != (hide_schema = rb_hash_lookup(options, ID2SYM(rb_intern("hide_schema")))) && Qtrue == hide_schema) {
+		head = get_hook;
+	    } else {
+		char		schema_path[256];
+		agooHook	dump_hook;
+
+		if ((int)sizeof(schema_path) - 8 < plen) {
+		    rb_raise(rb_eArgError, "A graphql schema path is limited to %d characters.", (int)(sizeof(schema_path) - 8));
+		}
+		memcpy(schema_path, path, plen);
+		memcpy(schema_path + plen, "/schema", 8);
+		dump_hook = agoo_hook_func_create(AGOO_GET, schema_path, gql_dump_hook, &agoo_server.eval_queue);
+		dump_hook->next = get_hook;
+		head = dump_hook;
+	    }
 	    get_hook->next = post_hook;
 	    post_hook->next = options_hook;
 	    options_hook->next = agoo_server.hooks;
-	    agoo_server.hooks = dump_hook;
+	    agoo_server.hooks = head;
 	}
 	if (Qnil != (v = rb_hash_lookup(options, ID2SYM(rb_intern("quiet"))))) {
 	    if (Qtrue == v) {
@@ -296,6 +304,8 @@ configure(agooErr err, int port, const char *root, VALUE options) {
  *   - *:ssl_sert* [_String_] filepath to the SSL certificate file.
  *
  *   - *:ssl_key* [_String_] filepath to the SSL private key file.
+ *
+ *   - *:hide_schema* [_true_|_false_] if true the graphql/schema path is handled.
  */
 static VALUE
 rserver_init(int argc, VALUE *argv, VALUE self) {
