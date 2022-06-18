@@ -2,6 +2,18 @@
 
 All changes to the Agoo gem are documented here. Releases follow semantic versioning.
 
+## [2.15.1] - 2022-06-18
+
+### Added
+
+- Introspection can now be disabled with the `hide_schema` option to the Agoo server.
+
+- If an exception raised from a GraphQL callback responds to `code`
+  that code will be used as the HTTP status.
+
+- Added missing ability to set or add elements of a request argument
+  on GraphQL callback methods.
+
 ## [2.15.0] - 2022-05-20
 
 ### Added

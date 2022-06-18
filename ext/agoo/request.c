@@ -684,6 +684,24 @@ call(VALUE self) {
     return io;
 }
 
+/* Document-method: set
+ *
+ * call-seq: set()
+ *
+ * Sets an key value pair to the environment of the request.
+ */
+static VALUE
+set(VALUE self, VALUE key, VALUE val) {
+    agooReq	r = DATA_PTR(self);
+
+    if (NULL == r) {
+	rb_raise(rb_eArgError, "Request is no longer valid.");
+    }
+    rb_hash_aset((VALUE)r->env, key, val);
+
+    return Qnil;
+}
+
 VALUE
 request_wrap(agooReq req) {
     // freed from the C side of things
@@ -723,6 +741,7 @@ request_init(VALUE mod) {
     rb_define_method(req_class, "body", body, 0);
     rb_define_method(req_class, "rack_logger", rack_logger, 0);
     rb_define_method(req_class, "call", call, 0);
+    rb_define_method(req_class, "set", set, 2);
 
     new_id = rb_intern("new");
 

@@ -30,7 +30,7 @@ class Artist
     @origin = origin
   end
 
-  def song(args={})
+  def song(args, req)
     n = args['name']
     @songs.each { |s| return s if n == s.name }
     nil
@@ -63,7 +63,7 @@ class Query
     @artists = artists
   end
 
-  def artist(args)
+  def artist(args={})
     n = args['name']
     @artists.each { |a| return a if n == a.name }
     nil
