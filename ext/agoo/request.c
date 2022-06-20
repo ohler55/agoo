@@ -697,6 +697,7 @@ set(VALUE self, VALUE key, VALUE val) {
     if (NULL == r) {
 	rb_raise(rb_eArgError, "Request is no longer valid.");
     }
+    request_env(r, self);
     rb_hash_aset((VALUE)r->env, key, val);
 
     return Qnil;

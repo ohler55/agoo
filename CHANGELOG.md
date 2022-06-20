@@ -2,6 +2,12 @@
 
 All changes to the Agoo gem are documented here. Releases follow semantic versioning.
 
+## [2.15.2] - 2022-06-21
+
+### Fixed
+
+- Request no longer crashes when `#env` is not called before `#set`.
+
 ## [2.15.1] - 2022-06-18
 
 ### Added
