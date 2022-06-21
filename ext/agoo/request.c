@@ -703,10 +703,19 @@ set(VALUE self, VALUE key, VALUE val) {
     return Qnil;
 }
 
+static void
+request_mark(void *ptr) {
+    agooReq	r = (agooReq)ptr;
+
+    if (NULL != r->env && Qnil != (VALUE)r->env) {
+	rb_gc_mark((VALUE)r->env);
+    }
+}
+
 VALUE
 request_wrap(agooReq req) {
     // freed from the C side of things
-    return Data_Wrap_Struct(req_class, NULL, NULL, req);
+    return Data_Wrap_Struct(req_class, request_mark, NULL, req);
 }
 
 /* Document-class: Agoo::Request
