@@ -69,6 +69,25 @@ class StaticTest < Minitest::Test
     assert_equal(expect, content)
   end
 
+  def test_fetch_space_name
+    uri = URI('http://localhost:6469/space%20in%20name.html')
+    expect = %|<!DOCTYPE html>
+<html>
+  <head><title>Agoo Space Test</title></head>
+  <body>Agoo</body>
+</html>
+|
+    req = Net::HTTP::Get.new(uri)
+    req['Accept-Encoding'] = '*'
+    req['User-Agent'] = 'Ruby'
+    res = Net::HTTP.start(uri.hostname, uri.port) { |h|
+      h.request(req)
+    }
+    content = res.body
+    assert_equal('text/html', res['Content-Type'])
+    assert_equal(expect, content)
+  end
+
   def test_mime
     uri = URI('http://localhost:6469/odd.odd')
     req = Net::HTTP::Get.new(uri)

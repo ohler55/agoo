@@ -2,6 +2,12 @@
 
 All changes to the Agoo gem are documented here. Releases follow semantic versioning.
 
+## [2.15.3] - [unreleased]
+
+### Fixed
+
+- Asset names with spaces or special characters are now loaded correctly.
+
 ## [2.15.2] - 2022-06-21
 
 ### Fixed
