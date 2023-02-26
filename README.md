@@ -1,6 +1,6 @@
 # [![{}j](misc/agoo_128.svg)](http://www.ohler.com/agoo) Agoo
 
-[![Build Status](https://img.shields.io/github/workflow/status/ohler55/agoo/CI?logo=github)](https://github.com/ohler55/agoo/actions/workflows/CI.yml)
+[![Build Status](https://img.shields.io/github/actions/workflow/status/ohler55/agoo/CI.yml?logo=github&branch=develop)](https://github.com/ohler55/agoo/actions/workflows/CI.yml)
 [![Gem Version](https://badge.fury.io/rb/agoo.svg)](https://badge.fury.io/rb/agoo)
 ![Gem](https://img.shields.io/gem/dt/agoo.svg) [![TideLift](https://tidelift.com/badges/github/ohler55/agoo)](https://tidelift.com/subscription/pkg/rubygems-agoo?utm_source=rubygems-agoo&utm_medium=referral&utm_campaign=readme)
 
