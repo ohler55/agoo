@@ -2,6 +2,13 @@
 
 All changes to the Agoo gem are documented here. Releases follow semantic versioning.
 
+## [2.15.4] - 2023-03-05
+
+### Fixed
+
+- Ruby 3.2.1 and MacOS didn't work well together with libssl missing
+  some symbols. Included libcrypt to fix that.
+
 ## [2.15.3] - 2022-09-23
 
 ### Fixed

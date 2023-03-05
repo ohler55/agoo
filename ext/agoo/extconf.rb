@@ -23,6 +23,7 @@ have_header('stdatomic.h')
 have_header('sys/epoll.h')
 have_header('openssl/ssl.h')
 have_library('ssl')
+have_library('crypto')
 
 create_makefile(File.join(extension_name, extension_name))
 
