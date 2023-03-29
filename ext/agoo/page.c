@@ -99,7 +99,7 @@ static struct _mime	mime_map[] = {
     { "tif", "image/tiff" },
     { "tiff", "image/tiff" },
     { "ttf", "application/font-sfnt" },
-    { "txt", "text/plain" },
+    { "txt", "text/plain; charset=utf-8" }, // generally true and if it contains binary that would be an error anyway
     { "woff", "application/font-woff" },
     { "woff2", "font/woff2" },
     { "xls", "application/vnd.ms-excel" },

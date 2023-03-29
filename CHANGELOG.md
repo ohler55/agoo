@@ -2,6 +2,12 @@
 
 All changes to the Agoo gem are documented here. Releases follow semantic versioning.
 
+## [2.15.5] - 2023-03-30
+
+### Changed
+
+- Server static txt files now includes the UTF8 character set in the mime type tag.
+
 ## [2.15.4] - 2023-03-05
 
 ### Fixed
