@@ -112,5 +112,6 @@ void
 early_hints_init(VALUE mod) {
     eh_class = rb_define_class_under(mod, "EarlyHints", rb_cObject);
 
+    rb_undef_alloc_func(eh_class);
     rb_define_method(eh_class, "call", eh_call, 1);
 }

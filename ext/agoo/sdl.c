@@ -22,6 +22,38 @@ static const char	union_str[] = "union";
 
 static int	make_sel(agooErr err, agooDoc doc, gqlDoc gdoc, gqlOp op, gqlSel *parentp);
 
+/*
+static void
+debug_sels(gqlSel sel, int indent) {
+    char pad[100];
+
+    memset(pad, ' ', sizeof(pad));
+    pad[indent] = '\0';
+
+    printf("%s{%s %s", pad, sel->name, (NULL == sel->type) ? "NULL" : sel->type->name);
+    if (NULL == sel->sels) {
+	printf("}\n");
+    } else {
+	printf("\n");
+	for (gqlSel sc = sel->sels; NULL != sc; sc = sc->next) {
+	    debug_sels(sc, indent + 2);
+	}
+	printf("%s}\n", pad);
+    }
+}
+
+static void
+debug_doc(gqlDoc doc) {
+    printf("*** doc: {\n");
+    for (gqlOp op = doc->ops; NULL != op; op = op->next) {
+	printf("  {%s\n", op->name);
+	debug_sels(op->sels, 4);
+    }
+    printf("  }\n");
+    printf("}\n");
+}
+*/
+
 static int
 extract_desc(agooErr err, agooDoc doc, const char **descp, size_t *lenp) {
     agoo_doc_skip_white(doc);
@@ -1312,10 +1344,51 @@ make_sel(agooErr err, agooDoc doc, gqlDoc gdoc, gqlOp op, gqlSel *parentp) {
     return AGOO_ERR_OK;
 }
 
+static gqlType
+lookup_field_type(gqlType type, const char *field, bool qroot) {
+    gqlType	ftype = NULL;
+
+    switch (type->kind) {
+    case GQL_SCHEMA:
+    case GQL_OBJECT:
+    case GQL_INPUT:
+    case GQL_INTERFACE: {
+	gqlField	f;
+
+	for (f = type->fields; NULL != f; f = f->next) {
+	    if (0 == strcmp(field, f->name)) {
+		ftype = f->type;
+		break;
+	    }
+	}
+	if (NULL == ftype) {
+	    if (0 == strcmp("__typename", field)) {
+		ftype = &gql_string_type;
+	    } else if (qroot) {
+		if (0 == strcmp("__type", field)) {
+		    ftype = gql_type_get("__Type");
+		} else if (0 == strcmp("__schema", field)) {
+		    ftype = gql_type_get("__Schema");
+		}
+	    }
+	}
+	break;
+    }
+    case GQL_LIST:
+    case GQL_NON_NULL:
+	ftype = lookup_field_type(type->base, field, false);
+	break;
+    case GQL_UNION: // Can not be used directly for query type determinations.
+    default:
+	break;
+    }
+    return ftype;
+}
 
 static int
 make_op(agooErr err, agooDoc doc, gqlDoc gdoc, gqlOpKind kind) {
     char	name[256];
+    const char	*kind_str = query_str;
     const char	*start;
     gqlOp	op;
     size_t	nlen;
@@ -1323,13 +1396,15 @@ make_op(agooErr err, agooDoc doc, gqlDoc gdoc, gqlOpKind kind) {
     agoo_doc_skip_white(doc);
     start = doc->cur;
     agoo_doc_read_token(doc);
-    if ( start < doc->cur) {
+    if (start < doc->cur) {
 	if (5 == (doc->cur - start) && 0 == strncmp(query_str, start, sizeof(query_str) - 1)) {
 	    kind = GQL_QUERY;
 	} else if (8 == (doc->cur - start) && 0 == strncmp(mutation_str, start, sizeof(mutation_str) - 1)) {
 	    kind = GQL_MUTATION;
+	    kind_str = mutation_str;
 	} else if (12 == (doc->cur - start) && 0 == strncmp(subscription_str, start, sizeof(subscription_str) - 1)) {
 	    kind = GQL_SUBSCRIPTION;
+	    kind_str = subscription_str;
 	} else {
 	    return agoo_doc_err(doc, err, "Invalid operation type");
 	}
@@ -1383,6 +1458,21 @@ make_op(agooErr err, agooDoc doc, gqlDoc gdoc, gqlOpKind kind) {
     }
     if (doc->end <= doc->cur && '}' != doc->cur[-1]) {
 	return agoo_doc_err(doc, err, "Expected a }");
+    }
+    if (0 < nlen) {
+	gqlType	schema = gql_root_type();
+	gqlType	type = lookup_field_type(schema, kind_str, false);
+
+	if ((NULL == lookup_field_type(type, op->sels->name, false)) &&
+	    (NULL != lookup_field_type(type, name, false))) {
+	    gqlSel	wrap = sel_create(err, NULL, name, NULL);
+
+	    if (NULL == wrap) {
+		return err->code;
+	    }
+	    wrap->sels = op->sels;
+	    op->sels = wrap;
+	}
     }
     if (NULL == gdoc->ops) {
 	gdoc->ops = op;
@@ -1459,47 +1549,6 @@ make_fragment(agooErr err, agooDoc doc, gqlDoc gdoc) {
 	f->next = frag;
     }
     return AGOO_ERR_OK;
-}
-
-static gqlType
-lookup_field_type(gqlType type, const char *field, bool qroot) {
-    gqlType	ftype = NULL;
-
-    switch (type->kind) {
-    case GQL_SCHEMA:
-    case GQL_OBJECT:
-    case GQL_INPUT:
-    case GQL_INTERFACE: {
-	gqlField	f;
-
-	for (f = type->fields; NULL != f; f = f->next) {
-	    if (0 == strcmp(field, f->name)) {
-		ftype = f->type;
-		break;
-	    }
-	}
-	if (NULL == ftype) {
-	    if (0 == strcmp("__typename", field)) {
-		ftype = &gql_string_type;
-	    } else if (qroot) {
-		if (0 == strcmp("__type", field)) {
-		    ftype = gql_type_get("__Type");
-		} else if (0 == strcmp("__schema", field)) {
-		    ftype = gql_type_get("__Schema");
-		}
-	    }
-	}
-	break;
-    }
-    case GQL_LIST:
-    case GQL_NON_NULL:
-	ftype = lookup_field_type(type->base, field, false);
-	break;
-    case GQL_UNION: // Can not be used directly for query type determinations.
-    default:
-	break;
-    }
-    return ftype;
 }
 
 static int

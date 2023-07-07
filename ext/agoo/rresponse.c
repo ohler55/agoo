@@ -243,6 +243,7 @@ void
 response_init(VALUE mod) {
     res_class = rb_define_class_under(mod, "Response", rb_cObject);
 
+    rb_undef_alloc_func(res_class);
     rb_define_method(res_class, "to_s", to_s, 0);
     rb_define_method(res_class, "body", body_get, 0);
     rb_define_method(res_class, "body=", body_set, 1);

@@ -991,7 +991,6 @@ static void
 publish_pub(agooPub pub, agooConLoop loop) {
     agooUpgraded	up;
     const char		*sub = pub->subject->pattern;
-    int			cnt = 0;
 
     for (up = agoo_server.up_list; NULL != up; up = up->next) {
 	if (NULL != up->con && up->con->loop == loop && agoo_upgraded_match(up, sub)) {
@@ -1001,7 +1000,6 @@ publish_pub(agooPub pub, agooConLoop loop) {
 		agoo_con_res_append(up->con, res);
 		res->con_kind = AGOO_CON_ANY;
 		agoo_res_message_push(res, agoo_text_dup(pub->msg));
-		cnt++;
 	    }
 	}
     }

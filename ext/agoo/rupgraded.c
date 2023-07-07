@@ -39,7 +39,7 @@ get_upgraded(VALUE self) {
 const char*
 extract_subject(VALUE subject, int *slen) {
     const char	*subj;
-    
+
     switch (rb_type(subject)) {
     case T_STRING:
 	subj = StringValuePtr(subject);
@@ -84,7 +84,7 @@ rup_write(VALUE self, VALUE msg) {
 	}
     } else {
 	volatile VALUE	rs = rb_funcall(msg, to_s_id, 0);
-	
+
 	message = StringValuePtr(rs);
 	mlen = RSTRING_LEN(rs);
     }
@@ -165,7 +165,7 @@ static VALUE
 rup_pending(VALUE self) {
     agooUpgraded	up = get_upgraded(self);
     int			pending = -1;
-    
+
     if (NULL != up) {
 	pending = agoo_upgraded_pending(up);
 	atomic_fetch_sub(&up->ref_cnt, 1);
@@ -183,7 +183,7 @@ static VALUE
 rup_open(VALUE self) {
     agooUpgraded	up = get_upgraded(self);
     int			pending = -1;
-    
+
     if (NULL != up) {
 	pending = (int)(long)atomic_load(&up->pending);
 	atomic_fetch_sub(&up->ref_cnt, 1);
@@ -204,7 +204,7 @@ rup_protocol(VALUE self) {
 
     if (agoo_server.active) {
 	agooUpgraded	up;
-	
+
 	pthread_mutex_lock(&agoo_server.up_lock);
 	if (NULL != (up = DATA_PTR(self)) && NULL != up->con) {
 	    switch (up->con->bind->kind) {
@@ -249,7 +249,7 @@ rupgraded_create(agooCon c, VALUE obj, VALUE env) {
 	up->wrap = (void*)Data_Wrap_Struct(upgraded_class, NULL, NULL, up);
 
 	agoo_server_add_upgraded(up);
-	
+
 	if (rb_respond_to(obj, on_open_id)) {
 	    rb_funcall(obj, on_open_id, 1, (VALUE)up->wrap);
 	}
@@ -285,6 +285,7 @@ void
 upgraded_init(VALUE mod) {
     upgraded_class = rb_define_class_under(mod, "Upgraded", rb_cObject);
 
+    rb_undef_alloc_func(upgraded_class);
     rb_define_method(upgraded_class, "write", rup_write, 1);
     rb_define_method(upgraded_class, "subscribe", rup_subscribe, 1);
     rb_define_method(upgraded_class, "unsubscribe", rup_unsubscribe, -1);

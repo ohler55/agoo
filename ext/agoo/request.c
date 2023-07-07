@@ -728,6 +728,7 @@ void
 request_init(VALUE mod) {
     req_class = rb_define_class_under(mod, "Request", rb_cObject);
 
+    rb_undef_alloc_func(req_class);
     rb_define_method(req_class, "to_s", to_s, 0);
     rb_define_method(req_class, "to_h", to_h, 0);
     rb_define_method(req_class, "environment", to_h, 0);

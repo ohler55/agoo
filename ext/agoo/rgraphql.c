@@ -1054,6 +1054,8 @@ void
 graphql_init(VALUE mod) {
     graphql_class = rb_define_class_under(mod, "GraphQL", rb_cObject);
 
+    rb_undef_alloc_func(graphql_class);
+
     rb_define_module_function(graphql_class, "schema", graphql_schema, 1);
 
     rb_define_module_function(graphql_class, "load", graphql_load, 1);
