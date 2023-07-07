@@ -428,6 +428,24 @@ directive @ruby(class: String!) on SCHEMA | OBJECT
     post_test(uri, body, 'application/json', expect)
   end
 
+  def test_post_json_op
+    uri = URI('http://localhost:6472/graphql?indent=2')
+    body = %^{
+  "query":"query artists{name}"
+}^
+    expect = %^{
+  "data":{
+    "artists":[
+      {
+        "name":"Fazerdaze"
+      }
+    ]
+  }
+}^
+
+    post_test(uri, body, 'application/json', expect)
+  end
+
   def test_post_fragment
     uri = URI('http://localhost:6472/graphql?indent=2')
     body = %^

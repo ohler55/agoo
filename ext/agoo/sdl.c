@@ -22,6 +22,7 @@ static const char	union_str[] = "union";
 
 static int	make_sel(agooErr err, agooDoc doc, gqlDoc gdoc, gqlOp op, gqlSel *parentp);
 
+/*
 static void
 debug_sels(gqlSel sel, int indent) {
     char pad[100];
@@ -51,7 +52,7 @@ debug_doc(gqlDoc doc) {
     printf("  }\n");
     printf("}\n");
 }
-
+*/
 
 static int
 extract_desc(agooErr err, agooDoc doc, const char **descp, size_t *lenp) {
@@ -1387,6 +1388,7 @@ lookup_field_type(gqlType type, const char *field, bool qroot) {
 static int
 make_op(agooErr err, agooDoc doc, gqlDoc gdoc, gqlOpKind kind) {
     char	name[256];
+    const char	*kind_str = query_str;
     const char	*start;
     gqlOp	op;
     size_t	nlen;
@@ -1399,8 +1401,10 @@ make_op(agooErr err, agooDoc doc, gqlDoc gdoc, gqlOpKind kind) {
 	    kind = GQL_QUERY;
 	} else if (8 == (doc->cur - start) && 0 == strncmp(mutation_str, start, sizeof(mutation_str) - 1)) {
 	    kind = GQL_MUTATION;
+	    kind_str = mutation_str;
 	} else if (12 == (doc->cur - start) && 0 == strncmp(subscription_str, start, sizeof(subscription_str) - 1)) {
 	    kind = GQL_SUBSCRIPTION;
+	    kind_str = subscription_str;
 	} else {
 	    return agoo_doc_err(doc, err, "Invalid operation type");
 	}
@@ -1456,13 +1460,19 @@ make_op(agooErr err, agooDoc doc, gqlDoc gdoc, gqlOpKind kind) {
 	return agoo_doc_err(doc, err, "Expected a }");
     }
     if (0 < nlen) {
-	gqlSel	wrap = sel_create(err, NULL, name, NULL);
+	gqlType	schema = gql_root_type();
+	gqlType	type = lookup_field_type(schema, kind_str, false);
 
-	if (NULL == wrap) {
-	    return err->code;
+	if ((NULL == lookup_field_type(type, op->sels->name, false)) &&
+	    (NULL != lookup_field_type(type, name, false))) {
+	    gqlSel	wrap = sel_create(err, NULL, name, NULL);
+
+	    if (NULL == wrap) {
+		return err->code;
+	    }
+	    wrap->sels = op->sels;
+	    op->sels = wrap;
 	}
-	wrap->sels = op->sels;
-	op->sels = wrap;
     }
     if (NULL == gdoc->ops) {
 	gdoc->ops = op;

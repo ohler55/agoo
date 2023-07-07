@@ -131,6 +131,7 @@ void
 error_stream_init(VALUE mod) {
     es_class = rb_define_class_under(mod, "ErrorStream", rb_cObject);
 
+    rb_undef_alloc_func(es_class);
     rb_define_method(es_class, "puts", es_puts, 1);
     rb_define_method(es_class, "write", es_write, 1);
     rb_define_method(es_class, "flush", es_flush, 0);
