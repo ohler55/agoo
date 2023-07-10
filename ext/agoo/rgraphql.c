@@ -406,6 +406,9 @@ ref_type(gqlRef ref) {
 	TypeClass	tc;
 	const char	*classname = rb_obj_classname((VALUE)ref);
 
+	if (RUBY_T_ARRAY == rb_type((VALUE)ref) && 0 < RARRAY_LEN((VALUE)ref)) {
+	    classname = rb_obj_classname(RARRAY_AREF((VALUE)ref, 0));
+	}
 	for (tc = type_class_map; NULL != tc->type; tc++) {
 	    if (0 == strcmp(classname, tc->classname)) {
 		type = tc->type;
@@ -436,8 +439,8 @@ resolve(agooErr err, gqlDoc doc, gqlRef target, gqlField field, gqlSel sel, gqlV
     ID			method;
     int			arity;
 
-    if ('_' == *sel->name && '_' == sel->name[1]) {
-	if (0 == strcmp("__typename", sel->name)) {
+    if ('_' == *key && '_' == key[1]) {
+	if (0 == strcmp("__typename", key)) {
 	    if (AGOO_ERR_OK != gql_set_typename(err, ref_type(target), key, result)) {
 		return err->code;
 	    }
@@ -447,9 +450,9 @@ resolve(agooErr err, gqlDoc doc, gqlRef target, gqlField field, gqlSel sel, gqlV
 	case GQL_QUERY:
 	    return gql_intro_eval(err, doc, sel, result, depth);
 	case GQL_MUTATION:
-	    return agoo_err_set(err, AGOO_ERR_EVAL, "%s can not be called on a mutation.", sel->name);
+	    return agoo_err_set(err, AGOO_ERR_EVAL, "%s can not be called on a mutation.", key);
 	case GQL_SUBSCRIPTION:
-	    return agoo_err_set(err, AGOO_ERR_EVAL, "%s can not be called on a subscription.", sel->name);
+	    return agoo_err_set(err, AGOO_ERR_EVAL, "%s can not be called on a subscription.", key);
 	default:
 	    return agoo_err_set(err, AGOO_ERR_EVAL, "Not a valid operation on the root object.");
 	}
