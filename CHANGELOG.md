@@ -2,6 +2,12 @@
 
 All changes to the Agoo gem are documented here. Releases follow semantic versioning.
 
+## [2.15.7] - 2023-07-10
+
+### Fixed
+
+- Support for Apollo style POST requests fixed (again).
+
 ## [2.15.6] - 2023-07-07
 
 ### Fixed

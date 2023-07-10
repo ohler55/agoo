@@ -1385,6 +1385,16 @@ lookup_field_type(gqlType type, const char *field, bool qroot) {
     return ftype;
 }
 
+static bool
+has_all_fields(gqlType type, gqlSel sel) {
+    for (; NULL != sel; sel = sel->next) {
+	if (NULL == lookup_field_type(type, sel->name, false)) {
+	    return false;
+	}
+    }
+    return true;
+}
+
 static int
 make_op(agooErr err, agooDoc doc, gqlDoc gdoc, gqlOpKind kind) {
     char	name[256];
@@ -1463,8 +1473,9 @@ make_op(agooErr err, agooDoc doc, gqlDoc gdoc, gqlOpKind kind) {
 	gqlType	schema = gql_root_type();
 	gqlType	type = lookup_field_type(schema, kind_str, false);
 
-	if ((NULL == lookup_field_type(type, op->sels->name, false)) &&
-	    (NULL != lookup_field_type(type, name, false))) {
+	if ((NULL != lookup_field_type(type, name, false)) &&
+	    !has_all_fields(type, op->sels)) {
+
 	    gqlSel	wrap = sel_create(err, NULL, name, NULL);
 
 	    if (NULL == wrap) {
