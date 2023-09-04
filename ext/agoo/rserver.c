@@ -301,7 +301,7 @@ configure(agooErr err, int port, const char *root, VALUE options) {
  *
  *   - *:max_push_pending* [_Integer_] maximum number or outstanding push messages, less than 1000.
  *
- *   - *:ssl_sert* [_String_] filepath to the SSL certificate file.
+ *   - *:ssl_cert* [_String_] filepath to the SSL certificate file.
  *
  *   - *:ssl_key* [_String_] filepath to the SSL private key file.
  *
