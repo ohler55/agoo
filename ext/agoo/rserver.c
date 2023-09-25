@@ -869,12 +869,13 @@ rserver_start(VALUE self) {
         giveup = dtime() + 1.0;
         while (dtime() < giveup) {
             // The processing threads will not start until this thread
-            // releases ownership so do that and then see if the threads has
+            // releases ownership so do that and then see if the threads have
             // been started yet.
             rb_thread_schedule();
-            if (2 + agoo_server.thread_cnt <= (long)atomic_load(&agoo_server.running)) {
+            if (agoo_server.loop_cnt + 1 + agoo_server.thread_cnt <= (long)atomic_load(&agoo_server.running)) {
                 break;
             }
+						dsleep(0.05);
         }
     }
     return Qnil;

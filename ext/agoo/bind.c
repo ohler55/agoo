@@ -44,7 +44,7 @@ url_tcp(agooErr err, const char *url, const char *scheme) {
     int     port;
     agooBind    b;
 
-    if (NULL == colon) {
+    if (NULL == colon || '\0' == colon[1]) {
         port = 80;
     } else if (15 < colon - url) {
         agoo_err_set(err, AGOO_ERR_ARG, "%s bind address is not valid, too long. (%s)", scheme, url);

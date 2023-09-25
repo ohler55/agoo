@@ -164,9 +164,11 @@ listen_loop(void *x) {
                                  getpid(), (unsigned long long)cnt, b->id, con->sock, con->remote);
 
                     con_cnt = atomic_fetch_add(&agoo_server.con_cnt, 1);
+										/* TBD
                     if (agoo_server.loop_max > agoo_server.loop_cnt && agoo_server.loop_cnt * LOOP_UP < con_cnt) {
                         add_con_loop();
                     }
+										*/
                     agoo_queue_push(&agoo_server.con_queue, (void*)con);
                 }
             }

@@ -52,6 +52,9 @@ Example:
 @workers = 0
 @first = false
 @graphql = nil
+@ssl_cert = nil
+@ssl_key = nil
+
 
 @opts = OptionParser.new(usage)
 @opts.on('-h', '--help', 'Show this display.')                                       { puts @opts.help; Process.exit!(0) }
@@ -65,6 +68,8 @@ Example:
 @opts.on('-r', '--require FILE', String, 'Ruby require.')                            { |r| require r }
 @opts.on('-t', '--threads COUNT', Integer, 'Number of threads to use.')              { |t| @threads = t }
 @opts.on('-w', '--workers COUNT', Integer, 'Number of workers to use.')              { |w| @workers = w }
+@opts.on('--ssl_cert', String, 'SSL certificate.')                                   { |c| @ssl_cert = c }
+@opts.on('--ssl_key', String, 'SSL key.')                                            { |k| @ssl_key = k }
 @opts.on('--log-dir DIR', String, 'Log file directory.')                             { |d| @log_dir = d }
 @opts.on('--[no-]log-classic', 'Classic log entries instead of JSON.')               { |b| @classic = b }
 @opts.on('--[no-]log-console', 'Display log entries on the console.')                { |b| @console = b }
@@ -74,7 +79,6 @@ handler_paths = @opts.parse(ARGV)
 
 @threads = 0 if @threads < 0
 @workers = 1 if @workers < 1
-@ran = false
 @run_file = nil
 
 if handler_paths.empty?
@@ -95,26 +99,28 @@ end
 if @run_file.nil?
   @port = 6464 if 0 == @port
   Agoo::Log.configure(dir: @log_dir,
-		      console: @console,
-		      classic: @classic,
-		      colorize: @colorize,
-		      states: {
-			INFO: 1 <= @verbose,
-			DEBUG: 3 <= @verbose,
-			connect: 2 <= @verbose,
-			request: 2 <= @verbose,
-			response: 2 <= @verbose,
-			eval: 2 <= @verbose,
-			push: 2 <= @verbose,
-		      })
+                      console: @console,
+                      classic: @classic,
+                      colorize: @colorize,
+                      states: {
+                        INFO: 1 <= @verbose,
+                        DEBUG: 3 <= @verbose,
+                        connect: 2 <= @verbose,
+                        request: 2 <= @verbose,
+                        response: 2 <= @verbose,
+                        eval: 2 <= @verbose,
+                        push: 2 <= @verbose,
+                      })
 
   Agoo::Server.init(@port,
-		    @root,
-		    bind: @binds,
-		    thread_count: @threads,
-		    worker_count: @workers,
-		    root_first: @first,
-		    graphql: @graphql)
+                    @root,
+                    bind: @binds,
+                    thread_count: @threads,
+                    worker_count: @workers,
+                    root_first: @first,
+                    ssl_cert: @ssl_cert,
+                    ssl_key: @ssl_key,
+                    graphql: @graphql)
 
   puts "Agoo #{Agoo::VERSION} is listening on port #{@port}. Path mappings are:" if 1 <= @verbose
 
@@ -133,7 +139,7 @@ if @run_file.nil?
   }
 
   puts "Agoo is only serving static files in '#{@root}'." if handler_paths.empty?
-  Agoo::Server.start() unless @ran
+  Agoo::Server.start()
 
 else
   @port = 9292 if 0 == @port
@@ -143,49 +149,51 @@ else
     options[:workers] = @workers unless options.has_key?(:workers) || options.has_key?(:wc)
     options[:root_first] = @first unless options.has_key?(:root_first) || options.has_key?(:f) || options.has_key?(:rmux)
     options[:graphql] = @graphql unless options.has_key?(:graphql) || options.has_key?(:g)
+    options[:ssl_cert] = @ssl_cert unless options.has_key?(:ssl_cert) || options.has_key?(:ssl_cert)
+    options[:ssl_key] = @ssl_key unless options.has_key?(:ssl_key) || options.has_key?(:ssl_key)
     unless @binds.empty?
       if options.has_key?(:b)
-	b2 = options[:b]
-	b2 = b2.split(',') if b2.is_a?(String)
-	@binds = @binds + b2
-	options.delete(:b)
+        b2 = options[:b]
+        b2 = b2.split(',') if b2.is_a?(String)
+        @binds = @binds + b2
+        options.delete(:b)
       elsif options.has_key?(:bind)
-	b2 = options[:bind]
-	b2 = b2.split(',') if b2.is_a?(String)
-	@binds = @binds + b2
-	options.delete(:bind)
+        b2 = options[:bind]
+        b2 = b2.split(',') if b2.is_a?(String)
+        @binds = @binds + b2
+        options.delete(:bind)
       end
       options[:bind] = @binds
     end
     unless options.has_key?(:silent) || options.has_key?(:verbose) || options.has_key?(:debug)
       if 0 == @verbose
-	options[:silent] = true
+        options[:silent] = true
       elsif 2 == @verbose
-	options[:verbose] = true
+        options[:verbose] = true
       elsif 3 <= @verbose
-	options[:debug] = true
+        options[:debug] = true
       end
     end
     options[:log_dir] = @log_dir unless options.has_key?(:log_dir)
     unless options.has_key?(:log_classic) || options.has_key?(:no_log_classic)
       if @classic
-	options[:log_classic] = true
+        options[:log_classic] = true
       else
-	options[:no_log_classic] = true
+        options[:no_log_classic] = true
       end
     end
     unless options.has_key?(:log_console) || options.has_key?(:no_log_console)
       if @console
-	options[:log_console] = true
+        options[:log_console] = true
       else
-	options[:no_log_console] = true
+        options[:no_log_console] = true
       end
     end
     unless options.has_key?(:log_colorize) || options.has_key?(:no_log_colorize)
       if @colorize
-	options[:log_colorize] = true
+        options[:log_colorize] = true
       else
-	options[:no_log_colorize] = true
+        options[:no_log_colorize] = true
       end
     end
     ::Rack::Handler::Agoo.run(handler, options)
@@ -197,7 +205,7 @@ else
       require 'rack'
       puts "  Racking #{@run_file}" if 1 <= @verbose
       app = Rack::Builder.new {
-	eval(File.open(path).read)
+        eval(File.open(path).read)
       }
       run app
     rescue LoadError
