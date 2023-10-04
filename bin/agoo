@@ -97,7 +97,7 @@ else
 end
 
 if @run_file.nil?
-  @port = 6464 if 0 == @port
+  @port = 6464 if 0 == @port && @binds.empty?
   Agoo::Log.configure(dir: @log_dir,
                       console: @console,
                       classic: @classic,

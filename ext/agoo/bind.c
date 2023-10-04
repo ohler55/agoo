@@ -258,8 +258,8 @@ agoo_bind_url(agooErr err, const char *url) {
                 return url_tcp6(err, url + slen + 3, scheme);
             }
             return url_tcp(err, url + slen + 3, scheme);
-        }
-				return url_tcp(err, url, scheme);
+				}
+				return url_tcp(err, url, "http");
     }
     return NULL;
 }

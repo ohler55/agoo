@@ -875,7 +875,7 @@ rserver_start(VALUE self) {
             if (agoo_server.loop_cnt + 1 + agoo_server.thread_cnt <= (long)atomic_load(&agoo_server.running)) {
                 break;
             }
-						dsleep(0.05);
+            dsleep(0.05);
         }
     }
     return Qnil;
