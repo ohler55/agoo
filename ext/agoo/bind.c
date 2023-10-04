@@ -51,6 +51,12 @@ url_tcp(agooErr err, const char *url, const char *scheme) {
         return NULL;
     } else if (':' == *url) {
         port = atoi(colon + 1);
+		} else if (0 == strncmp("localhost", url, 9)) {
+        if (0 == inet_aton("127.0.0.1", &addr)) {
+            agoo_err_set(err, AGOO_ERR_ARG, "%s bind address is not valid. (%s)", scheme, url);
+            return NULL;
+        }
+        port = atoi(colon + 1);
     } else {
         char  buf[32];
 
