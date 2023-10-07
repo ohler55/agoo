@@ -2,6 +2,18 @@
 
 All changes to the Agoo gem are documented here. Releases follow semantic versioning.
 
+## [2.15.8] - 2023-10-07
+
+### Fixed
+
+- Fixed race condition on starting a thread count set to 1.
+
+- Fixed crash with invalid bindings.
+
+### Added
+
+- Added command line options for TLS.
+
 ## [2.15.7] - 2023-07-10
 
 ### Fixed
