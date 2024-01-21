@@ -8,4 +8,5 @@ require 'agoo/graphql'
 require 'rack/handler/agoo'
 require 'agoo/agoo' # C extension
 
+ENV['RACKUP_HANDLER'] = 'Agoo'
 ENV['RACK_HANDLER'] = 'Agoo'

@@ -149,7 +149,7 @@ listen_loop(void *x) {
                     cnt--;
                     agoo_err_clear(&err);
                 } else {
-                    int con_cnt;
+                    // int con_cnt;
 #ifdef OSX_OS
                     setsockopt(client_sock, SOL_SOCKET, SO_NOSIGPIPE, &optval, sizeof(optval));
 #endif
@@ -163,8 +163,8 @@ listen_loop(void *x) {
                     agoo_log_cat(&agoo_con_cat, "Server with pid %d accepted connection %llu on %s [%d] from %s",
                                  getpid(), (unsigned long long)cnt, b->id, con->sock, con->remote);
 
-                    con_cnt = atomic_fetch_add(&agoo_server.con_cnt, 1);
 										/* TBD
+                    con_cnt = atomic_fetch_add(&agoo_server.con_cnt, 1);
                     if (agoo_server.loop_max > agoo_server.loop_cnt && agoo_server.loop_cnt * LOOP_UP < con_cnt) {
                         add_con_loop();
                     }
