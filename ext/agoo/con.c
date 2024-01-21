@@ -26,8 +26,9 @@
 #include "upgraded.h"
 #include "websocket.h"
 
-#define CON_TIMEOUT		10.0
 #define INITIAL_POLL_SIZE	1024
+
+double con_timeout = 30.0;
 
 typedef enum {
     HEAD_AGAIN		= 'A',
@@ -81,7 +82,7 @@ agoo_con_create(agooErr err, int sock, uint64_t id, agooBind b) {
 	}
 	c->sock = sock;
 	c->id = id;
-	c->timeout = dtime() + CON_TIMEOUT;
+	c->timeout = dtime() + con_timeout;
 	c->bind = b;
 	c->loop = NULL;
 	pthread_mutex_init(&c->res_lock, 0);
@@ -555,7 +556,7 @@ agoo_con_http_read(agooCon c) {
 	    cnt = recv(c->sock, c->buf + c->bcnt, sizeof(c->buf) - c->bcnt - 1, 0);
 	}
     }
-    c->timeout = dtime() + CON_TIMEOUT;
+    c->timeout = dtime() + con_timeout;
     if (0 >= cnt) {
 	// If nothing read then no need to complain. Just close.
 	if (0 < c->bcnt) {
@@ -658,7 +659,7 @@ agoo_con_http_write(agooCon c) {
     if (NULL == message) {
 	return true;
     }
-    c->timeout = dtime() + CON_TIMEOUT;
+    c->timeout = dtime() + con_timeout;
     if (0 == c->wcnt) {
 	if (agoo_resp_cat.on) {
 	    char	buf[4096];
@@ -736,7 +737,7 @@ con_ws_read(agooCon c) {
     } else {
 	cnt = recv(c->sock, c->buf + c->bcnt, sizeof(c->buf) - c->bcnt - 1, 0);
     }
-    c->timeout = dtime() + CON_TIMEOUT;
+    c->timeout = dtime() + con_timeout;
     if (0 >= cnt) {
 	// If nothing read then no need to complain. Just close.
 	if (0 < c->bcnt) {
@@ -883,7 +884,7 @@ con_ws_write(agooCon c) {
 	}
 	return true;
     }
-    c->timeout = dtime() + CON_TIMEOUT;
+    c->timeout = dtime() + con_timeout;
     if (0 == c->wcnt) {
 	agooText	t;
 
@@ -943,7 +944,7 @@ con_sse_write(agooCon c) {
 
 	return false;
     }
-    c->timeout = dtime() + CON_TIMEOUT *2;
+    c->timeout = dtime() + con_timeout *2;
     if (0 == c->wcnt) {
 	agooText	t;
 
@@ -1177,7 +1178,7 @@ con_ready_check(void *ctx, double now) {
 	    return true;
 	}
     } else if (AGOO_CON_WS == c->bind->kind || AGOO_CON_SSE == c->bind->kind) {
-	c->timeout = dtime() + CON_TIMEOUT;
+	c->timeout = dtime() + con_timeout;
 	if (AGOO_CON_WS == c->bind->kind) {
 	    agoo_ws_ping(c);
 	}

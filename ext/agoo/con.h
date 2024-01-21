@@ -20,6 +20,8 @@
 
 #define MAX_HEADER_SIZE	8192
 
+extern double con_timeout;
+
 struct _agooUpgraded;
 struct _agooReq;
 struct _agooRes;

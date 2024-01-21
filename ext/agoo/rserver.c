@@ -141,6 +141,15 @@ configure(agooErr err, int port, const char *root, VALUE options) {
                 rb_raise(rb_eArgError, "poll_timeout must be between 0.0001 and 1.0.");
             }
         }
+        if (Qnil != (v = rb_hash_lookup(options, ID2SYM(rb_intern("connection_timeout"))))) {
+            double  timeout = rb_num2dbl(v);
+
+            if (0.1 <= timeout) {
+                con_timeout = timeout;
+            } else {
+                rb_raise(rb_eArgError, "connection_timeout must be greater than 0.1 seconds.");
+            }
+        }
         if (Qnil != (v = rb_hash_lookup(options, ID2SYM(rb_intern("max_push_pending"))))) {
             int mpp = FIX2INT(v);
 
@@ -294,6 +303,8 @@ configure(agooErr err, int port, const char *root, VALUE options) {
  *   - *:worker_count* [_Integer_] number of workers to fork. Defaults to one which is not to fork.
  *
  *   - *:poll_timeout* [_Float_] timeout seconds when polling. Default is 0.1. Lower gives faster response times but uses more CPU.
+ *
+ *   - *:connection_timeout* [_Float_] timeout seconds for connections. Default is 30.
  *
  *   - *:bind* [_String_|_Array_] a binding or array of binds. Examples are: "http ://127.0.0.1:6464", "unix:///tmp/agoo.socket", "http ://[::1]:6464, or to not restrict the address "http ://:6464".
  *
