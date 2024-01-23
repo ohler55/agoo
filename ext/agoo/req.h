@@ -31,6 +31,7 @@ typedef struct _agooReq {
     struct _agooUpgraded	*up;
     struct _agooStr		path;
     struct _agooStr		query;
+    struct _agooStr		protocol;
     struct _agooStr		header;
     struct _agooStr		body;
     char			remote[INET6_ADDRSTRLEN];
@@ -43,6 +44,7 @@ typedef struct _agooReq {
 extern agooReq		agoo_req_create(size_t mlen);
 extern void		agoo_req_destroy(agooReq req);
 extern const char*	agoo_req_host(agooReq r, int *lenp);
+extern const char*	agoo_req_protocol(agooReq r, int *lenp);
 extern int		agoo_req_port(agooReq r);
 extern const char*	agoo_req_query_value(agooReq r, const char *key, int klen, int *vlenp);
 extern int		agoo_req_query_decode(char *s, int len);

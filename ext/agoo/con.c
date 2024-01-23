@@ -290,6 +290,8 @@ con_header_read(agooCon c, size_t *mlenp) {
     char		*query = NULL;
     char		*qend;
     char		*b;
+    char		*proto;
+    char		*pend;
     size_t		clen = 0;
     long		mlen;
     agooHook		hook = NULL;
@@ -396,7 +398,13 @@ con_header_read(agooCon c, size_t *mlenp) {
     }
     mlen = hend - c->buf + 4 + clen;
     *mlenp = mlen;
-
+    proto = qend;
+    for (; ' ' == *proto; proto++) {
+    }
+    pend = proto;
+    for (; '\r' != *pend; pend++) {
+    }
+    *pend = '\0';
     if (AGOO_GET == method) {
 	char		root_buf[20148];
 	const char	*root = NULL;
@@ -462,6 +470,8 @@ con_header_read(agooCon c, size_t *mlenp) {
     c->req->query.start = c->req->msg + (query - c->buf);
     c->req->query.len = (int)(qend - query);
     c->req->query.start[c->req->query.len] = '\0';
+    c->req->protocol.start = proto;
+    c->req->protocol.len = (int)(pend - proto);
     c->req->body.start = c->req->msg + (hend - c->buf + 4);
     c->req->body.len = (unsigned int)clen;
     b = strstr(b, "\r\n");

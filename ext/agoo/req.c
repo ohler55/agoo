@@ -72,6 +72,13 @@ agoo_req_port(agooReq r) {
 }
 
 const char*
+agoo_req_protocol(agooReq r, int *lenp) {
+    *lenp = r->protocol.len;
+
+    return r->protocol.start;
+}
+
+const char*
 agoo_req_query_value(agooReq r, const char *key, int klen, int *vlenp) {
     const char	*value;
 

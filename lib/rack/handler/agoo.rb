@@ -177,8 +177,14 @@ using the -O NAME[=VALUE] option of rackup. Note that if binds are provided the
 end
 
 begin
-  ::Rack::Handler.register('agoo', 'Rack::Handler::Agoo')
-  ::Rack::Handler.register('Agoo', 'Rack::Handler::Agoo')
+  ::Rackup::Handler.register('agoo', Rack::Handler::Agoo)
+  ::Rackup::Handler.register('Agoo', Rack::Handler::Agoo)
 rescue Exception
+  begin
+    # try the old style
+    ::Rack::Handler.register('agoo', 'Rack::Handler::Agoo')
+    ::Rack::Handler.register('Agoo', 'Rack::Handler::Agoo')
+  rescue Exception
+  end
   # Rack or Rack::Handler.register has not been required.
 end

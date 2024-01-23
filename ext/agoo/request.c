@@ -48,6 +48,7 @@ static VALUE	request_method_val = Qundef;
 static VALUE	script_name_val = Qundef;
 static VALUE	server_name_val = Qundef;
 static VALUE	server_port_val = Qundef;
+static VALUE	server_protocol_val = Qundef;
 static VALUE	slash_val = Qundef;
 
 static VALUE	sse_sym;
@@ -216,6 +217,31 @@ req_server_name(agooReq r) {
 static VALUE
 server_name(VALUE self) {
     return req_server_name((agooReq)DATA_PTR(self));
+}
+
+static VALUE
+req_server_protocol(agooReq r) {
+    int		len;
+    const char	*protocol;
+
+    if (NULL == r) {
+	rb_raise(rb_eArgError, "Request is no longer valid.");
+    }
+    if (NULL == (protocol = agoo_req_protocol(r, &len))) {
+	return rb_str_new2("HTTP/1.1");
+    }
+    return rb_str_new(protocol, len);
+}
+
+/* Document-method: server_protocol
+ *
+ * call-seq: server_protocol()
+ *
+ * Returns the server or host protocol.
+ */
+static VALUE
+server_protocol(VALUE self) {
+    return req_server_protocol((agooReq)DATA_PTR(self));
 }
 
 static VALUE
@@ -594,6 +620,7 @@ request_env(agooReq req, VALUE self) {
 	rb_hash_aset(env, remote_addr_val, req_remote_addr(req));
 	rb_hash_aset(env, server_port_val, req_server_port(req));
 	rb_hash_aset(env, server_name_val, req_server_name(req));
+	rb_hash_aset(env, server_protocol_val, req_server_protocol(req));
 	fill_headers(req, env);
 	rb_hash_aset(env, rack_version_val, rack_version_val_val);
 	rb_hash_aset(env, rack_url_scheme_val, req_rack_url_scheme(req));
@@ -739,6 +766,7 @@ request_init(VALUE mod) {
     rb_define_method(req_class, "query_string", query_string, 0);
     rb_define_method(req_class, "server_name", server_name, 0);
     rb_define_method(req_class, "server_port", server_port, 0);
+    rb_define_method(req_class, "server_protocol", server_protocol, 0);
     rb_define_method(req_class, "remote_addr", remote_addr, 0);
     rb_define_method(req_class, "rack_version", rack_version, 0);
     rb_define_method(req_class, "rack_url_scheme", rack_url_scheme, 0);
@@ -796,6 +824,7 @@ request_init(VALUE mod) {
     script_name_val = rb_str_new_cstr("SCRIPT_NAME");		rb_gc_register_address(&script_name_val);
     server_name_val = rb_str_new_cstr("SERVER_NAME");		rb_gc_register_address(&server_name_val);
     server_port_val = rb_str_new_cstr("SERVER_PORT");		rb_gc_register_address(&server_port_val);
+    server_protocol_val = rb_str_new_cstr("SERVER_PROTOCOL");		rb_gc_register_address(&server_protocol_val);
     slash_val = rb_str_new_cstr("/");				rb_gc_register_address(&slash_val);
 
     sse_sym = ID2SYM(rb_intern("sse"));				rb_gc_register_address(&sse_sym);
