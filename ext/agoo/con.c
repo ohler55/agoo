@@ -404,7 +404,6 @@ con_header_read(agooCon c, size_t *mlenp) {
     pend = proto;
     for (; '\r' != *pend; pend++) {
     }
-    *pend = '\0';
     if (AGOO_GET == method) {
 	char		root_buf[20148];
 	const char	*root = NULL;

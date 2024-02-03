@@ -104,6 +104,7 @@ configure(agooErr err, int port, const char *root, VALUE options) {
     }
     agoo_server.thread_cnt = 0;
     the_rserver.worker_cnt = 1;
+    the_rserver.forker = Qnil;
     the_rserver.uses = NULL;
     atomic_init(&agoo_server.running, 0);
     agoo_server.listen_thread = 0;
@@ -132,6 +133,8 @@ configure(agooErr err, int port, const char *root, VALUE options) {
                 rb_raise(rb_eArgError, "thread_count must be between 1 and %d.", MAX_WORKERS);
             }
         }
+				the_rserver.forker = rb_hash_lookup(options, ID2SYM(rb_intern("fork_wrap")));
+
         if (Qnil != (v = rb_hash_lookup(options, ID2SYM(rb_intern("poll_timeout"))))) {
             double  timeout = rb_num2dbl(v);
 
@@ -816,6 +819,7 @@ rserver_start(VALUE self) {
     struct _agooErr err = AGOO_ERR_INIT;
     VALUE   agoo = rb_const_get_at(rb_cObject, rb_intern("Agoo"));
     VALUE   v = rb_const_get_at(agoo, rb_intern("VERSION"));
+    ID      after = rb_intern("after");
 
     *the_rserver.worker_pids = getpid();
 
@@ -830,6 +834,13 @@ rserver_start(VALUE self) {
     if (AGOO_ERR_OK != setup_listen(&err)) {
         rb_raise(rb_eIOError, "%s", err.msg);
     }
+		if (1 < the_rserver.worker_cnt && the_rserver.forker != Qnil) {
+				ID	before = rb_intern("before");
+
+				if (rb_respond_to(the_rserver.forker, before)) {
+						rb_funcall(the_rserver.forker, before, 0);
+				}
+		}
     for (i = 1; i < the_rserver.worker_cnt; i++) {
         VALUE rpid = rb_funcall(rb_cObject, rb_intern("fork"), 0);
 
@@ -850,6 +861,9 @@ rserver_start(VALUE self) {
             the_rserver.worker_pids[i] = pid;
         }
     }
+		if (1 < the_rserver.worker_cnt && the_rserver.forker != Qnil && rb_respond_to(the_rserver.forker, after)) {
+				rb_funcall(the_rserver.forker, after, 0);
+		}
     if (AGOO_ERR_OK != agoo_server_start(&err, "Agoo", StringValuePtr(v))) {
         rb_raise(rb_eStandardError, "%s", err.msg);
     }

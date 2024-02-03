@@ -18,6 +18,7 @@ typedef struct _rServer {
     int		worker_cnt;
     int		worker_pids[MAX_WORKERS];
     VALUE	*eval_threads; // Qnil terminated
+		VALUE	forker;
     RUse	uses;
 } *RServer;
 
