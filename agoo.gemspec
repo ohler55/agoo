@@ -12,6 +12,11 @@ Gem::Specification.new do |s|
   s.summary = 'An HTTP server'
   s.description = 'A fast HTTP server supporting rack.'
   s.licenses = ['MIT']
+  s.metadata = {
+    'changelog_uri' => 'https://github.com/ohler55/agoo/CHANGELOG.md',
+    'source_code_uri' => 'https://github.com/ohler55/agoo'
+    'homepage' = 'https://github.com/ohler55/agoo'
+  }
 
   s.files = Dir["{lib,ext,test}/**/*.{rb,h,c}"] + ['LICENSE', 'README.md', 'CHANGELOG.md']
   s.test_files = Dir["test/**/*.rb"]
