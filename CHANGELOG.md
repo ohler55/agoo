@@ -2,6 +2,11 @@
 
 All changes to the Agoo gem are documented here. Releases follow semantic versioning.
 
+## [2.15.10] - 2024-04-14
+
+### Added
+- Added metadata element to the gemspec file.
+
 ## [2.15.9] - 2024-02-26
 
 ### Fixed
