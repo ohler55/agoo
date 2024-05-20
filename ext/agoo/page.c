@@ -854,7 +854,7 @@ agoo_page_get(agooErr err, const char *path, int plen, const char *root) {
                 char            full_path[2048];
                 char            *s = stpcpy(full_path, cache.root);
 
-                if ('/' != *cache.root && '/' != *path) {
+                if ('/' != *(s - 1) && '/' != *path) {
                     *s++ = '/';
                 }
                 if ((int)sizeof(full_path) <= plen + (s - full_path)) {

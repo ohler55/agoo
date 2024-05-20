@@ -13,7 +13,7 @@ A High Performance HTTP Server for Ruby
 ```ruby
 require 'agoo'
 
-Agoo::Server.init(6464, 'root')
+Agoo::Server.init(6464, './root')
 
 class MyHandler
   def call(req)
@@ -50,7 +50,7 @@ class Schema
   end
 end
 
-Agoo::Server.init(6464, 'root', thread_count: 1, graphql: '/graphql')
+Agoo::Server.init(6464, './root', thread_count: 1, graphql: '/graphql')
 Agoo::Server.start()
 Agoo::GraphQL.schema(Schema.new) {
   Agoo::GraphQL.load(%^type Query { hello: String }^)

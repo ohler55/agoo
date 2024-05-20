@@ -335,6 +335,9 @@ rserver_init(int argc, VALUE *argv, VALUE self) {
     if (Qnil != argv[1]) {
 	rb_check_type(argv[1], T_STRING);
 	root = StringValuePtr(argv[1]);
+	if ('\0' == *root) {
+	    root = NULL;
+	}
     }
     if (3 <= argc) {
         options = argv[2];
@@ -985,6 +988,10 @@ rserver_shutdown(VALUE self) {
  * Registers a handler for the HTTP method and path pattern specified. The
  * path pattern follows glob like rules in that a single * matches a single
  * token bounded by the `/` character and a double ** matches all remaining.
+ * The handler must resolve to an object than responds to "on_request" for the
+ * basic handler, "call" for a Rack handler, or for a WAB handler, "create",
+ * "read", "update", and "delete". The name of a class will resolve to the
+ * class itself.
  */
 static VALUE
 handle(VALUE self, VALUE method, VALUE pattern, VALUE handler) {
