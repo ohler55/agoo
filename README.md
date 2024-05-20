@@ -68,7 +68,7 @@ sleep
 gem install agoo
 ```
 
-## Using Agoo as a server for rails
+## Using Agoo as a server for Rails
 
 As agoo supports rack compatible apps you can use it for rails applications:
 
@@ -111,12 +111,14 @@ use of rack compatible gems such as Hanami and Rails. Agoo also supports WebSock
 
 Agoo is not available on Windows.
 
-## Some other documented examples
+## Getting Started
 
-Some other examples of using Agoo are in the `misc` directory. These
-examples are described in markdown files. Some like the
-[song](misc/song.md) example are simple while others like the
-[glue](misc/glue.md) are more complex. The documented examples are:
+Some examples can be found in the `example` directory.  Some other
+documented walk through examples of using Agoo are in the `misc`
+directory. These examples are described in markdown files. Some like
+the [song](misc/song.md) example are simple while others like the
+[glue](misc/glue.md) are more complex. The documented walk through
+examples are:
 
 - [flymd](misc/flymd.md) - realtime push
 - [glue](misc/glue.md) - publish and subscribe
