@@ -3,11 +3,6 @@
 todo
 -----------
 
-- binding https://github.com/ohler55/agoo/issues/122
-- before and after fork hook
- - fork-wrap with before and after methods
-
-
 - add additional optional plan and request to method calls
  - example
  -
