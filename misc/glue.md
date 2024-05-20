@@ -22,4 +22,4 @@ The diagram shows publishing from a Ruby object to a listener through a
 server. In each case the reverse is also possible except for an SSE
 connection.
 
-![](glue.svg)
+![](glue-diagram.svg)
