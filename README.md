@@ -93,25 +93,6 @@ $ rails server -u agoo
 
 Enjoy the increased performance!
 
-## Some other documented examples
-
-Some other examples of using Agoo are in the `misc` directory. These
-examples are described in markdown files. Some like the
-[song](misc/song.md) example are simple while others like the
-[glue](misc/glue.md) are more complex. The documented examples are:
-
-- [flymd](misc/flymd.md) - realtime push
-
-- [glue](misc/glue.md) - publish and subscribe
-
-- [optimize](misc/optimize.md) - optimizing static asset use
-
-- [push](misc/push.md) - push with Rack
-
-- [rails](misc/rails.md) - faster rails
-
-- [song](misc/song.md) - fun and simple GraphQL
-
 ## What Is This?
 
 Agoo is Japanese for a type of flying fish. This gem flies. It is a high
@@ -129,6 +110,20 @@ Agoo supports the [Ruby rack API](https://rack.github.io) which allows for the
 use of rack compatible gems such as Hanami and Rails. Agoo also supports WebSockets and SSE.
 
 Agoo is not available on Windows.
+
+## Some other documented examples
+
+Some other examples of using Agoo are in the `misc` directory. These
+examples are described in markdown files. Some like the
+[song](misc/song.md) example are simple while others like the
+[glue](misc/glue.md) are more complex. The documented examples are:
+
+- [flymd](misc/flymd.md) - realtime push
+- [glue](misc/glue.md) - publish and subscribe
+- [optimize](misc/optimize.md) - optimizing static asset use
+- [push](misc/push.md) - push with Rack
+- [rails](misc/rails.md) - faster rails
+- [song](misc/song.md) - fun and simple GraphQL
 
 ## News
 
