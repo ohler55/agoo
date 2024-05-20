@@ -68,7 +68,7 @@ sleep
 gem install agoo
 ```
 
-## Using agoo as server for rails
+## Using Agoo as a server for rails
 
 As agoo supports rack compatible apps you can use it for rails applications:
 
@@ -92,6 +92,25 @@ $ rails server -u agoo
 ```
 
 Enjoy the increased performance!
+
+## Some other documented examples
+
+Some other examples of using Agoo are in the `misc` directory. These
+examples are described in markdown files. Some like the
+[song](misc/song.md) example are simple while others like the
+[glue](misc/glue.md) are more complex. The documented examples are:
+
+- [flymd](misc/flymd.md) - realtime push
+
+- [glue](misc/glue.md) - publish and subscribe
+
+- [optimize](misc/optimize.md) - optimizing static asset use
+
+- [push](misc/push.md) - push with Rack
+
+- [rails](misc/rails.md) - faster rails
+
+- [song](misc/song.md) - fun and simple GraphQL
 
 ## What Is This?
 
