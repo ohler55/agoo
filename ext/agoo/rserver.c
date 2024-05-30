@@ -989,9 +989,9 @@ rserver_shutdown(VALUE self) {
  * path pattern follows glob like rules in that a single * matches a single
  * token bounded by the `/` character and a double ** matches all remaining.
  * The handler must resolve to an object than responds to "on_request" for the
- * basic handler, "call" for a Rack handler, or for a WAB handler, "create",
- * "read", "update", and "delete". The name of a class will resolve to the
- * class itself.
+ * basic handler, "call" for a Rack handler, or for a WAB handler (see
+ * https://github.com/ohler55/wabur), "create", "read", "update", and
+ * "delete". The name of a class will resolve to the class itself.
  */
 static VALUE
 handle(VALUE self, VALUE method, VALUE pattern, VALUE handler) {

@@ -803,7 +803,7 @@ agoo_page_get(agooErr err, const char *path, int plen, const char *root) {
             AGOO_ERR_MEM(err, "Page path");
             return NULL;
         }
-        if ('/' != *root && '/' != *(s - 1) && '/' != *path) {
+        if ('/' != *(s - 1) && '/' != *path) {
             *s++ = '/';
         }
         // TBD if path has % then ...

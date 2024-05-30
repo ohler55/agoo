@@ -24,7 +24,10 @@ Gem::Specification.new do |s|
   s.test_files = Dir["test/**/*.rb"]
   s.extensions = ["ext/agoo/extconf.rb"]
 
-  s.extra_rdoc_files = ['README.md', 'CHANGELOG.md', 'LICENSE'] + Dir["pages/*.md"] + Dir["misc/*.md"] + "misc/glue.svg"
+  s.extra_rdoc_files = ['README.md', 'CHANGELOG.md', 'LICENSE'] +
+                       Dir["pages/*.md"] +
+                       Dir["misc/*.md"] +
+                       ["misc/glue-diagram.svg"]
   s.rdoc_options = ['-t', 'Agoo', '-m', 'README.md', '-x', '"test/*"', '-x', '"example/*"', '-x', 'extconf.rb']
 
   s.bindir = 'bin'
