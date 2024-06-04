@@ -2,7 +2,7 @@
 
 All changes to the Agoo gem are documented here. Releases follow semantic versioning.
 
-## [2.15.11] - unreleased
+## [2.15.11] - 2024-06-04
 
 ### Fixed
 
