@@ -15,10 +15,8 @@ jobs:
         # Due to https://github.com/actions/runner/issues/849, we have to use quotes for '3.0'
         ruby:
           - head
-          - '3.0'
+          - '3.2'
           - '2.7'
-          - '2.6'
-          - '2.5'
         os:
           - ubuntu
           - macos
