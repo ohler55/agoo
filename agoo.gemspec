@@ -13,7 +13,9 @@ Gem::Specification.new do |s|
   s.description = 'A fast HTTP server supporting rack.'
   s.licenses = ['MIT']
   s.metadata = {
+    'bug_tracker_uri' => 'https://github.com/ohler55/agoo/issues',
     'changelog_uri' => 'https://github.com/ohler55/agoo/CHANGELOG.md',
+    'documentation_uri' => 'http://www.ohler.com/agoo/index.html',
     'source_code_uri' => 'https://github.com/ohler55/agoo',
     'homepage' => 'https://github.com/ohler55/agoo'
   }
@@ -22,7 +24,10 @@ Gem::Specification.new do |s|
   s.test_files = Dir["test/**/*.rb"]
   s.extensions = ["ext/agoo/extconf.rb"]
 
-  s.extra_rdoc_files = ['README.md', 'CHANGELOG.md', 'LICENSE'] + Dir["pages/*.md"]
+  s.extra_rdoc_files = ['README.md', 'CHANGELOG.md', 'LICENSE'] +
+                       Dir["pages/*.md"] +
+                       Dir["misc/*.md"] +
+                       ["misc/glue-diagram.svg"]
   s.rdoc_options = ['-t', 'Agoo', '-m', 'README.md', '-x', '"test/*"', '-x', '"example/*"', '-x', 'extconf.rb']
 
   s.bindir = 'bin'

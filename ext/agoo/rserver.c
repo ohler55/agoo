@@ -133,7 +133,7 @@ configure(agooErr err, int port, const char *root, VALUE options) {
                 rb_raise(rb_eArgError, "thread_count must be between 1 and %d.", MAX_WORKERS);
             }
         }
-				the_rserver.forker = rb_hash_lookup(options, ID2SYM(rb_intern("fork_wrap")));
+        the_rserver.forker = rb_hash_lookup(options, ID2SYM(rb_intern("fork_wrap")));
 
         if (Qnil != (v = rb_hash_lookup(options, ID2SYM(rb_intern("poll_timeout"))))) {
             double  timeout = rb_num2dbl(v);
@@ -324,16 +324,21 @@ configure(agooErr err, int port, const char *root, VALUE options) {
 static VALUE
 rserver_init(int argc, VALUE *argv, VALUE self) {
     struct _agooErr err = AGOO_ERR_INIT;
-    int     port;
-    const char    *root;
-    VALUE   options = Qnil;
+    int             port;
+    const char      *root = NULL;
+    VALUE           options = Qnil;
 
     if (argc < 2 || 3 < argc) {
         rb_raise(rb_eArgError, "Wrong number of arguments to Agoo::Server.configure.");
     }
     port = FIX2INT(argv[0]);
-    rb_check_type(argv[1], T_STRING);
-    root = StringValuePtr(argv[1]);
+    if (Qnil != argv[1]) {
+	rb_check_type(argv[1], T_STRING);
+	root = StringValuePtr(argv[1]);
+	if ('\0' == *root) {
+	    root = NULL;
+	}
+    }
     if (3 <= argc) {
         options = argv[2];
     }
@@ -834,13 +839,13 @@ rserver_start(VALUE self) {
     if (AGOO_ERR_OK != setup_listen(&err)) {
         rb_raise(rb_eIOError, "%s", err.msg);
     }
-		if (1 < the_rserver.worker_cnt && the_rserver.forker != Qnil) {
-				ID	before = rb_intern("before");
+    if (1 < the_rserver.worker_cnt && the_rserver.forker != Qnil) {
+        ID      before = rb_intern("before");
 
-				if (rb_respond_to(the_rserver.forker, before)) {
-						rb_funcall(the_rserver.forker, before, 0);
-				}
-		}
+        if (rb_respond_to(the_rserver.forker, before)) {
+            rb_funcall(the_rserver.forker, before, 0);
+        }
+    }
     for (i = 1; i < the_rserver.worker_cnt; i++) {
         VALUE rpid = rb_funcall(rb_cObject, rb_intern("fork"), 0);
 
@@ -861,9 +866,9 @@ rserver_start(VALUE self) {
             the_rserver.worker_pids[i] = pid;
         }
     }
-		if (1 < the_rserver.worker_cnt && the_rserver.forker != Qnil && rb_respond_to(the_rserver.forker, after)) {
-				rb_funcall(the_rserver.forker, after, 0);
-		}
+    if (1 < the_rserver.worker_cnt && the_rserver.forker != Qnil && rb_respond_to(the_rserver.forker, after)) {
+        rb_funcall(the_rserver.forker, after, 0);
+    }
     if (AGOO_ERR_OK != agoo_server_start(&err, "Agoo", StringValuePtr(v))) {
         rb_raise(rb_eStandardError, "%s", err.msg);
     }
@@ -983,6 +988,10 @@ rserver_shutdown(VALUE self) {
  * Registers a handler for the HTTP method and path pattern specified. The
  * path pattern follows glob like rules in that a single * matches a single
  * token bounded by the `/` character and a double ** matches all remaining.
+ * The handler must resolve to an object than responds to "on_request" for the
+ * basic handler, "call" for a Rack handler, or for a WAB handler (see
+ * https://github.com/ohler55/wabur), "create", "read", "update", and
+ * "delete". The name of a class will resolve to the class itself.
  */
 static VALUE
 handle(VALUE self, VALUE method, VALUE pattern, VALUE handler) {

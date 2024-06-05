@@ -13,7 +13,7 @@ A High Performance HTTP Server for Ruby
 ```ruby
 require 'agoo'
 
-Agoo::Server.init(6464, 'root')
+Agoo::Server.init(6464, './root')
 
 class MyHandler
   def call(req)
@@ -50,7 +50,7 @@ class Schema
   end
 end
 
-Agoo::Server.init(6464, 'root', thread_count: 1, graphql: '/graphql')
+Agoo::Server.init(6464, './root', thread_count: 1, graphql: '/graphql')
 Agoo::Server.start()
 Agoo::GraphQL.schema(Schema.new) {
   Agoo::GraphQL.load(%^type Query { hello: String }^)
@@ -68,7 +68,7 @@ sleep
 gem install agoo
 ```
 
-## Using agoo as server for rails
+## Using Agoo as a server for Rails
 
 As agoo supports rack compatible apps you can use it for rails applications:
 
@@ -110,6 +110,22 @@ Agoo supports the [Ruby rack API](https://rack.github.io) which allows for the
 use of rack compatible gems such as Hanami and Rails. Agoo also supports WebSockets and SSE.
 
 Agoo is not available on Windows.
+
+## Getting Started
+
+Some examples can be found in the `example` directory.  Some other
+documented walk through examples of using Agoo are in the `misc`
+directory. These examples are described in markdown files. Some like
+the [song](misc/song.md) example are simple while others like the
+[glue](misc/glue.md) are more complex. The documented walk through
+examples are:
+
+- [flymd](misc/flymd.md) - realtime push
+- [glue](misc/glue.md) - publish and subscribe
+- [optimize](misc/optimize.md) - optimizing static asset use
+- [push](misc/push.md) - push with Rack
+- [rails](misc/rails.md) - faster rails
+- [song](misc/song.md) - fun and simple GraphQL
 
 ## News
 

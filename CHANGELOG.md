@@ -2,6 +2,13 @@
 
 All changes to the Agoo gem are documented here. Releases follow semantic versioning.
 
+## [2.15.11] - 2024-06-04
+
+### Fixed
+
+- The server root parameter (asset root) no longer raises and error when `nil`.
+- The server path handling behavior around the use of `/` has been improved.
+
 ## [2.15.10] - 2024-04-14
 
 ### Added

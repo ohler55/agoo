@@ -3,11 +3,6 @@
 todo
 -----------
 
-- binding https://github.com/ohler55/agoo/issues/122
-- before and after fork hook
- - fork-wrap with before and after methods
-
-
 - add additional optional plan and request to method calls
  - example
  -
@@ -43,7 +38,18 @@ todo
 - refs
   - http://www.rubydoc.info/github/rack/rack/master/file/SPEC
 
-rdoc -t Agoo -m README.md -x "test/*" -x "example/*" -x extconf.rb
+- docs
+ - yardoc
+  - needs alterations
+   - cp misc/glue-diagram.svg doc
+   - cp misc/agoo_128.svg doc
+   - edit doc/index.html
+    - replace misc/agoo_128.svg with agoo_128.svg
+    - replace misc/xxx_md.html with file.xxx.html
+
+ - previous
+  - rdoc -t Agoo -m README.md -x "test/*" -x "example/*" -x extconf.rb
+
 use nice -n19 perfer when on same machine
 
 - tests

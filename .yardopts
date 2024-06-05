@@ -1,0 +1,12 @@
+--title "Agoo API Documentation"
+--readme README.md
+--charset utf-8
+-
+misc/flymd.md
+misc/glue.md
+misc/optimize.md
+misc/push.md
+misc/rails.md
+misc/song.md
+CHANGELOG.md
+LICENSE
