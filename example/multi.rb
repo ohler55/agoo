@@ -38,4 +38,4 @@ while true
 end
 
 # To run this example type the following then go to a browser and enter a URL of localhost:6464/hello.
-# ruby hello.rb
+# ruby multi.rb

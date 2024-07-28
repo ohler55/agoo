@@ -809,6 +809,10 @@ wrap_process_loop(void *ptr) {
     return Qnil;
 }
 
+static void on_exit(VALUE x) {
+	agoo_server.active = false;
+}
+
 /* Document-method: start
  *
  * call-seq: start()
@@ -908,6 +912,8 @@ rserver_start(VALUE self) {
             dsleep(0.05);
         }
     }
+	rb_set_end_proc(on_exit, Qnil);
+
     return Qnil;
 }
 
