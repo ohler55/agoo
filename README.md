@@ -101,10 +101,7 @@ of fetches per second. A simple hello world Ruby handler at over 100,000
 requests per second on a desktop computer. That places Agoo at about 85 times
 faster than Sinatra and 1000 times faster than Rails. In both cases the
 latency was two orders of magnitude lower or more. Checkout the
-[benchmarks](http://opo.technology/benchmarks.html#web_benchmarks). Note that
-the benchmarks had to use a C program called
-[Perfer](https://github.com/ohler55/perfer) to hit the Agoo limits. Ruby
-benchmarks driver could not push Agoo hard enough.
+[benchmarks](https://web-frameworks-benchmark.netlify.app/result?l=ruby).
 
 Agoo supports the [Ruby rack API](https://rack.github.io) which allows for the
 use of rack compatible gems such as Hanami and Rails. Agoo also supports WebSockets and SSE.
