@@ -809,7 +809,7 @@ wrap_process_loop(void *ptr) {
     return Qnil;
 }
 
-static void on_exit(VALUE x) {
+static void stop_server(VALUE x) {
 	agoo_server.active = false;
 }
 
@@ -912,7 +912,7 @@ rserver_start(VALUE self) {
             dsleep(0.05);
         }
     }
-	rb_set_end_proc(on_exit, Qnil);
+	rb_set_end_proc(stop_server, Qnil);
 
     return Qnil;
 }
