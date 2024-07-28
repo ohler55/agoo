@@ -74,7 +74,7 @@ find_color(const char *name) {
 }
 
 static bool
-agoo_log_queue_empty() {
+agoo_log_queue_empty(void) {
     agooLogEntry	head = atomic_load(&agoo_log.head);
     agooLogEntry	next = head + 1;
 
@@ -88,7 +88,7 @@ agoo_log_queue_empty() {
 }
 
 static int
-agoo_log_listen() {
+agoo_log_listen(void) {
     if (0 == agoo_log.rsock) {
 	int	fd[2];
 
@@ -105,7 +105,7 @@ agoo_log_listen() {
 }
 
 static void
-agoo_log_release() {
+agoo_log_release(void) {
     char	buf[8];
 
     // clear pipe
@@ -233,7 +233,7 @@ classic_write(agooLogEntry e, FILE *file) {
 // Remove all file with sequence numbers higher than max_files. max_files is
 // max number of archived version. It does not include the primary.
 static void
-remove_old_logs() {
+remove_old_logs(void) {
     struct dirent	*de;
     long		seq;
     char		*end;
@@ -271,7 +271,7 @@ remove_old_logs() {
 }
 
 void
-agoo_log_rotate() {
+agoo_log_rotate(void) {
     char	from[1060];
     char	to[1060];
     int		seq;
@@ -356,7 +356,7 @@ agoo_log_flush(double timeout) {
 }
 
 void
-agoo_log_open_file() {
+agoo_log_open_file(void) {
     char	path[1500];
 
     if (agoo_log.with_pid) {
@@ -379,7 +379,7 @@ agoo_log_open_file() {
 }
 
 void
-agoo_log_close() {
+agoo_log_close(void) {
     agoo_log.done = true;
     // TBD wake up loop like push does
     agoo_log_cat_on(NULL, false);
@@ -450,7 +450,7 @@ agoo_log_cat_find(const char *label) {
 
 #ifdef CLOCK_REALTIME
 int64_t
-agoo_now_nano() {
+agoo_now_nano(void) {
     struct timespec	ts;
 
     clock_gettime(CLOCK_REALTIME, &ts);
@@ -459,7 +459,7 @@ agoo_now_nano() {
 }
 #else
 int64_t
-agoo_now_nano() {
+agoo_now_nano(void) {
     struct timeval	tv;
     struct timezone	tz;
 

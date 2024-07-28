@@ -25,7 +25,7 @@ response_free(void *ptr) {
 }
 
 VALUE
-response_new() {
+response_new(void) {
     agooResponse	res = (agooResponse)AGOO_MALLOC(sizeof(struct _agooResponse));
 
     if (NULL == res) {

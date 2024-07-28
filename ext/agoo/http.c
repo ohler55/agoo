@@ -465,7 +465,7 @@ key_set(const char *key) {
 }
 
 void
-agoo_http_init() {
+agoo_http_init(void) {
     const char	**kp = header_keys;
 
     memset(&key_cache, 0, sizeof(struct _cache));
@@ -475,7 +475,7 @@ agoo_http_init() {
 }
 
 void
-agoo_http_cleanup() {
+agoo_http_cleanup(void) {
     Slot	*sp = key_cache.buckets;
     Slot	s;
     Slot	n;

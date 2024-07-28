@@ -291,7 +291,7 @@ update_reps(Rep reps, Rec r) {
 }
 
 static void
-print_stats() {
+print_stats(void) {
     printf("\n--- Memory Usage Report --------------------------------------------------------\n");
     pthread_mutex_lock(&lock);
 
@@ -320,7 +320,7 @@ print_stats() {
 #endif
 
 void
-debug_report() {
+debug_report(void) {
 #ifdef MEM_DEBUG
     print_stats();
 #endif

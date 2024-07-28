@@ -809,7 +809,7 @@ wrap_process_loop(void *ptr) {
     return Qnil;
 }
 
-static void on_exit(VALUE x) {
+static void stop_server(VALUE x) {
 	agoo_server.active = false;
 }
 
@@ -912,13 +912,13 @@ rserver_start(VALUE self) {
             dsleep(0.05);
         }
     }
-	rb_set_end_proc(on_exit, Qnil);
+	rb_set_end_proc(stop_server, Qnil);
 
     return Qnil;
 }
 
 static void
-stop_runners() {
+stop_runners(void) {
     // The preferred method of waiting for the ruby threads would be either a
     // join or even a kill but since we may not have the gvl here that would
     // cause a segfault. Instead we set a timeout and wait for the running

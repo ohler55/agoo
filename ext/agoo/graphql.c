@@ -429,7 +429,7 @@ gql_init(agooErr err) {
 
 extern gqlType	_gql_root_type;
 void
-gql_destroy() {
+gql_destroy(void) {
     Slot	*sp = buckets;
     Slot	s;
     Slot	n;

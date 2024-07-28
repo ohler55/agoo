@@ -30,7 +30,7 @@ sig_atomic_t		agoo_stop = 0;
 static atomic_int	shutdown_started = AGOO_ATOMIC_INT_INIT(0);
 
 void
-agoo_shutdown() {
+agoo_shutdown(void) {
     if (0 == atomic_fetch_add(&shutdown_started, 1)) {
 	rserver_shutdown(Qnil);
 	agoo_log_close();
@@ -99,7 +99,7 @@ sig_handler(int sig) {
  * agoo is a Japanese word for a type of flying fish.
  */
 void
-Init_agoo() {
+Init_agoo(void) {
     VALUE	mod = rb_define_module("Agoo");
 
     rlog_init(mod);

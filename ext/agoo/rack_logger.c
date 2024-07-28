@@ -10,7 +10,7 @@
 static VALUE	rl_class = Qundef;
 
 VALUE
-rack_logger_new() {
+rack_logger_new(void) {
     return rb_class_new_instance(0, NULL, rl_class);
 }
 
