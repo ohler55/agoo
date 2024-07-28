@@ -368,7 +368,7 @@ agoo_page_destroy(agooPage p) {
 }
 
 void
-agoo_pages_cleanup() {
+agoo_pages_cleanup(void) {
     Slot        *sp = cache.buckets;
     Slot        s;
     Slot        n;

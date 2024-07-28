@@ -23,7 +23,7 @@ es_free(void *ptr) {
 }
 
 VALUE
-error_stream_new() {
+error_stream_new(void) {
     ErrorStream	es = (ErrorStream)AGOO_MALLOC(sizeof(struct _errorStream));
 
     if (NULL == es) {

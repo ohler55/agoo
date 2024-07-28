@@ -12,7 +12,7 @@
 #endif
 
 double
-dtime() {
+dtime(void) {
     struct timespec	ts;
 
     clock_gettime(CLOCK_REALTIME_COURSE, &ts);

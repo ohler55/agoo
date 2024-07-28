@@ -19,7 +19,7 @@ typedef struct _domain {
 static Domain	domains = NULL;
 
 bool
-agoo_domain_use() {
+agoo_domain_use(void) {
     return NULL != domains;
 }
 
@@ -128,7 +128,7 @@ agoo_domain_resolve(const char *host, char *buf, size_t blen) {
 }
 
 void
-agoo_domain_cleanup() {
+agoo_domain_cleanup(void) {
     Domain	d;
 
     while (NULL != (d = domains)) {

@@ -918,7 +918,7 @@ rserver_start(VALUE self) {
 }
 
 static void
-stop_runners() {
+stop_runners(void) {
     // The preferred method of waiting for the ruby threads would be either a
     // join or even a kill but since we may not have the gvl here that would
     // cause a segfault. Instead we set a timeout and wait for the running

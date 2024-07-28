@@ -317,7 +317,7 @@ gql_eval_sels(agooErr err, gqlDoc doc, gqlRef ref, gqlField field, gqlSel sels, 
 }
 
 gqlType
-gql_root_type() {
+gql_root_type(void) {
     if (NULL == _gql_root_type && NULL != gql_type_func) {
 	_gql_root_type = gql_type_func(gql_root);
     }
