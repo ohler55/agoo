@@ -80,7 +80,7 @@ agoo_server_ssl_init(agooErr err, const char *cert_pem, const char *key_pem) {
     }
     SSL_CTX_set_ecdh_auto(agoo_server.ssl_ctx, 1);
 
-    if (!SSL_CTX_use_certificate_file(agoo_server.ssl_ctx, cert_pem, SSL_FILETYPE_PEM)) {
+    if (!SSL_CTX_use_certificate_chain_file(agoo_server.ssl_ctx, cert_pem)) {
         return ssl_error(err, __FILE__, __LINE__);
     }
     if (!SSL_CTX_use_PrivateKey_file(agoo_server.ssl_ctx, key_pem, SSL_FILETYPE_PEM)) {
