@@ -2,6 +2,12 @@
 
 All changes to the Agoo gem are documented here. Releases follow semantic versioning.
 
+## [2.15.13] - 2024-10-20
+
+### Fixed
+
+- Thanks to @alistairjevans for fixing an SSL CTX certificate chain issue.
+
 ## [2.15.12] - 2024-07-28
 
 ### Fixed
