@@ -297,6 +297,10 @@ con_header_read(agooCon c, size_t *mlenp) {
     agooHook		hook = NULL;
     agooPage		p;
     struct _agooErr	err = AGOO_ERR_INIT;
+    const char		*v;
+    int			vlen = 0;
+    char		*vend;
+
 
     if (NULL == hend) {
 	if (sizeof(c->buf) - 1 <= c->bcnt) {
@@ -321,11 +325,7 @@ con_header_read(agooCon c, size_t *mlenp) {
 	}
 	method = AGOO_GET;
 	break;
-    case 'P': {
-	const char	*v;
-	int		vlen = 0;
-	char		*vend;
-
+    case 'P':
 	if (3 == b - c->buf && 0 == strncmp("PUT", c->buf, 3)) {
 	    method = AGOO_PUT;
 	} else if (4 == b - c->buf && 0 == strncmp("POST", c->buf, 4)) {
@@ -343,12 +343,17 @@ con_header_read(agooCon c, size_t *mlenp) {
 	    return bad_request(c, 411, __LINE__);
 	}
 	break;
-    }
     case 'D':
 	if (6 != b - c->buf || 0 != strncmp("DELETE", c->buf, 6)) {
 	    return bad_request(c, 400, __LINE__);
 	}
 	method = AGOO_DELETE;
+	if (NULL != (v = agoo_con_header_value(c->buf, (int)(hend - c->buf), "Content-Length", &vlen))) {
+	    clen = (size_t)strtoul(v, &vend, 10);
+	    if (vend != v + vlen) {
+		return bad_request(c, 411, __LINE__);
+	    }
+	}
 	break;
     case 'H':
 	if (4 != b - c->buf || 0 != strncmp("HEAD", c->buf, 4)) {

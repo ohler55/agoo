@@ -2,6 +2,12 @@
 
 All changes to the Agoo gem are documented here. Releases follow semantic versioning.
 
+## [2.15.14] - unreleased
+
+### Fixed
+
+- HTTP DELETE requests can now include a body.
+
 ## [2.15.13] - 2024-10-20
 
 ### Fixed

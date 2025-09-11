@@ -29,6 +29,11 @@ class BaseHandlerTest < Minitest::Test
       elsif 'PUT' == req.request_method
 	res.code = 201
 	res.body = req.body
+      elsif 'DELETE' == req.request_method
+	res.code = 200
+	res.body = req.body
+
+
       end
     end
   end
@@ -66,6 +71,7 @@ class BaseHandlerTest < Minitest::Test
     Agoo::Server.handle(:PUT, "/makeme", handler)
     Agoo::Server.handle(:GET, "/wild/*/one", WildHandler.new('one'))
     Agoo::Server.handle(:GET, "/wild/all/**", WildHandler.new('all'))
+    Agoo::Server.handle(:DELETE, "/notme", handler)
 
     Agoo::Server.start()
 
@@ -118,9 +124,9 @@ class BaseHandlerTest < Minitest::Test
     }
     expect.each_pair { |k,v|
       if v.nil?
-	assert_nil(obj[k], k)
+        assert_nil(obj[k], k)
       else
-	assert_equal(v, obj[k], k)
+        assert_equal(v, obj[k], k)
       end
     }
   end
@@ -153,6 +159,21 @@ class BaseHandlerTest < Minitest::Test
     }
     assert_equal(Net::HTTPCreated, res.class)
     assert_equal('hello', res.body)
+  end
+
+  def test_delete
+    uri = URI('http://localhost:6470/notme')
+    req = Net::HTTP::Delete.new(uri)
+    # Set the headers the way we want them.
+    req['Accept-Encoding'] = '*'
+    req['Accept'] = 'application/json'
+    req['User-Agent'] = 'Ruby'
+    req.body = 'goodbye'
+
+    res = Net::HTTP.start(uri.hostname, uri.port) { |h|
+      h.request(req)
+    }
+    assert_equal('goodbye', res.body)
   end
 
   def test_wild_one
