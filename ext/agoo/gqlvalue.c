@@ -10,7 +10,7 @@
 #include "graphql.h"
 #include "sectime.h"
 
-static const char	spaces[256] = "\n                                                                                                                                                                                                                                                               ";
+static const char	spaces[257] = "\n                                                                                                                                                                                                                                                               ";
 
 // Null type
 static agooText

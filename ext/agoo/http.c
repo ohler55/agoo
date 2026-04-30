@@ -27,7 +27,7 @@ struct _cache		key_cache;
 
 // The rack spec indicates the characters (),/:;<=>?@[]{} are invalid which
 // clearly is not consistent with RFC7230 so stick with the RFC.
-static char		header_value_chars[256] = "\
+static char		header_value_chars[257] = "\
 xxxxxxxxxxoxxxxxxxxxxxxxxxxxxxxx\
 oooooooooooooooooooooooooooooooo\
 oooooooooooooooooooooooooooooooo\

@@ -57,15 +57,20 @@ agoo_queue_multi_init(agooErr err, agooQueue q, size_t qsize, bool multi_push, b
 
 void
 agoo_queue_cleanup(agooQueue q) {
+    int	sock = q->wsock;
+
+    q->wsock = 0;
+    if (0 < sock) {
+	close(sock);
+    }
+    sock = q->rsock;
+    q->rsock = 0;
+    if (0 < sock) {
+	close(sock);
+    }
     AGOO_FREE(q->q);
     q->q = NULL;
     q->end = NULL;
-    if (0 < q->wsock) {
-	close(q->wsock);
-    }
-    if (0 < q->rsock) {
-	close(q->rsock);
-    }
 }
 
 void
