@@ -483,7 +483,6 @@ fill_headers(agooReq r, VALUE hash) {
     if (NULL == r) {
 	rb_raise(rb_eArgError, "Request is no longer valid.");
     }
-
     for (; h < end; h++) {
 	switch (*h) {
 	case ':':
@@ -515,11 +514,12 @@ fill_headers(agooReq r, VALUE hash) {
 	    } else if (sizeof(connection_key) - 1 == klen && 0 == strncasecmp(key, connection_key, sizeof(connection_key) - 1)) {
 		char	buf[1024];
 
-		// TBD if vend - val is too large don't check upgrade
-		strncpy(buf, val, vend - val);
-		buf[sizeof(buf)-1] = '\0';
-		if (NULL != strstr(buf, upgrade_key)) {
-		    upgrade = true;
+		if (vend - val < (long)sizeof(buf) - 1) {
+		    strncpy(buf, val, vend - val);
+		    buf[sizeof(buf)-1] = '\0';
+		    if (NULL != strstr(buf, upgrade_key)) {
+			upgrade = true;
+		    }
 		}
 	    } else if (sizeof(accept_key) - 1 == klen && 0 == strncasecmp(key, accept_key, sizeof(accept_key) - 1)) {
 		if (sizeof(event_stream_val) - 1 == vend - val &&
