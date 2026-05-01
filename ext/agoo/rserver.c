@@ -1292,6 +1292,23 @@ use(int argc, VALUE *argv, VALUE self) {
     return Qnil;
 }
 
+static size_t
+server_size(const void *ptr) {
+    return sizeof(struct _agooServer);
+}
+
+static const rb_data_type_t server_type = {
+    .wrap_struct_name = "server",
+    .function = {
+	.dmark = server_mark,
+	.dfree = NULL,
+	.dsize = server_size,
+    },
+    .data = NULL,
+    .flags = 0,
+};
+
+
 /* Document-class: Agoo::Server
  *
  * An HTTP server that support the rack API as well as some other optimized
@@ -1335,7 +1352,8 @@ server_init(VALUE mod) {
 
     push_env_key = rb_str_new_cstr("rack.upgrade"); rb_gc_register_address(&push_env_key);
 
-    rserver = Data_Wrap_Struct(rb_cObject, server_mark, NULL, strdup("dummy"));
+    rserver = TypedData_Wrap_Struct(rb_cObject, &server_type, strdup("dummy"));
+
     rb_gc_register_address(&rserver);
 
     agoo_http_init();

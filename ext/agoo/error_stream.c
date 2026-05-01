@@ -22,6 +22,22 @@ es_free(void *ptr) {
     }
 }
 
+static size_t
+es_size(const void *ptr) {
+    return sizeof(struct _errorStream);
+}
+
+static const rb_data_type_t error_stream_type = {
+    .wrap_struct_name = "error_stream",
+    .function = {
+	.dmark = NULL,
+	.dfree = es_free,
+	.dsize = es_size,
+    },
+    .data = NULL,
+    .flags = RUBY_TYPED_FREE_IMMEDIATELY,
+};
+
 VALUE
 error_stream_new(void) {
     ErrorStream	es = (ErrorStream)AGOO_MALLOC(sizeof(struct _errorStream));
@@ -32,7 +48,7 @@ error_stream_new(void) {
     es->server = NULL;
     es->text = NULL;
 
-    return Data_Wrap_Struct(es_class, NULL, es_free, es);
+    return TypedData_Wrap_Struct(es_class, &error_stream_type, es);
 }
 
 /* Document-method: puts

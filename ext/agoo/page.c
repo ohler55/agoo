@@ -798,8 +798,8 @@ agoo_page_get(agooErr err, const char *path, int plen, const char *root) {
     } else {
 	s = full_path;
     }
-
-    // TBD need to capture after %xx replacement
+    // This catches the accidental repeated / but not the intentional URL
+    // encoding which is detected and denied later.
     if ('/' != *(s - 1) && '/' != *path) {
 	*s++ = '/';
     }
@@ -824,56 +824,30 @@ agoo_page_get(agooErr err, const char *path, int plen, const char *root) {
 	s += plen;
     }
     *s = '\0';
-
-    if (NULL != strstr(path, "../")) {
+    // full_path is now URL decoded.
+    if (NULL != strstr(full_path, "../") || NULL != strstr(full_path, "//")) {
         return NULL;
     }
-    if (NULL != root) {
-        plen = (int)(s - full_path);
-        if (NULL == (page = cache_root_get(full_path, plen))) {
-            if (NULL != cache.root) {
-                agooPage        old;
+    plen = (int)(s - full_path);
+    if (NULL == (page = cache_root_get(full_path, plen))) {
+	if (NULL != cache.root) {
+	    agooPage	old;
 
-                if (NULL == (page = agoo_page_create(full_path))) {
-                    AGOO_ERR_MEM(err, "Page");
-                    return NULL;
-                }
-                if (!update_contents(page) || NULL == page->resp) {
-                    agoo_page_destroy(page);
-                    agoo_err_set(err, AGOO_ERR_NOT_FOUND, "not found.");
-                    return NULL;
-                }
-                if (NULL != (old = cache_root_set(full_path, plen, page))) {
-                    agoo_page_destroy(old);
-                }
-            }
-        } else {
-            page = page_check(err, page);
-        }
+	    if (NULL == (page = agoo_page_create(full_path))) {
+		AGOO_ERR_MEM(err, "Page");
+		return NULL;
+	    }
+	    if (!update_contents(page) || NULL == page->resp) {
+		agoo_page_destroy(page);
+		agoo_err_set(err, AGOO_ERR_NOT_FOUND, "not found.");
+		return NULL;
+	    }
+	    if (NULL != (old = cache_root_set(full_path, plen, page))) {
+		agoo_page_destroy(old);
+	    }
+	}
     } else {
-        if (NULL == (page = cache_get(path, plen))) { // TBD full_path
-            if (NULL != cache.root) {
-                agooPage        old;
-
-                if (NULL == (page = agoo_page_create(full_path))) {
-                    AGOO_ERR_MEM(err, "Page");
-                    return NULL;
-                }
-
-                plen = (int)strlen(full_path);
-                if (!update_contents(page) || NULL == page->resp) {
-                    agoo_page_destroy(page);
-                    agoo_err_set(err, AGOO_ERR_NOT_FOUND, "not found.");
-                    return NULL;
-                }
-                // Cache key is the original path/plen.
-                if (NULL != (old = cache_set(path, plen, page))) {
-                    agoo_page_destroy(old);
-                }
-            }
-        } else {
-            page = page_check(err, page);
-        }
+	page = page_check(err, page);
     }
     return page;
 }

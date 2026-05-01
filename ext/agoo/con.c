@@ -26,8 +26,6 @@
 #include "upgraded.h"
 #include "websocket.h"
 
-#define INITIAL_POLL_SIZE	1024
-
 double con_timeout = 30.0;
 
 typedef enum {

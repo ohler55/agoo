@@ -24,6 +24,22 @@ eh_free(void *ptr) {
     }
 }
 
+static size_t
+eh_size(const void *ptr) {
+    return sizeof(struct _earlyHints);
+}
+
+static const rb_data_type_t early_hints_type = {
+    .wrap_struct_name = "early_hints",
+    .function = {
+	.dmark = NULL,
+	.dfree = eh_free,
+	.dsize = eh_size,
+    },
+    .data = NULL,
+    .flags = RUBY_TYPED_FREE_IMMEDIATELY,
+};
+
 VALUE
 agoo_early_hints_new(agooReq req) {
     EarlyHints	eh = (EarlyHints)AGOO_CALLOC(1, sizeof(struct _earlyHints));
@@ -33,7 +49,7 @@ agoo_early_hints_new(agooReq req) {
     }
     eh->req = req;
 
-    return Data_Wrap_Struct(eh_class, NULL, eh_free, eh);
+    return TypedData_Wrap_Struct(eh_class, &early_hints_type, eh);
 }
 
 /* Document-method: call
