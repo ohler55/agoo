@@ -483,7 +483,6 @@ fill_headers(agooReq r, VALUE hash) {
     if (NULL == r) {
 	rb_raise(rb_eArgError, "Request is no longer valid.");
     }
-
     for (; h < end; h++) {
 	switch (*h) {
 	case ':':
@@ -515,10 +514,12 @@ fill_headers(agooReq r, VALUE hash) {
 	    } else if (sizeof(connection_key) - 1 == klen && 0 == strncasecmp(key, connection_key, sizeof(connection_key) - 1)) {
 		char	buf[1024];
 
-		strncpy(buf, val, vend - val);
-		buf[sizeof(buf)-1] = '\0';
-		if (NULL != strstr(buf, upgrade_key)) {
-		    upgrade = true;
+		if (vend - val < (long)sizeof(buf) - 1) {
+		    strncpy(buf, val, vend - val);
+		    buf[sizeof(buf)-1] = '\0';
+		    if (NULL != strstr(buf, upgrade_key)) {
+			upgrade = true;
+		    }
 		}
 	    } else if (sizeof(accept_key) - 1 == klen && 0 == strncasecmp(key, accept_key, sizeof(accept_key) - 1)) {
 		if (sizeof(event_stream_val) - 1 == vend - val &&
@@ -739,10 +740,28 @@ request_mark(void *ptr) {
     }
 }
 
+static size_t
+request_size(const void *ptr) {
+    agooReq	r = (agooReq)ptr;
+
+    return sizeof(struct _agooReq) + r->mlen - 8;
+}
+
+static const rb_data_type_t request_type = {
+    .wrap_struct_name = "request",
+    .function = {
+	.dmark = request_mark,
+	.dfree = NULL,
+	.dsize = request_size,
+    },
+    .data = NULL,
+    .flags = RUBY_TYPED_FREE_IMMEDIATELY,
+};
+
 VALUE
 request_wrap(agooReq req) {
     // freed from the C side of things
-    return Data_Wrap_Struct(req_class, request_mark, NULL, req);
+    return TypedData_Wrap_Struct(req_class, &request_type, req);
 }
 
 /* Document-class: Agoo::Request

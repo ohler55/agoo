@@ -24,6 +24,22 @@ response_free(void *ptr) {
     AGOO_FREE(ptr);
 }
 
+static size_t
+response_size(const void *ptr) {
+    return sizeof(struct _agooResponse);
+}
+
+static const rb_data_type_t response_type = {
+    .wrap_struct_name = "response",
+    .function = {
+	.dmark = NULL,
+	.dfree = response_free,
+	.dsize = response_size,
+    },
+    .data = NULL,
+    .flags = RUBY_TYPED_FREE_IMMEDIATELY,
+};
+
 VALUE
 response_new(void) {
     agooResponse	res = (agooResponse)AGOO_MALLOC(sizeof(struct _agooResponse));
@@ -34,7 +50,7 @@ response_new(void) {
     memset(res, 0, sizeof(struct _agooResponse));
     res->code = 200;
 
-    return Data_Wrap_Struct(res_class, NULL, response_free, res);
+    return TypedData_Wrap_Struct(res_class, &response_type, res);
 }
 
 /* Document-method: to_s

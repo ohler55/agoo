@@ -788,114 +788,66 @@ page_check(agooErr err, agooPage page) {
 agooPage
 agoo_page_get(agooErr err, const char *path, int plen, const char *root) {
     agooPage    page = NULL;
+    char        full_path[2048];
+    char        *s;
 
-    if (NULL != strstr(path, "../")) {
+    if (NULL != root) {
+	s = stpcpy(full_path, root);
+    } else if (NULL != cache.root) {
+	s = stpcpy(full_path, cache.root);
+    } else {
+	s = full_path;
+    }
+    // This catches the accidental repeated / but not the intentional URL
+    // encoding which is detected and denied later.
+    if ('/' != *(s - 1) && '/' != *path) {
+	*s++ = '/';
+    }
+    if ((int)sizeof(full_path) <= plen + (s - full_path)) {
+	AGOO_ERR_MEM(err, "Page path");
+	return NULL;
+    }
+    if (NULL != memchr(path, '%', plen)) {
+	const char  *pend = path + plen;
+	const char  *pp = path;
+
+	for (; pp < pend; pp++) {
+	    if ('%' != *pp) {
+		*s++ = *pp;
+		continue;
+	    }
+	    *s++ = parse_percent_seq(pp+1);
+	    pp += 2;
+	}
+    } else {
+	strncpy(s, path, plen);
+	s += plen;
+    }
+    *s = '\0';
+    // full_path is now URL decoded.
+    if (NULL != strstr(full_path, "../") || NULL != strstr(full_path, "//")) {
         return NULL;
     }
-    if (NULL != root) {
-        char    full_path[2048];
-        char    *s = stpcpy(full_path, root);
+    plen = (int)(s - full_path);
+    if (NULL == (page = cache_root_get(full_path, plen))) {
+	if (NULL != cache.root) {
+	    agooPage	old;
 
-        if (NULL != strstr(path, "../")) {
-            return NULL;
-        }
-        if ((int)sizeof(full_path) <= plen + (s - full_path)) {
-            AGOO_ERR_MEM(err, "Page path");
-            return NULL;
-        }
-        if ('/' != *(s - 1) && '/' != *path) {
-            *s++ = '/';
-        }
-        // TBD if path has % then ...
-        if (NULL != memchr(path, '%', plen)) {
-            const char  *pend = path + plen;
-            const char  *pp = path;
-
-            for (; pp < pend; pp++) {
-                if ('%' != *pp) {
-                    *s++ = *pp;
-                    continue;
-                }
-                *s++ = parse_percent_seq(pp+1);
-                pp += 2;
-            }
-        } else {
-            strncpy(s, path, plen);
-            s += plen;
-        }
-        *s = '\0';
-        plen = (int)(s - full_path);
-        if (NULL == (page = cache_root_get(full_path, plen))) {
-            if (NULL != cache.root) {
-                agooPage        old;
-
-                if (NULL == (page = agoo_page_create(full_path))) {
-                    AGOO_ERR_MEM(err, "Page");
-                    return NULL;
-                }
-                if (!update_contents(page) || NULL == page->resp) {
-                    agoo_page_destroy(page);
-                    agoo_err_set(err, AGOO_ERR_NOT_FOUND, "not found.");
-                    return NULL;
-                }
-                if (NULL != (old = cache_root_set(full_path, plen, page))) {
-                    agoo_page_destroy(old);
-                }
-            }
-        } else {
-            page = page_check(err, page);
-        }
+	    if (NULL == (page = agoo_page_create(full_path))) {
+		AGOO_ERR_MEM(err, "Page");
+		return NULL;
+	    }
+	    if (!update_contents(page) || NULL == page->resp) {
+		agoo_page_destroy(page);
+		agoo_err_set(err, AGOO_ERR_NOT_FOUND, "not found.");
+		return NULL;
+	    }
+	    if (NULL != (old = cache_root_set(full_path, plen, page))) {
+		agoo_page_destroy(old);
+	    }
+	}
     } else {
-        if (NULL == (page = cache_get(path, plen))) {
-            bool        has_percent = NULL != memchr(path, '%', plen);
-
-            if (NULL != cache.root || has_percent) {
-                agooPage        old;
-                char            full_path[2048];
-                char            *s = stpcpy(full_path, cache.root);
-
-                if ('/' != *(s - 1) && '/' != *path) {
-                    *s++ = '/';
-                }
-                if ((int)sizeof(full_path) <= plen + (s - full_path)) {
-                    AGOO_ERR_MEM(err, "Page path");
-                    return NULL;
-                }
-                if (has_percent) {
-                    const char  *pend = path + plen;
-                    const char  *pp = path;
-
-                    for (; pp < pend; pp++) {
-                        if ('%' != *pp) {
-                            *s++ = *pp;
-                            continue;
-                        }
-                        *s++ = parse_percent_seq(pp+1);
-                        pp += 2;
-                    }
-                    *s = '\0';
-                } else {
-                    strncpy(s, path, plen);
-                    s[plen] = '\0';
-                }
-                if (NULL == (page = agoo_page_create(full_path))) { // TBD full_path or original path?
-                    AGOO_ERR_MEM(err, "Page");
-                    return NULL;
-                }
-                plen = (int)strlen(full_path);
-                if (!update_contents(page) || NULL == page->resp) {
-                    agoo_page_destroy(page);
-                    agoo_err_set(err, AGOO_ERR_NOT_FOUND, "not found.");
-                    return NULL;
-                }
-                // Cache key is the original path/plen.
-                if (NULL != (old = cache_set(path, plen, page))) {
-                    agoo_page_destroy(old);
-                }
-            }
-        } else {
-            page = page_check(err, page);
-        }
+	page = page_check(err, page);
     }
     return page;
 }

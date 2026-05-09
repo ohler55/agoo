@@ -124,4 +124,16 @@ class StaticTest < Minitest::Test
     assert_equal("404", res.code)
   end
 
+  def test_fetch_encoded
+    uri = URI('http://localhost:6469/%2e%2e%2ftests.sh')
+    res = Net::HTTP.get_response(uri)
+    assert_equal("404", res.code)
+  end
+
+  def test_fetch_double_slash
+    uri = URI('http://localhost:6469/%2f/nest/something.txt')
+    res = Net::HTTP.get_response(uri)
+    assert_equal("404", res.code)
+  end
+
 end

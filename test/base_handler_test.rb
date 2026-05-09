@@ -32,8 +32,6 @@ class BaseHandlerTest < Minitest::Test
       elsif 'DELETE' == req.request_method
 	res.code = 200
 	res.body = req.body
-
-
       end
     end
   end
@@ -96,6 +94,49 @@ class BaseHandlerTest < Minitest::Test
     req['Accept-Encoding'] = '*'
     req['Accept'] = 'application/json'
     req['User-Agent'] = 'Ruby'
+
+    res = Net::HTTP.start(uri.hostname, uri.port) { |h|
+      h.request(req)
+    }
+    content = res.body
+    obj = Oj.load(content, mode: :strict)
+
+    expect = {
+      "HTTP_ACCEPT" => "application/json",
+      "HTTP_ACCEPT_ENCODING" => "*",
+      "HTTP_USER_AGENT" => "Ruby",
+      "PATH_INFO" => "/tellme",
+      "QUERY_STRING" => "a=1",
+      "REQUEST_METHOD" => "GET",
+      "SCRIPT_NAME" => "",
+      "SERVER_NAME" => "localhost",
+      "SERVER_PORT" => "6470",
+      "rack.errors" => nil,
+      "rack.input" => nil,
+      "rack.multiprocess" => false,
+      "rack.multithread" => false,
+      "rack.run_once" => false,
+      "rack.url_scheme" => "http",
+      "rack.version" => [1, 3],
+      "rack.logger" => nil,
+    }
+    expect.each_pair { |k,v|
+      if v.nil?
+        assert_nil(obj[k], k)
+      else
+        assert_equal(v, obj[k], k)
+      end
+    }
+  end
+
+  def test_long_connection
+    uri = URI('http://localhost:6470/tellme?a=1')
+    req = Net::HTTP::Get.new(uri)
+    # Set the headers the way we want them.
+    req['Accept-Encoding'] = '*'
+    req['Accept'] = 'application/json'
+    req['User-Agent'] = 'Ruby'
+    req['Connection'] = 'X'* 1024 # should not cause a failure
 
     res = Net::HTTP.start(uri.hostname, uri.port) { |h|
       h.request(req)

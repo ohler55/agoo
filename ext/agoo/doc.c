@@ -13,7 +13,7 @@
 #define EXP_MAX		100000
 #define DEC_MAX		16
 
-static char	char_map[256] = "\
+static char	char_map[257] = "\
 .........ww..w..................\
 wpq.....pp..w.p.ttttttttttp..p..\
 pttttttttttttttttttttttttttp.p.t\
@@ -23,7 +23,7 @@ pttttttttttttttttttttttttttp.p.t\
 ................................\
 ................................";
 
-static char	json_map[256] = "\
+static char	json_map[257] = "\
 .........ww..w..................\
 wpq.....pp..c.p.ttttttttttp..p..\
 pttttttttttttttttttttttttttp.p.t\
@@ -33,7 +33,7 @@ pttttttttttttttttttttttttttp.p.t\
 ................................\
 ................................";
 
-static char	value_map[256] = "\
+static char	value_map[257] = "\
 .........ww..w..................\
 wpq.....pp..ctt.ttttttttttt..p..\
 pttttttttttttttttttttttttttp.p.t\

@@ -231,6 +231,22 @@ on_destroy(agooUpgraded up) {
     }
 }
 
+static size_t
+upgraded_size(const void *ptr) {
+    return sizeof(struct _agooUpgraded);
+}
+
+static const rb_data_type_t upgraded_type = {
+    .wrap_struct_name = "upgraded",
+    .function = {
+	.dmark = NULL,
+	.dfree = NULL,
+	.dsize = upgraded_size,
+    },
+    .data = NULL,
+    .flags = 0,
+};
+
 agooUpgraded
 rupgraded_create(agooCon c, VALUE obj, VALUE env) {
     agooUpgraded	up;
@@ -246,7 +262,7 @@ rupgraded_create(agooCon c, VALUE obj, VALUE env) {
 	up->on_error = rb_respond_to(obj, rb_intern("on_error"));
 	up->on_destroy = on_destroy;
 
-	up->wrap = (void*)Data_Wrap_Struct(upgraded_class, NULL, NULL, up);
+	up->wrap = (void*)TypedData_Wrap_Struct(upgraded_class, &upgraded_type, up);
 
 	agoo_server_add_upgraded(up);
 
