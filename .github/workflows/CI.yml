@@ -21,7 +21,7 @@ jobs:
           - ubuntu
           - macos
 
-    runs-on: ${{ matrix.os }}-latest
+    runs-on: ${{ matrix.os == 'ubuntu' && 'ubuntu-24.04' || 'macos-latest' }}
     continue-on-error: ${{ matrix.ruby == '3.0' || matrix.ruby == 'head'}}
     name: Ruby ${{ matrix.ruby }} (${{ matrix.os }})
     steps:
@@ -32,7 +32,7 @@ jobs:
       - name: build
         run: |
           cd ./ext/agoo
-          ruby extconf.rb
+          ruby extconf.rb || { [ ! -f mkmf.log ] || cat mkmf.log; exit 1; }
           make
       - name: test
         run: |
