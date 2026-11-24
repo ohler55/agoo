@@ -405,7 +405,10 @@ con_header_read(agooCon c, size_t *mlenp) {
     for (; ' ' == *proto; proto++) {
     }
     pend = proto;
-    for (; '\r' != *pend; pend++) {
+    for (; pend <= hend && '\r' != *pend; pend++) {
+    }
+    if (hend < pend) {
+	return bad_request(c, 400, __LINE__);
     }
     if (AGOO_GET == method) {
 	char		root_buf[20148];
